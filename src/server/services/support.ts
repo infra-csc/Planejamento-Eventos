@@ -1,0 +1,118 @@
+import { and, eq, inArray, sql } from "drizzle-orm";
+import type { Db, Tx } from "@/server/db";
+import { configuracoes, historico, notificacoes, sequencias, usuarios, type Perfil } from "@/server/db/schema";
+
+export type Executor = Db | Tx;
+
+/* ------------------------------------------------------------------ */
+/* Histórico / auditoria                                                */
+/* ------------------------------------------------------------------ */
+
+export async function registrarHistorico(
+  ex: Executor,
+  dados: {
+    eventoId?: string | null;
+    entidade: string;
+    entidadeId: string;
+    acao: string;
+    descricao: string;
+    usuarioId: string | null;
+    dadosAntes?: unknown;
+    dadosDepois?: unknown;
+  },
+) {
+  await ex.insert(historico).values({
+    eventoId: dados.eventoId ?? null,
+    entidade: dados.entidade,
+    entidadeId: dados.entidadeId,
+    acao: dados.acao,
+    descricao: dados.descricao,
+    usuarioId: dados.usuarioId,
+    dadosAntes: dados.dadosAntes ?? null,
+    dadosDepois: dados.dadosDepois ?? null,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Notificações                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function notificar(
+  ex: Executor,
+  dados: { usuarioIds: string[]; tipo: string; titulo: string; mensagem: string; link?: string | null; chaveDedupe?: string | null; excetoUsuarioId?: string | null },
+) {
+  const ids = [...new Set(dados.usuarioIds)].filter((id) => id !== dados.excetoUsuarioId);
+  if (ids.length === 0) return;
+  await ex
+    .insert(notificacoes)
+    .values(
+      ids.map((usuarioId) => ({
+        usuarioId,
+        tipo: dados.tipo,
+        titulo: dados.titulo,
+        mensagem: dados.mensagem,
+        link: dados.link ?? null,
+        chaveDedupe: dados.chaveDedupe ?? null,
+      })),
+    )
+    .onConflictDoNothing();
+}
+
+export async function usuariosPorPerfil(ex: Executor, perfis: Perfil[]): Promise<string[]> {
+  const rows = await ex
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(and(inArray(usuarios.perfil, perfis), eq(usuarios.ativo, true)));
+  return rows.map((r) => r.id);
+}
+
+export async function usuariosDaArea(ex: Executor, areaId: string): Promise<string[]> {
+  const rows = await ex
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(and(eq(usuarios.areaId, areaId), eq(usuarios.ativo, true)));
+  return rows.map((r) => r.id);
+}
+
+export const usuariosRequisitantes = (ex: Executor) => usuariosPorPerfil(ex, ["REQUISITANTE", "CENOGRAFIA"]);
+export const usuariosLogistica = (ex: Executor) => usuariosPorPerfil(ex, ["LOGISTICA"]);
+
+/* ------------------------------------------------------------------ */
+/* Sequências de código (EV-0001, SOL-0001)                              */
+/* ------------------------------------------------------------------ */
+
+export async function proximoCodigo(ex: Executor, nome: "evento" | "solicitacao" | "projeto"): Promise<string> {
+  const prefixo = { evento: "EV", solicitacao: "SOL", projeto: "PJ" }[nome];
+  const [row] = await ex
+    .insert(sequencias)
+    .values({ nome, valor: 1 })
+    .onConflictDoUpdate({ target: sequencias.nome, set: { valor: sql`${sequencias.valor} + 1` } })
+    .returning({ valor: sequencias.valor });
+  return `${prefixo}-${String(row.valor).padStart(4, "0")}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Configurações                                                        */
+/* ------------------------------------------------------------------ */
+
+export const CONFIG_PADRAO = {
+  sla_resposta_horas: "48",
+  lembrete_reuniao_dias: "1",
+  bloquear_encerramento_com_pendentes: "true",
+} as const;
+
+export type ChaveConfig = keyof typeof CONFIG_PADRAO;
+
+export async function obterConfiguracoes(ex: Executor): Promise<Record<ChaveConfig, string>> {
+  const rows = await ex.select().from(configuracoes);
+  const out = { ...CONFIG_PADRAO } as Record<ChaveConfig, string>;
+  for (const r of rows) if (r.chave in out) out[r.chave as ChaveConfig] = r.valor;
+  return out;
+}
+
+export async function salvarConfiguracao(ex: Executor, chave: ChaveConfig, valor: string) {
+  await ex
+    .insert(configuracoes)
+    .values({ chave, valor })
+    .onConflictDoUpdate({ target: configuracoes.chave, set: { valor, atualizadoEm: new Date() } });
+}

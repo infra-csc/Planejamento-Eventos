@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dados locais (PGlite) e uploads
+/.data
+!.env.example
+.next-dev.log
+.next-prod.log

@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Norte Mkt · Planejamento de Eventos
 
-## Getting Started
+Sistema de OS, ata e estrutura para eventos: catálogo de peças → projetos padrão com lista de peças (BOM) → evento → ata da reunião → OS gerada automaticamente → solicitações de alteração respondidas item a item → encerramento pela logística.
 
-First, run the development server:
+Especificação completa: [docs/01-analise-e-especificacao.md](docs/01-analise-e-especificacao.md). Entregáveis, decisões e testes: [docs/02-entregaveis.md](docs/02-entregaveis.md).
+
+## Stack
+
+- Next.js 16 (App Router, Server Actions) + TypeScript + Tailwind CSS 4
+- Drizzle ORM sobre PostgreSQL. Sem `DATABASE_URL`, usa PostgreSQL embutido (PGlite) em `./.data/pglite` — nada para instalar localmente.
+- Autenticação própria (sessão em cookie HttpOnly), permissões verificadas no servidor.
+- Testes: Vitest (domínio) e teste de fumaça dos serviços (`npm run test:smoke`).
+
+## Rodando localmente
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run setup      # migrações + dados de demonstração
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Usuários de demonstração (senha de todos: `norte1234`):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Perfil | E-mail |
+|---|---|
+| Logística | marina.castro@nortemkt.com.br · rafael.nunes@nortemkt.com.br |
+| Gestão | helena.prado@nortemkt.com.br |
+| Cenografia (biblioteca de projetos) | bruno.tavares@nortemkt.com.br |
+| Requisitante (Produção) | paulo.ribeiro@nortemkt.com.br |
+| Requisitante (Ativação / Gráfica / Atendimento) | julia.fontes@ · diego.sampaio@ · lucia.barros@nortemkt.com.br |
+| Administrador | admin@nortemkt.com.br |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Recomeçar do zero: `npm run db:reset && npm run setup`.
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Comando | O que faz |
+|---|---|
+| `npm run dev` / `build` / `start` | desenvolvimento / build de produção / servidor de produção |
+| `npm run db:generate` | gera migração SQL a partir de `src/server/db/schema.ts` |
+| `npm run db:migrate` | aplica migrações (PGlite ou Postgres, conforme `DATABASE_URL`) |
+| `npm run db:seed` | dados de demonstração (só em banco vazio) |
+| `npm run db:reset` | apaga tudo |
+| `npm test` | testes unitários do domínio |
+| `npm run test:smoke` | cenários de negócio contra o banco (rode após `setup`) |
+| `npm run typecheck` / `lint` | TypeScript / ESLint |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy no Replit
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Importe o repositório no Replit. O arquivo `.replit` já define Node 24, PostgreSQL 16, build (`npm ci && npm run build`) e run (`npm run db:migrate && npm run start`) para deployment Autoscale, porta 3000.
+2. Crie o banco PostgreSQL do Replit (aba Database). A variável `DATABASE_URL` é injetada automaticamente.
+3. Em Secrets, defina `APP_SECRET` (valor aleatório) e `APP_URL` (URL pública do deployment).
+4. No Shell do Replit, rode uma vez: `npm run setup` (migrações + dados de demonstração). Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro usuário administrador com `npm run db:seed` seguido de limpeza, ou ajuste o seed.
+5. Publique o deployment.
 
-## Deploy on Vercel
+Sem SMTP no MVP: a recuperação de senha gera um link registrado no log do servidor (e exibido na tela fora de produção). Configure e-mail antes de liberar para todos.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Estrutura
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/            rotas (App Router): (auth), (app), api, impressao
+  components/     ui/ (primitivas) e por funcionalidade (eventos, solicitacoes, projetos, ...)
+  domain/         regras puras + testes: permissões, máquinas de estado, cálculo de OS, consolidação
+  server/         auth, db (drizzle), services (casos de uso), jobs (verificações de prazo)
+  lib/            formatação, schemas zod, helpers de action
+scripts/          migrate, seed, reset, smoke
+drizzle/          migrações SQL
+docs/             especificação e entregáveis
+```
