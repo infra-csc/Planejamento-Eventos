@@ -1,48 +1,60 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { descricaoItem, obterSolicitacao } from "@/server/services/solicitacoes";
-import { obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { descricaoItem, listarFila, obterSolicitacao } from "@/server/services/solicitacoes";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
-import { aceitaSolicitacao, EVENTO_STATUS_LABEL } from "@/domain/evento";
-import { estaAtrasada, podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, SOLICITACAO_TIPO_LABEL } from "@/domain/solicitacao";
-import { KeyValue, Notice, PageHeader, Panel } from "@/components/ui/layout";
+import { aceitaSolicitacao } from "@/domain/evento";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder } from "@/domain/solicitacao";
+import { prazoInfo, COR_TOM } from "@/lib/prazo";
+import { diaMesHora } from "@/lib/format";
+import { Aviso, ListaDados, Section } from "@/components/ui/layout";
 import { SolicitacaoStatusBadge } from "@/components/ui/badge";
-import { SolicitacaoEditor } from "@/components/solicitacoes/solicitacao-editor";
-import { SolicitacaoDetalhe } from "@/components/solicitacoes/solicitacao-detalhe";
-import { formatarDataHora, tempoRelativo } from "@/lib/format";
+import { DefinirTrilha } from "@/components/shell/trilha";
+import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
+import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
   if (!usuario) return {};
   const { id } = await params;
   const s = await obterSolicitacao(usuario, id).catch(() => null);
-  return { title: s ? `${s.codigo} · ${s.evento.nome}` : "Solicitação" };
+  return { title: s ? `${s.codigo} · ${s.titulo || s.evento.nome}` : "Solicitação" };
 }
 
-export default async function SolicitacaoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SolicitacaoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ fila?: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
+  const sp = await searchParams;
   const s = await obterSolicitacao(usuario, id).catch((e) => {
     if (e instanceof NaoEncontradoError) notFound();
     if (e instanceof DomainError && e.code === "SEM_PERMISSAO") redirect("/sem-permissao");
     throw e;
   });
 
-  const editavel = podeEnviar(s.status) && podeEditarSolicitacao(usuario, s);
   const agora = new Date();
-  const atrasada = estaAtrasada(s.status, s.prazoRespostaEm, agora);
+  const ehLogistica = pode(usuario, "solicitacao.responder");
+  const faseOk = s.tipo === "PRE_REUNIAO" ? s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO" : s.evento.status === "ABERTO";
+  const respondivel = ehLogistica && podeResponder(s.status) && faseOk;
+  const corrigivel = ehLogistica && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && faseOk;
   const algumRespondido = s.itens.some((i) => i.status !== "EM_ANALISE");
-  const itensView = s.itens.map((i) => ({
+  const pendentes = s.itens.filter((i) => i.status === "EM_ANALISE").length;
+  const dono = podeEditarSolicitacao(usuario, s);
+  const editavel = dono && podeEnviar(s.status);
+  const sufixo = s.tipo === "ALTERACAO" ? "OS regerada" : "ata atualizada";
+
+  const modoFila = sp.fila === "1" && ehLogistica;
+  const fila = modoFila ? await listarFila(usuario) : [];
+  const idx = fila.findIndex((f) => f.id === s.id);
+  const proxima = idx >= 0 ? fila[idx + 1] : fila.find((f) => f.id !== s.id);
+  const anterior = idx > 0 ? fila[idx - 1] : null;
+  const proximaHref = modoFila && proxima ? `/solicitacoes/${proxima.id}?fila=1` : null;
+
+  const pi = prazoInfo(s, agora);
+  const itens: ItemParaResposta[] = s.itens.map((i) => ({
     id: i.id,
     descricao: descricaoItem(i),
     operacao: i.operacao,
-    referenciaTipo: (i.projetoId ? "PROJETO" : i.pecaId ? "PECA" : "AVULSO") as "PROJETO" | "PECA" | "AVULSO",
-    projetoId: i.projetoId,
-    pecaId: i.pecaId,
-    descricaoLivre: i.descricaoLivre,
-    eventoItemId: i.eventoItemId,
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.eventoItem?.quantidade ?? null,
     destino: i.destino,
@@ -51,104 +63,129 @@ export default async function SolicitacaoPage({ params }: { params: Promise<{ id
     quantidadeAtendida: i.quantidadeAtendida,
     observacaoLogistica: i.observacaoLogistica,
     pendenciaCompra: i.pendenciaCompra,
-    respondidoPor: i.respondidoPor?.nome ?? null,
-    respondidoEm: i.respondidoEm,
+    respondivel,
+    corrigivel: corrigivel && i.status !== "EM_ANALISE",
   }));
 
-  const header = (
-    <PageHeader
-      breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]}
-      title={
-        <>
-          {s.codigo}
-          <SolicitacaoStatusBadge status={s.status} atrasada={atrasada} />
-        </>
-      }
-      description={
-        <>
-          {SOLICITACAO_TIPO_LABEL[s.tipo]} · evento{" "}
-          <Link href={`/eventos/${s.eventoId}`} className="text-info hover:underline">
-            {s.evento.nome}
-          </Link>{" "}
-          ({EVENTO_STATUS_LABEL[s.evento.status]}) · área {s.area.nome}
-        </>
-      }
-    />
-  );
-
-  if (editavel) {
-    const aceita = aceitaSolicitacao(s.evento.status, s.tipo);
-    const [opcoes, linhasAta] = await Promise.all([opcoesReferencias(), s.tipo === "ALTERACAO" ? obterLinhasAta(s.eventoId) : Promise.resolve([])]);
-    return (
-      <div className="mx-auto max-w-4xl">
-        {header}
-        {s.status === "DEVOLVIDA" && (
-          <Notice tone="danger" title="Devolvida pela logística para ajuste" className="mb-4">
-            {s.devolvidaMotivo}. Corrija e reenvie.
-          </Notice>
-        )}
-        {!aceita && (
-          <Notice tone="warning" title="O evento não está aceitando este tipo de solicitação agora" className="mb-4">
-            O rascunho fica salvo. {s.evento.status === "ENCERRADO" ? "O evento foi encerrado para alterações." : `Estado atual: ${EVENTO_STATUS_LABEL[s.evento.status]}.`}
-          </Notice>
-        )}
-        <SolicitacaoEditor
-          solicitacao={{ id: s.id, eventoId: s.eventoId, tipo: s.tipo, status: s.status, titulo: s.titulo, observacao: s.observacao, codigo: s.codigo }}
-          itens={itensView}
-          opcoes={opcoes}
-          linhasAta={linhasAta.map((l) => ({ id: l.id, descricao: l.descricao, quantidade: l.quantidade, destino: l.destino }))}
-          podeEnviar={aceita}
-        />
-      </div>
-    );
-  }
-
-  const ehLogistica = pode(usuario, "solicitacao.responder");
-  const podeResp = ehLogistica && podeResponder(s.status) && (s.tipo === "PRE_REUNIAO" ? s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO" : s.evento.status === "ABERTO");
-  const podeCorrigir = ehLogistica && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && (s.tipo === "PRE_REUNIAO" ? s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO" : s.evento.status === "ABERTO");
-
   return (
-    <div className="mx-auto max-w-4xl">
-      {header}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {s.status === "CANCELADA" && <Notice tone="danger">Cancelada{s.canceladaMotivo ? `: ${s.canceladaMotivo}` : ""}.</Notice>}
-          {podeResp && !algumRespondido && s.tipo === "PRE_REUNIAO" && s.evento.status === "PREPARACAO" && (
-            <Notice tone="info">Você pode responder agora ou durante a reunião, pela tela “Consolidar ata” do evento.</Notice>
+    <div className="max-w-[1080px]">
+      <DefinirTrilha itens={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]} />
+
+      {modoFila && (
+        <div className="mb-[18px] flex items-center gap-3.5 rounded-[10px] bg-dark px-[18px] py-3">
+          <span className="text-[13.5px] font-semibold text-white">Modo fila</span>
+          <span className="font-mono text-[12.5px] text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span>
+          <span className="min-w-0 flex-1 truncate text-[12.5px] text-on-dark-3">ordenada por prazo · atalhos A, P e N no item selecionado</span>
+          {anterior ? (
+            <Link href={`/solicitacoes/${anterior.id}?fila=1`} className="h-[30px] rounded-[7px] border border-dark-4 px-3 text-[12.5px] leading-[28px] text-on-dark-2 no-underline hover:text-white">
+              Anterior
+            </Link>
+          ) : (
+            <span aria-disabled="true" className="h-[30px] cursor-not-allowed rounded-[7px] border border-dark-3 px-3 text-[12.5px] leading-[28px] text-muted">
+              Anterior
+            </span>
           )}
-          <SolicitacaoDetalhe
-            solicitacao={{ id: s.id, eventoId: s.eventoId, status: s.status, tipo: s.tipo, observacao: s.observacao, titulo: s.titulo }}
-            itens={itensView}
-            podeResponder={podeResp}
-            podeCorrigir={podeCorrigir}
-            podeDevolver={ehLogistica && podeDevolver(s.status, algumRespondido)}
-            podeCancelar={podeEditarSolicitacao(usuario, s) && podeCancelar(s.status, algumRespondido)}
+          {proxima ? (
+            <Link href={`/solicitacoes/${proxima.id}?fila=1`} className="h-[30px] rounded-[7px] bg-accent-light px-3 text-[12.5px] font-medium leading-[30px] text-dark no-underline hover:brightness-105">
+              Próxima
+            </Link>
+          ) : (
+            <span aria-disabled="true" className="h-[30px] cursor-not-allowed rounded-[7px] bg-dark-3 px-3 text-[12.5px] leading-[30px] text-muted">
+              Fila zerada
+            </span>
+          )}
+          <Link href={`/solicitacoes/${s.id}`} className="text-[12.5px] text-on-dark-3 no-underline hover:text-white">
+            Sair
+          </Link>
+        </div>
+      )}
+
+      <div className="mb-[18px] flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-[15px] font-medium">{s.codigo}</span>
+            <SolicitacaoStatusBadge status={s.status} />
+            {pi.vencido && <span className="text-[12.5px] font-medium text-danger">atrasada {pi.sub}</span>}
+          </div>
+          <h1 className="mb-0 mt-1 text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">{s.titulo || "Solicitação sem título"}</h1>
+          <p className="mb-0 mt-1.5 text-[13px] text-ink-2">
+            {s.tipo === "PRE_REUNIAO" ? "Necessidade pré-reunião" : "Alteração pós-ata"} ·{" "}
+            <Link href={`/eventos/${s.eventoId}`} className="link">
+              {s.evento.codigo} {s.evento.nome}
+            </Link>{" "}
+            · {s.area.nome} · {s.criadoPor.nome}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <AcoesSolicitacao
+            id={s.id}
+            codigo={s.codigo}
+            podeDevolver={ehLogistica && faseOk && podeDevolver(s.status, algumRespondido)}
+            podeAtenderTudo={respondivel && pendentes > 0}
+            pendentes={pendentes}
+            podeEditar={editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO"}
+            podeEnviar={editavel && s.itens.length > 0 && aceitaSolicitacao(s.evento.status, s.tipo)}
+            podeCancelar={dono && podeCancelar(s.status, algumRespondido) && s.status !== "RASCUNHO"}
+            podeExcluir={dono && s.status === "RASCUNHO"}
+            proximaHref={proximaHref}
+            sufixo={sufixo}
           />
         </div>
-        <div className="space-y-4">
-          <Panel title="Dados">
-            <KeyValue
-              columns={1}
-              items={[
-                { label: "Título", value: s.titulo || "—" },
-                { label: "Criada por", value: `${s.criadoPor.nome} · ${formatarDataHora(s.criadoEm)}` },
-                { label: "Enviada em", value: s.enviadaEm ? formatarDataHora(s.enviadaEm) : "—" },
-                {
-                  label: "Prazo de resposta",
-                  value: s.prazoRespostaEm ? (
-                    <span className={atrasada ? "text-danger font-medium" : ""}>
-                      {formatarDataHora(s.prazoRespostaEm)} ({tempoRelativo(s.prazoRespostaEm, agora)})
-                    </span>
-                  ) : (
-                    "—"
-                  ),
-                },
-                { label: "Respondida em", value: s.respondidaEm ? formatarDataHora(s.respondidaEm) : "—" },
-                { label: "Itens respondidos", value: `${s.itens.filter((i) => i.status !== "EM_ANALISE").length} de ${s.itens.length}` },
-              ]}
-            />
-          </Panel>
+      </div>
+
+      {s.status === "DEVOLVIDA" && (
+        <Aviso tom="warning" titulo="Devolvida pela logística" className="mb-[18px]">
+          {s.devolvidaMotivo}. Corrija e reenvie.
+        </Aviso>
+      )}
+      {s.status === "CANCELADA" && (
+        <Aviso tom="danger" titulo="Solicitação cancelada" className="mb-[18px]">
+          {s.canceladaMotivo || "Sem motivo registrado."}
+        </Aviso>
+      )}
+      {editavel && !aceitaSolicitacao(s.evento.status, s.tipo) && (
+        <Aviso tom="warning" titulo="O evento não aceita este envio agora" className="mb-[18px]">
+          O rascunho continua salvo. {s.tipo === "PRE_REUNIAO" ? "Necessidades só entram com o evento em preparação." : "Alterações só entram com o evento aberto."}
+        </Aviso>
+      )}
+      {respondivel && s.tipo === "PRE_REUNIAO" && (
+        <Aviso className="mb-[18px]">
+          Você pode responder agora ou durante a reunião, na aba{" "}
+          <Link href={`/eventos/${s.eventoId}/reuniao`} className="link">
+            Consolidar ata
+          </Link>{" "}
+          do evento.
+        </Aviso>
+      )}
+
+      <div className="grid grid-cols-[minmax(0,1fr)_280px] items-start gap-5">
+        <div className="flex flex-col gap-5">
+          {s.observacao && (
+            <Section titulo="Observação do solicitante">
+              <p className="m-0 whitespace-pre-wrap px-[18px] py-3.5 text-[13.5px] leading-[1.55] text-ink-2">{s.observacao}</p>
+            </Section>
+          )}
+          <RespostaProvider itens={itens} sufixoToast={sufixo}>
+            <Section titulo={`Itens · ${s.itens.length}`} sub={respondivel ? "Cada item recebe resposta própria. Parcial e não atendido exigem motivo." : undefined} acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}>
+              {itens.length === 0 ? <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhum item adicionado.</p> : itens.map((i) => <ItemResposta key={i.id} item={i} />)}
+            </Section>
+          </RespostaProvider>
         </div>
+        <Section titulo="Dados">
+          <ListaDados
+            itens={[
+              { label: "Criada em", valor: diaMesHora(s.criadoEm) },
+              { label: "Enviada em", valor: s.enviadaEm ? diaMesHora(s.enviadaEm) : "—" },
+              {
+                label: "Prazo de resposta",
+                valor: s.prazoRespostaEm ? <span style={{ color: COR_TOM[pi.tom] }}>{diaMesHora(s.prazoRespostaEm)}</span> : "—",
+                alerta: pi.vencido,
+              },
+              { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
+              { label: "Itens respondidos", valor: `${s.itens.length - pendentes} de ${s.itens.length}`, forte: true },
+            ]}
+          />
+        </Section>
       </div>
     </div>
   );

@@ -1,6 +1,10 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { DefinirTrilha, type ItemTrilha } from "@/components/shell/trilha";
+
+/* ------------------------------------------------------------------ */
+/* Cabeçalho de página                                                  */
+/* ------------------------------------------------------------------ */
 
 export function PageHeader({
   title,
@@ -13,62 +17,86 @@ export function PageHeader({
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
-  breadcrumbs?: Array<{ label: string; href?: string }>;
+  /** Vai para a trilha do cabeçalho da aplicação. */
+  breadcrumbs?: ItemTrilha[];
   meta?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <header className={cn("mb-6", className)}>
-      {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Navegação" className="mb-2 flex items-center gap-1 text-xs text-ink-muted">
-          {breadcrumbs.map((b, i) => (
-            <span key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="size-3" aria-hidden />}
-              {b.href ? (
-                <Link href={b.href} className="hover:text-ink">
-                  {b.label}
-                </Link>
-              ) : (
-                <span>{b.label}</span>
-              )}
-            </span>
-          ))}
-        </nav>
-      )}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <>
+      {breadcrumbs && <DefinirTrilha itens={breadcrumbs} />}
+      <div className={cn("mb-[18px] flex items-end justify-between gap-5", className)}>
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-ink flex flex-wrap items-center gap-2">{title}</h1>
-          {description && <p className="mt-1 text-sm text-ink-muted max-w-3xl">{description}</p>}
-          {meta && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-secondary">{meta}</div>}
+          <h1 className="m-0 text-[24px] font-semibold leading-[1.2] tracking-[-0.025em]">{title}</h1>
+          {description && <p className="mt-[5px] max-w-[680px] text-[14px] text-ink-2">{description}</p>}
+          {meta && <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-2">{meta}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
       </div>
-    </header>
+    </>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Card / seção                                                         */
+/* ------------------------------------------------------------------ */
+
+export function Section({
+  titulo,
+  sub,
+  acoes,
+  children,
+  className,
+  padded = false,
+  as: Tag = "section",
+}: {
+  titulo?: React.ReactNode;
+  sub?: React.ReactNode;
+  acoes?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+  padded?: boolean;
+  as?: "section" | "div";
+}) {
+  return (
+    <Tag className={cn("overflow-hidden rounded-[10px] border border-line bg-surface", className)}>
+      {(titulo || acoes) && (
+        <div className="flex items-center justify-between gap-3 border-b border-line-soft px-[18px] py-3.5">
+          <div className="min-w-0">
+            {titulo && <h2 className="m-0 text-[14px] font-semibold tracking-[-0.01em]">{titulo}</h2>}
+            {sub && <p className="mt-0.5 text-[12.5px] text-muted">{sub}</p>}
+          </div>
+          {acoes && <div className="flex shrink-0 items-center gap-2.5">{acoes}</div>}
+        </div>
+      )}
+      {padded ? <div className="px-[18px] py-3.5">{children}</div> : children}
+    </Tag>
+  );
+}
+
+/** Compatibilidade com formulários existentes. */
 export function Panel({ title, description, actions, children, className, padded = true }: { title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; padded?: boolean }) {
   return (
-    <section className={cn("rounded-lg border border-line bg-surface", className)}>
-      {(title || actions) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-          <div>
-            {title && <h2 className="text-sm font-semibold text-ink">{title}</h2>}
-            {description && <p className="text-xs text-ink-muted mt-0.5">{description}</p>}
-          </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
-        </div>
-      )}
-      <div className={padded ? "p-4" : ""}>{children}</div>
-    </section>
+    <Section titulo={title} sub={description} acoes={actions} className={className} padded={padded}>
+      {children}
+    </Section>
   );
 }
 
-export function EmptyState({ title, description, action, compact }: { title: string; description?: string; action?: React.ReactNode; compact?: boolean }) {
+export function RotuloGrupo({ children, contagem, className }: { children: React.ReactNode; contagem?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center text-center", compact ? "py-8" : "py-14")}>
-      <p className="text-sm font-medium text-ink">{title}</p>
-      {description && <p className="mt-1 max-w-md text-[13px] text-ink-muted">{description}</p>}
+    <div className={cn("mb-[9px] flex items-baseline gap-[9px]", className)}>
+      <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{children}</h2>
+      {contagem != null && <span className="font-mono text-[11.5px] text-meta">{contagem}</span>}
+    </div>
+  );
+}
+
+export function EmptyState({ title, description, action, compact, className }: { title: string; description?: React.ReactNode; action?: React.ReactNode; compact?: boolean; className?: string }) {
+  return (
+    <div className={cn("text-center", compact ? "px-[18px] py-10" : "px-14 py-14", className)}>
+      <p className="m-0 text-[13.5px] font-medium text-ink">{title}</p>
+      {description && <p className="mx-auto mt-1 max-w-[460px] text-[12.5px] text-muted">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -78,58 +106,91 @@ export function TableWrap({ children, className }: { children: React.ReactNode; 
   return <div className={cn("overflow-x-auto", className)}>{children}</div>;
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: "danger" | "warning" | "success" }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface px-4 py-3">
-      <p className="text-xs text-ink-muted">{label}</p>
-      <p className={cn("mt-1 text-2xl font-semibold tabular tracking-tight", tone === "danger" && "text-danger", tone === "warning" && "text-warning", tone === "success" && "text-success")}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
-    </div>
+/* ------------------------------------------------------------------ */
+/* Métricas                                                             */
+/* ------------------------------------------------------------------ */
+
+export function MetricStrip({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("mb-5 grid grid-cols-4 gap-px overflow-hidden rounded-[10px] border border-line bg-line", className)}>{children}</div>;
+}
+
+export function Metric({ label, valor, hint, cor, href, tamanho = 26 }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; cor?: string; href?: string; tamanho?: number }) {
+  const conteudo = (
+    <>
+      <span className="mb-1.5 block text-[12.5px] text-ink-3">{label}</span>
+      <span className="block font-mono font-medium leading-[1.1] tracking-[-0.02em]" style={{ fontSize: tamanho, color: cor ?? "#2a1418" }}>
+        {valor}
+      </span>
+      {hint && <span className="mt-1 block truncate text-[12px] text-muted">{hint}</span>}
+    </>
+  );
+  const cls = "block min-w-0 bg-surface px-[18px] py-4 text-left no-underline";
+  return href ? (
+    <Link href={href} className={cn(cls, "hover:bg-subtle")}>
+      {conteudo}
+    </Link>
+  ) : (
+    <div className={cls}>{conteudo}</div>
   );
 }
 
-export function KeyValue({ items, columns = 2 }: { items: Array<{ label: string; value: React.ReactNode }>; columns?: 1 | 2 | 3 }) {
+/* ------------------------------------------------------------------ */
+/* Lista rótulo/valor, avisos, esqueleto                                */
+/* ------------------------------------------------------------------ */
+
+export function ListaDados({ itens }: { itens: Array<{ label: string; valor: React.ReactNode; forte?: boolean; alerta?: boolean }> }) {
   return (
-    <dl className={cn("grid gap-x-6 gap-y-3", columns === 1 && "grid-cols-1", columns === 2 && "grid-cols-1 sm:grid-cols-2", columns === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
-      {items.map((it) => (
-        <div key={it.label} className="min-w-0">
-          <dt className="text-xs text-ink-muted">{it.label}</dt>
-          <dd className="text-sm text-ink mt-0.5 break-words">{it.value ?? "—"}</dd>
+    <div className="px-[18px] pb-3.5 pt-1.5">
+      {itens.map((k) => (
+        <div key={k.label} className="flex justify-between gap-3 border-b border-line-faint py-2 last:border-b-0">
+          <span className="text-[12.5px] text-muted">{k.label}</span>
+          <span className={cn("text-right font-mono text-[12.5px]", k.alerta ? "font-medium text-danger" : k.forte ? "font-medium text-ink" : "text-ink-2")}>{k.valor}</span>
         </div>
       ))}
-    </dl>
+    </div>
   );
 }
 
-export function Notice({ tone = "info", title, children, className }: { tone?: "info" | "warning" | "danger" | "success"; title?: string; children?: React.ReactNode; className?: string }) {
-  const map = {
-    info: "border-info/30 bg-info-soft text-info",
-    warning: "border-warning/30 bg-warning-soft text-warning",
-    danger: "border-danger/30 bg-danger-soft text-danger",
-    success: "border-success/30 bg-success-soft text-success",
+export function Aviso({ tom = "neutro", titulo, children, className }: { tom?: "neutro" | "danger" | "warning" | "success"; titulo?: React.ReactNode; children?: React.ReactNode; className?: string }) {
+  const tons = {
+    neutro: "border-line bg-subtle text-ink-2",
+    danger: "border-danger-border bg-danger-bg text-danger",
+    warning: "border-warning-border bg-warning-bg text-warning",
+    success: "border-success-border bg-success-bg text-success",
   };
   return (
-    <div className={cn("rounded-md border px-3 py-2.5 text-[13px]", map[tone], className)}>
-      {title && <p className="font-medium">{title}</p>}
-      {children && <div className={title ? "mt-0.5 opacity-90" : ""}>{children}</div>}
+    <div className={cn("rounded-[9px] border px-4 py-3", tons[tom], className)}>
+      {titulo && <p className="m-0 text-[13px] font-medium">{titulo}</p>}
+      {children && <div className={cn("text-[12.5px] leading-[1.5]", titulo ? "mt-[3px]" : undefined)}>{children}</div>}
     </div>
+  );
+}
+
+/** Compatibilidade com telas de formulário existentes. */
+export function Notice({ tone = "info", title, children, className }: { tone?: "info" | "warning" | "danger" | "success"; title?: string; children?: React.ReactNode; className?: string }) {
+  return (
+    <Aviso tom={tone === "info" ? "neutro" : tone} titulo={title} className={className}>
+      {children}
+    </Aviso>
   );
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-black/5", className)} />;
+  return <div className={cn("animate-esqueleto rounded-[4px] bg-line", className)} />;
 }
 
-export function Avatar({ nome, size = "md" }: { nome: string; size?: "sm" | "md" }) {
-  const ini = nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
+export function Marcador({ cor, quadrado, pulsar, className }: { cor: string; quadrado?: boolean; pulsar?: boolean; className?: string }) {
+  return <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0", quadrado ? "rounded-[2px]" : "rounded-full", pulsar && "animate-pulse-dot", className)} style={{ background: cor }} />;
+}
+
+export function BarraProgresso({ pct, cor, altura = 6, fundo = "#f0eceb" }: { pct: number; cor: string; altura?: number; fundo?: string }) {
   return (
-    <span className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand font-semibold", size === "sm" ? "size-6 text-[10px]" : "size-8 text-xs")} aria-hidden>
-      {ini}
+    <span className="block overflow-hidden rounded-[3px]" style={{ height: altura, background: fundo }}>
+      <span className="block h-full" style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: cor }} />
     </span>
   );
+}
+
+export function Kbd({ children, escuro }: { children: React.ReactNode; escuro?: boolean }) {
+  return <kbd className={cn("rounded-[4px] px-1.5 py-px font-mono text-[11px]", escuro ? "bg-dark-3 text-on-dark-2" : "bg-control text-ink-2")}>{children}</kbd>;
 }

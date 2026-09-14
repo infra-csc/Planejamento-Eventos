@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import { listarNotificacoes, marcarLida, marcarTodasLidas } from "@/server/services/notificacoes";
-import { EmptyState, PageHeader, Panel } from "@/components/ui/layout";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/layout";
 import { tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -20,9 +20,11 @@ async function marcarTodasAction() {
 async function abrirAction(formData: FormData) {
   "use server";
   const u = await requireUsuario();
-  const id = String(formData.get("id"));
-  await marcarLida(u, id);
+  await marcarLida(u, String(formData.get("id")));
   revalidatePath("/", "layout");
+  const link = String(formData.get("link") ?? "");
+  // Só links internos: a notificação é gerada pelo sistema, mas não seguimos URLs externas.
+  redirect(link.startsWith("/") && !link.startsWith("//") ? link : "/notificacoes");
 }
 
 export default async function NotificacoesPage() {
@@ -30,51 +32,54 @@ export default async function NotificacoesPage() {
   const lista = await listarNotificacoes(usuario);
   const naoLidas = lista.filter((n) => !n.lidaEm).length;
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-[780px]">
       <PageHeader
         title="Notificações"
-        description="Somente o que exige sua atenção: envios, respostas por item, prazos, ata fechada, encerramento e reaberturas."
+        description={naoLidas ? `${naoLidas} ${naoLidas === 1 ? "não lida" : "não lidas"}. Só o que pede sua atenção: envios, respostas, prazos e mudanças de fase.` : "Tudo lido. Só o que pede sua atenção aparece aqui."}
         actions={
           naoLidas > 0 && (
             <form action={marcarTodasAction}>
-              <Button type="submit" variant="secondary" size="sm">
+              <Button type="submit" variant="secondary" size="md">
                 Marcar todas como lidas
               </Button>
             </form>
           )
         }
       />
-      <Panel padded={false}>
+      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
         {lista.length === 0 ? (
-          <EmptyState title="Nenhuma notificação" description="Quando algo precisar da sua ação, aparecerá aqui." compact />
+          <div className="px-[18px] py-14 text-center">
+            <p className="m-0 text-[14px] font-medium">Nenhuma notificação</p>
+            <p className="mt-1 text-[13px] text-muted">Quando algo precisar da sua ação, aparece aqui.</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-line">
-            {lista.map((n) => (
-              <li key={n.id} className={cn("flex items-start gap-3 px-4 py-3", !n.lidaEm && "bg-brand-soft/40")}>
-                <span className={cn("mt-2 size-2 shrink-0 rounded-full", n.lidaEm ? "bg-transparent" : "bg-accent")} aria-hidden />
+          lista.map((n) => {
+            const prazo = /PRAZO|SLA/.test(n.tipo);
+            return (
+              <div key={n.id} className={cn("flex items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 last:border-b-0", !n.lidaEm && "bg-selected")}>
+                <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: n.lidaEm ? "transparent" : prazo ? "#a8400f" : "#8e2740" }} />
                 <div className="min-w-0 flex-1">
-                  <p className={cn("text-sm", n.lidaEm ? "text-ink-secondary" : "font-medium text-ink")}>{n.titulo}</p>
-                  <p className="text-[13px] text-ink-muted">{n.mensagem}</p>
-                  <p className="mt-0.5 text-xs text-ink-faint">{tempoRelativo(n.criadoEm)}</p>
+                  <p className={cn("m-0 text-[13.5px] text-ink", !n.lidaEm && "font-medium")}>
+                    {!n.lidaEm && <span className="sr-only">Não lida: </span>}
+                    {n.titulo}
+                  </p>
+                  <p className="mb-0 mt-0.5 text-[12.5px] leading-[1.45] text-ink-3">{n.mensagem}</p>
+                  <p className="mb-0 mt-1 font-mono text-[11.5px] text-meta">{tempoRelativo(n.criadoEm)}</p>
                 </div>
                 {n.link && (
                   <form action={abrirAction}>
                     <input type="hidden" name="id" value={n.id} />
-                    <Link href={n.link} className="text-[13px] text-info hover:underline" onClick={undefined}>
+                    <input type="hidden" name="link" value={n.link} />
+                    <Button type="submit" variant="secondary" size="sm">
                       Abrir
-                    </Link>
-                    {!n.lidaEm && (
-                      <button type="submit" className="ml-3 text-[13px] text-ink-muted hover:text-ink">
-                        Lida
-                      </button>
-                    )}
+                    </Button>
                   </form>
                 )}
-              </li>
-            ))}
-          </ul>
+              </div>
+            );
+          })
         )}
-      </Panel>
+      </div>
     </div>
   );
 }

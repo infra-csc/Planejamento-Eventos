@@ -94,3 +94,17 @@ export async function alterarAtivoPeca(usuario: UsuarioAtual, id: string, ativo:
   await db.update(pecas).set({ ativo }).where(eq(pecas.id, id));
   await registrarHistorico(db, { entidade: "peca", entidadeId: id, acao: ativo ? "REATIVADA" : "INATIVADA", descricao: `Peça ${peca.codigo} ${ativo ? "reativada" : "inativada"}.`, usuarioId: usuario.id });
 }
+
+/** Em quantos projetos ativos (versão atual) cada peça aparece — coluna "Em BOM" do catálogo. */
+export async function contarPecasEmBom() {
+  const db = await getDb();
+  const rows = await db
+    .select({ pecaId: projetoItens.pecaId })
+    .from(projetoItens)
+    .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+    .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
+    .where(eq(projetos.ativo, true));
+  const mapa = new Map<string, number>();
+  for (const r of rows) mapa.set(r.pecaId, (mapa.get(r.pecaId) ?? 0) + 1);
+  return mapa;
+}

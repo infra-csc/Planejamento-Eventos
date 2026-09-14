@@ -117,3 +117,57 @@ Todas marcadas como otimização de produto (não estavam no briefing):
 2. Configurar SMTP e trocar a recuperação de senha por e-mail real.
 3. Passada manual nos diálogos de transição de evento e nas telas de administração no navegador.
 4. Fase 4/5: integração com o sistema de Logística (estoque real) e com Compras (pendências).
+
+## 17. Redesenho a partir do handoff do Claude Design
+
+Fonte: `docs/design-handoff/` (README com tokens, telas, estados, microinterações, acessibilidade e cálculos; protótipo `.dc.html`; `dados.js`). Fidelidade alta, regras de negócio preservadas.
+
+### O que mudou na interface
+
+- Tokens do handoff no Tailwind 4 (`@theme`): paleta vinho/escuro, Geist + Roboto Mono, raios 7–12 px, erro em `#a8400f` (não vermelho), animações `fadeUp` e `pulseDot` só onde o handoff pede.
+- Shell: barra lateral escura com contadores derivados, trilha no cabeçalho, busca global `⌘K` agrupada (Ações, Eventos, Solicitações, Biblioteca) com permissão por perfil, largura mínima 1000 px.
+- Login em dois painéis com números reais; bloco de demonstração só fora de produção (ou `EXIBIR_DEMO=true`).
+- Painel por perfil (logística, gestão, requisitante, administrador) com métricas derivadas, fila por prazo e “Atender” de um clique para solicitações com um item.
+- Eventos agrupados por urgência com barras de fase; evento com linha do tempo de 4 fases e abas Visão geral, Ata, Consolidar ata, Solicitações, OS [vN] e Histórico.
+- Consolidar ata: banner escuro com progresso, cartões por solicitação, atalhos A/P/N/Esc, ata ao vivo à direita, observações com salvamento automático.
+- OS: cartão escuro de diferenças, comparação entre versões (`?v=&base=`), setores com origens, itens avulsos, versões clicáveis.
+- Solicitações: pills com contagem, cabeçalhos ordenáveis com `aria-sort`, paginação de 8; detalhe com modo fila, “Atender tudo”, devolução, correção com justificativa e toast com “Desfazer”.
+- Nova solicitação em página única: evento (tipo derivado da fase), itens com −/+ e destino, abas de busca, contexto com validação no blur e resumo ao tentar enviar; edita rascunhos (`?rascunho=`).
+- Biblioteca (projetos com BOM lateral e marca “novo na vN”; catálogo ordenável com paginação de 12), Consolidação (15/30/60 dias, barra com traço de estoque, pendências), Administração (usuários com modal, áreas, configurações), Notificações, estados de carregamento, erro e 404.
+
+### Regras e serviços novos (necessários para o design)
+
+- Códigos `EVT-`, `SOL-`, `PRJ-`.
+- Prazo: “vencido/há N dias”, “em Nh”, “em Nd”; só solicitações abertas ficam atrasadas. Necessidade pré-reunião tem prazo na própria reunião.
+- Desfazer resposta: só o autor, até 10 minutos, só a primeira resposta (correções usam “Corrigir”); reverte ata, recalcula status, gera versão da OS em alteração e registra `RESPOSTA_DESFEITA`.
+- Atender tudo; salvar solicitação completa (cabeçalho + itens numa transação, envio opcional).
+- Consolidação com demanda projetada de eventos sem ata fechada (itens em análise), marcada como “projetado”.
+- Convite de usuário por link de acesso (7 dias, uso único) em vez de senha inicial; e-mail somente leitura na edição; perfil Logística passa a exigir área.
+- Configurações novas: aviso de prazo próximo (12 h) e antecedência da reunião (0 h). Notificação `PRAZO_PROXIMO`.
+
+### Testes do redesenho
+
+| Tipo | O quê | Resultado |
+|---|---|---|
+| Typecheck / lint | `tsc --noEmit`, ESLint com regras do React Compiler | 0 erros, 0 avisos |
+| Unitários (Vitest) | anteriores + consolidação projetada, classificação do histórico, rótulos de prazo, janela pré-reunião | 25/25 |
+| Fumaça de serviços | seções 0–7: painel e consolidação derivados, transições, devolução/correção, anexos, admin com convite por link, formulário completo, prazo pré-reunião, desfazer, atender tudo, busca por área | todos os cenários passaram (após corrigir uma asserção de projeção que olhava a janela errada) |
+| Build de produção | `next build` | OK, 38 rotas |
+| Navegador (dev, 1280 px) | login com bloco de demonstração, painel da logística, “Atender” de um clique com toast e “Desfazer” (contador 4 → 3 → 4), lista de eventos agrupada | OK |
+| Varredura de rotas autenticada (Logística) | 135 URLs: todas as abas dos 9 eventos (inclui comparação de OS), 20 solicitações com e sem modo fila, biblioteca com ordenação/paginação, consolidação 30/60 dias, redirecionamentos das rotas antigas, 404 | 134 × 200 sem tela de erro; 404 esperado na rota inexistente; nenhum erro no servidor |
+
+**Não verificado no navegador:** interações de clique dentro das abas (atalhos A/P/N, modais de transição, modal de usuário, formulário de nova solicitação) — o painel do navegador ficou oculto e trava navegação e streaming. Esses fluxos estão cobertos no nível de serviço pelo teste de fumaça; recomendo uma passada manual com os perfis de demonstração.
+
+### Desvios conscientes do handoff
+
+| Handoff | Implementado | Motivo |
+|---|---|---|
+| Modal de usuário diz “recebe um e-mail para definir a senha” | Texto adaptado e link exibido ao administrador | Não há SMTP no MVP |
+| Diff da OS por soma acumulada das versões do intervalo | Diferença direta entre os snapshots das duas versões | Mesmo resultado líquido, sem risco de acumular erro; snapshots já existem |
+| Botões de criar/editar evento, projeto e peça só disparam toast | Fluxos reais mantidos com o novo visual | Já existiam no MVP |
+| Pendências “até ser resolvida” | Lista mostra pendências de eventos não encerrados/cancelados; não há ação de resolver | Integração com Compras é fase futura (RV-11) |
+| Aba “Consolidar ata” só durante a reunião | Também em preparação, com botão “Iniciar reunião” no banner | Permite responder o que já chegou antes da reunião |
+| “Alterar linha da ata” não aparece na Nova solicitação | Quarta aba para eventos abertos | Mantém MEL-03 (alterar/remover linha via solicitação) |
+| Ordenação/paginação só em Solicitações e Catálogo | Igual; eventos agrupados, usuários com busca e filtro | Seguido como está (§11 do handoff) |
+| Focus trap nos modais ausente no protótipo | Radix Dialog com focus trap e devolução de foco | Resolve pendência de acessibilidade do §11 |
+| Ações de exceção (voltar para preparação, cancelar) no cabeçalho | Movidas para a página de edição do evento | Cabeçalho fica com a próxima ação da fase |

@@ -1,11 +1,11 @@
 import type { OsConteudo, Setor } from "@/server/db/schema";
 
 /**
- * Consolidação por período (RV-02 / MEL-08).
+ * Consolidação por período (handoff §5.13).
  *
- * Para cada peça, calcula a demanda em cada dia do período (soma das OS dos eventos
- * que ocupam a peça naquele dia, entre montagem e desmontagem) e toma o pico.
- * Eventos que não se sobrepõem não competem pela mesma peça.
+ * Para cada peça, soma a demanda de cada dia do período considerando os eventos que ocupam
+ * a peça naquele dia (montagem → desmontagem) e guarda o pior dia (pico). Eventos sem ata
+ * fechada entram também com a demanda projetada dos itens ainda em análise.
  */
 
 export type EventoConsolidacao = {
@@ -15,7 +15,11 @@ export type EventoConsolidacao = {
   dataMontagem: string; // YYYY-MM-DD
   dataDesmontagem: string;
   os: OsConteudo;
+  /** pecaId → quantidade projetada (itens em análise de eventos sem ata fechada). */
+  projetado?: Record<string, number>;
 };
+
+export type EventoNoPico = { codigo: string; nome: string; quantidade: number; projetado: boolean };
 
 export type PecaConsolidada = {
   pecaId: string;
@@ -26,7 +30,8 @@ export type PecaConsolidada = {
   estoque: number;
   pico: number;
   diaPico: string | null;
-  eventosNoPico: Array<{ codigo: string; nome: string; quantidade: number }>;
+  eventosNoPico: EventoNoPico[];
+  temProjecao: boolean;
   saldo: number;
   totalPeriodo: number;
 };
@@ -55,33 +60,34 @@ export function consolidar(
   periodo: { inicio: string; fim: string },
 ): PecaConsolidada[] {
   const dias = diasEntre(periodo.inicio, periodo.fim);
-  const demandaPorEvento = new Map<string, Map<string, number>>(); // eventoId -> pecaId -> qtd
+  const confirmada = new Map<string, Map<string, number>>();
   for (const ev of eventos) {
     const m = new Map<string, number>();
     for (const s of ev.os.setores) for (const l of s.linhas) m.set(l.pecaId, (m.get(l.pecaId) ?? 0) + l.total);
-    demandaPorEvento.set(ev.id, m);
+    confirmada.set(ev.id, m);
   }
 
   const resultado: PecaConsolidada[] = [];
   for (const p of pecas) {
     let pico = 0;
     let diaPico: string | null = null;
-    let eventosNoPico: PecaConsolidada["eventosNoPico"] = [];
+    let eventosNoPico: EventoNoPico[] = [];
     let totalPeriodo = 0;
     const contados = new Set<string>();
     for (const dia of dias) {
       let soma = 0;
-      const lista: PecaConsolidada["eventosNoPico"] = [];
+      const lista: EventoNoPico[] = [];
       for (const ev of eventos) {
-        if (ev.dataMontagem <= dia && dia <= ev.dataDesmontagem) {
-          const q = demandaPorEvento.get(ev.id)?.get(p.id) ?? 0;
-          if (q > 0) {
-            soma += q;
-            lista.push({ codigo: ev.codigo, nome: ev.nome, quantidade: q });
-            if (!contados.has(ev.id)) {
-              contados.add(ev.id);
-              totalPeriodo += q;
-            }
+        if (ev.dataMontagem > dia || dia > ev.dataDesmontagem) continue;
+        const q = confirmada.get(ev.id)?.get(p.id) ?? 0;
+        const pq = ev.projetado?.[p.id] ?? 0;
+        if (q > 0) lista.push({ codigo: ev.codigo, nome: ev.nome, quantidade: q, projetado: false });
+        if (pq > 0) lista.push({ codigo: ev.codigo, nome: ev.nome, quantidade: pq, projetado: true });
+        if (q + pq > 0) {
+          soma += q + pq;
+          if (!contados.has(ev.id)) {
+            contados.add(ev.id);
+            totalPeriodo += q + pq;
           }
         }
       }
@@ -102,6 +108,7 @@ export function consolidar(
       pico,
       diaPico,
       eventosNoPico,
+      temProjecao: eventosNoPico.some((e) => e.projetado),
       saldo: p.estoqueProprio - pico,
       totalPeriodo,
     });

@@ -1,15 +1,19 @@
 import { notFound } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { obterEvento, resumoSolicitacoesEvento, solicitacoesPendentes } from "@/server/services/eventos";
+import { contarItensPendentesPreReuniao, obterEvento, obterLinhasAta, solicitacoesPendentes } from "@/server/services/eventos";
+import { listarSolicitacoes } from "@/server/services/solicitacoes";
+import { listarOsVersoes } from "@/server/services/os";
 import { getDb } from "@/server/db";
 import { pode } from "@/domain/permissions";
-import { EVENTO_STATUS_DESCRICAO, acoesDisponiveis, aceitaSolicitacao, statusExibicao } from "@/domain/evento";
+import { statusExibicao } from "@/domain/evento";
 import { NaoEncontradoError } from "@/domain/errors";
-import { PageHeader } from "@/components/ui/layout";
+import { diaMes, diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
 import { EventoStatusBadge } from "@/components/ui/badge";
-import { TabsNav } from "@/components/ui/tabs-nav";
+import { Aviso } from "@/components/ui/layout";
+import { TabsNav, type Aba } from "@/components/ui/tabs-nav";
+import { DefinirTrilha } from "@/components/shell/trilha";
+import { LinhaTempo } from "@/components/eventos/fases";
 import { AcoesEvento } from "@/components/eventos/acoes-evento";
-import { formatarDataHora, formatarPeriodo, hojeISO } from "@/lib/format";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -19,6 +23,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: ev ? `${ev.codigo} ${ev.nome}` : "Evento" };
 }
 
+const plural = (n: number, s: string, p: string) => (n === 0 ? null : `${n} ${n === 1 ? s : p}`);
+
 export default async function EventoLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
@@ -26,63 +32,101 @@ export default async function EventoLayout({ children, params }: { children: Rea
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
-  const [resumo, pendentes] = await Promise.all([resumoSolicitacoesEvento(id), solicitacoesPendentes(await getDb(), id)]);
-  const abertas = resumo.filter((r) => r.status === "ENVIADA" || r.status === "EM_ANALISE").reduce((a, r) => a + r.n, 0);
-  const acoes = acoesDisponiveis(ev.status, usuario.perfil);
-  const podeSolicitar = pode(usuario, "solicitacao.criar") && (aceitaSolicitacao(ev.status, "PRE_REUNIAO") || aceitaSolicitacao(ev.status, "ALTERACAO"));
-  const podeConsolidar = pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO");
+  const [linhas, sols, versoes, pendentesPre, abertas] = await Promise.all([
+    obterLinhasAta(id),
+    listarSolicitacoes(usuario, { eventoId: id }),
+    listarOsVersoes(id),
+    contarItensPendentesPreReuniao(id),
+    solicitacoesPendentes(await getDb(), id),
+  ]);
+  const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
+  const versaoOs = versoes[0]?.numero ?? 0;
+  const preEnviadas = sols.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA").length;
+  const alteracoesAbertas = abertas.filter((s) => s.tipo === "ALTERACAO").length;
 
-  const tabs = [
+  const passos = [
+    {
+      titulo: "Preparação",
+      quando: `áreas enviam até ${diaMes(ev.dataReuniao)}`,
+      detalhe: plural(preEnviadas, "solicitação pré-reunião", "solicitações pré-reunião") ?? "nenhuma solicitação pré-reunião",
+    },
+    {
+      titulo: "Reunião de OS",
+      quando: diaMesHora(ev.dataReuniao),
+      detalhe: ev.ataFechadaEm ? `ata fechada com ${linhas.length} ${linhas.length === 1 ? "linha" : "linhas"}` : ev.status === "EM_REUNIAO" ? "acontecendo agora" : "aguardando",
+    },
+    {
+      titulo: "Aberto a alterações",
+      quando: ev.ataFechadaEm ? `desde ${diaMes(ev.ataFechadaEm)}` : "—",
+      detalhe:
+        ev.status === "ABERTO"
+          ? (plural(alteracoesAbertas, "alteração em aberto", "alterações em aberto") ?? "nenhuma alteração em aberto")
+          : ev.ataFechadaEm
+            ? "encerrado para novas"
+            : "—",
+    },
+    {
+      titulo: "Encerrado",
+      quando: ev.encerradoEm ? diaMes(ev.encerradoEm) : ev.dataCarga ? `carga em ${diaMesISO(ev.dataCarga)}` : "—",
+      detalhe: ev.encerradoEm ? `OS final v${versaoOs}` : "nada entra depois disso",
+    },
+  ];
+
+  const abas: Aba[] = [
     { href: base, label: "Visão geral", exact: true },
-    { href: `${base}/ata`, label: "Ata" },
-    { href: `${base}/solicitacoes`, label: "Solicitações", count: abertas },
-    ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS" }] : []),
+    { href: `${base}/ata`, label: "Ata", n: linhas.length },
+    ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `${base}/reuniao`, label: "Consolidar ata" }] : []),
+    { href: `${base}/solicitacoes`, label: "Solicitações", n: sols.length },
+    ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),
     { href: `${base}/historico`, label: "Histórico" },
   ];
 
   return (
     <>
-      <PageHeader
-        breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: ev.codigo }]}
-        title={
-          <>
-            {ev.nome}
-            <EventoStatusBadge status={statusExibicao(ev.status, ev.dataFim, hojeISO())} />
-            {ev.reabertoVezes > 0 && <span className="text-xs font-normal text-warning">reaberto {ev.reabertoVezes}×</span>}
-          </>
-        }
-        description={EVENTO_STATUS_DESCRICAO[ev.status]}
-        meta={
-          <>
+      <DefinirTrilha itens={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}` }]} />
+      <div className="mb-[18px] flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-[12.5px] text-muted">{ev.codigo}</span>
+            <EventoStatusBadge status={st} />
+            {ev.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {ev.reabertoVezes}× pela gestão</span>}
+          </div>
+          <h1 className="mb-0 mt-1 text-[25px] font-semibold leading-[1.2] tracking-[-0.025em]">{ev.nome}</h1>
+          <div className="mt-2 flex flex-wrap gap-[18px] text-[13px] text-ink-2">
             <span>
-              <span className="text-ink-muted">Evento:</span> {formatarPeriodo(ev.dataInicio, ev.dataFim)}
+              <span className="text-muted">Cliente</span> {ev.cliente || "—"}
             </span>
             <span>
-              <span className="text-ink-muted">Reunião de OS:</span> {formatarDataHora(ev.dataReuniao)}
+              <span className="text-muted">Local</span> {ev.local || "—"}
             </span>
-            {ev.local && (
-              <span>
-                <span className="text-ink-muted">Local:</span> {ev.local}
-              </span>
-            )}
             <span>
-              <span className="text-ink-muted">Logística:</span> {ev.responsavel.nome}
+              <span className="text-muted">Evento</span> <span className="font-mono">{periodoCurto(ev.dataInicio, ev.dataFim)}</span>
             </span>
-          </>
-        }
-        actions={
+            <span>
+              <span className="text-muted">Logística</span> {ev.responsavel.nome}
+            </span>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <AcoesEvento
-            evento={{ id: ev.id, nome: ev.nome, status: ev.status, codigo: ev.codigo }}
-            acoes={acoes}
-            podeEditar={pode(usuario, "evento.editar") && ev.status !== "CANCELADO"}
-            podeSolicitar={podeSolicitar}
-            podeConsolidar={podeConsolidar}
-            pendentes={pendentes.map((p) => p.codigo)}
+            evento={{ id: ev.id, codigo: ev.codigo, nome: ev.nome, status: ev.status }}
+            perfil={usuario.perfil}
+            podeSolicitar={pode(usuario, "solicitacao.criar")}
+            pendentesPreReuniao={pendentesPre}
+            solicitacoesAbertas={abertas.map((s) => s.codigo)}
           />
-        }
-      />
-      <TabsNav tabs={tabs} className="mb-5" />
+        </div>
+      </div>
+
+      {ev.status === "CANCELADO" && (
+        <Aviso tom="danger" titulo="Evento cancelado" className="mb-[18px]">
+          {ev.canceladoMotivo ?? "Sem motivo registrado."}
+        </Aviso>
+      )}
+
+      <LinhaTempo status={ev.status} passos={passos} />
+      <TabsNav tabs={abas} />
       {children}
     </>
   );

@@ -1,32 +1,33 @@
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento } from "@/server/services/eventos";
-import { EmptyState, Panel } from "@/components/ui/layout";
-import { formatarDataHora } from "@/lib/format";
+import { classificarHistorico, COR_HISTORICO } from "@/domain/historico";
+import { diaMesHora } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { Section } from "@/components/ui/layout";
 
 export default async function HistoricoEventoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
   const historico = await obterHistoricoEvento(usuario, id);
   return (
-    <Panel title="Histórico do evento" description="Toda transição de estado, resposta e ajuste fica registrada com autor, data e justificativa." padded={false}>
-      {historico.length === 0 ? (
-        <EmptyState title="Nenhum registro" compact />
-      ) : (
-        <ol className="divide-y divide-line">
-          {historico.map((h) => (
-            <li key={h.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[170px_1fr] sm:gap-4">
-              <div className="text-xs text-ink-muted tabular">
-                {formatarDataHora(h.criadoEm)}
-                <span className="block text-ink-secondary">{h.usuario?.nome ?? "Sistema"}</span>
-              </div>
-              <div className="text-[13px]">
-                <span className="mr-2 rounded-sm bg-black/5 px-1.5 py-0.5 text-[11px] font-medium text-ink-secondary">{h.entidade.replace("_", " ")}</span>
-                <span className="text-ink">{h.descricao}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-    </Panel>
+    <Section titulo="Histórico do evento" sub="Tudo que mudou a ata ou a OS, com autor, hora e justificativa." className="max-w-[840px]">
+      <div className="px-[18px] py-4">
+        {historico.length === 0 && <p className="m-0 text-[12.5px] text-muted">Nenhum registro.</p>}
+        {historico.map((h) => {
+          const c = classificarHistorico(h);
+          return (
+            <div key={h.id} className="flex gap-3.5 border-b border-line-faint py-2.5 last:border-b-0">
+              <span className="shrink-0 basis-[78px] pt-0.5 font-mono text-[11.5px] text-meta">{diaMesHora(h.criadoEm)}</span>
+              <span aria-hidden className={cn("mt-[7px] block size-[7px] shrink-0", c.tipo === "marco" ? "rounded-[2px]" : "rounded-full")} style={{ background: COR_HISTORICO[c.tipo] }} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] text-ink">{c.titulo}</span>
+                {c.detalhe && <span className="mt-px block text-[12.5px] text-ink-3">{c.detalhe}</span>}
+                <span className="mt-0.5 block text-[11.5px] text-meta">{h.usuario?.nome ?? "Sistema"}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
   );
 }

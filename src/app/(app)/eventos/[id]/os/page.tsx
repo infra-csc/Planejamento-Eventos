@@ -1,172 +1,206 @@
-import Link from "next/link";
-import { Download, Printer } from "lucide-react";
 import { requirePermissao } from "@/server/auth/session";
 import { obterEvento } from "@/server/services/eventos";
-import { calcularOsAtual, listarOsVersoes } from "@/server/services/os";
-import { getDb } from "@/server/db";
-import { diffOS, osIguais, SETOR_LABEL, totalPecas } from "@/domain/os";
-import { EmptyState, Notice, Panel, TableWrap } from "@/components/ui/layout";
+import { listarOsVersoes } from "@/server/services/os";
+import { diffOS, SETOR_LABEL, type DiffLinha } from "@/domain/os";
+import { diaMesHora } from "@/lib/format";
+import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
-import { Badge } from "@/components/ui/badge";
-import { formatarDataHora } from "@/lib/format";
+import { Section } from "@/components/ui/layout";
+import { CaptionOculta, Th } from "@/components/ui/tabela";
+import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
 
 const GATILHO_LABEL: Record<OsGatilho, string> = {
-  ATA_FECHADA: "Ata fechada",
-  RESPOSTA_SOLICITACAO: "Resposta a solicitação",
-  CORRECAO_RESPOSTA: "Correção de resposta",
-  AJUSTE_LOGISTICA: "Ajuste da logística",
-  ATUALIZACAO_PROJETO: "Atualização de projeto",
-  REABERTURA: "Reabertura",
-  ENCERRAMENTO: "Encerramento (OS final)",
+  ATA_FECHADA: "ata fechada",
+  RESPOSTA_SOLICITACAO: "alteração",
+  CORRECAO_RESPOSTA: "correção",
+  AJUSTE_LOGISTICA: "ajuste",
+  ATUALIZACAO_PROJETO: "projeto",
+  REABERTURA: "reabertura",
+  ENCERRAMENTO: "OS final",
 };
 
-export default async function OsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
+function resumoDiff(diff: DiffLinha[]) {
+  if (diff.length === 0) return "sem mudança nas quantidades";
+  const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
+  return partes.join(" · ") + (diff.length > 3 ? ` · +${diff.length - 3}` : "");
+}
+
+function ChipDiff({ d }: { d: DiffLinha }) {
+  const delta = d.depois - d.antes;
+  return (
+    <span className="inline-flex items-baseline gap-1.5 rounded-[6px] bg-dark-3 px-2.5 py-1 font-mono text-[12px]" title={d.nome}>
+      <span className="text-on-dark-2">{d.codigo}</span>
+      <span className="text-on-dark-4">{d.antes}</span>
+      <span className="text-on-dark-4" aria-hidden>
+        →
+      </span>
+      <span className="sr-only">para</span>
+      <span className="font-semibold text-white">{d.depois}</span>
+      <span className="text-accent-light">
+        {delta > 0 ? "+" : "−"}
+        {Math.abs(delta)}
+      </span>
+    </span>
+  );
+}
+
+export default async function OsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; base?: string }> }) {
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
-  const { v } = await searchParams;
-  const [ev, versoes, atual] = await Promise.all([obterEvento(usuario, id), listarOsVersoes(id), calcularOsAtual(await getDb(), id)]);
-  const selecionada = v ? versoes.find((x) => String(x.numero) === v) : null;
-  const os = selecionada ? selecionada.conteudo : atual;
-  const ultima = versoes[0];
-  const emDia = ultima ? osIguais(ultima.conteudo, atual) : false;
+  const sp = await searchParams;
+  const [ev, versoes] = await Promise.all([obterEvento(usuario, id), listarOsVersoes(id)]);
 
-  if (!ev.ataFechadaEm && versoes.length === 0) {
+  if (versoes.length === 0) {
     return (
-      <Panel>
-        <EmptyState title="A OS ainda não foi gerada" description="Ela é criada automaticamente quando a logística fecha a ata da reunião. Até lá, a aba Ata mostra a prévia do que será somado." compact />
-      </Panel>
+      <div className="rounded-[10px] border border-line bg-surface px-[18px] py-14 text-center">
+        <p className="m-0 text-[14px] font-medium">OS ainda não gerada</p>
+        <p className="mx-auto mt-1 max-w-[440px] text-[13px] text-muted">A OS é gerada automaticamente quando a ata for fechada. Nenhuma peça é somada antes disso.</p>
+      </div>
     );
   }
 
+  const atual = versoes[0];
+  const exibida = versoes.find((x) => String(x.numero) === sp.v) ?? atual;
+  const base = sp.base && sp.base !== String(exibida.numero) ? versoes.find((x) => String(x.numero) === sp.base) : undefined;
+  const anterior = (n: number) => versoes.find((x) => x.numero === n - 1);
+
+  let tituloDiff: string;
+  let subDiff: string;
+  let diff: DiffLinha[];
+  if (base) {
+    const [menor, maior] = base.numero < exibida.numero ? [base, exibida] : [exibida, base];
+    diff = diffOS(menor.conteudo, maior.conteudo);
+    tituloDiff = `Diferença entre v${menor.numero} e v${maior.numero}`;
+    const n = maior.numero - menor.numero;
+    subDiff = `Soma de ${n} ${n === 1 ? "alteração" : "alterações"} no intervalo`;
+  } else {
+    const ant = anterior(exibida.numero);
+    diff = ant ? diffOS(ant.conteudo, exibida.conteudo) : [];
+    tituloDiff = ant ? `O que mudou na v${exibida.numero}` : `v${exibida.numero} · primeira versão`;
+    subDiff = exibida.descricao ?? GATILHO_LABEL[exibida.gatilho];
+  }
+
+  const paramsAtuais = { v: sp.v, base: sp.base };
+  const qsExport = exibida.numero !== atual.numero ? `?v=${exibida.numero}` : "";
+  const os = exibida.conteudo;
+
+  const lista: VersaoOsView[] = versoes.map((ver) => {
+    const ant = anterior(ver.numero);
+    return {
+      numero: ver.numero,
+      gatilho: GATILHO_LABEL[ver.gatilho],
+      quando: diaMesHora(ver.geradaEm),
+      autor: ver.geradaPor?.nome ?? "Sistema",
+      descricao: ver.descricao,
+      resumo: ant ? resumoDiff(diffOS(ant.conteudo, ver.conteudo)) : `${ver.conteudo.setores.reduce((a, s) => a + s.linhas.length, 0)} tipos de peça`,
+      exibida: ver.id === exibida.id,
+      base: ver.id === base?.id,
+      atual: ver.id === atual.id,
+      hrefVer: hrefCom(`/eventos/${id}/os`, paramsAtuais, { v: ver.numero === atual.numero ? null : ver.numero, base: sp.base === String(ver.numero) ? null : sp.base }),
+      hrefComparar: hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: ver.numero }),
+      hrefLimpar: hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null }),
+    };
+  });
+
   return (
-    <div className="grid gap-4 lg:grid-cols-4">
-      <div className="space-y-4 lg:col-span-3">
-        {selecionada ? (
-          <Notice tone="info">
-            Exibindo a versão {selecionada.numero} ({GATILHO_LABEL[selecionada.gatilho]}, {formatarDataHora(selecionada.geradaEm)}).{" "}
-            <Link href={`/eventos/${id}/os`} className="underline">
-              Voltar para a OS atual
-            </Link>
-            .
-          </Notice>
-        ) : !emDia && ultima ? (
-          <Notice tone="warning">A ata atual difere da última versão gerada. Isso não deveria acontecer; exporte com cautela e avise o administrador.</Notice>
-        ) : null}
+    <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
+      <div className="flex flex-col gap-5">
+        <section className="rounded-[10px] bg-dark px-5 py-4" aria-label="Diferenças da OS">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="m-0 text-[14.5px] font-semibold text-white">{tituloDiff}</h2>
+              <p className="mb-0 mt-0.5 text-[12.5px] text-on-dark-3">{subDiff}</p>
+            </div>
+            {base && (
+              <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="onDark" size="sm" className="no-underline" scroll={false}>
+                Sair da comparação
+              </ButtonLink>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {diff.length === 0 ? <span className="text-[12.5px] text-on-dark-4">{anterior(exibida.numero) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
+          </div>
+        </section>
 
-        {os.setores.length === 0 && os.semSetor.length === 0 && (
-          <Panel>
-            <EmptyState title="OS vazia" description="Nenhuma linha da ata gera peças." compact />
-          </Panel>
-        )}
-
-        {os.setores.map((s) => (
-          <Panel
-            key={s.setor}
-            title={`OS · ${SETOR_LABEL[s.setor]}`}
-            description={`${s.linhas.length} tipo(s) de peça · ${s.linhas.reduce((a, l) => a + l.total, 0)} unidades`}
-            actions={
-              <a href={`/api/os/${id}/${s.setor}${selecionada ? `?v=${selecionada.numero}` : ""}`} className={buttonClasses({ size: "sm" })}>
-                <Download className="size-3.5" /> CSV
-              </a>
-            }
-            padded={false}
-          >
-            <TableWrap>
-              <table className="table-base">
+        {os.setores.map((s) => {
+          const unidades = s.linhas.reduce((a, l) => a + l.total, 0);
+          return (
+            <Section
+              key={s.setor}
+              titulo={SETOR_LABEL[s.setor]}
+              sub={`${s.linhas.length} ${s.linhas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${unidades} unidades`}
+              acoes={
+                <a href={`/api/os/${id}/${s.setor}${qsExport}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+                  CSV
+                </a>
+              }
+            >
+              <table className="w-full border-collapse">
+                <CaptionOculta>{`OS ${SETOR_LABEL[s.setor]} v${exibida.numero}`}</CaptionOculta>
                 <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Peça</th>
-                    <th className="num">Total</th>
-                    <th className="hidden md:table-cell">Composição</th>
+                  <tr className="bg-subtle">
+                    <Th largura={108}>Código</Th>
+                    <Th>Peça</Th>
+                    <Th largura={260}>Origens</Th>
+                    <Th largura={90} alinhar="right">
+                      Total
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
                   {s.linhas.map((l) => (
-                    <tr key={l.pecaId}>
-                      <td className="font-medium tabular">{l.codigo}</td>
-                      <td>{l.nome}</td>
-                      <td className="num tabular font-semibold">
-                        {l.total} <span className="text-xs font-normal text-ink-muted">{l.unidade}</span>
+                    <tr key={l.pecaId} className="hover:bg-subtle">
+                      <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-[12.5px] text-ink">{l.codigo}</td>
+                      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-[13.5px] font-normal text-ink">
+                        {l.nome}
+                      </th>
+                      <td className="border-b border-line-row px-2.5 py-2.5 text-[11.5px] leading-[1.45] text-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
+                      <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-[13.5px] font-semibold">
+                        {l.total} <span className="text-[11px] font-normal text-muted">{l.unidade}</span>
                       </td>
-                      <td className="hidden md:table-cell text-xs text-ink-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </TableWrap>
-          </Panel>
-        ))}
+            </Section>
+          );
+        })}
+
+        {os.setores.length === 0 && (
+          <div className="rounded-[10px] border border-line bg-surface px-[18px] py-10 text-center">
+            <p className="m-0 text-[13.5px] font-medium">Nenhuma peça nesta versão</p>
+            <p className="mt-1 text-[12.5px] text-muted">A ata não tem linhas que somem peças do catálogo.</p>
+          </div>
+        )}
 
         {os.semSetor.length > 0 && (
-          <Panel title="Itens avulsos (sem peça de catálogo)" description="Listados para separação manual; não entram na soma por peça." padded={false}>
-            <TableWrap>
-              <table className="table-base">
-                <thead>
-                  <tr>
-                    <th>Descrição</th>
-                    <th className="num">Qtd.</th>
-                    <th>Destino</th>
-                    <th>Área</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {os.semSetor.map((a, i) => (
-                    <tr key={i}>
-                      <td>{a.descricao}</td>
-                      <td className="num tabular">{a.quantidade}</td>
-                      <td>{a.destino ?? "—"}</td>
-                      <td>{a.area ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableWrap>
-          </Panel>
+          <Section titulo="Itens avulsos" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
+            {os.semSetor.map((a, i) => (
+              <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
+                <span className="min-w-0 flex-1 text-[13.5px] text-ink">{a.descricao}</span>
+                <span className="text-[12px] text-muted">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>
+                <span className="w-[60px] text-right font-mono text-[13px] font-semibold">{a.quantidade}</span>
+              </div>
+            ))}
+          </Section>
         )}
       </div>
 
-      <div className="space-y-4">
-        <Panel title="Exportar">
-          <div className="flex flex-col gap-2">
-            <ButtonLink href={`/impressao/os/${id}${selecionada ? `?v=${selecionada.numero}` : ""}`} target="_blank">
-              <Printer className="size-4" /> Imprimir / PDF
+      <div className="sticky top-[76px] flex flex-col gap-5">
+        <Section titulo="Exportar">
+          <div className="px-[18px] py-3.5">
+            <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
+              Imprimir / PDF
             </ButtonLink>
-            <p className="text-xs text-ink-muted">Total de peças: {totalPecas(os)}. A OS nunca é editada à mão: mudanças vêm de respostas e ajustes registrados.</p>
+            <p className="mb-0 mt-2.5 text-[12px] leading-[1.5] text-muted">A OS nunca é editada à mão. Toda mudança vem de uma resposta a item ou de um ajuste registrado com justificativa.</p>
           </div>
-        </Panel>
-        <Panel title="Versões" description="Cada resposta ou ajuste gera uma versão. O que mudou aparece em relação à anterior." padded={false}>
-          <ol className="divide-y divide-line">
-            {versoes.map((ver, idx) => {
-              const anterior = versoes[idx + 1];
-              const diff = anterior ? diffOS(anterior.conteudo, ver.conteudo) : [];
-              const ativa = selecionada ? selecionada.id === ver.id : idx === 0;
-              return (
-                <li key={ver.id} className={`px-4 py-3 text-[13px] ${ativa ? "bg-brand-soft/50" : ""}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <Link href={idx === 0 ? `/eventos/${id}/os` : `/eventos/${id}/os?v=${ver.numero}`} className="font-medium text-ink hover:underline">
-                      v{ver.numero} · {GATILHO_LABEL[ver.gatilho]}
-                    </Link>
-                    {ver.gatilho === "ENCERRAMENTO" && <Badge tone="brand">final</Badge>}
-                  </div>
-                  <p className="text-xs text-ink-muted">
-                    {formatarDataHora(ver.geradaEm)} · {ver.geradaPor?.nome ?? "—"}
-                  </p>
-                  {ver.descricao && <p className="mt-0.5 text-xs text-ink-secondary">{ver.descricao}</p>}
-                  {anterior && (
-                    <p className="mt-1 text-xs text-ink-secondary">
-                      {diff.length === 0 ? "Sem mudança nas quantidades." : diff.map((d) => `${d.codigo}: ${d.antes} → ${d.depois}`).join(" · ")}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </Panel>
+        </Section>
+        <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · ${ev.codigo}`}>
+          <VersoesOs versoes={lista} />
+        </Section>
       </div>
     </div>
   );
 }
-

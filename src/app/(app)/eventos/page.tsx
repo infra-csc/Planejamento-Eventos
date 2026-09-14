@@ -1,92 +1,150 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { requireUsuario } from "@/server/auth/session";
-import { listarEventos } from "@/server/services/eventos";
+import { listarEventos, type EventoLista } from "@/server/services/eventos";
 import { pode } from "@/domain/permissions";
 import { EVENTO_STATUS_LABEL, statusExibicao } from "@/domain/evento";
-import { EVENTO_STATUS, type EventoStatus } from "@/server/db/schema";
-import { EmptyState, PageHeader, Panel, TableWrap } from "@/components/ui/layout";
+import { diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
+import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { EventoStatusBadge } from "@/components/ui/badge";
-import { FiltersBar } from "@/components/ui/filters";
-import { formatarDataHora, formatarPeriodo, hojeISO } from "@/lib/format";
+import { PageHeader, RotuloGrupo } from "@/components/ui/layout";
+import { Pills } from "@/components/ui/pills";
+import { BuscaUrl } from "@/components/ui/busca-url";
+import { CaptionOculta } from "@/components/ui/tabela";
+import { LinhaLink } from "@/components/ui/linha-link";
+import { BarrasFase } from "@/components/eventos/fases";
 
 export const metadata: Metadata = { title: "Eventos" };
 
-export default async function EventosPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+const FASES = [
+  ["TODOS", "Todos"],
+  ["PREPARACAO", "Preparação"],
+  ["EM_REUNIAO", "Em reunião"],
+  ["ABERTO", "Aberto"],
+  ["ENCERRADO", "Encerrado"],
+  ["REALIZADO", "Realizados"],
+  ["CANCELADO", "Cancelado"],
+] as const;
+
+function marco(e: EventoLista) {
+  if (e.status === "PREPARACAO") return `reunião ${diaMesHora(e.dataReuniao)}`;
+  if (e.status === "EM_REUNIAO") return "reunião agora";
+  if (e.status === "ABERTO") return e.dataCarga ? `carga ${diaMesISO(e.dataCarga)}` : "sem data de carga";
+  if (e.status === "CANCELADO") return "cancelado";
+  return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
+}
+
+function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
+  const st = statusExibicao(e.status, e.dataFim, hoje);
+  const rotulo = st === "REALIZADO" ? "Realizado" : EVENTO_STATUS_LABEL[st];
+  return (
+    <LinhaLink href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
+      <th scope="row" className="border-b border-line-row px-[18px] py-3.5 text-left font-normal">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-[14.5px] font-medium text-ink">{e.nome}</span>
+          <EventoStatusBadge status={st} />
+          {e.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {e.reabertoVezes}×</span>}
+        </span>
+        <span className="mt-[3px] block text-[12.5px] text-muted">
+          <span className="font-mono">{e.codigo}</span> · {[e.cliente, e.local].filter(Boolean).join(" · ")}
+        </span>
+      </th>
+      <td className="w-[148px] border-b border-line-row px-2.5 py-3.5">
+        <BarrasFase status={e.status} rotuloStatus={rotulo} />
+      </td>
+      <td className="w-[150px] border-b border-line-row px-2.5 py-3.5">
+        <span className="block font-mono text-[12.5px] text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
+        <span className="block text-[11.5px] text-muted">{marco(e)}</span>
+      </td>
+      <td className="w-[130px] border-b border-line-row py-3.5 pl-2.5 pr-[18px] text-right">
+        <span className={e.solicitacoesAbertas > 0 ? "block text-[12.5px] font-medium text-warning" : "block text-[12.5px] font-medium text-meta"}>
+          {e.solicitacoesAbertas > 0 ? `${e.solicitacoesAbertas} aguardando` : "—"}
+        </span>
+        <span className="block text-[11.5px] text-meta">{e.responsavel.nome}</span>
+      </td>
+    </LinhaLink>
+  );
+}
+
+export default async function EventosPage({ searchParams }: { searchParams: Promise<{ q?: string; fase?: string }> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
-  const status = (EVENTO_STATUS as readonly string[]).includes(sp.status ?? "") ? (sp.status as EventoStatus) : undefined;
-  const eventos = await listarEventos(usuario, { busca: sp.q, status });
   const hoje = hojeISO();
-  const podeCriar = pode(usuario, "evento.criar");
+  const todos = await listarEventos(usuario);
+  const fase = FASES.some(([v]) => v === sp.fase) ? sp.fase! : "TODOS";
+  const termo = (sp.q ?? "").trim().toLowerCase();
+
+  const filtrados = todos.filter((e) => {
+    if (fase !== "TODOS" && statusExibicao(e.status, e.dataFim, hoje) !== fase) return false;
+    if (!termo) return true;
+    return `${e.nome} ${e.codigo} ${e.cliente} ${e.local}`.toLowerCase().includes(termo);
+  });
+
+  const grupos: Array<{ titulo: string; teste: (e: EventoLista) => boolean }> = [
+    { titulo: "Exige ação agora", teste: (e) => e.status === "EM_REUNIAO" || (e.solicitacoesAbertas > 0 && e.status !== "CANCELADO") },
+    { titulo: "Em andamento", teste: (e) => e.status === "PREPARACAO" || e.status === "ABERTO" },
+    { titulo: "Encerrados e cancelados", teste: () => true },
+  ];
+  const usados = new Set<string>();
+  const secoes = grupos
+    .map((g) => {
+      const lista = filtrados.filter((e) => !usados.has(e.id) && g.teste(e));
+      lista.forEach((e) => usados.add(e.id));
+      return { titulo: g.titulo, lista };
+    })
+    .filter((g) => g.lista.length > 0);
+
+  const params = { q: sp.q, fase: sp.fase };
 
   return (
     <>
       <PageHeader
         title="Eventos"
-        description="Cada evento passa por preparação, reunião de OS, ata fechada (aberto a alterações) e encerramento."
+        description="A fase do evento define o que cada área pode fazer. Tudo que exige ação sua aparece em destaque na linha."
         actions={
-          podeCriar && (
-            <ButtonLink href="/eventos/novo" variant="primary">
-              <Plus className="size-4" /> Novo evento
+          pode(usuario, "evento.criar") && (
+            <ButtonLink href="/eventos/novo" variant="primary" size="lg" className="no-underline">
+              Novo evento
             </ButtonLink>
           )
         }
       />
-      <FiltersBar
-        className="mb-4"
-        search={{ name: "q", placeholder: "Buscar por nome, código, cliente ou local" }}
-        selects={[{ name: "status", label: "Status", options: EVENTO_STATUS.map((s) => ({ value: s, label: EVENTO_STATUS_LABEL[s] })) }]}
-      />
-      <Panel padded={false}>
-        {eventos.length === 0 ? (
-          <EmptyState
-            title={sp.q || sp.status ? "Nenhum evento corresponde aos filtros" : "Nenhum evento cadastrado"}
-            description={podeCriar ? "Crie o primeiro evento para que as áreas comecem a registrar necessidades." : "Quando a logística criar um evento, ele aparecerá aqui."}
-            action={podeCriar && !sp.q && !sp.status ? <ButtonLink href="/eventos/novo" variant="primary">Novo evento</ButtonLink> : undefined}
-          />
-        ) : (
-          <TableWrap>
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th>Evento</th>
-                  <th>Período</th>
-                  <th className="hidden md:table-cell">Reunião de OS</th>
-                  <th>Status</th>
-                  <th className="hidden lg:table-cell">Responsável</th>
-                  <th className="num">Solicitações abertas</th>
-                </tr>
-              </thead>
+
+      <div className="mb-[18px] flex flex-wrap items-center gap-2.5">
+        <BuscaUrl placeholder="Buscar por nome, código, cliente ou local" />
+        <Pills
+          rotulo="Filtrar por fase"
+          itens={FASES.map(([v, label]) => ({
+            label,
+            n: v === "TODOS" ? todos.length : todos.filter((e) => statusExibicao(e.status, e.dataFim, hoje) === v).length,
+            href: hrefCom("/eventos", params, { fase: v === "TODOS" ? null : v }),
+            ativo: fase === v,
+          }))}
+        />
+      </div>
+
+      {secoes.map((g) => (
+        <section key={g.titulo} className="mb-[22px]">
+          <RotuloGrupo contagem={`${g.lista.length} ${g.lista.length === 1 ? "evento" : "eventos"}`}>{g.titulo}</RotuloGrupo>
+          <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+            <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+              <CaptionOculta>{g.titulo}</CaptionOculta>
               <tbody>
-                {eventos.map((ev) => (
-                  <tr key={ev.id} className="is-link">
-                    <td>
-                      <Link href={`/eventos/${ev.id}`} className="block">
-                        <span className="block font-medium text-ink">{ev.nome}</span>
-                        <span className="block text-xs text-ink-muted">
-                          {ev.codigo}
-                          {ev.cliente ? ` · ${ev.cliente}` : ""}
-                          {ev.local ? ` · ${ev.local}` : ""}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="whitespace-nowrap tabular">{formatarPeriodo(ev.dataInicio, ev.dataFim)}</td>
-                    <td className="hidden md:table-cell whitespace-nowrap tabular">{formatarDataHora(ev.dataReuniao)}</td>
-                    <td>
-                      <EventoStatusBadge status={statusExibicao(ev.status, ev.dataFim, hoje)} />
-                    </td>
-                    <td className="hidden lg:table-cell">{ev.responsavel.nome}</td>
-                    <td className="num">{ev.solicitacoesAbertas > 0 ? <span className="font-medium text-warning">{ev.solicitacoesAbertas}</span> : <span className="text-ink-faint">0</span>}</td>
-                  </tr>
+                {g.lista.map((e) => (
+                  <Linha key={e.id} e={e} hoje={hoje} />
                 ))}
               </tbody>
             </table>
-          </TableWrap>
-        )}
-      </Panel>
+          </div>
+        </section>
+      ))}
+
+      {secoes.length === 0 && (
+        <div className="rounded-[10px] border border-line bg-surface p-14 text-center">
+          <p className="m-0 text-[14px] font-medium">{todos.length === 0 ? "Nenhum evento cadastrado" : "Nenhum evento corresponde aos filtros"}</p>
+          <p className="mt-[5px] text-[13px] text-muted">{todos.length === 0 ? "Quando a logística criar um evento, ele aparece aqui." : "Ajuste a busca ou volte para todas as fases."}</p>
+        </div>
+      )}
     </>
   );
 }

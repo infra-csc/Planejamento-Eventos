@@ -1,62 +1,88 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { listarEventos } from "@/server/services/eventos";
-import { criarRascunho } from "@/server/services/solicitacoes";
-import { criarRascunhoAction } from "@/app/(app)/eventos/actions";
-import { tipoSolicitacaoParaStatus } from "@/domain/evento";
-import { SOLICITACAO_TIPO_LABEL } from "@/domain/solicitacao";
-import { EmptyState, PageHeader, Panel } from "@/components/ui/layout";
-import { Button } from "@/components/ui/button";
-import { EventoStatusBadge } from "@/components/ui/badge";
-import { formatarDataHora, formatarPeriodo } from "@/lib/format";
+import { listarEventos, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { obterSolicitacao } from "@/server/services/solicitacoes";
+import { obterConfiguracoes } from "@/server/services/support";
+import { getDb } from "@/server/db";
+import { podeEditarSolicitacao } from "@/domain/permissions";
+import { podeEnviar } from "@/domain/solicitacao";
+import { NaoEncontradoError } from "@/domain/errors";
+import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
+import { PageHeader } from "@/components/ui/layout";
+import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
+import { descricaoItem } from "@/server/services/solicitacoes";
 
 export const metadata: Metadata = { title: "Nova solicitação" };
 
-export default async function NovaSolicitacaoPage({ searchParams }: { searchParams: Promise<{ evento?: string }> }) {
+export default async function NovaSolicitacaoPage({ searchParams }: { searchParams: Promise<{ evento?: string; rascunho?: string }> }) {
   const usuario = await requirePermissao("solicitacao.criar");
-  const { evento } = await searchParams;
-  if (evento) {
-    const s = await criarRascunho(usuario, evento);
-    redirect(`/solicitacoes/${s.id}`);
-  }
-  const eventos = (await listarEventos(usuario)).filter((e) => tipoSolicitacaoParaStatus(e.status) !== null);
+  const sp = await searchParams;
+
+  const rascunho = sp.rascunho
+    ? await obterSolicitacao(usuario, sp.rascunho).catch((e) => {
+        if (e instanceof NaoEncontradoError) notFound();
+        throw e;
+      })
+    : null;
+  if (rascunho && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
+
+  const [todos, opcoes, config] = await Promise.all([listarEventos(usuario), opcoesReferencias(), obterConfiguracoes(await getDb())]);
+  const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
+  const linhasPorEvento = Object.fromEntries(
+    await Promise.all(
+      aceitando
+        .filter((e) => e.status === "ABERTO")
+        .map(async (e) => [e.id, (await obterLinhasAta(e.id)).map((l) => ({ id: l.id, nome: l.nome, quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome }))] as const),
+    ),
+  );
+
+  const eventos: EventoOpcao[] = aceitando.map((e) => ({
+    id: e.id,
+    codigo: e.codigo,
+    nome: e.nome,
+    cliente: e.cliente,
+    periodo: periodoCurto(e.dataInicio, e.dataFim),
+    marco: e.status === "PREPARACAO" ? `reunião ${diaMesHora(e.dataReuniao)}` : e.ataFechadaEm ? `ata fechada ${diaMes(e.ataFechadaEm)}` : e.status,
+    tipo: e.status === "PREPARACAO" || (e.status !== "ABERTO" && rascunho?.tipo === "PRE_REUNIAO") ? "PRE_REUNIAO" : "ALTERACAO",
+    aceita: e.status === "PREPARACAO" || e.status === "ABERTO",
+  }));
+
+  const itensIniciais: ItemNovo[] =
+    rascunho?.itens.map((i, n) => ({
+      chave: `r${n}`,
+      operacao: i.operacao,
+      projetoId: i.projetoId,
+      pecaId: i.pecaId,
+      eventoItemId: i.eventoItemId,
+      descricaoLivre: i.descricaoLivre,
+      quantidade: i.quantidadeSolicitada,
+      quantidadeAtual: i.eventoItem?.quantidade ?? null,
+      destino: i.destino ?? "",
+      justificativa: i.justificativa ?? "",
+      rotulo: descricaoItem(i),
+      meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "item avulso",
+    })) ?? [];
+
+  const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : null);
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeader title="Nova solicitação" description="Escolha o evento. O tipo da solicitação depende do estado dele: necessidades antes da reunião, alterações depois da ata." breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: "Nova" }]} />
-      <Panel padded={false}>
-        {eventos.length === 0 ? (
-          <EmptyState title="Nenhum evento aceitando solicitações" description="Eventos em preparação aceitam necessidades; eventos com ata fechada aceitam alterações. Nenhum está nesses estados agora." compact />
-        ) : (
-          <ul className="divide-y divide-line">
-            {eventos.map((ev) => {
-              const tipo = tipoSolicitacaoParaStatus(ev.status)!;
-              return (
-                <li key={ev.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-ink">
-                      {ev.nome} <span className="text-ink-muted font-normal">· {ev.codigo}</span>
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {formatarPeriodo(ev.dataInicio, ev.dataFim)} · {ev.status === "PREPARACAO" ? `reunião ${formatarDataHora(ev.dataReuniao)}` : `ata fechada ${formatarDataHora(ev.ataFechadaEm)}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <EventoStatusBadge status={ev.status} />
-                    <form action={criarRascunhoAction}>
-                      <input type="hidden" name="eventoId" value={ev.id} />
-                      <Button type="submit" variant="primary" size="sm">
-                        {SOLICITACAO_TIPO_LABEL[tipo]}
-                      </Button>
-                    </form>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Panel>
+    <div className="max-w-[880px]">
+      <PageHeader
+        title={rascunho ? `Editar ${rascunho.codigo}` : "Nova solicitação"}
+        description="O tipo é definido pela fase do evento. Você não precisa escolher."
+        breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho ? rascunho.codigo : "Nova" }]}
+      />
+      <NovaSolicitacaoForm
+        rascunho={rascunho ? { id: rascunho.id, codigo: rascunho.codigo, titulo: rascunho.titulo ?? "", observacao: rascunho.observacao ?? "", eventoId: rascunho.eventoId, devolvidaMotivo: rascunho.status === "DEVOLVIDA" ? rascunho.devolvidaMotivo : null } : null}
+        eventos={eventos}
+        eventoInicial={eventoInicial}
+        itensIniciais={itensIniciais}
+        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · ") }))}
+        pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, `estoque ${p.estoqueProprio} ${p.unidade}`].filter(Boolean).join(" · ") }))}
+        linhasPorEvento={linhasPorEvento}
+        slaHoras={Number(config.sla_resposta_horas)}
+      />
     </div>
   );
 }

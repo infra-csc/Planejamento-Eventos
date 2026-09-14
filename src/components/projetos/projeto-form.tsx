@@ -2,7 +2,6 @@
 
 import { ActionForm } from "@/components/ui/action-form";
 import { useActionState, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { salvarProjetoAction } from "@/app/(app)/projetos/actions";
 import { Field, FormError, Input, Select, Textarea } from "@/components/ui/field";
 import { Button, ButtonLink, SubmitButton } from "@/components/ui/button";
@@ -68,7 +67,7 @@ export function ProjetoForm({
       <Panel title="Lista de peças (BOM)" description="Quantidade de cada peça para montar UMA unidade do projeto. Peças marcadas como “sempre avulsas” não aparecem aqui." padded={false}>
         {itens.length > 0 && (
           <TableWrap>
-            <table className="table-base">
+            <table className="w-full border-collapse text-[13px] [&_td]:border-t [&_td]:border-line-row [&_td]:px-3 [&_td]:py-2 [&_th]:bg-subtle [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-medium [&_th]:text-muted">
               <thead>
                 <tr>
                   <th>Setor</th>
@@ -82,16 +81,16 @@ export function ProjetoForm({
                   const p = mapa.get(i.pecaId);
                   return (
                     <tr key={i.pecaId}>
-                      <td className="text-ink-muted">{p ? SETOR_LABEL[p.setor] : "—"}</td>
+                      <td className="text-muted">{p ? SETOR_LABEL[p.setor] : "—"}</td>
                       <td>
-                        <span className="font-medium tabular">{p?.codigo}</span> · {p?.nome}
+                        <span className="font-medium font-mono">{p?.codigo}</span> · {p?.nome}
                       </td>
                       <td className="num">
                         <Input type="number" min={1} value={i.quantidade} aria-label={`Quantidade de ${p?.nome}`} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : x)))} className="h-8 w-24 text-right" />
                       </td>
                       <td>
                         <Button size="sm" variant="ghost" className="text-danger" aria-label={`Remover ${p?.nome}`} onClick={() => setItens((l) => l.filter((_, j) => j !== idx))}>
-                          <Trash2 className="size-3.5" />
+                          Remover
                         </Button>
                       </td>
                     </tr>
@@ -122,7 +121,7 @@ export function ProjetoForm({
             <Input id="novaQtd" type="number" min={1} value={novaQtd} onChange={(e) => setNovaQtd(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionar(); } }} />
           </Field>
           <Button onClick={adicionar} disabled={!novaPeca}>
-            <Plus className="size-4" /> Adicionar
+            Adicionar
           </Button>
         </div>
         {c?.itens && <p className="px-4 pb-3 text-xs text-danger">{c.itens}</p>}

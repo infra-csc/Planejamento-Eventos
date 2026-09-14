@@ -12,13 +12,15 @@ import {
   salvarObservacoesReuniao,
   transicionarEvento,
 } from "@/server/services/eventos";
-import { criarRascunho } from "@/server/services/solicitacoes";
 import { ataAlterarQuantidadeSchema, ataLinhaSchema, eventoSchema, justificativaSchema } from "@/lib/schemas";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { z } from "zod";
+
+function revalidarTudo() {
+  revalidatePath("/", "layout");
+}
 
 export async function salvarEventoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
@@ -39,9 +41,18 @@ export async function salvarEventoAction(_prev: ActionResult, formData: FormData
   } catch (e) {
     return tratarErro(e);
   }
-  revalidatePath("/eventos");
+  revalidarTudo();
   redirect(destino);
 }
+
+const MENSAGENS: Record<AcaoEvento, (os: number | null) => string> = {
+  INICIAR_REUNIAO: () => "Reunião iniciada — envios de necessidades bloqueados",
+  VOLTAR_PREPARACAO: () => "Reunião adiada — as áreas voltam a poder enviar",
+  FECHAR_ATA: (os) => `Ata fechada — OS v${os ?? 1} gerada e áreas notificadas`,
+  ENCERRAR: (os) => `Evento encerrado — OS final v${os ?? ""} gerada`,
+  REABRIR: () => "Evento reaberto em exceção — áreas e logística notificadas",
+  CANCELAR: () => "Evento cancelado",
+};
 
 export async function transicionarEventoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
@@ -56,19 +67,22 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
       return tratarErro(e);
     }
   }
-  const r = await executar(() => transicionarEvento(usuario, eventoId, acao, justificativa), `${TRANSICOES_EVENTO[acao].label}: concluído.`);
-  revalidatePath(`/eventos/${eventoId}`, "layout");
-  revalidatePath("/eventos");
-  revalidatePath("/");
+  let r: ActionResult;
+  try {
+    const ev = await transicionarEvento(usuario, eventoId, acao, justificativa);
+    r = { ok: true, mensagem: MENSAGENS[acao](ev.osNumero) };
+  } catch (e) {
+    r = tratarErro(e);
+  }
+  revalidarTudo();
   return r;
 }
 
-export async function salvarObservacoesAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+/** Autosave das observações da reunião (textarea da aba Consolidar ata). */
+export async function salvarObservacoesAction(eventoId: string, texto: string) {
   const usuario = await requireUsuario();
-  const eventoId = String(formData.get("eventoId") ?? "");
-  const obs = String(formData.get("observacoes") ?? "").trim() || null;
-  const r = await executar(() => salvarObservacoesReuniao(usuario, eventoId, obs), "Observações salvas.");
-  revalidatePath(`/eventos/${eventoId}`, "layout");
+  const r = await executar(() => salvarObservacoesReuniao(usuario, eventoId, texto.trim() || null));
+  if (r.ok) revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
 }
 
@@ -78,11 +92,11 @@ export async function incluirLinhaAtaAction(_prev: ActionResult, formData: FormD
   let r: ActionResult;
   try {
     const dados = parseForm(ataLinhaSchema, formData);
-    r = await executar(() => incluirLinhaAta(usuario, eventoId, dados), "Linha incluída na ata.");
+    r = await executar(() => incluirLinhaAta(usuario, eventoId, dados), "Linha incluída na ata");
   } catch (e) {
     r = tratarErro(e);
   }
-  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidarTudo();
   return r;
 }
 
@@ -93,27 +107,17 @@ export async function alterarQuantidadeLinhaAction(_prev: ActionResult, formData
   let r: ActionResult;
   try {
     const dados = parseForm(ataAlterarQuantidadeSchema, formData);
-    r = await executar(() => alterarQuantidadeLinha(usuario, eventoId, linhaId, dados.quantidade, dados.justificativa), dados.quantidade === 0 ? "Linha removida da ata." : "Quantidade alterada.");
+    r = await executar(() => alterarQuantidadeLinha(usuario, eventoId, linhaId, dados.quantidade, dados.justificativa), dados.quantidade === 0 ? "Linha removida da ata" : "Quantidade alterada — OS regerada");
   } catch (e) {
     r = tratarErro(e);
   }
-  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidarTudo();
   return r;
 }
 
-export async function atualizarVersaoLinhaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: string) {
   const usuario = await requireUsuario();
-  const eventoId = String(formData.get("eventoId") ?? "");
-  const linhaId = String(formData.get("linhaId") ?? "");
-  const r = await executar(() => atualizarVersaoLinha(usuario, eventoId, linhaId), "Projeto atualizado para a versão atual.");
-  revalidatePath(`/eventos/${eventoId}`, "layout");
+  const r = await executar(() => atualizarVersaoLinha(usuario, eventoId, linhaId));
+  revalidarTudo();
   return r;
-}
-
-export async function criarRascunhoAction(formData: FormData) {
-  const usuario = await requireUsuario();
-  const eventoId = z.string().min(1).parse(formData.get("eventoId"));
-  const s = await criarRascunho(usuario, eventoId);
-  revalidatePath("/solicitacoes");
-  redirect(`/solicitacoes/${s.id}`);
 }

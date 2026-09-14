@@ -3,6 +3,9 @@
  * notificações, versões de ata e de OS fiquem coerentes com o processo.
  *
  * Senha de todos os usuários: norte1234
+ *
+ * Estoques de BOX-3000, CUBO, TALHA e PARAF são valores de demonstração ajustados para
+ * a consolidação mostrar déficit real (handoff §11). Use o estoque real da empresa em produção.
  */
 import { eq, sql } from "drizzle-orm";
 import { getConnection } from "../src/server/db";
@@ -44,14 +47,19 @@ async function main() {
   /* Áreas e usuários                                                   */
   /* ---------------------------------------------------------------- */
   const nomesAreas = ["Produção", "Cenografia", "Ativação", "Gráfica", "Atendimento", "Logística"];
-  const areasRows = await db.insert(areas).values(nomesAreas.map((nome) => ({ nome }))).returning();
+  const areasRows: Array<typeof areas.$inferSelect> = [];
+  for (const nome of nomesAreas) {
+    // uma por vez para preservar a ordem de criação (usada nas listas)
+    const [a] = await db.insert(areas).values({ nome }).returning();
+    areasRows.push(a);
+  }
   const area = (nome: string) => areasRows.find((a) => a.nome === nome)!;
 
   const senhaHash = await hashSenha(SENHA);
   const defs: Array<{ nome: string; email: string; perfil: Perfil; area?: string }> = [
     { nome: "Administrador do Sistema", email: "admin@nortemkt.com.br", perfil: "ADMIN" },
-    { nome: "Marina Castro", email: "marina.castro@nortemkt.com.br", perfil: "LOGISTICA" },
-    { nome: "Rafael Nunes", email: "rafael.nunes@nortemkt.com.br", perfil: "LOGISTICA" },
+    { nome: "Marina Castro", email: "marina.castro@nortemkt.com.br", perfil: "LOGISTICA", area: "Logística" },
+    { nome: "Rafael Nunes", email: "rafael.nunes@nortemkt.com.br", perfil: "LOGISTICA", area: "Logística" },
     { nome: "Helena Prado", email: "helena.prado@nortemkt.com.br", perfil: "GESTAO" },
     { nome: "Bruno Tavares", email: "bruno.tavares@nortemkt.com.br", perfil: "CENOGRAFIA", area: "Cenografia" },
     { nome: "Carla Mendes", email: "carla.mendes@nortemkt.com.br", perfil: "CENOGRAFIA", area: "Cenografia" },
@@ -89,14 +97,14 @@ async function main() {
     ["BOX-400", "Box truss 400 mm — trecho 1 m", "ESTRUTURA", "Box truss", 40],
     ["BOX-600", "Box truss 600 mm — trecho 1,5 m", "ESTRUTURA", "Box truss", 120],
     ["BOX-700", "Box truss 700 mm — trecho 2 m", "ESTRUTURA", "Box truss", 60],
-    ["BOX-3000", "Box truss — trecho 3 m", "ESTRUTURA", "Box truss", 90],
+    ["BOX-3000", "Box truss — trecho 3 m", "ESTRUTURA", "Box truss", 40],
     ["BOX-3500", "Box truss — trecho 3,5 m", "ESTRUTURA", "Box truss", 30],
-    ["CUBO", "Cubo de conexão 4 faces", "ESTRUTURA", "Conexão", 80],
+    ["CUBO", "Cubo de conexão 4 faces", "ESTRUTURA", "Conexão", 34],
     ["GRAPPLE", "Grapple (esticador de cabo)", "ESTRUTURA", "Conexão", 24],
-    ["PARAF", "Parafuso M12 com porca e arruela", "ESTRUTURA", "Fixação", 3000],
+    ["PARAF", "Parafuso M12 com porca e arruela", "ESTRUTURA", "Fixação", 600],
     ["SAPATA", "Sapata de base 40×40", "ESTRUTURA", "Base", 36],
     ["CONTRAPESO", "Contrapeso 25 kg", "ESTRUTURA", "Base", 60],
-    ["TALHA", "Talha manual 1 t", "ESTRUTURA", "Içamento", 12],
+    ["TALHA", "Talha manual 1 t", "ESTRUTURA", "Içamento", 2],
     ["TND-CANT", "Cantoneira de tenda", "TENDA", "Tenda", 96],
     ["TND-TRAV", "Travessa de tenda 5 m", "TENDA", "Tenda", 64],
     ["TND-PE", "Pé de tenda 3 m", "TENDA", "Tenda", 72],
@@ -128,7 +136,7 @@ async function main() {
   const portico660 = await criarProjeto(bruno, {
     nome: "Pórtico boca 6,60m",
     categoria: "Pórtico",
-    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura. BOM conforme referência do briefing.",
+    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura.",
     observacaoVersao: "Versão inicial",
     itens: bom([["BOX-400", 1], ["BOX-600", 5], ["BOX-700", 1], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["GRAPPLE", 1], ["PARAF", 132]]),
   });
@@ -141,7 +149,7 @@ async function main() {
     observacaoVersao: null,
     itens: bom([["PISO-MOD", 48], ["PERNA-60", 96], ["RODAPE", 28], ["BOX-3000", 16], ["BOX-3500", 4], ["CUBO", 8], ["SAPATA", 4], ["PARAF", 260], ["TINTA-PRETA", 1]]),
   });
-  const tenda10 = await criarProjeto(bruno, { nome: "Tenda 10×10 m", categoria: "Tenda", descricao: "Estrutura da tenda. Fechamentos laterais são sempre itens avulsos (RN-09).", observacaoVersao: null, itens: bom([["TND-CANT", 8], ["TND-TRAV", 8], ["TND-PE", 8], ["TND-MASTRO", 1], ["TND-CABO", 8], ["TND-CALHA", 4], ["TND-LONA10", 1]]) });
+  const tenda10 = await criarProjeto(bruno, { nome: "Tenda 10×10 m", categoria: "Tenda", descricao: "Estrutura da tenda. Fechamentos laterais são sempre itens avulsos.", observacaoVersao: null, itens: bom([["TND-CANT", 8], ["TND-TRAV", 8], ["TND-PE", 8], ["TND-MASTRO", 1], ["TND-CABO", 8], ["TND-CALHA", 4], ["TND-LONA10", 1]]) });
   const tenda5 = await criarProjeto(bruno, { nome: "Tenda 5×5 m", categoria: "Tenda", descricao: null, observacaoVersao: null, itens: bom([["TND-CANT", 4], ["TND-TRAV", 4], ["TND-PE", 4], ["TND-MASTRO", 1], ["TND-CABO", 4], ["TND-LONA5", 1]]) });
   const balcao = await criarProjeto(bruno, { nome: "Balcão de credenciamento 2 m", categoria: "Balcão", descricao: "Balcão em MDF pintado, tampo de 2 m.", observacaoVersao: null, itens: bom([["MDF-15", 3], ["SARRAFO", 6], ["TAMPO-BAL", 1], ["TINTA-PRETA", 1]]) });
   const camarim = await criarProjeto(bruno, { nome: "Camarim 3×3 m", categoria: "Camarim", descricao: "Painéis em MDF 9 mm sobre estrutura de sarrafo, piso praticável.", observacaoVersao: null, itens: bom([["MDF-9", 8], ["SARRAFO", 24], ["PISO-MOD", 9], ["PERNA-60", 18]]) });
@@ -150,9 +158,9 @@ async function main() {
   /* Helpers de fluxo                                                   */
   /* ---------------------------------------------------------------- */
   type ItemSeed = { projetoId?: string; pecaCodigo?: string; livre?: string; qtd: number; destino?: string; just?: string; operacao?: "ADICIONAR" | "ALTERAR_QUANTIDADE" | "REMOVER"; eventoItemId?: string };
-  async function solicitar(usuario: UsuarioAtual, eventoId: string, titulo: string | null, itens: ItemSeed[], enviar = true) {
+  async function solicitar(usuario: UsuarioAtual, eventoId: string, titulo: string | null, itens: ItemSeed[], enviar = true, observacao: string | null = null) {
     const s = await criarRascunho(usuario, eventoId);
-    if (titulo) await atualizarCabecalho(usuario, s.id, { titulo, observacao: null });
+    if (titulo || observacao) await atualizarCabecalho(usuario, s.id, { titulo, observacao });
     for (const i of itens) {
       await salvarItem(usuario, s.id, null, {
         operacao: i.operacao ?? "ADICIONAR",
@@ -178,7 +186,7 @@ async function main() {
   const ev = (dados: Parameters<typeof criarEvento>[1]) => criarEvento(marina, dados);
 
   /* ---------------------------------------------------------------- */
-  /* E1 — Festival Praia Sonora (ABERTO, cenário completo)              */
+  /* EVT-0001 — Festival Praia Sonora (ABERTO, cenário completo)        */
   /* ---------------------------------------------------------------- */
   const e1 = await ev({ nome: "Festival Praia Sonora 2026", cliente: "Prefeitura de Marítima", local: "Orla Norte — Arena de Areia", dataMontagem: d(9), dataInicio: d(12), dataFim: d(14), dataDesmontagem: d(15), dataReuniao: dt(-6, 14), dataCarga: d(8), responsavelId: marina.id });
   const s1a = await solicitar(paulo, e1.id, "Estruturas principais", [
@@ -190,7 +198,7 @@ async function main() {
     { projetoId: torreSom.id, qtd: 4, destino: "PA principal (2) e delay (2)" },
     { projetoId: palco86.id, qtd: 1, destino: "Palco principal" },
   ]);
-  const s1c = await solicitar(bruno, e1.id, null, [{ projetoId: balcao.id, qtd: 2, destino: "Credenciamento" }]);
+  const s1c = await solicitar(bruno, e1.id, "Balcões de credenciamento", [{ projetoId: balcao.id, qtd: 2, destino: "Credenciamento" }]);
   await transicionarEvento(marina, e1.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s1a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "PARCIAL", qtd: 3, obs: "Só 3 fechamentos disponíveis na data; o 4º depende de locação.", pendencia: true }]);
   await responderTodos(marina, s1b, [{ status: "PARCIAL", qtd: 3, obs: "Uma torre está comprometida com o Lançamento SUV Aurora no mesmo fim de semana.", pendencia: true }, { status: "ATENDIDO" }]);
@@ -201,11 +209,11 @@ async function main() {
   // Alterações pós-ata
   const s1d = await solicitar(julia, e1.id, "Pórtico extra na área de ativação", [{ projetoId: portico4.id, qtd: 1, destino: "Ativação — acesso lateral", just: "Patrocinador confirmou espaço de ativação lateral." }]);
   await responderTodos(rafael, s1d, [{ status: "ATENDIDO" }]);
-  const s1e = await solicitar(diego, e1.id, "Backdrops", [{ livre: "Painel backdrop 3×2 m em MDF", qtd: 2, destino: "Área de imprensa", just: "Fotos oficiais com patrocinadores." }]);
+  const s1e = await solicitar(diego, e1.id, "Backdrops", [{ livre: "Painel backdrop 3×2 m em MDF", qtd: 2, destino: "Área de imprensa", just: "Fotos oficiais com patrocinadores." }], true, "Fotos oficiais com patrocinadores; material chega dia 24.");
   const linhasE1 = await obterLinhasAta(e1.id);
   const linhaCamarim = linhasE1.find((l) => l.projeto?.nome === "Camarim 3×3 m")!;
   const s1f = await solicitar(lucia, e1.id, "Camarim adicional", [{ operacao: "ALTERAR_QUANTIDADE", eventoItemId: linhaCamarim.id, qtd: 3, just: "Artista principal pediu camarim exclusivo." }]);
-  await devolverSolicitacao(marina, s1f, "Confirme com a produção se o terceiro camarim cabe no backstage antes de reenviar.");
+  await devolverSolicitacao(marina, s1f, "Confirme com a produção se o terceiro camarim cabe no backstage antes de reenviar");
   const linhaFech = linhasE1.find((l) => l.descricaoLivre === "Fechamento de tenda")!;
   await solicitar(ana, e1.id, "Revisão dos fechamentos", [{ operacao: "REMOVER", eventoItemId: linhaFech.id, qtd: 0, just: "Cliente desistiu do fechamento lateral." }], false);
   const linhaTenda = linhasE1.find((l) => l.projeto?.nome === "Tenda 10×10 m")!;
@@ -214,15 +222,15 @@ async function main() {
   await db.update(solicitacoes).set({ enviadaEm: dt(-3, 9), prazoRespostaEm: dt(-1, 9) }).where(eq(solicitacoes.id, s1e));
 
   /* ---------------------------------------------------------------- */
-  /* E2 — Convenção TechNorte (PREPARACAO, reunião em 2 dias)           */
+  /* EVT-0002 — Convenção TechNorte (PREPARACAO, reunião em 2 dias)     */
   /* ---------------------------------------------------------------- */
   const e2 = await ev({ nome: "Convenção Anual TechNorte", cliente: "TechNorte S.A.", local: "Centro de Convenções — Pavilhão B", dataMontagem: d(18), dataInicio: d(20), dataFim: d(21), dataDesmontagem: d(22), dataReuniao: dt(2, 14), dataCarga: null, responsavelId: rafael.id });
-  await solicitar(paulo, e2.id, "Acessos e credenciamento", [{ projetoId: portico4.id, qtd: 1, destino: "Entrada principal" }, { projetoId: balcao.id, qtd: 3, destino: "Credenciamento" }]);
-  await solicitar(lucia, e2.id, null, [{ projetoId: camarim.id, qtd: 1, destino: "Sala de palestrantes" }]);
-  await solicitar(julia, e2.id, "Ativações (rascunho)", [{ projetoId: tenda5.id, qtd: 2, destino: "Foyer" }], false);
+  await solicitar(paulo, e2.id, "Acessos e credenciamento", [{ projetoId: portico4.id, qtd: 1, destino: "Entrada principal" }, { projetoId: balcao.id, qtd: 3, destino: "Credenciamento" }], true, "Credenciamento abre às 7h; balcões precisam estar prontos na véspera.");
+  await solicitar(lucia, e2.id, "Sala de palestrantes", [{ projetoId: camarim.id, qtd: 1, destino: "Sala de palestrantes" }]);
+  await solicitar(julia, e2.id, "Ativações no foyer", [{ projetoId: tenda5.id, qtd: 2, destino: "Foyer" }], false);
 
   /* ---------------------------------------------------------------- */
-  /* E3 — Lançamento SUV Aurora (EM_REUNIAO)                            */
+  /* EVT-0003 — Lançamento SUV Aurora (EM_REUNIAO, reunião hoje)        */
   /* ---------------------------------------------------------------- */
   const e3 = await ev({ nome: "Lançamento SUV Aurora", cliente: "Aurora Motors", local: "Autódromo — Boxes", dataMontagem: d(11), dataInicio: d(13), dataFim: d(13), dataDesmontagem: d(14), dataReuniao: dt(0, 9), dataCarga: d(10), responsavelId: marina.id });
   const s3a = await solicitar(paulo, e3.id, "Palco de revelação", [{ projetoId: palco86.id, qtd: 1, destino: "Box 1" }, { projetoId: torreSom.id, qtd: 2, destino: "Laterais do palco" }]);
@@ -233,11 +241,11 @@ async function main() {
   await responderItem(marina, s3bObj.itens[0].id, { status: "ATENDIDO" });
 
   /* ---------------------------------------------------------------- */
-  /* E4 — Feira Gastronômica (ENCERRADO, futuro)                        */
+  /* EVT-0004 — Feira Gastronômica (ENCERRADO, futuro)                  */
   /* ---------------------------------------------------------------- */
   const e4 = await ev({ nome: "Feira Gastronômica Sabores do Norte", cliente: "Associação Comercial", local: "Praça Central", dataMontagem: d(5), dataInicio: d(6), dataFim: d(7), dataDesmontagem: d(8), dataReuniao: dt(-9, 14), dataCarga: d(4), responsavelId: rafael.id });
   const s4a = await solicitar(paulo, e4.id, "Tendas dos expositores", [{ projetoId: tenda5.id, qtd: 6, destino: "Alas A e B" }, { projetoId: tenda10.id, qtd: 1, destino: "Praça de alimentação" }]);
-  const s4b = await solicitar(bruno, e4.id, null, [{ projetoId: balcao.id, qtd: 4, destino: "Expositores" }]);
+  const s4b = await solicitar(bruno, e4.id, "Balcões dos expositores", [{ projetoId: balcao.id, qtd: 4, destino: "Expositores" }]);
   await transicionarEvento(rafael, e4.id, "INICIAR_REUNIAO");
   await responderTodos(rafael, s4a, [{ status: "ATENDIDO" }, { status: "NAO_ATENDIDO", obs: "Lona 10×10 comprometida com o Festival Praia Sonora. Use duas 5×5 unidas.", pendencia: false }]);
   await responderTodos(rafael, s4b, [{ status: "ATENDIDO" }]);
@@ -247,7 +255,7 @@ async function main() {
   await transicionarEvento(rafael, e4.id, "ENCERRAR");
 
   /* ---------------------------------------------------------------- */
-  /* E5 — Corrida Noturna Lumen (reaberto em exceção)                   */
+  /* EVT-0005 — Corrida Noturna Lumen (reaberto em exceção)             */
   /* ---------------------------------------------------------------- */
   const e5 = await ev({ nome: "Corrida Noturna Lumen", cliente: "Lumen Esportes", local: "Parque das Águas", dataMontagem: d(3), dataInicio: d(4), dataFim: d(4), dataDesmontagem: d(5), dataReuniao: dt(-12, 14), dataCarga: d(2), responsavelId: marina.id });
   const s5a = await solicitar(julia, e5.id, "Largada e chegada", [{ projetoId: portico660.id, qtd: 1, destino: "Largada" }, { projetoId: portico4.id, qtd: 1, destino: "Chegada" }, { projetoId: torreSom.id, qtd: 2, destino: "Largada" }]);
@@ -259,21 +267,21 @@ async function main() {
   await solicitar(julia, e5.id, "Pórtico do patrocinador", [{ projetoId: portico660.id, qtd: 1, destino: "Chegada — patrocinador", just: "Exigência contratual do patrocinador master." }]);
 
   /* ---------------------------------------------------------------- */
-  /* E6 — Ativação Shopping Boulevard (CANCELADO)                       */
+  /* EVT-0006 — Ativação Shopping Boulevard (CANCELADO)                 */
   /* ---------------------------------------------------------------- */
   const e6 = await ev({ nome: "Ativação Shopping Boulevard", cliente: "Boulevard Mall", local: "Praça de eventos do shopping", dataMontagem: d(25), dataInicio: d(26), dataFim: d(28), dataDesmontagem: d(29), dataReuniao: dt(4, 14), dataCarga: null, responsavelId: rafael.id });
-  await solicitar(julia, e6.id, null, [{ projetoId: tenda5.id, qtd: 1 }]);
+  await solicitar(julia, e6.id, "Tenda de ativação", [{ projetoId: tenda5.id, qtd: 1 }]);
   await transicionarEvento(rafael, e6.id, "CANCELAR", "Cliente adiou a ativação para o próximo trimestre; novo evento será criado.");
 
   /* ---------------------------------------------------------------- */
-  /* E7 / E8 — Realizados (ENCERRADO com datas passadas)                */
+  /* EVT-0007 / EVT-0008 — Realizados (ENCERRADO com datas passadas)    */
   /* ---------------------------------------------------------------- */
-  for (const [nome, cliente, local, ini] of [
-    ["Encontro de Franqueados Vitta", "Vitta Franquias", "Hotel Costa Verde — Salão Atlântico", -20],
-    ["Arena Games Weekend", "PlayNorte", "Ginásio Municipal", -34],
+  for (const [nome, cliente, local, ini, titulo] of [
+    ["Encontro de Franqueados Vitta", "Vitta Franquias", "Hotel Costa Verde — Salão Atlântico", -20, "Palco e recepção"],
+    ["Arena Games Weekend", "PlayNorte", "Ginásio Municipal", -34, "Arena principal"],
   ] as const) {
     const e = await ev({ nome, cliente, local, dataMontagem: d(ini - 1), dataInicio: d(ini), dataFim: d(ini + 1), dataDesmontagem: d(ini + 2), dataReuniao: dt(ini - 8, 14), dataCarga: d(ini - 2), responsavelId: marina.id });
-    const s = await solicitar(paulo, e.id, null, [{ projetoId: palco86.id, qtd: 1, destino: "Palco" }, { projetoId: balcao.id, qtd: 2, destino: "Recepção" }, { projetoId: torreSom.id, qtd: 2 }]);
+    const s = await solicitar(paulo, e.id, titulo, [{ projetoId: palco86.id, qtd: 1, destino: "Palco" }, { projetoId: balcao.id, qtd: 2, destino: "Recepção" }, { projetoId: torreSom.id, qtd: 2 }]);
     await transicionarEvento(marina, e.id, "INICIAR_REUNIAO");
     await responderTodos(marina, s, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "ATENDIDO" }]);
     await transicionarEvento(marina, e.id, "FECHAR_ATA");
@@ -281,20 +289,42 @@ async function main() {
   }
 
   /* ---------------------------------------------------------------- */
-  /* E9 — Semana da Música Urbana (PREPARACAO, sem envios)              */
+  /* EVT-0009 — Semana da Música Urbana (PREPARACAO, sem envios)        */
   /* ---------------------------------------------------------------- */
   await ev({ nome: "Semana da Música Urbana", cliente: "Secretaria de Cultura", local: "Largo do Mercado", dataMontagem: d(30), dataInicio: d(32), dataFim: d(36), dataDesmontagem: d(37), dataReuniao: dt(6, 14), dataCarga: null, responsavelId: marina.id });
 
   /* ---------------------------------------------------------------- */
-  /* Nova versão de projeto após uso (MEL-02)                           */
+  /* Nova versão de projeto após uso (atas antigas ficam na v1)         */
   /* ---------------------------------------------------------------- */
   await editarProjeto(bruno, portico660.id, {
     nome: "Pórtico boca 6,60m",
     categoria: "Pórtico",
-    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura. BOM conforme referência do briefing.",
-    observacaoVersao: "Incluídas 2 sapatas de base e 4 contrapesos após revisão de segurança.",
+    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura.",
+    observacaoVersao: "Incluídas 2 sapatas e 4 contrapesos após revisão de segurança.",
     itens: bom([["BOX-400", 1], ["BOX-600", 5], ["BOX-700", 1], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["GRAPPLE", 1], ["PARAF", 132], ["SAPATA", 2], ["CONTRAPESO", 4]]),
   });
+
+  /* ---------------------------------------------------------------- */
+  /* Acessos, usuário inativo e notificações                            */
+  /* ---------------------------------------------------------------- */
+  await db.update(usuarios).set({ ativo: false }).where(eq(usuarios.email, "tiago.moreira@nortemkt.com.br"));
+  const horasDesdeAcesso: Array<[string, number]> = [
+    ["marina.castro@nortemkt.com.br", 4],
+    ["rafael.nunes@nortemkt.com.br", 4.3],
+    ["helena.prado@nortemkt.com.br", 17],
+    ["bruno.tavares@nortemkt.com.br", 2.5],
+    ["carla.mendes@nortemkt.com.br", 144],
+    ["paulo.ribeiro@nortemkt.com.br", 3.3],
+    ["ana.lima@nortemkt.com.br", 50],
+    ["julia.fontes@nortemkt.com.br", 20],
+    ["tiago.moreira@nortemkt.com.br", 24 * 62],
+    ["diego.sampaio@nortemkt.com.br", 74],
+    ["lucia.barros@nortemkt.com.br", 72],
+    ["admin@nortemkt.com.br", 2],
+  ];
+  for (const [email, horas] of horasDesdeAcesso) {
+    await db.update(usuarios).set({ ultimoAcessoEm: new Date(Date.now() - horas * 3_600_000) }).where(eq(usuarios.email, email));
+  }
 
   // Mantém só as 6 notificações mais recentes de cada usuário como não lidas (demonstração).
   await db.execute(sql`update notificacoes set lida_em = now() where id in (

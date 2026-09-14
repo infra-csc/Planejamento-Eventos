@@ -19,7 +19,7 @@ export default async function EditarProjetoPage({ params }: { params: Promise<{ 
   const pecas = await listarPecas(usuario);
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title={`Editar ${p.nome}`} description="Alterar a lista de peças cria uma nova versão; alterar só nome/descrição não." breadcrumbs={[{ label: "Projetos padrão", href: "/projetos" }, { label: p.nome, href: `/projetos/${p.id}` }, { label: "Editar" }]} />
+      <PageHeader title={`Editar ${p.nome}`} description="Alterar a lista de peças cria uma nova versão; alterar só nome/descrição não." breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca" }, { label: p.nome, href: `/projetos/${p.id}` }, { label: "Editar" }]} />
       <ProjetoForm
         valores={{ id: p.id, nome: p.nome, categoria: p.categoria, descricao: p.descricao, versaoAtual: p.versaoAtual, itens: (p.versaoAtualObj?.itens ?? []).map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
         pecas={pecas}

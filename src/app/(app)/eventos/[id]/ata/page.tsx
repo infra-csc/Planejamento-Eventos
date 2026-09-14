@@ -2,112 +2,55 @@ import { requireUsuario } from "@/server/auth/session";
 import { listarAtaVersoes, obterEvento, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
 import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
-import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
-import { Panel, TableWrap } from "@/components/ui/layout";
-import { AtaTabela } from "@/components/eventos/ata-tabela";
-import { formatarDataHora } from "@/lib/format";
+import { diaMesHora } from "@/lib/format";
+import { Section } from "@/components/ui/layout";
+import { AtaLista } from "@/components/eventos/ata-lista";
+import { paraView } from "@/components/eventos/ata-view";
 
 export default async function AtaPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
   const [ev, linhas, versoes, opcoes, areas] = await Promise.all([obterEvento(usuario, id), obterLinhasAta(id), listarAtaVersoes(id), opcoesReferencias(), listarAreas()]);
-  const podeEditar = pode(usuario, "ata.consolidar");
+  const editavel = pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO" || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
+  const congelada = versoes[0];
 
   return (
-    <div className="space-y-4">
-      <Panel
-        title={ev.ataFechadaEm ? "Ata atual (com alterações aplicadas)" : "Ata em construção"}
-        description={
-          ev.ataFechadaEm
-            ? `Ata fechada em ${formatarDataHora(ev.ataFechadaEm)}. Esta lista reflete a ata original mais os itens atendidos em solicitações e ajustes da logística.`
-            : "Lista consolidada do que o evento vai usar. Cada linha vira peças na OS."
-        }
-        padded={false}
+    <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-5">
+      <Section
+        titulo={ev.ataFechadaEm ? "Ata atual" : "Ata em construção"}
+        sub={ev.ataFechadaEm ? "Ata fechada mais o que foi atendido em alterações e ajustes da logística. Cada linha vira peças na OS." : "Monta-se na reunião de OS a partir das respostas. Cada linha vira peças na OS."}
       >
-        <AtaTabela
+        <AtaLista
           eventoId={id}
           status={ev.status}
-          podeEditar={podeEditar}
+          editavel={editavel}
           opcoes={opcoes}
           areas={areas.map((a) => ({ id: a.id, nome: a.nome }))}
-          linhas={linhas.map((l) => ({
-            id: l.id,
-            tipo: l.tipo,
-            descricao: l.descricao,
-            quantidade: l.quantidade,
-            destino: l.destino,
-            areaNome: l.areaNome,
-            origem: l.registro.origem,
-            versaoDefasada: l.versaoDefasada,
-            versao: l.projeto?.versao ?? null,
-            setor: l.peca?.setor ?? null,
-          }))}
+          linhas={linhas.map(paraView)}
+          dataReuniao={diaMesHora(ev.dataReuniao)}
         />
-      </Panel>
+      </Section>
 
-      {ev.observacoesReuniao && (
-        <Panel title="Observações da reunião">
-          <p className="whitespace-pre-wrap text-sm text-ink">{ev.observacoesReuniao}</p>
-        </Panel>
-      )}
+      <div className="flex flex-col gap-5">
+        <Section titulo="Observações da reunião">
+          <div className="px-[18px] py-3.5">
+            {ev.observacoesReuniao ? <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.55] text-ink-2">{ev.observacoesReuniao}</p> : <p className="m-0 text-[12.5px] text-muted">Nenhuma observação registrada.</p>}
+          </div>
+        </Section>
 
-      {versoes.map((v) => (
-        <Panel key={v.id} title={`Ata original · versão ${v.numero}`} description={`Congelada em ${formatarDataHora(v.fechadaEm)} por ${v.fechadaPor?.nome ?? "—"}. Não muda mais; alterações posteriores estão no histórico e na lista acima.`} padded={false}>
-          <details>
-            <summary className="cursor-pointer px-4 py-2.5 text-[13px] text-info hover:underline">Ver conteúdo congelado ({v.conteudo.linhas.length} linhas, {v.conteudo.solicitacoesPreReuniao.length} solicitações pré-reunião)</summary>
-            <div className="border-t border-line">
-              <TableWrap>
-                <table className="table-base">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th className="num">Qtd.</th>
-                      <th>Destino</th>
-                      <th>Área</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {v.conteudo.linhas.map((l) => (
-                      <tr key={l.id}>
-                        <td>{l.descricao}</td>
-                        <td className="num tabular">{l.quantidade}</td>
-                        <td>{l.destino ?? "—"}</td>
-                        <td>{l.area ?? "logística"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableWrap>
-              {v.conteudo.solicitacoesPreReuniao.length > 0 && (
-                <div className="border-t border-line px-4 py-3">
-                  <p className="mb-2 text-xs font-medium text-ink-muted">Necessidades pré-reunião e respostas</p>
-                  <ul className="space-y-2 text-[13px]">
-                    {v.conteudo.solicitacoesPreReuniao.map((s) => (
-                      <li key={s.codigo}>
-                        <span className="font-medium">{s.codigo}</span> · {s.area}
-                        <ul className="ml-4 mt-1 list-disc text-ink-secondary">
-                          {s.itens.map((i, idx) => (
-                            <li key={idx}>
-                              {i.descricao}: {i.atendida}/{i.solicitada} — {ITEM_STATUS_LABEL[i.status]}
-                              {i.observacao ? ` (${i.observacao})` : ""}
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {v.conteudo.observacoes && (
-                <div className="border-t border-line px-4 py-3 text-[13px]">
-                  <p className="mb-1 text-xs font-medium text-ink-muted">Observações</p>
-                  <p className="whitespace-pre-wrap">{v.conteudo.observacoes}</p>
-                </div>
-              )}
+        {congelada && (
+          <Section titulo="Ata congelada" sub={`v${congelada.numero} · ${diaMesHora(congelada.fechadaEm)}`}>
+            <div className="px-[18px] py-3.5 text-[12.5px] leading-[1.5] text-ink-3">
+              <p className="m-0">
+                Fechada por {congelada.fechadaPor?.nome ?? "—"} com <span className="font-mono text-ink-2">{congelada.conteudo.linhas.length}</span> {congelada.conteudo.linhas.length === 1 ? "linha" : "linhas"} e{" "}
+                <span className="font-mono text-ink-2">{congelada.conteudo.solicitacoesPreReuniao.length}</span> {congelada.conteudo.solicitacoesPreReuniao.length === 1 ? "solicitação pré-reunião" : "solicitações pré-reunião"}.
+              </p>
+              <p className="mb-0 mt-2">O registro original não muda mais. O que veio depois está no histórico e nas versões da OS.</p>
+              {versoes.length > 1 && <p className="mb-0 mt-2 text-meta">Evento reaberto: {versoes.length} fechamentos de ata registrados.</p>}
             </div>
-          </details>
-        </Panel>
-      ))}
+          </Section>
+        )}
+      </div>
     </div>
   );
 }

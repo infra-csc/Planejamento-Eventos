@@ -4,94 +4,86 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import {
-  atualizarCabecalho,
+  atenderTudo,
   cancelarSolicitacao,
-  criarRascunho,
+  desfazerResposta,
   devolverSolicitacao,
   enviarSolicitacao,
   excluirRascunho,
-  removerItem,
   responderItem,
-  salvarItem,
+  salvarSolicitacaoCompleta,
 } from "@/server/services/solicitacoes";
-import { respostaItemSchema, solicitacaoCabecalhoSchema, solicitacaoItemSchema } from "@/lib/schemas";
-import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
+import { respostaItemSchema, solicitacaoCompletaSchema } from "@/lib/schemas";
+import { executar, tratarErro, type ActionResult } from "@/lib/action";
+import type { ItemStatus } from "@/server/db/schema";
 
-function revalidar(solicitacaoId: string, eventoId?: string) {
-  revalidatePath(`/solicitacoes/${solicitacaoId}`);
-  revalidatePath("/solicitacoes");
-  revalidatePath("/");
-  if (eventoId) revalidatePath(`/eventos/${eventoId}`, "layout");
+/** Contadores e agregados são derivados: qualquer resposta muda navegação, painel, ata e OS. */
+function revalidarTudo() {
+  revalidatePath("/", "layout");
 }
 
-export async function criarRascunhoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export type DadosResposta = {
+  status: ItemStatus;
+  quantidadeAtendida?: number | null;
+  observacaoLogistica?: string | null;
+  pendenciaCompra?: boolean;
+  justificativa?: string | null;
+};
+
+export async function responderItemAction(itemId: string, dados: DadosResposta) {
   const usuario = await requireUsuario();
-  const eventoId = String(formData.get("eventoId") ?? "");
-  let id: string;
   try {
-    const s = await criarRascunho(usuario, eventoId);
-    id = s.id;
+    const d = respostaItemSchema.parse({
+      status: dados.status,
+      quantidadeAtendida: dados.quantidadeAtendida ?? undefined,
+      observacaoLogistica: dados.observacaoLogistica ?? undefined,
+      pendenciaCompra: dados.pendenciaCompra ?? false,
+      justificativa: dados.justificativa ?? undefined,
+    });
+    const r = await responderItem(usuario, itemId, d, d.justificativa);
+    revalidarTudo();
+    return { ok: true, dados: r } as ActionResult<typeof r>;
   } catch (e) {
     return tratarErro(e);
   }
-  revalidatePath("/solicitacoes");
-  redirect(`/solicitacoes/${id}`);
 }
 
-export async function atualizarCabecalhoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function desfazerRespostaAction(itemId: string) {
   const usuario = await requireUsuario();
-  const id = String(formData.get("solicitacaoId") ?? "");
-  let r: ActionResult;
-  try {
-    const dados = parseForm(solicitacaoCabecalhoSchema, formData);
-    r = await executar(() => atualizarCabecalho(usuario, id, dados), "Rascunho salvo.");
-  } catch (e) {
-    r = tratarErro(e);
-  }
-  revalidar(id);
+  const r = await executar(() => desfazerResposta(usuario, itemId), "Resposta desfeita");
+  revalidarTudo();
   return r;
 }
 
-export async function salvarItemAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function atenderTudoAction(solicitacaoId: string) {
   const usuario = await requireUsuario();
-  const solicitacaoId = String(formData.get("solicitacaoId") ?? "");
-  const itemId = String(formData.get("itemId") ?? "") || null;
-  let r: ActionResult;
-  try {
-    const dados = parseForm(solicitacaoItemSchema, formData);
-    r = await executar(() => salvarItem(usuario, solicitacaoId, itemId, dados), itemId ? "Item atualizado." : "Item adicionado.");
-  } catch (e) {
-    r = tratarErro(e);
-  }
-  revalidar(solicitacaoId);
+  const r = await executar(() => atenderTudo(usuario, solicitacaoId));
+  revalidarTudo();
   return r;
 }
 
-export async function removerItemAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function enviarRascunhoAction(solicitacaoId: string) {
   const usuario = await requireUsuario();
-  const solicitacaoId = String(formData.get("solicitacaoId") ?? "");
-  const itemId = String(formData.get("itemId") ?? "");
-  const r = await executar(() => removerItem(usuario, solicitacaoId, itemId), "Item removido.");
-  revalidar(solicitacaoId);
-  return r;
-}
-
-export async function enviarSolicitacaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const usuario = await requireUsuario();
-  const id = String(formData.get("solicitacaoId") ?? "");
-  const eventoId = String(formData.get("eventoId") ?? "");
-  const r = await executar(() => enviarSolicitacao(usuario, id), "Solicitação enviada. A logística foi notificada.");
-  revalidar(id, eventoId);
+  const r = await executar(() => enviarSolicitacao(usuario, solicitacaoId));
+  revalidarTudo();
   return r;
 }
 
 export async function cancelarSolicitacaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
-  const eventoId = String(formData.get("eventoId") ?? "");
   const motivo = String(formData.get("justificativa") ?? "").trim() || null;
-  const r = await executar(() => cancelarSolicitacao(usuario, id, motivo), "Solicitação cancelada.");
-  revalidar(id, eventoId);
+  const r = await executar(() => cancelarSolicitacao(usuario, id, motivo), "Solicitação cancelada");
+  revalidarTudo();
+  return r;
+}
+
+export async function devolverSolicitacaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const usuario = await requireUsuario();
+  const id = String(formData.get("solicitacaoId") ?? "");
+  const motivo = String(formData.get("justificativa") ?? "");
+  const r = await executar(() => devolverSolicitacao(usuario, id, motivo), "Solicitação devolvida — volta como rascunho para a área");
+  revalidarTudo();
   return r;
 }
 
@@ -103,32 +95,18 @@ export async function excluirRascunhoAction(_prev: ActionResult, formData: FormD
   } catch (e) {
     return tratarErro(e);
   }
-  revalidatePath("/solicitacoes");
-  redirect("/solicitacoes");
+  revalidarTudo();
+  redirect("/solicitacoes?filtro=RASCUNHO");
 }
 
-export async function devolverSolicitacaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function salvarSolicitacaoCompletaAction(payload: unknown) {
   const usuario = await requireUsuario();
-  const id = String(formData.get("solicitacaoId") ?? "");
-  const eventoId = String(formData.get("eventoId") ?? "");
-  const motivo = String(formData.get("justificativa") ?? "");
-  const r = await executar(() => devolverSolicitacao(usuario, id, motivo), "Solicitação devolvida para ajuste.");
-  revalidar(id, eventoId);
-  return r;
-}
-
-export async function responderItemAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const usuario = await requireUsuario();
-  const itemId = String(formData.get("itemId") ?? "");
-  let r: ActionResult<{ status: string }>;
   try {
-    const dados = parseForm(respostaItemSchema, formData);
-    r = await executar(() => responderItem(usuario, itemId, dados, dados.justificativa), "Resposta registrada. O solicitante foi notificado.");
+    const d = solicitacaoCompletaSchema.parse(payload);
+    const r = await salvarSolicitacaoCompleta(usuario, d);
+    revalidarTudo();
+    return { ok: true, dados: r } as ActionResult<typeof r>;
   } catch (e) {
-    r = tratarErro(e);
+    return tratarErro(e);
   }
-  revalidatePath("/solicitacoes", "layout");
-  revalidatePath("/eventos", "layout");
-  revalidatePath("/");
-  return r;
 }

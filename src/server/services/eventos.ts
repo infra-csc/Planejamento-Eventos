@@ -1,10 +1,12 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
+  areas,
   ataVersoes,
   eventoItens,
   eventos,
   historico,
+  osVersoes,
   pecas,
   projetoItens,
   projetoVersoes,
@@ -19,7 +21,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain/evento";
 import { descricaoLinha } from "@/domain/os";
-import { formatarData } from "@/lib/format";
+import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
 
@@ -41,21 +43,28 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
   if (filtro.deData) conds.push(sql`${eventos.dataFim} >= ${filtro.deData}`);
   if (filtro.ateData) conds.push(sql`${eventos.dataInicio} <= ${filtro.ateData}`);
 
-  const rows = await db.query.eventos.findMany({
-    where: conds.length ? and(...conds) : undefined,
-    with: { responsavel: { columns: { id: true, nome: true } } },
-    orderBy: [desc(eventos.dataInicio)],
-  });
-
-  // Contagem de solicitações abertas por evento (uma query)
-  const abertas = await db
-    .select({ eventoId: solicitacoes.eventoId, n: count() })
-    .from(solicitacoes)
-    .where(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]))
-    .groupBy(solicitacoes.eventoId);
-  const mapa = new Map(abertas.map((a) => [a.eventoId, Number(a.n)]));
-  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapa.get(r.id) ?? 0 }));
+  const [rows, abertas, versoes] = await Promise.all([
+    db.query.eventos.findMany({
+      where: conds.length ? and(...conds) : undefined,
+      with: { responsavel: { columns: { id: true, nome: true } } },
+      orderBy: [asc(eventos.dataInicio)],
+    }),
+    db
+      .select({ eventoId: solicitacoes.eventoId, n: count() })
+      .from(solicitacoes)
+      .where(and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false)))
+      .groupBy(solicitacoes.eventoId),
+    db
+      .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
+      .from(osVersoes)
+      .groupBy(osVersoes.eventoId),
+  ]);
+  const mapaAbertas = new Map(abertas.map((a) => [a.eventoId, Number(a.n)]));
+  const mapaVersoes = new Map(versoes.map((v) => [v.eventoId, Number(v.v)]));
+  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapaAbertas.get(r.id) ?? 0, versaoOs: mapaVersoes.get(r.id) ?? 0 }));
 }
+
+export type EventoLista = Awaited<ReturnType<typeof listarEventos>>[number];
 
 export async function obterEvento(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "evento.ver");
@@ -68,25 +77,63 @@ export async function obterEvento(usuario: UsuarioAtual, id: string) {
   return ev;
 }
 
-export async function obterLinhasAta(eventoId: string) {
-  const db = await getDb();
-  const linhas = await montarLinhasAta(db, eventoId);
-  // Marca linhas de projeto cuja versão ficou defasada (MEL-02)
-  return linhas.map((l) => ({
-    ...l,
-    descricao: descricaoLinha(l),
-    versaoDefasada: l.tipo === "PROJETO" && l.registro.projeto ? (l.registro.projetoVersao?.numero ?? 0) < l.registro.projeto.versaoAtual : false,
-  }));
+function nomeLinha(l: { tipo: string; projeto?: { nome: string } | null; peca?: { codigo: string; nome: string } | null; descricaoLivre?: string | null }) {
+  if (l.tipo === "PROJETO" && l.projeto) return l.projeto.nome;
+  if (l.tipo === "PECA" && l.peca) return `${l.peca.codigo} · ${l.peca.nome}`;
+  return l.descricaoLivre ?? "Item avulso";
 }
 
-export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string) {
+/**
+ * Linhas ativas da ata com a origem legível (handoff §5.6): "SOL-0001", "SOL-0001 (parcial)",
+ * "Incluída na reunião" (antes do fechamento) ou "Ajuste da logística" (depois).
+ */
+export async function obterLinhasAta(eventoId: string) {
+  const db = await getDb();
+  const [linhas, ev] = await Promise.all([
+    montarLinhasAta(db, eventoId),
+    db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { ataFechadaEm: true } }),
+  ]);
+  const ids = linhas.map((l) => l.registro.solicitacaoItemId).filter((x): x is string => Boolean(x));
+  const origens = ids.length
+    ? await db
+        .select({ id: solicitacaoItens.id, status: solicitacaoItens.status, codigo: solicitacoes.codigo, solicitacaoId: solicitacoes.id })
+        .from(solicitacaoItens)
+        .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
+        .where(inArray(solicitacaoItens.id, ids))
+    : [];
+  const mapa = new Map(origens.map((o) => [o.id, o]));
+  return linhas.map((l) => {
+    const o = l.registro.solicitacaoItemId ? mapa.get(l.registro.solicitacaoItemId) : undefined;
+    const origemLabel = o
+      ? `${o.codigo}${o.status === "PARCIAL" ? " (parcial)" : ""}`
+      : !ev?.ataFechadaEm || l.registro.criadoEm <= ev.ataFechadaEm
+        ? "Incluída na reunião"
+        : "Ajuste da logística";
+    const versao = l.registro.projetoVersao?.numero ?? null;
+    const versaoAtual = l.registro.projeto?.versaoAtual ?? null;
+    return {
+      ...l,
+      nome: nomeLinha(l),
+      descricao: descricaoLinha(l),
+      origemLabel,
+      origemSolicitacaoId: o?.solicitacaoId ?? null,
+      versao,
+      versaoAtual,
+      versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,
+    };
+  });
+}
+
+export type LinhaAtaDetalhe = Awaited<ReturnType<typeof obterLinhasAta>>[number];
+
+export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string, limite = 300) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
   return db.query.historico.findMany({
     where: eq(historico.eventoId, eventoId),
     with: { usuario: { columns: { id: true, nome: true } } },
     orderBy: [desc(historico.criadoEm)],
-    limit: 300,
+    limit: limite,
   });
 }
 
@@ -107,6 +154,45 @@ export async function resumoSolicitacoesEvento(eventoId: string) {
     .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false)))
     .groupBy(solicitacoes.status, solicitacoes.tipo);
   return rows.map((r) => ({ ...r, n: Number(r.n) }));
+}
+
+/** "Onde está cada área" (handoff §5.5): enviados × respondidos por área. */
+export async function progressoAreas(eventoId: string) {
+  const db = await getDb();
+  const [todasAreas, sols] = await Promise.all([
+    db.query.areas.findMany({ where: eq(areas.ativo, true), orderBy: [asc(areas.criadoEm)] }),
+    db.query.solicitacoes.findMany({
+      where: and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA"])),
+      columns: { id: true, areaId: true },
+      with: { itens: { columns: { status: true } } },
+    }),
+  ]);
+  return todasAreas
+    .filter((a) => a.nome !== "Logística")
+    .map((a) => {
+      const minhas = sols.filter((s) => s.areaId === a.id);
+      const itens = minhas.reduce((n, s) => n + s.itens.length, 0);
+      const respondidos = minhas.reduce((n, s) => n + s.itens.filter((i) => i.status !== "EM_ANALISE").length, 0);
+      return { id: a.id, nome: a.nome, solicitacoes: minhas.length, itens, respondidos };
+    });
+}
+
+/** Itens de necessidades pré-reunião ainda sem resposta (bloqueiam o fechamento da ata). */
+export async function contarItensPendentesPreReuniao(eventoId: string) {
+  const db = await getDb();
+  const [r] = await db
+    .select({ n: count() })
+    .from(solicitacaoItens)
+    .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
+    .where(
+      and(
+        eq(solicitacoes.eventoId, eventoId),
+        eq(solicitacoes.tipo, "PRE_REUNIAO"),
+        inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+        eq(solicitacaoItens.status, "EM_ANALISE"),
+      ),
+    );
+  return Number(r.n);
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,15 +226,15 @@ export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
       entidade: "evento",
       entidadeId: ev.id,
       acao: "CRIADO",
-      descricao: `Evento ${ev.codigo} criado em preparação.`,
+      descricao: `Evento criado — ${ev.nome}${ev.cliente ? ` · ${ev.cliente}` : ""}`,
       usuarioId: usuario.id,
       dadosDepois: dados,
     });
     await notificar(tx, {
       usuarioIds: await usuariosRequisitantes(tx),
       tipo: "EVENTO_CRIADO",
-      titulo: `Novo evento: ${ev.nome}`,
-      mensagem: `Registre as necessidades da sua área até a reunião de OS (${formatarData(dados.dataReuniao.toISOString().slice(0, 10))}).`,
+      titulo: `Novo evento em preparação: ${ev.nome}`,
+      mensagem: `Envie as necessidades da sua área até a reunião de OS (${formatarDataHora(dados.dataReuniao)}).`,
       link: `/eventos/${ev.id}`,
     });
     return ev;
@@ -184,7 +270,7 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
       entidade: "evento",
       entidadeId: id,
       acao: "EDITADO",
-      descricao: "Dados do evento alterados.",
+      descricao: "Dados do evento alterados",
       usuarioId: usuario.id,
       dadosAntes: antes,
       dadosDepois: dados,
@@ -199,7 +285,7 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
 
 export async function solicitacoesPendentes(ex: Executor, eventoId: string) {
   return ex.query.solicitacoes.findMany({
-    where: and(eq(solicitacoes.eventoId, eventoId), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])),
+    where: and(eq(solicitacoes.eventoId, eventoId), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false)),
     with: { area: true },
     columns: { id: true, codigo: true, tipo: true, status: true, titulo: true },
   });
@@ -256,20 +342,28 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const cfg = await obterConfiguracoes(tx);
     const agora = new Date();
     const patch: Partial<typeof eventos.$inferInsert> = { status: t.para };
+    let osNumero: number | null = null;
 
     if (acao === "FECHAR_ATA") {
       const pend = await tx
         .select({ n: count() })
         .from(solicitacaoItens)
         .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
-        .where(and(eq(solicitacoes.eventoId, id), eq(solicitacoes.tipo, "PRE_REUNIAO"), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])));
+        .where(
+          and(
+            eq(solicitacoes.eventoId, id),
+            eq(solicitacoes.tipo, "PRE_REUNIAO"),
+            inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+            eq(solicitacaoItens.status, "EM_ANALISE"),
+          ),
+        );
       if (Number(pend[0].n) > 0) {
-        throw new DomainError("Ainda existem itens de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.");
+        throw new DomainError(`Ainda há ${Number(pend[0].n)} item(ns) de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.`);
       }
       const [ultima] = await tx.select({ numero: ataVersoes.numero }).from(ataVersoes).where(eq(ataVersoes.eventoId, id)).orderBy(desc(ataVersoes.numero)).limit(1);
       const conteudo = await montarAtaConteudo(tx, id, ev.observacoesReuniao);
       await tx.insert(ataVersoes).values({ eventoId: id, numero: (ultima?.numero ?? 0) + 1, conteudo, fechadaPorId: usuario.id });
-      await gerarOsVersao(tx, id, "ATA_FECHADA", usuario.id, "Ata fechada");
+      osNumero = (await gerarOsVersao(tx, id, "ATA_FECHADA", usuario.id, "OS inicial gerada no fechamento da ata")).numero;
       patch.ataFechadaEm = agora;
       patch.ataFechadaPorId = usuario.id;
     }
@@ -278,12 +372,10 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       if (cfg.bloquear_encerramento_com_pendentes === "true") {
         const pend = await solicitacoesPendentes(tx, id);
         if (pend.length > 0) {
-          throw new DomainError(
-            `Existem ${pend.length} solicitação(ões) sem resposta (${pend.map((p) => p.codigo).join(", ")}). Responda ou devolva todas antes de encerrar.`,
-          );
+          throw new DomainError(`Existem ${pend.length} solicitação(ões) sem resposta (${pend.map((p) => p.codigo).join(", ")}). Responda ou devolva todas antes de encerrar.`);
         }
       }
-      await gerarOsVersao(tx, id, "ENCERRAMENTO", usuario.id, "OS final — evento encerrado para alterações");
+      osNumero = (await gerarOsVersao(tx, id, "ENCERRAMENTO", usuario.id, "OS final — evento encerrado para alterações")).numero;
       patch.encerradoEm = agora;
       patch.encerradoPorId = usuario.id;
     }
@@ -292,7 +384,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       patch.reabertoVezes = ev.reabertoVezes + 1;
       patch.encerradoEm = null;
       patch.encerradoPorId = null;
-      await gerarOsVersao(tx, id, "REABERTURA", usuario.id, `Reaberto em exceção: ${just}`);
+      osNumero = (await gerarOsVersao(tx, id, "REABERTURA", usuario.id, `Reaberto em exceção: ${just}`)).numero;
     }
 
     if (acao === "CANCELAR") {
@@ -306,12 +398,20 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     }
 
     await tx.update(eventos).set(patch).where(eq(eventos.id, id));
+    const descricoes: Record<AcaoEvento, string> = {
+      INICIAR_REUNIAO: "Reunião de OS iniciada — envios de necessidades bloqueados",
+      VOLTAR_PREPARACAO: `Reunião adiada, evento voltou para preparação — ${just}`,
+      FECHAR_ATA: `Ata fechada — OS v${osNumero} gerada`,
+      ENCERRAR: `Evento encerrado para alterações — OS final v${osNumero}`,
+      REABRIR: `Evento reaberto em exceção — ${just}`,
+      CANCELAR: `Evento cancelado — ${just}`,
+    };
     await registrarHistorico(tx, {
       eventoId: id,
       entidade: "evento",
       entidadeId: id,
       acao,
-      descricao: `${t.label}${just ? ` — ${just}` : ""}`,
+      descricao: descricoes[acao],
       usuarioId: usuario.id,
       dadosAntes: { status: ev.status },
       dadosDepois: { status: t.para },
@@ -321,7 +421,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const mensagens: Record<AcaoEvento, [string, string]> = {
       INICIAR_REUNIAO: [`Reunião de OS iniciada: ${ev.nome}`, "Envios de necessidades pausados enquanto a logística consolida a ata."],
       VOLTAR_PREPARACAO: [`Reunião adiada: ${ev.nome}`, `${just}. As áreas voltam a poder enviar necessidades.`],
-      FECHAR_ATA: [`Ata fechada: ${ev.nome}`, "A OS foi gerada. Alterações agora entram como solicitações respondidas por item."],
+      FECHAR_ATA: [`Ata fechada: ${ev.nome}`, `OS v${osNumero} gerada. Alterações agora entram como solicitações respondidas por item.`],
       ENCERRAR: [`Evento encerrado para alterações: ${ev.nome}`, "Nenhuma solicitação nova é aceita a partir de agora."],
       REABRIR: [`Evento reaberto em exceção: ${ev.nome}`, `Gestão reabriu o evento: ${just}`],
       CANCELAR: [`Evento cancelado: ${ev.nome}`, `${just}`],
@@ -334,7 +434,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       link: `/eventos/${id}`,
       excetoUsuarioId: usuario.id,
     });
-    return { ...ev, ...patch };
+    return { ...ev, ...patch, osNumero };
   });
 }
 
@@ -380,7 +480,7 @@ export type DadosLinhaAta = {
 function exigirEstadoAjuste(status: EventoStatus, justificativa: string | null) {
   if (status === "PREPARACAO" || status === "EM_REUNIAO") return false; // consolidação, sem justificativa
   if (status === "ABERTO") {
-    if (!justificativa) throw new ValidacaoError("Ajustes diretos após a ata fechada exigem justificativa (RV-12).", { justificativa: "Obrigatória." });
+    if (!justificativa) throw new ValidacaoError("Ajustes diretos após a ata fechada exigem justificativa.", { justificativa: "Obrigatória." });
     return true; // gera nova OS
   }
   throw new DomainError("O evento não aceita ajustes na ata neste estado.");
@@ -396,18 +496,19 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     if (geraOs) exigir(usuario, "ata.ajustar");
 
     let valores: typeof eventoItens.$inferInsert;
+    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
     if (dados.referenciaTipo === "PROJETO") {
       if (!dados.projetoId) throw new ValidacaoError("Escolha o projeto padrão.");
       const snap = await snapshotBom(tx, dados.projetoId);
-      valores = { eventoId, tipo: "PROJETO", projetoId: dados.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA", justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
+      valores = { ...base, tipo: "PROJETO", projetoId: dados.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom };
     } else if (dados.referenciaTipo === "PECA") {
       if (!dados.pecaId) throw new ValidacaoError("Escolha a peça.");
       const peca = await tx.query.pecas.findFirst({ where: eq(pecas.id, dados.pecaId) });
       if (!peca || !peca.ativo) throw new NaoEncontradoError("Peça");
-      valores = { eventoId, tipo: "PECA", pecaId: peca.id, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA", justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
+      valores = { ...base, tipo: "PECA", pecaId: peca.id };
     } else {
       if (!dados.descricaoLivre) throw new ValidacaoError("Descreva o item avulso.");
-      valores = { eventoId, tipo: "AVULSO", descricaoLivre: dados.descricaoLivre, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA", justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
+      valores = { ...base, tipo: "AVULSO", descricaoLivre: dados.descricaoLivre };
     }
     const [linha] = await tx.insert(eventoItens).values(valores).returning();
     const [l] = await montarLinhasAta(tx, eventoId).then((ls) => ls.filter((x) => x.id === linha.id));
@@ -417,12 +518,12 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
       entidade: "evento_item",
       entidadeId: linha.id,
       acao: geraOs ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
-      descricao: `${geraOs ? "Ajuste da logística" : "Incluído na ata"}: ${desc} × ${dados.quantidade}${dados.justificativa ? ` — ${dados.justificativa}` : ""}`,
+      descricao: `${geraOs ? "Ajuste da logística" : "Incluída na reunião"}: ${desc} × ${dados.quantidade}${dados.justificativa ? ` — ${dados.justificativa}` : ""}`,
       usuarioId: usuario.id,
       dadosDepois: valores,
     });
     if (geraOs) {
-      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `Ajuste: incluído ${desc} × ${dados.quantidade}`);
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${dados.quantidade} incluído — ${dados.justificativa}`);
       if (dados.areaId) {
         await notificar(tx, {
           usuarioIds: await usuariosDaArea(tx, dados.areaId),
@@ -458,13 +559,13 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
       entidade: "evento_item",
       entidadeId: linhaId,
       acao: remover ? "ATA_REMOCAO" : "ATA_QUANTIDADE",
-      descricao: `${remover ? "Removido da ata" : "Quantidade alterada"}: ${desc} ${remover ? `(era ${linha.quantidade})` : `${linha.quantidade} → ${quantidade}`}${justificativa ? ` — ${justificativa}` : ""}`,
+      descricao: `${remover ? `${desc}: removido da ata (era ${linha.quantidade})` : `${desc}: quantidade alterada de ${linha.quantidade} para ${quantidade}`}${justificativa ? ` — ${justificativa}` : ""}`,
       usuarioId: usuario.id,
       dadosAntes: { quantidade: linha.quantidade, ativo: true },
       dadosDepois: { quantidade: remover ? 0 : quantidade, ativo: !remover },
     });
     if (geraOs) {
-      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `Ajuste: ${desc} ${remover ? "removido" : `${linha.quantidade} → ${quantidade}`}`);
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, justificativa ?? `${desc} ${remover ? "removido" : `${linha.quantidade} → ${quantidade}`}`);
       if (linha.registro.areaId) {
         await notificar(tx, {
           usuarioIds: await usuariosDaArea(tx, linha.registro.areaId),
@@ -496,7 +597,7 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
       entidade: "evento_item",
       entidadeId: linhaId,
       acao: "ATUALIZACAO_VERSAO",
-      descricao: `${linha.projeto?.nome}: versão v${linha.projetoVersao?.numero} → v${snap.numero}.`,
+      descricao: `${linha.projeto?.nome}: atualizado de v${linha.projetoVersao?.numero} para v${snap.numero}`,
       usuarioId: usuario.id,
     });
     if (ev.status === "ABERTO") {
@@ -511,15 +612,27 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
 
 export async function opcoesReferencias() {
   const db = await getDb();
-  const [proj, pcs] = await Promise.all([
-    db.select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria }).from(projetos).where(eq(projetos.ativo, true)).orderBy(asc(projetos.nome)),
-    db.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade }).from(pecas).where(eq(pecas.ativo, true)).orderBy(asc(pecas.codigo)),
+  const [proj, pcs, versoes] = await Promise.all([
+    db
+      .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual })
+      .from(projetos)
+      .where(eq(projetos.ativo, true))
+      .orderBy(asc(projetos.nome)),
+    db
+      .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade, familia: pecas.familia, estoqueProprio: pecas.estoqueProprio })
+      .from(pecas)
+      .where(eq(pecas.ativo, true))
+      .orderBy(asc(pecas.codigo)),
+    db
+      .select({ projetoId: projetoVersoes.projetoId, numero: projetoVersoes.numero, total: sql<number>`coalesce(sum(${projetoItens.quantidade}), 0)` })
+      .from(projetoVersoes)
+      .leftJoin(projetoItens, eq(projetoItens.versaoId, projetoVersoes.id))
+      .groupBy(projetoVersoes.projetoId, projetoVersoes.numero),
   ]);
-  return { projetos: proj, pecas: pcs };
+  return {
+    projetos: proj.map((p) => ({ ...p, totalPecas: Number(versoes.find((v) => v.projetoId === p.id && v.numero === p.versaoAtual)?.total ?? 0) })),
+    pecas: pcs,
+  };
 }
 
-export async function contarItensProjetoVersao(versaoId: string) {
-  const db = await getDb();
-  const [r] = await db.select({ n: count() }).from(projetoItens).where(eq(projetoItens.versaoId, versaoId));
-  return Number(r.n);
-}
+export type OpcoesReferencias = Awaited<ReturnType<typeof opcoesReferencias>>;

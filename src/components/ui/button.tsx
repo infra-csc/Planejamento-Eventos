@@ -2,20 +2,19 @@
 
 import Link from "next/link";
 import { forwardRef, type ButtonHTMLAttributes, type ComponentProps } from "react";
-import { Loader2 } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { useFormPending } from "./action-form";
+import { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
 
 export { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
-import { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button({ variant, size, loading, className, children, disabled, type = "button", ...rest }, ref) {
   return (
-    <button ref={ref} type={type} className={buttonClasses({ variant, size, className })} disabled={disabled || loading} {...rest}>
-      {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
+    <button ref={ref} type={type} className={buttonClasses({ variant, size, className })} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
       {children}
+      {loading && <span aria-hidden className="inline-block size-[6px] animate-pulse-dot rounded-full bg-current" />}
     </button>
   );
 });

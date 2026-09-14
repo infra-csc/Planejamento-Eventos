@@ -1,61 +1,54 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
+/**
+ * Modal do handoff (§5.14): 460px, raio 12, sombra de modal, cabeçalho com título e subtítulo.
+ * Radix cuida de focus trap, Esc e devolução de foco (pendência §11 do protótipo).
+ */
 export function DialogContent({
   title,
   description,
   children,
   className,
-  side = false,
-  size = "md",
+  width = 460,
+  size,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
-  /** true = painel lateral (drawer) */
-  side?: boolean;
+  width?: number;
+  /** compatibilidade: sm=420, md=520, lg=720 */
   size?: "sm" | "md" | "lg";
 }) {
-  const width = size === "sm" ? "sm:max-w-md" : size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl";
+  const w = size === "sm" ? 420 : size === "md" ? 520 : size === "lg" ? 720 : width;
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[65] animate-fade-up-rapido bg-[rgba(22,23,26,0.4)]" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed z-50 bg-surface shadow-md focus:outline-none flex flex-col",
-          side
-            ? "inset-y-0 right-0 w-full max-w-full sm:max-w-xl border-l border-line"
-            : cn("left-1/2 top-1/2 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-line max-h-[calc(100vh-2rem)]", width),
+          "fixed left-1/2 top-1/2 z-[66] flex max-h-[calc(100vh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-xl border border-line-strong bg-surface shadow-[0_24px_60px_rgba(42,20,24,.22)] focus:outline-none",
           className,
         )}
+        style={{ width: `min(${w}px, 94vw)` }}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div>
-            <DialogPrimitive.Title className="text-base font-semibold text-ink">{title}</DialogPrimitive.Title>
-            {description ? (
-              <DialogPrimitive.Description className="mt-0.5 text-[13px] text-ink-muted">{description}</DialogPrimitive.Description>
-            ) : (
-              <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
-            )}
-          </div>
-          <DialogPrimitive.Close className="rounded-md p-1 text-ink-muted hover:bg-black/5 hover:text-ink" aria-label="Fechar">
-            <X className="size-4" />
-          </DialogPrimitive.Close>
+        <div className="border-b border-line-soft px-5 py-4">
+          <DialogPrimitive.Title className="m-0 text-[16px] font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Description className={description ? "mt-[3px] text-[12.5px] text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
         </div>
-        <div className="overflow-y-auto px-5 py-4 grow">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">{children}</div>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
 }
 
-export function DialogFooter({ children }: { children: React.ReactNode }) {
-  return <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-line pt-4">{children}</div>;
+/** Rodapé do modal (#faf8f8), colado às bordas do corpo. */
+export function DialogFooter({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("-mx-5 -mb-4 mt-4 flex items-center gap-2 rounded-b-xl border-t border-line-soft bg-subtle px-5 py-3.5", className)}>{children}</div>;
 }

@@ -9,7 +9,7 @@ export const DropdownTrigger = DM.Trigger;
 export function DropdownContent({ children, align = "end", className }: { children: React.ReactNode; align?: "start" | "end"; className?: string }) {
   return (
     <DM.Portal>
-      <DM.Content align={align} sideOffset={6} className={cn("z-50 min-w-48 rounded-md border border-line bg-surface p-1 shadow-md text-sm", className)}>
+      <DM.Content align={align} sideOffset={6} className={cn("z-50 min-w-48 animate-fade-up-rapido rounded-[10px] border border-line-strong bg-surface p-1 text-[13px] shadow-[0_12px_32px_rgba(42,20,24,.14)]", className)}>
         {children}
       </DM.Content>
     </DM.Portal>
@@ -22,7 +22,7 @@ export function DropdownItem({ children, onSelect, danger, disabled, className }
       disabled={disabled}
       onSelect={onSelect}
       className={cn(
-        "flex cursor-pointer select-none items-center gap-2 rounded-sm px-2.5 py-1.5 outline-none data-[highlighted]:bg-black/5 data-[disabled]:opacity-50 data-[disabled]:pointer-events-none",
+        "flex cursor-pointer select-none items-center gap-2 rounded-[7px] px-2.5 py-1.5 outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-accent-bg data-[disabled]:opacity-50",
         danger ? "text-danger" : "text-ink",
         className,
       )}
@@ -33,9 +33,9 @@ export function DropdownItem({ children, onSelect, danger, disabled, className }
 }
 
 export function DropdownSeparator() {
-  return <DM.Separator className="my-1 h-px bg-line" />;
+  return <DM.Separator className="my-1 h-px bg-line-soft" />;
 }
 
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
-  return <DM.Label className="px-2.5 py-1 text-xs text-ink-muted">{children}</DM.Label>;
+  return <DM.Label className="px-2.5 py-1 text-[11.5px] text-muted">{children}</DM.Label>;
 }

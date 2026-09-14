@@ -1,11 +1,57 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { and, count, eq, inArray } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { eventos, pecas, projetos } from "@/server/db/schema";
+
+async function numeros() {
+  try {
+    const db = await getDb();
+    const [[ev], [pc], [pj]] = await Promise.all([
+      db.select({ n: count() }).from(eventos).where(inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])),
+      db.select({ n: count() }).from(pecas).where(eq(pecas.ativo, true)),
+      db.select({ n: count() }).from(projetos).where(and(eq(projetos.ativo, true))),
+    ]);
+    return { eventos: Number(ev.n), pecas: Number(pc.n), projetos: Number(pj.n) };
+  } catch {
+    return null;
+  }
+}
+
+/** Tela de entrada (handoff §5.1): painel escuro à esquerda, formulário à direita. */
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const n = await numeros();
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-10">
-      <div className="mb-6 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Norte Mkt</p>
-        <h1 className="mt-1 text-lg font-semibold text-ink">Planejamento de Eventos</h1>
+    <div className="grid min-h-screen grid-cols-[1.1fr_1fr] bg-page">
+      <div className="flex flex-col justify-between bg-dark px-16 py-14 text-white">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden className="block size-[22px] rounded-[5px] bg-accent-light" />
+          <span className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white">Norte Mkt</span>
+        </div>
+        <div className="max-w-[440px]">
+          <h1 className="mb-5 mt-0 text-[40px] font-semibold leading-[1.12] tracking-[-0.03em]">Da reunião de OS ao caminhão carregado, em um só lugar.</h1>
+          <p className="m-0 text-[15.5px] leading-[1.6] text-on-dark-3">Catálogo de peças, projetos padrão, ata da reunião, OS gerada automaticamente e solicitações respondidas item a item.</p>
+        </div>
+        <div className="flex gap-10 text-[13px] text-on-dark-3">
+          {n && (
+            <>
+              <span>
+                <span className="block font-mono text-[22px] leading-[1.2] text-accent-light">{n.eventos}</span>
+                eventos ativos
+              </span>
+              <span>
+                <span className="block font-mono text-[22px] leading-[1.2] text-white">{n.pecas}</span>
+                peças no catálogo
+              </span>
+              <span>
+                <span className="block font-mono text-[22px] leading-[1.2] text-white">{n.projetos}</span>
+                projetos padrão
+              </span>
+            </>
+          )}
+        </div>
       </div>
-      <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-6 shadow-sm">{children}</div>
+      <div className="flex items-center justify-center p-10">
+        <div className="w-full max-w-[352px] animate-fade-up">{children}</div>
+      </div>
     </div>
   );
 }

@@ -1,23 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
+import { Geist, Roboto_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
+const geist = Geist({ variable: "--font-geist", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
+const robotoMono = Roboto_Mono({ variable: "--font-roboto-mono", subsets: ["latin"], weight: ["400", "500"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Planejamento de Eventos · Norte Mkt", template: "%s · Norte Mkt" },
-  description: "Sistema de OS, ata e estrutura para eventos.",
+  description: "Catálogo de peças, projetos padrão, ata da reunião de OS, OS automática e solicitações respondidas item a item.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">
+    <html lang="pt-BR" className={`${geist.variable} ${robotoMono.variable}`}>
+      <body>
         {children}
-        <Toaster position="bottom-right" richColors closeButton toastOptions={{ style: { fontSize: 13 } }} />
+        <Toaster />
       </body>
     </html>
   );

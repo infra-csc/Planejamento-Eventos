@@ -204,3 +204,20 @@ export async function historicoProjeto(id: string) {
 export function garantirNaoVazio(x: unknown, msg: string) {
   if (!x) throw new DomainError(msg);
 }
+
+/** Quantos eventos (não cancelados) usam cada projeto na ata — coluna "uso" da Biblioteca. */
+export async function contarUsoProjetos() {
+  const db = await getDb();
+  const rows = await db
+    .select({ projetoId: eventoItens.projetoId, eventoId: eventoItens.eventoId })
+    .from(eventoItens)
+    .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
+    .where(and(eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"])));
+  const mapa = new Map<string, Set<string>>();
+  for (const r of rows) {
+    if (!r.projetoId) continue;
+    if (!mapa.has(r.projetoId)) mapa.set(r.projetoId, new Set());
+    mapa.get(r.projetoId)!.add(r.eventoId);
+  }
+  return new Map([...mapa].map(([k, v]) => [k, v.size]));
+}

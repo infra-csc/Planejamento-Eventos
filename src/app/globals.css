@@ -1,104 +1,132 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens do handoff "Planejamento de Eventos" (docs/design-handoff/README.md §3).
+ * Paleta auditada para contraste AA — ao introduzir cor nova, reaudite.
+ * Erro/atraso usa laranja-queimado (#a8400f), não vermelho: o vinho da marca é vizinho do vermelho.
+ */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-roboto-mono), ui-monospace, "SFMono-Regular", monospace;
 
-  /* Neutros */
-  --color-canvas: #f6f6f7;
+  /* Superfícies */
+  --color-page: #f1efee;
   --color-surface: #ffffff;
-  --color-surface-muted: #fafafa;
-  --color-line: #e4e4e7;
-  --color-line-strong: #d4d4d8;
-  --color-ink: #18181b;
-  --color-ink-secondary: #52525b;
-  --color-ink-muted: #71717a;
-  --color-ink-faint: #a1a1aa;
+  --color-subtle: #faf8f8;
+  --color-selected: #faf6f6;
+  --color-control: #e9e4e3;
+
+  /* Tinta */
+  --color-ink: #2a1418;
+  --color-ink-2: #4f4849;
+  --color-ink-3: #6d6566;
+  --color-muted: #6b6263;
+  --color-meta: #6f6366;
+
+  /* Bordas */
+  --color-line: #e4dedd;
+  --color-line-strong: #d7d2d2;
+  --color-line-soft: #ece7e6;
+  --color-line-row: #f0eceb;
+  --color-line-faint: #f3efee;
 
   /* Marca */
-  --color-brand: #1b2a4a;
-  --color-brand-hover: #24375f;
-  --color-brand-soft: #e8ecf4;
-  --color-brand-ink: #ffffff;
-  --color-accent: #e8622c;
+  --color-accent: #8e2740;
+  --color-accent-hover: #6d1d31;
+  --color-accent-bg: #f6e6ea;
+  --color-accent-light: #e0798f;
+  --color-accent-border: #e0c4cc;
+
+  /* Superfície escura */
+  --color-dark: #2a1418;
+  --color-dark-2: #3d2026;
+  --color-dark-3: #4a2a30;
+  --color-dark-4: #351b21;
+  --color-on-dark-2: #c2b4b7;
+  --color-on-dark-3: #b3a3a6;
+  --color-on-dark-4: #a49497;
 
   /* Semânticas */
-  --color-success: #15803d;
-  --color-success-soft: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
-  --color-info: #1d4ed8;
-  --color-info-soft: #dbeafe;
+  --color-danger: #a8400f;
+  --color-danger-bg: #fbeee5;
+  --color-danger-border: #efd9c9;
+  --color-danger-input: #c0562c;
+  --color-warning: #7a5f00;
+  --color-warning-bg: #f7f0dd;
+  --color-warning-border: #e6dcc2;
+  --color-success: #136c41;
+  --color-success-bg: #eaf4ee;
+  --color-success-border: #cfe3d6;
+  --color-neutral-bg: #f0eceb;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --animate-fade-up: fadeUp 0.18s ease;
+  --animate-fade-up-rapido: fadeUp 0.14s ease;
+  --animate-pulse-dot: pulseDot 1.8s ease-in-out infinite;
+  --animate-esqueleto: pulseDot 1.4s ease-in-out infinite;
 
-  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.06);
-  --shadow-md: 0 4px 12px rgba(24, 24, 27, 0.08), 0 1px 2px rgba(24, 24, 27, 0.06);
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pulseDot {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
 }
 
-:root {
+html {
   color-scheme: light;
 }
 
-html,
 body {
-  height: 100%;
-}
-
-body {
-  background: var(--color-canvas);
+  margin: 0;
+  background: var(--color-page);
   color: var(--color-ink);
-  font-size: 14px;
-  line-height: 1.45;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
-/* Foco visível e consistente */
+button {
+  font-family: inherit;
+}
+
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-info);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* Tabelas densas */
-.table-base {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.table-base th {
-  text-align: left;
-  font-weight: 500;
-  color: var(--color-ink-muted);
-  font-size: 12px;
-  letter-spacing: 0.01em;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-surface-muted);
-  white-space: nowrap;
-}
-.table-base td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-line);
-  vertical-align: middle;
-}
-.table-base tbody tr:last-child td {
-  border-bottom: 0;
-}
-.table-base tbody tr.is-link:hover td {
-  background: var(--color-surface-muted);
-}
-.table-base td.num,
-.table-base th.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+tr:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
+::selection {
+  background: var(--color-accent-light);
+  color: var(--color-ink);
+}
+
+/* Link de texto padrão do produto */
+.link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.link:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
 }
 
 @media print {

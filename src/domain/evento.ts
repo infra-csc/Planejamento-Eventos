@@ -120,3 +120,19 @@ export function statusExibicao(status: EventoStatus, dataFim: string, hoje: stri
   if (status === "ENCERRADO" && dataFim < hoje) return "REALIZADO";
   return status;
 }
+
+/** As 4 fases em ordem, para linha do tempo e barras de fase. Cancelado fica fora (-1). */
+export const FASES_EVENTO = ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"] as const;
+
+export function indiceFase(status: EventoStatus): number {
+  return (FASES_EVENTO as readonly string[]).indexOf(status);
+}
+
+/**
+ * Janela de envio de necessidades pré-reunião. Antecedência 0 = aberta até a logística iniciar a reunião;
+ * maior que 0 = fecha N horas antes do horário marcado.
+ */
+export function janelaPreReuniaoAberta(dataReuniao: Date, antecedenciaHoras: number, agora = new Date()): boolean {
+  if (!antecedenciaHoras || antecedenciaHoras <= 0) return true;
+  return agora.getTime() < dataReuniao.getTime() - antecedenciaHoras * 3_600_000;
+}

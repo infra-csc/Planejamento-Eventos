@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { acoesDisponiveis, aceitaSolicitacao, statusExibicao, transicaoPermitida } from "./evento";
+import { acoesDisponiveis, aceitaSolicitacao, janelaPreReuniaoAberta, statusExibicao, transicaoPermitida } from "./evento";
+import { classificarHistorico } from "./historico";
+import { prazoInfo } from "@/lib/prazo";
 import { estaAtrasada, podeCancelar, statusAposResposta, validarItem, validarResposta } from "./solicitacao";
 import { pode, podeEditarSolicitacao, podeVerSolicitacao } from "./permissions";
 import { consolidar } from "./consolidacao";
@@ -127,5 +129,49 @@ describe("consolidação por período", () => {
       fim: "2026-09-30",
     });
     expect(r).toEqual([]);
+  });
+});
+
+describe("consolidação com demanda projetada", () => {
+  const peca = { id: "p1", codigo: "BOX-3000", nome: "Box 3000", setor: "ESTRUTURA" as const, unidade: "un", estoqueProprio: 40 };
+  it("soma itens em análise de eventos sem ata e marca como projetado", () => {
+    const os = calcularOS([{ id: "x", tipo: "PECA", quantidade: 30, destino: null, areaNome: null, peca: { id: "p1", codigo: "BOX-3000", nome: "Box 3000", setor: "ESTRUTURA", unidade: "un" } }]);
+    const r = consolidar(
+      [
+        { id: "e1", codigo: "EVT-0001", nome: "A", dataMontagem: "2026-09-20", dataDesmontagem: "2026-09-25", os },
+        { id: "e3", codigo: "EVT-0003", nome: "B", dataMontagem: "2026-09-22", dataDesmontagem: "2026-09-24", os: { setores: [], semSetor: [] }, projetado: { p1: 20 } },
+      ],
+      [peca],
+      { inicio: "2026-09-14", fim: "2026-10-14" },
+    );
+    expect(r[0]).toMatchObject({ pico: 50, diaPico: "2026-09-22", saldo: -10, temProjecao: true });
+    expect(r[0].eventosNoPico).toEqual([
+      { codigo: "EVT-0001", nome: "A", quantidade: 30, projetado: false },
+      { codigo: "EVT-0003", nome: "B", quantidade: 20, projetado: true },
+    ]);
+  });
+});
+
+describe("histórico, prazo e janela pré-reunião", () => {
+  it("classifica e separa título e detalhe", () => {
+    expect(classificarHistorico({ entidade: "evento_item", acao: "ATA_QUANTIDADE", descricao: "Quantidade alterada: Tenda 1 → 2 — Cliente aprovou" })).toEqual({
+      tipo: "ajuste",
+      titulo: "Quantidade alterada: Tenda 1 → 2",
+      detalhe: "Cliente aprovou",
+    });
+    expect(classificarHistorico({ entidade: "evento", acao: "FECHAR_ATA", descricao: "Fechar ata" }).tipo).toBe("marco");
+  });
+  it("prazo só vence em solicitação aberta", () => {
+    const agora = new Date("2026-09-14T15:00:00Z");
+    expect(prazoInfo({ status: "ENVIADA", prazoRespostaEm: new Date("2026-09-12T12:00:00Z") }, agora)).toMatchObject({ label: "vencido", sub: "há 2 dias", vencido: true });
+    expect(prazoInfo({ status: "RESPONDIDA", prazoRespostaEm: new Date("2026-09-12T12:00:00Z") }, agora).vencido).toBe(false);
+    expect(prazoInfo({ status: "EM_ANALISE", prazoRespostaEm: new Date("2026-09-14T20:00:00Z") }, agora)).toMatchObject({ label: "em 5h", tom: "warning" });
+    expect(prazoInfo({ status: "ENVIADA", prazoRespostaEm: new Date("2026-09-17T15:00:00Z") }, agora)).toMatchObject({ label: "em 3d", tom: "neutral" });
+  });
+  it("janela pré-reunião respeita a antecedência", () => {
+    const reuniao = new Date("2026-09-16T17:00:00Z");
+    expect(janelaPreReuniaoAberta(reuniao, 0, new Date("2026-09-16T18:00:00Z"))).toBe(true);
+    expect(janelaPreReuniaoAberta(reuniao, 24, new Date("2026-09-15T18:00:00Z"))).toBe(false);
+    expect(janelaPreReuniaoAberta(reuniao, 24, new Date("2026-09-15T16:00:00Z"))).toBe(true);
   });
 });

@@ -88,3 +88,16 @@ export const PERFIL_LABEL: Record<Perfil, string> = {
   GESTAO: "Gestão",
   ADMIN: "Administrador",
 };
+
+/** Perfis que pertencem a uma área (o formulário de usuário exige a área). */
+export function perfilUsaArea(perfil: Perfil): boolean {
+  return perfil === "REQUISITANTE" || perfil === "CENOGRAFIA" || perfil === "LOGISTICA";
+}
+
+export const PERFIL_DESCRICAO: Record<Perfil, string> = {
+  REQUISITANTE: "Envia necessidades e alterações da própria área. Vê apenas o que a área enviou.",
+  CENOGRAFIA: "Além de solicitar, mantém os projetos padrão e o catálogo de peças.",
+  LOGISTICA: "Conduz a reunião, responde item a item, fecha a ata e gera a OS.",
+  GESTAO: "Acompanha todos os eventos e é o único perfil que reabre um evento encerrado.",
+  ADMIN: "Gerencia usuários, áreas e configurações. Não participa do fluxo de solicitações.",
+};

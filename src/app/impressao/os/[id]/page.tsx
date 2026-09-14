@@ -60,7 +60,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                 <tr key={l.pecaId} className="border-b border-neutral-300">
                   <td className="py-1.5 pr-3 font-medium">{l.codigo}</td>
                   <td className="py-1.5 pr-3">{l.nome}</td>
-                  <td className="py-1.5 pr-3 text-right font-semibold tabular">{l.total}</td>
+                  <td className="py-1.5 pr-3 text-right font-semibold font-mono">{l.total}</td>
                   <td className="py-1.5 pr-3">{l.unidade}</td>
                   <td className="py-1.5 text-[11px] text-neutral-600">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
                   <td className="py-1.5 text-center">☐</td>
@@ -88,7 +88,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
               {os.semSetor.map((a, i) => (
                 <tr key={i} className="border-b border-neutral-300">
                   <td className="py-1.5 pr-3">{a.descricao}</td>
-                  <td className="py-1.5 pr-3 text-right tabular">{a.quantidade}</td>
+                  <td className="py-1.5 pr-3 text-right font-mono">{a.quantidade}</td>
                   <td className="py-1.5 pr-3">{a.destino ?? "—"}</td>
                   <td className="py-1.5">{a.area ?? "—"}</td>
                   <td className="py-1.5 text-center">☐</td>

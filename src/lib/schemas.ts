@@ -152,6 +152,34 @@ export const areaSchema = z.object({ nome: texto(60), ativo: bool });
 
 export const configuracoesSchema = z.object({
   sla_resposta_horas: z.coerce.number().int().min(1).max(720),
+  aviso_prazo_horas: z.coerce.number().int().min(0).max(168),
+  antecedencia_reuniao_horas: z.coerce.number().int().min(0).max(168),
   lembrete_reuniao_dias: z.coerce.number().int().min(0).max(30),
   bloquear_encerramento_com_pendentes: bool,
+});
+
+const idOpcional = z.string().trim().max(64).nullable().optional().transform((v) => (v ? v : null));
+const textoLivre = (max: number) => z.string().trim().max(max, `Máximo de ${max} caracteres`).nullable().optional().transform((v) => (v ? v : null));
+
+/** Formulário único de solicitação (nova ou rascunho), enviado como JSON. */
+export const solicitacaoCompletaSchema = z.object({
+  id: idOpcional,
+  eventoId: z.string().min(1, "Escolha o evento"),
+  titulo: textoLivre(120),
+  observacao: textoLivre(1000),
+  enviar: z.boolean(),
+  itens: z
+    .array(
+      z.object({
+        operacao: z.enum(ITEM_OPERACOES),
+        projetoId: idOpcional,
+        pecaId: idOpcional,
+        eventoItemId: idOpcional,
+        descricaoLivre: textoLivre(160),
+        quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0),
+        destino: textoLivre(60),
+        justificativa: textoLivre(500),
+      }),
+    )
+    .max(100, "Máximo de 100 itens por solicitação"),
 });

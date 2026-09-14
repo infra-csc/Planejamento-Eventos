@@ -1,100 +1,123 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ChevronDown, ClipboardList, Pencil, Plus } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from "@/components/ui/dropdown";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Notice } from "@/components/ui/layout";
+import { Aviso } from "@/components/ui/layout";
+import { toast } from "@/components/ui/toast";
 import { TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
-import { criarRascunhoAction, transicionarEventoAction } from "@/app/(app)/eventos/actions";
-import type { EventoStatus } from "@/server/db/schema";
+import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
+import type { EventoStatus, Perfil } from "@/server/db/schema";
 
-const PRINCIPAL: Partial<Record<EventoStatus, AcaoEvento>> = { PREPARACAO: "INICIAR_REUNIAO", EM_REUNIAO: "FECHAR_ATA", ABERTO: "ENCERRAR", ENCERRADO: "REABRIR" };
-
+/**
+ * Botões do cabeçalho do evento conforme perfil e fase (handoff §5.4).
+ * Ações bloqueadas aparecem no estilo "bloqueado" e explicam o que falta num toast.
+ */
 export function AcoesEvento({
   evento,
-  acoes,
-  podeEditar,
+  perfil,
   podeSolicitar,
-  podeConsolidar,
-  pendentes,
+  pendentesPreReuniao,
+  solicitacoesAbertas,
 }: {
-  evento: { id: string; nome: string; status: EventoStatus; codigo: string };
-  acoes: AcaoEvento[];
-  podeEditar: boolean;
+  evento: { id: string; codigo: string; nome: string; status: EventoStatus };
+  perfil: Perfil;
   podeSolicitar: boolean;
-  podeConsolidar: boolean;
-  pendentes: string[];
+  pendentesPreReuniao: number;
+  solicitacoesAbertas: string[];
 }) {
-  const [acaoAberta, setAcaoAberta] = useState<AcaoEvento | null>(null);
-  const router = useRouter();
-  const principal = PRINCIPAL[evento.status];
-  const secundarias = acoes.filter((a) => a !== principal);
-  const t = acaoAberta ? TRANSICOES_EVENTO[acaoAberta] : null;
+  const [acao, setAcao] = useState<AcaoEvento | null>(null);
+  const t = acao ? TRANSICOES_EVENTO[acao] : null;
+  const base = `/eventos/${evento.id}`;
+
+  const botoes: React.ReactNode[] = [];
+  if (perfil === "LOGISTICA") {
+    if (evento.status === "PREPARACAO") {
+      botoes.push(
+        <Button key="iniciar" variant="primary" size="lg" onClick={() => setAcao("INICIAR_REUNIAO")}>
+          Iniciar reunião
+        </Button>,
+      );
+    }
+    if (evento.status === "EM_REUNIAO") {
+      botoes.push(
+        <ButtonLink key="consolidar" href={`${base}/reuniao`} variant="primary" size="lg" className="no-underline">
+          Consolidar ata
+        </ButtonLink>,
+      );
+      botoes.push(
+        pendentesPreReuniao > 0 ? (
+          <Button key="fechar" variant="secondary" size="lg" aria-disabled="true" className="cursor-not-allowed text-meta" onClick={() => toast(`Ainda há ${pendentesPreReuniao} ${pendentesPreReuniao === 1 ? "item" : "itens"} sem resposta — responda todos para fechar a ata`)}>
+            Fechar ata
+          </Button>
+        ) : (
+          <Button key="fechar" variant="secondary" size="lg" onClick={() => setAcao("FECHAR_ATA")}>
+            Fechar ata
+          </Button>
+        ),
+      );
+    }
+    if (evento.status === "ABERTO") {
+      botoes.push(
+        solicitacoesAbertas.length > 0 ? (
+          <Button
+            key="encerrar"
+            variant="bloqueado"
+            size="lg"
+            aria-disabled="true"
+            onClick={() => toast(`Responda ou devolva ${solicitacoesAbertas.join(", ")} antes de encerrar`)}
+          >
+            Encerrar para alterações
+          </Button>
+        ) : (
+          <Button key="encerrar" variant="primary" size="lg" onClick={() => setAcao("ENCERRAR")}>
+            Encerrar para alterações
+          </Button>
+        ),
+      );
+    }
+    if (evento.status !== "CANCELADO" && evento.status !== "ENCERRADO") {
+      botoes.push(
+        <ButtonLink key="editar" href={`${base}/editar`} variant="secondary" size="lg" className="no-underline">
+          Editar
+        </ButtonLink>,
+      );
+    }
+  }
+  if (perfil === "GESTAO" && evento.status === "ENCERRADO") {
+    botoes.push(
+      <Button key="reabrir" variant="secondary" size="lg" onClick={() => setAcao("REABRIR")}>
+        Reabrir em exceção
+      </Button>,
+    );
+  }
+  if (podeSolicitar && (evento.status === "PREPARACAO" || evento.status === "ABERTO")) {
+    botoes.push(
+      <ButtonLink key="solicitar" href={`/solicitacoes/nova?evento=${evento.id}`} variant="primary" size="lg" className="no-underline">
+        {evento.status === "PREPARACAO" ? "Enviar necessidades" : "Solicitar alteração"}
+      </ButtonLink>,
+    );
+  }
 
   return (
     <>
-      {podeSolicitar && (
-        <form action={criarRascunhoAction}>
-          <input type="hidden" name="eventoId" value={evento.id} />
-          <Button type="submit" variant="primary">
-            <Plus className="size-4" /> Nova solicitação
-          </Button>
-        </form>
-      )}
-      {podeConsolidar && (
-        <ButtonLink href={`/eventos/${evento.id}/reuniao`} variant={evento.status === "EM_REUNIAO" ? "primary" : "secondary"}>
-          <ClipboardList className="size-4" /> Consolidar ata
-        </ButtonLink>
-      )}
-      {principal && acoes.includes(principal) && (
-        <Button variant={podeConsolidar && evento.status === "EM_REUNIAO" ? "secondary" : "primary"} onClick={() => setAcaoAberta(principal)}>
-          {TRANSICOES_EVENTO[principal].label}
-        </Button>
-      )}
-      {(podeEditar || secundarias.length > 0) && (
-        <Dropdown>
-          <DropdownTrigger asChild>
-            <Button aria-label="Mais ações">
-              Mais <ChevronDown className="size-4" />
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent>
-            {podeEditar && (
-              <DropdownItem onSelect={() => router.push(`/eventos/${evento.id}/editar`)}>
-                <Pencil className="size-4" /> Editar dados do evento
-              </DropdownItem>
-            )}
-            {secundarias.map((a) => (
-              <DropdownItem key={a} onSelect={() => setAcaoAberta(a)} danger={a === "CANCELAR"}>
-                {TRANSICOES_EVENTO[a].label}
-              </DropdownItem>
-            ))}
-          </DropdownContent>
-        </Dropdown>
-      )}
-
-      {acaoAberta && t && (
+      {botoes}
+      {acao && t && (
         <ConfirmDialog
           open
-          onOpenChange={(o) => !o && setAcaoAberta(null)}
-          title={`${t.label} — ${evento.codigo}`}
+          onOpenChange={(o) => !o && setAcao(null)}
+          title={`${t.label} · ${evento.codigo}`}
           description={t.descricao}
-          confirmLabel={t.label}
-          danger={acaoAberta === "CANCELAR"}
-          reasonLabel={t.exigeJustificativa ? "Justificativa" : undefined}
+          confirmLabel={acao === "FECHAR_ATA" ? "Fechar ata e gerar OS" : t.label}
+          danger={acao === "CANCELAR"}
+          reasonLabel={t.exigeJustificativa ? (acao === "REABRIR" ? "Justificativa da exceção" : "Justificativa") : undefined}
           action={transicionarEventoAction}
-          hidden={{ eventoId: evento.id, acao: acaoAberta }}
+          hidden={{ eventoId: evento.id, acao }}
         >
-          {acaoAberta === "ENCERRAR" && pendentes.length > 0 && (
-            <Notice tone="warning" title={`${pendentes.length} solicitação(ões) ainda sem resposta`}>
-              {pendentes.join(", ")}. Responda ou devolva todas antes de encerrar — a OS final precisa refletir cada decisão.
-            </Notice>
-          )}
-          {acaoAberta === "ENCERRAR" && pendentes.length === 0 && <Notice tone="info">Depois do encerramento, só a Gestão pode reabrir, em caráter de exceção e com justificativa.</Notice>}
-          {acaoAberta === "FECHAR_ATA" && <Notice tone="info">A ata será congelada como versão 1 e a OS de cada setor será gerada automaticamente a partir dela.</Notice>}
+          {acao === "ENCERRAR" && <Aviso>Depois do encerramento, nenhuma solicitação nova entra. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
+          {acao === "FECHAR_ATA" && <Aviso>A ata é congelada e a OS de cada setor é gerada a partir dela. As áreas são notificadas.</Aviso>}
+          {acao === "INICIAR_REUNIAO" && <Aviso>Os envios de necessidades ficam bloqueados enquanto a reunião acontece. Rascunhos das áreas continuam salvos.</Aviso>}
+          {acao === "REABRIR" && <Aviso tom="warning">O evento volta a aceitar alterações. A reabertura fica marcada no evento e no histórico.</Aviso>}
         </ConfirmDialog>
       )}
     </>

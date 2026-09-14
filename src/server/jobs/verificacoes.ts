@@ -1,8 +1,8 @@
-import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventos, solicitacoes } from "@/server/db/schema";
 import { notificar, obterConfiguracoes, usuariosDaArea, usuariosLogistica } from "@/server/services/support";
-import { formatarDataHora } from "@/lib/format";
+import { diaMesHora, formatarDataHora } from "@/lib/format";
 
 const INTERVALO_MS = 5 * 60_000;
 const estado = globalThis as unknown as { __npeUltimaVerificacao?: number; __npeVerificando?: boolean };
@@ -18,6 +18,7 @@ export async function executarVerificacoesSeNecessario() {
   estado.__npeVerificando = true;
   try {
     await verificarSlaVencido();
+    await avisoPrazoProximo();
     await lembreteReuniao();
     estado.__npeUltimaVerificacao = Date.now();
   } catch (e) {
@@ -39,10 +40,39 @@ async function verificarSlaVencido() {
     await notificar(db, {
       usuarioIds: logistica,
       tipo: "SLA_VENCIDO",
-      titulo: `Prazo vencido: ${s.codigo} (${s.area.nome})`,
-      mensagem: `${s.evento.nome}: a resposta era esperada até ${formatarDataHora(s.prazoRespostaEm)}.`,
+      titulo: `${s.codigo} aguarda resposta com prazo vencido`,
+      mensagem: `${s.area.nome} · ${s.evento.nome} · prazo vencido em ${diaMesHora(s.prazoRespostaEm)}`,
       link: `/solicitacoes/${s.id}`,
       chaveDedupe: `sla:${s.id}`,
+    });
+  }
+}
+
+/** Avisa a logística quando o prazo de resposta está próximo (configuração "Aviso de prazo próximo"). */
+async function avisoPrazoProximo() {
+  const db = await getDb();
+  const cfg = await obterConfiguracoes(db);
+  const horas = Number(cfg.aviso_prazo_horas) || 0;
+  if (horas <= 0) return;
+  const agora = new Date();
+  const proximas = await db.query.solicitacoes.findMany({
+    where: and(
+      inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+      gt(solicitacoes.prazoRespostaEm, agora),
+      lt(solicitacoes.prazoRespostaEm, new Date(agora.getTime() + horas * 3_600_000)),
+    ),
+    with: { evento: { columns: { nome: true } }, area: true },
+  });
+  if (!proximas.length) return;
+  const logistica = await usuariosLogistica(db);
+  for (const s of proximas) {
+    await notificar(db, {
+      usuarioIds: logistica,
+      tipo: "PRAZO_PROXIMO",
+      titulo: `${s.codigo} vence em breve`,
+      mensagem: `${s.area.nome} · ${s.evento.nome} · responder até ${formatarDataHora(s.prazoRespostaEm)}`,
+      link: `/solicitacoes/${s.id}`,
+      chaveDedupe: `aviso:${s.id}`,
     });
   }
 }

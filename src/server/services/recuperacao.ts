@@ -5,10 +5,20 @@ import { gerarToken, hashSenha, hashToken } from "@/server/auth/password";
 import { DomainError } from "@/domain/errors";
 
 const VALIDADE_MS = 60 * 60 * 1000;
+export const VALIDADE_CONVITE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Gera um link de uso único para a pessoa definir (ou redefinir) a senha. */
+export async function gerarLinkAcesso(usuarioId: string, validadeMs = VALIDADE_MS): Promise<string> {
+  const db = await getDb();
+  const token = gerarToken();
+  await db.insert(tokensRecuperacao).values({ usuarioId, tokenHash: hashToken(token), expiraEm: new Date(Date.now() + validadeMs) });
+  const base = process.env.APP_URL?.replace(/\/$/, "") || "http://localhost:3000";
+  return `${base}/redefinir-senha/${token}`;
+}
 
 /**
  * RV-20: sem SMTP no MVP. Gera o link de redefinição, registra no log do servidor e
- * (em desenvolvimento) devolve o link para exibição na tela.
+ * (fora de produção) devolve o link para exibição na tela.
  */
 export async function solicitarRecuperacao(email: string): Promise<{ link: string | null }> {
   const db = await getDb();
@@ -18,10 +28,7 @@ export async function solicitarRecuperacao(email: string): Promise<{ link: strin
     .where(sql`lower(${usuarios.email}) = ${email.trim().toLowerCase()}`)
     .limit(1);
   if (!u || !u.ativo) return { link: null };
-  const token = gerarToken();
-  await db.insert(tokensRecuperacao).values({ usuarioId: u.id, tokenHash: hashToken(token), expiraEm: new Date(Date.now() + VALIDADE_MS) });
-  const base = process.env.APP_URL?.replace(/\/$/, "") || "http://localhost:3000";
-  const link = `${base}/redefinir-senha/${token}`;
+  const link = await gerarLinkAcesso(u.id);
   console.info(`[recuperacao-senha] ${email}: ${link}`);
   return { link: process.env.NODE_ENV === "production" && process.env.EXIBIR_LINK_RECUPERACAO !== "true" ? null : link };
 }

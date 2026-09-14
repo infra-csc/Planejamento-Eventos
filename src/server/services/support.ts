@@ -78,11 +78,11 @@ export const usuariosRequisitantes = (ex: Executor) => usuariosPorPerfil(ex, ["R
 export const usuariosLogistica = (ex: Executor) => usuariosPorPerfil(ex, ["LOGISTICA"]);
 
 /* ------------------------------------------------------------------ */
-/* Sequências de código (EV-0001, SOL-0001)                              */
+/* Sequências de código (EVT-0001, SOL-0001, PRJ-0001)                   */
 /* ------------------------------------------------------------------ */
 
 export async function proximoCodigo(ex: Executor, nome: "evento" | "solicitacao" | "projeto"): Promise<string> {
-  const prefixo = { evento: "EV", solicitacao: "SOL", projeto: "PJ" }[nome];
+  const prefixo = { evento: "EVT", solicitacao: "SOL", projeto: "PRJ" }[nome];
   const [row] = await ex
     .insert(sequencias)
     .values({ nome, valor: 1 })
@@ -97,6 +97,8 @@ export async function proximoCodigo(ex: Executor, nome: "evento" | "solicitacao"
 
 export const CONFIG_PADRAO = {
   sla_resposta_horas: "48",
+  aviso_prazo_horas: "12",
+  antecedencia_reuniao_horas: "0",
   lembrete_reuniao_dias: "1",
   bloquear_encerramento_com_pendentes: "true",
 } as const;
