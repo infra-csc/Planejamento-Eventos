@@ -27,9 +27,9 @@ export function proxy(request: NextRequest) {
     if (pathname !== "/") url.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
-  if (temCookie && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // Não redireciona /login → / só porque existe cookie: o proxy não sabe se a sessão ainda vale
+  // (expirada, revogada na troca de senha, banco recarregado) e isso criava um loop /login ↔ /.
+  // A própria página de login valida a sessão no banco e manda para dentro quem já está logado.
   return NextResponse.next();
 }
 

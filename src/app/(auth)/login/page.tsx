@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getUsuarioAtual } from "@/server/auth/session";
 import { LoginForm } from "./login-form";
 import { destinoInterno } from "@/lib/destino";
 
@@ -19,5 +21,7 @@ function exibirDemo() {
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; redefinida?: string }> }) {
   const sp = await searchParams;
+  // Sessão válida (conferida no banco): não faz sentido mostrar o login.
+  if (await getUsuarioAtual()) redirect(destinoInterno(sp.next, "/"));
   return <LoginForm next={destinoInterno(sp.next, "")} redefinida={sp.redefinida === "1"} demo={exibirDemo()} />;
 }
