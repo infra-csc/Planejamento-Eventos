@@ -3,7 +3,8 @@ import { getDb } from "@/server/db";
 import { eventos, pecas, projetoVersoes, solicitacaoItens, solicitacoes } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { consolidar, type EventoConsolidacao } from "@/domain/consolidacao";
-import { calcularOsAtual } from "./os";
+import { calcularOS } from "@/domain/os";
+import { montarLinhasAtaDeEventos } from "./os";
 
 /**
  * Demanda × estoque no período (handoff §5.13). Sem checagem de permissão:
@@ -49,6 +50,11 @@ export async function calcularConsolidacao(periodo: { inicio: string; fim: strin
     : [];
   const bomPorVersao = new Map(boms.map((b) => [b.id, b.itens]));
 
+  // Linhas da ata de todos os eventos do período numa consulta só (antes: uma por evento).
+  const linhasPorEvento = await montarLinhasAtaDeEventos(
+    db,
+    evs.map((e) => e.id),
+  );
   const lista: EventoConsolidacao[] = [];
   for (const ev of evs) {
     const projetado: Record<string, number> = {};
@@ -60,7 +66,7 @@ export async function calcularConsolidacao(periodo: { inicio: string; fim: strin
         projetado[p.pecaId] = (projetado[p.pecaId] ?? 0) + p.quantidade;
       }
     }
-    lista.push({ id: ev.id, codigo: ev.codigo, nome: ev.nome, dataMontagem: ev.dataMontagem, dataDesmontagem: ev.dataDesmontagem, os: await calcularOsAtual(db, ev.id), projetado });
+    lista.push({ id: ev.id, codigo: ev.codigo, nome: ev.nome, dataMontagem: ev.dataMontagem, dataDesmontagem: ev.dataDesmontagem, os: calcularOS(linhasPorEvento.get(ev.id) ?? []), projetado });
   }
   const todasPecas = await db.query.pecas.findMany({ where: eq(pecas.ativo, true) });
   return { eventos: evs, pecas: consolidar(lista, todasPecas, periodo), totalPecasCatalogo: todasPecas.length };

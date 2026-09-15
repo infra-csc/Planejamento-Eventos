@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { anexos, eventoItens, eventos, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
+import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
-import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica } from "./support";
 
 export type DadosProjeto = {
@@ -27,22 +27,28 @@ export async function listarProjetos(usuario: UsuarioAtual, filtro: { busca?: st
     with: { anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true } } },
     orderBy: [asc(projetos.categoria), asc(projetos.nome)],
   });
-  // total de peças na versão atual
-  const versoes = rows.length
-    ? await db.query.projetoVersoes.findMany({
-        where: inArray(projetoVersoes.projetoId, rows.map((r) => r.id)),
-        with: { itens: { columns: { quantidade: true, pecaId: true } } },
-      })
+  // Totais só da versão atual de cada projeto, agregados no banco (antes: todas as versões com itens).
+  const totais = rows.length
+    ? await db
+        .select({ projetoId: projetoVersoes.projetoId, total: sql<number>`coalesce(sum(${projetoItens.quantidade}), 0)`, tipos: sql<number>`count(${projetoItens.id})` })
+        .from(projetoVersoes)
+        .innerJoin(projetos, and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero)))
+        .leftJoin(projetoItens, eq(projetoItens.versaoId, projetoVersoes.id))
+        .where(
+          inArray(
+            projetoVersoes.projetoId,
+            rows.map((r) => r.id),
+          ),
+        )
+        .groupBy(projetoVersoes.projetoId)
     : [];
-  return rows.map((r) => {
-    const v = versoes.find((x) => x.projetoId === r.id && x.numero === r.versaoAtual);
-    return {
-      ...r,
-      totalPecas: v?.itens.reduce((a, i) => a + i.quantidade, 0) ?? 0,
-      tiposPeca: v?.itens.length ?? 0,
-      capa: r.anexos.find((a) => a.tipo === "IMAGEM") ?? null,
-    };
-  });
+  const porProjeto = new Map(totais.map((t) => [t.projetoId, t]));
+  return rows.map((r) => ({
+    ...r,
+    totalPecas: Number(porProjeto.get(r.id)?.total ?? 0),
+    tiposPeca: Number(porProjeto.get(r.id)?.tipos ?? 0),
+    capa: r.anexos.find((a) => a.tipo === "IMAGEM") ?? null,
+  }));
 }
 
 export async function obterProjeto(usuario: UsuarioAtual, id: string) {
@@ -195,14 +201,18 @@ export async function obterAnexo(usuario: UsuarioAtual, anexoId: string) {
   return a;
 }
 
-export async function historicoProjeto(id: string) {
+/** Metadados do anexo sem o arquivo (para responder 304 sem ler o bytea). */
+export async function obterAnexoMeta(usuario: UsuarioAtual, anexoId: string) {
+  exigir(usuario, "projeto.ver");
   const db = await getDb();
-  const { historico } = await import("@/server/db/schema");
-  return db.query.historico.findMany({ where: and(eq(historico.entidade, "projeto"), eq(historico.entidadeId, id)), with: { usuario: { columns: { nome: true } } }, orderBy: [desc(historico.criadoEm)], limit: 50 });
+  const a = await db.query.anexos.findFirst({ where: eq(anexos.id, anexoId), columns: { conteudo: false } });
+  if (!a) throw new NaoEncontradoError("Anexo");
+  return a;
 }
 
-export function garantirNaoVazio(x: unknown, msg: string) {
-  if (!x) throw new DomainError(msg);
+export async function historicoProjeto(id: string) {
+  const db = await getDb();
+  return db.query.historico.findMany({ where: and(eq(historico.entidade, "projeto"), eq(historico.entidadeId, id)), with: { usuario: { columns: { nome: true } } }, orderBy: [desc(historico.criadoEm)], limit: 50 });
 }
 
 /** Quantos eventos (não cancelados) usam cada projeto na ata — coluna "uso" da Biblioteca. */

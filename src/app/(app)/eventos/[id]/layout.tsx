@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { contarItensPendentesPreReuniao, obterEvento, obterLinhasAta, solicitacoesPendentes } from "@/server/services/eventos";
-import { listarSolicitacoes } from "@/server/services/solicitacoes";
-import { listarOsVersoes } from "@/server/services/os";
+import { contarItensPendentesPreReuniao, resumoAbasEvento, solicitacoesPendentes } from "@/server/services/eventos";
+import { obterEventoCache } from "@/server/cache";
 import { getDb } from "@/server/db";
 import { pode } from "@/domain/permissions";
 import { statusExibicao } from "@/domain/evento";
@@ -19,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const usuario = await getUsuarioAtual();
   if (!usuario) return {};
   const { id } = await params;
-  const ev = await obterEvento(usuario, id).catch(() => null);
+  const ev = await obterEventoCache(usuario, id).catch(() => null);
   return { title: ev ? `${ev.codigo} ${ev.nome}` : "Evento" };
 }
 
@@ -28,21 +27,17 @@ const plural = (n: number, s: string, p: string) => (n === 0 ? null : `${n} ${n 
 export default async function EventoLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
-  const ev = await obterEvento(usuario, id).catch((e) => {
+  const ev = await obterEventoCache(usuario, id).catch((e) => {
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
-  const [linhas, sols, versoes, pendentesPre, abertas] = await Promise.all([
-    obterLinhasAta(id),
-    listarSolicitacoes(usuario, { eventoId: id }),
-    listarOsVersoes(id),
-    contarItensPendentesPreReuniao(id),
-    solicitacoesPendentes(await getDb(), id),
-  ]);
+  // Só contagens: este layout roda em todas as abas do evento.
+  const [resumo, pendentesPre, abertas] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), solicitacoesPendentes(await getDb(), id)]);
   const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
-  const versaoOs = versoes[0]?.numero ?? 0;
-  const preEnviadas = sols.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA").length;
+  const { versaoOs, preEnviadas } = resumo;
+  const linhas = { length: resumo.linhas };
+  const sols = { length: resumo.solicitacoes };
   const alteracoesAbertas = abertas.filter((s) => s.tipo === "ALTERACAO").length;
 
   const passos = [

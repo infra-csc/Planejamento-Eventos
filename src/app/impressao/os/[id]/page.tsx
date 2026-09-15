@@ -1,19 +1,26 @@
 import { requirePermissao } from "@/server/auth/session";
 import { obterEvento } from "@/server/services/eventos";
-import { calcularOsAtual, listarOsVersoes } from "@/server/services/os";
+import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
 import { SETOR_LABEL } from "@/domain/os";
 import { formatarData, formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { ImprimirBotao } from "./imprimir-botao";
 
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
+  const usuario = await requirePermissao("os.exportar");
+  const [{ id }, { v }] = await Promise.all([params, searchParams]);
+  const ev = await obterEvento(usuario, id).catch(() => null);
+  // Vira o nome sugerido do PDF ao imprimir.
+  return { title: ev ? `OS ${ev.codigo}${v ? ` v${v}` : ""} · ${ev.nome}` : "OS" };
+}
+
 export default async function ImpressaoOsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
   const { v } = await searchParams;
-  const ev = await obterEvento(usuario, id);
-  const versoes = await listarOsVersoes(id);
+  const [ev, versoes] = await Promise.all([obterEvento(usuario, id), listarOsResumo(id)]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
-  const os = sel && v ? sel.conteudo : await calcularOsAtual(await getDb(), id);
+  const os = (sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id));
 
   return (
     <div className="mx-auto max-w-4xl bg-white p-8 text-[13px] text-black print:p-0">

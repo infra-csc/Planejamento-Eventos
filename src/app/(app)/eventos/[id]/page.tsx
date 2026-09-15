@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { obterEvento, obterHistoricoEvento, progressoAreas } from "@/server/services/eventos";
-import { calcularOsAtual, listarOsVersoes } from "@/server/services/os";
+import { obterHistoricoEvento, progressoAreas } from "@/server/services/eventos";
+import { calcularOsAtual, listarOsResumo } from "@/server/services/os";
+import { obterEventoCache } from "@/server/cache";
 import { getDb } from "@/server/db";
 import { pode } from "@/domain/permissions";
 import { totalPecas } from "@/domain/os";
@@ -15,10 +16,10 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   const usuario = await requireUsuario();
   const { id } = await params;
   const [ev, areas, historico, versoes, os] = await Promise.all([
-    obterEvento(usuario, id),
+    obterEventoCache(usuario, id),
     progressoAreas(id),
     obterHistoricoEvento(usuario, id, 6),
-    listarOsVersoes(id),
+    listarOsResumo(id),
     calcularOsAtual(await getDb(), id),
   ]);
   const total = totalPecas(os);

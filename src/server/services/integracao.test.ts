@@ -15,8 +15,10 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, osVersoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
-import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, obterHistoricoEvento, transicionarEvento } from "./eventos";
-import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
+import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento } from "./eventos";
+import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, paginarSolicitacoes, primeiraDaFila, responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
+import { listarOsResumo, obterConteudosOs } from "./os";
+import { buscar } from "./busca";
 import { salvarConfiguracao } from "./support";
 
 let logistica: UsuarioAtual;
@@ -197,6 +199,48 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
     const dados = { nome: ev.nome, cliente: ev.cliente, local: ev.local, dataMontagem: ev.dataMontagem, dataInicio: ev.dataInicio, dataFim: ev.dataFim, dataDesmontagem: ev.dataDesmontagem, dataCarga: null, responsavelId: ev.responsavelId };
     await expect(editarEvento(logistica, ev.id, { ...dados, dataReuniao: new Date(ev.dataReuniao.getTime() + 86_400_000) })).rejects.toThrow(/reunião/);
     await expect(editarEvento(logistica, ev.id, { ...dados, nome: "Nome novo", dataReuniao: ev.dataReuniao })).resolves.toBeTruthy();
+  });
+});
+
+describe("consultas otimizadas", { timeout: 30_000 }, () => {
+  it("lista de solicitações pagina e conta no banco, respeitando a área", async () => {
+    const { ev } = await eventoAberto();
+    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Produção", quantidadeSolicitada: 1 }]);
+    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Gráfica", quantidadeSolicitada: 1 }], grafica);
+    const daLogistica = await paginarSolicitacoes(logistica, { filtro: "ABERTAS", ordem: "codigo", dir: "desc", porPagina: 1 });
+    expect(daLogistica.itens).toHaveLength(1);
+    expect(daLogistica.contagens.ABERTAS).toBeGreaterThanOrEqual(2);
+    expect(daLogistica.paginas).toBe(daLogistica.contagens.ABERTAS);
+    const daGrafica = await paginarSolicitacoes(grafica, { filtro: "TODAS", ordem: "itens", porPagina: 50 });
+    expect(daGrafica.itens.every((s) => s.areaId === grafica.areaId)).toBe(true);
+    for (const ordem of ["titulo", "status", "prazo", undefined]) {
+      await expect(paginarSolicitacoes(logistica, { filtro: "ATRASADAS", ordem, porPagina: 8 })).resolves.toBeTruthy();
+    }
+    expect(await primeiraDaFila(logistica)).toBeTruthy();
+    expect(await primeiraDaFila(producao)).toBeNull();
+  });
+
+  it("contadores das abas e resumo das versões de OS sem carregar o JSON", async () => {
+    const { ev, linhaId } = await eventoAberto();
+    const s = await enviar(ev.id, [{ operacao: "ALTERAR_QUANTIDADE", eventoItemId: linhaId, quantidadeSolicitada: 14 }]);
+    await responderItem(logistica, s.itens[0].id, { status: "ATENDIDO" });
+    const resumo = await resumoAbasEvento(logistica, ev.id);
+    expect(resumo).toMatchObject({ linhas: 1, solicitacoes: 1, versaoOs: 2 });
+    expect((await resumoAbasEvento(grafica, ev.id)).solicitacoes).toBe(0);
+    const versoes = await listarOsResumo(ev.id);
+    expect(versoes.map((v) => v.numero)).toEqual([2, 1]);
+    expect(versoes[0].resumo).toBe("BOX-T +4");
+    expect("conteudo" in versoes[0]).toBe(false);
+    const conteudos = await obterConteudosOs(ev.id, [2]);
+    expect(conteudos.get(2)?.setores[0].linhas[0].total).toBe(14);
+    const linhas = await linhasAtaResumidas([ev.id]);
+    expect(linhas[ev.id]).toEqual([expect.objectContaining({ id: linhaId, nome: "BOX-T · Box de teste", quantidade: 14 })]);
+  });
+
+  it("busca global roda as consultas em paralelo e respeita a área", async () => {
+    const r = await buscar(grafica, "Evento de teste");
+    expect(r.some((x) => x.tag === "evento")).toBe(true);
+    expect(r.filter((x) => x.tag === "solic.").every((x) => x.sub.startsWith("Gráfica"))).toBe(true);
   });
 });
 

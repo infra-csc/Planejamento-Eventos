@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -72,6 +72,98 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
 }
 
 export type SolicitacaoLista = Awaited<ReturnType<typeof listarSolicitacoes>>[number];
+
+export const FILTROS_LISTA = ["ABERTAS", "ATRASADAS", "RASCUNHO", "RESPONDIDA", "TODAS"] as const;
+export type FiltroLista = (typeof FILTROS_LISTA)[number];
+
+/**
+ * Página da lista de solicitações com filtro, ordenação e paginação no banco, e a contagem de cada
+ * filtro numa consulta só. Substitui carregar todas as solicitações com itens e fatiar em memória.
+ */
+export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number }) {
+  const db = await getDb();
+  const agora = sql`${new Date().toISOString()}::timestamptz`;
+  const vazio = { itens: [] as SolicitacaoLista[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
+  const base = [eq(solicitacoes.excluida, false)];
+  if (!pode(usuario, "solicitacao.ver_todas")) {
+    if (!usuario.areaId) return vazio;
+    base.push(eq(solicitacoes.areaId, usuario.areaId));
+  }
+  const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE')`;
+  const condicoes: Record<FiltroLista, SQL> = {
+    ABERTAS: abertas,
+    ATRASADAS: sql`${abertas} and ${solicitacoes.prazoRespostaEm} < ${agora}`,
+    RASCUNHO: sql`${solicitacoes.status} in ('RASCUNHO', 'DEVOLVIDA')`,
+    RESPONDIDA: sql`${solicitacoes.status} = 'RESPONDIDA'`,
+    TODAS: sql`true`,
+  };
+  const [c] = await db
+    .select({
+      ABERTAS: sql<number>`count(*) filter (where ${condicoes.ABERTAS})`,
+      ATRASADAS: sql<number>`count(*) filter (where ${condicoes.ATRASADAS})`,
+      RASCUNHO: sql<number>`count(*) filter (where ${condicoes.RASCUNHO})`,
+      RESPONDIDA: sql<number>`count(*) filter (where ${condicoes.RESPONDIDA})`,
+      TODAS: sql<number>`count(*)`,
+    })
+    .from(solicitacoes)
+    .where(and(...base));
+  const contagens = { ABERTAS: Number(c.ABERTAS), ATRASADAS: Number(c.ATRASADAS), RASCUNHO: Number(c.RASCUNHO), RESPONDIDA: Number(c.RESPONDIDA), TODAS: Number(c.TODAS) };
+
+  const total = contagens[opcoes.filtro];
+  const paginas = Math.max(1, Math.ceil(total / opcoes.porPagina));
+  const pagina = Math.min(Math.max(1, Number(opcoes.pagina) || 1), paginas);
+  const de = (pagina - 1) * opcoes.porPagina;
+
+  const desc_ = opcoes.dir === "desc";
+  const direcao = (x: SQL | AnyColumn) => (desc_ ? desc(x) : asc(x));
+  const prazo = desc_ ? sql`${solicitacoes.prazoRespostaEm} desc nulls first` : sql`${solicitacoes.prazoRespostaEm} asc nulls last`;
+  const ordens: Record<string, SQL[]> = {
+    codigo: [direcao(solicitacoes.codigo)],
+    titulo: [direcao(sql`lower(coalesce(${solicitacoes.titulo}, ''))`)],
+    itens: [direcao(sql`(select count(*) from solicitacao_itens si where si.solicitacao_id = ${solicitacoes.id})`)],
+    status: [direcao(sql`case ${solicitacoes.status} when 'DEVOLVIDA' then 0 when 'RASCUNHO' then 1 when 'ENVIADA' then 2 when 'EM_ANALISE' then 3 when 'RESPONDIDA' then 4 else 5 end`)],
+    prazo: [prazo],
+  };
+  const ordem = (opcoes.ordem && ordens[opcoes.ordem]) || [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
+  const ids = (
+    await db
+      .select({ id: solicitacoes.id })
+      .from(solicitacoes)
+      .where(and(...base, condicoes[opcoes.filtro]))
+      .orderBy(...ordem, desc(solicitacoes.atualizadoEm))
+      .limit(opcoes.porPagina)
+      .offset(de)
+  ).map((r) => r.id);
+  if (ids.length === 0) return { ...vazio, pagina, paginas, total, de, contagens };
+
+  const rows = await db.query.solicitacoes.findMany({
+    where: inArray(solicitacoes.id, ids),
+    with: {
+      evento: { columns: { id: true, codigo: true, nome: true, status: true } },
+      area: true,
+      criadoPor: { columns: { id: true, nome: true } },
+      itens: { columns: { id: true, status: true } },
+    },
+  });
+  const posicao = new Map(ids.map((id, i) => [id, i]));
+  const itens = rows
+    .sort((a, b) => (posicao.get(a.id) ?? 0) - (posicao.get(b.id) ?? 0))
+    .map((r) => ({ ...r, totalItens: r.itens.length, itensRespondidos: r.itens.filter((i) => i.status !== "EM_ANALISE").length }));
+  return { itens, pagina, paginas, total, de, porPagina: opcoes.porPagina, contagens };
+}
+
+/** Primeira solicitação da fila da logística (botão "Responder em fila"). */
+export async function primeiraDaFila(usuario: UsuarioAtual) {
+  if (!pode(usuario, "solicitacao.responder")) return null;
+  const db = await getDb();
+  const [r] = await db
+    .select({ id: solicitacoes.id })
+    .from(solicitacoes)
+    .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])))
+    .orderBy(sql`${solicitacoes.prazoRespostaEm} asc nulls last`)
+    .limit(1);
+  return r?.id ?? null;
+}
 
 /** Fila de resposta da logística: abertas, ordenadas por prazo (sem prazo por último). */
 export async function listarFila(usuario: UsuarioAtual) {

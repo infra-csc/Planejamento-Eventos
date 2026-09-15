@@ -23,7 +23,7 @@ import { TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain
 import { pode } from "@/domain/permissions";
 import { descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
-import { gerarOsVersao, montarLinhasAta } from "./os";
+import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
 import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
 
 /* ------------------------------------------------------------------ */
@@ -163,6 +163,41 @@ export async function listarAtaVersoes(eventoId: string) {
     with: { fechadaPor: { columns: { id: true, nome: true } } },
     orderBy: [desc(ataVersoes.numero)],
   });
+}
+
+/**
+ * Contadores das abas do evento (layout de todas as abas): só contagens, sem carregar a ata,
+ * as solicitações com itens nem o JSON das OS. Respeita a área de quem não vê todas as solicitações.
+ */
+export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) {
+  const db = await getDb();
+  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? undefined : eq(solicitacoes.areaId, usuario.areaId ?? "");
+  const [[linhas], sols, versaoOs] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(eventoItens)
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true))),
+    db
+      .select({ tipo: solicitacoes.tipo, status: solicitacoes.status, n: count() })
+      .from(solicitacoes)
+      .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), escopoArea))
+      .groupBy(solicitacoes.tipo, solicitacoes.status),
+    numeroOsAtual(db, eventoId),
+  ]);
+  const soma = (xs: typeof sols) => xs.reduce((a, s) => a + Number(s.n), 0);
+  return {
+    linhas: Number(linhas?.n ?? 0),
+    solicitacoes: soma(sols),
+    preEnviadas: soma(sols.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA")),
+    versaoOs,
+  };
+}
+
+/** Linhas ativas (id, nome, quantidade, destino, área) de vários eventos numa consulta só. */
+export async function linhasAtaResumidas(eventoIds: string[]) {
+  const db = await getDb();
+  const mapa = await montarLinhasAtaDeEventos(db, eventoIds);
+  return Object.fromEntries([...mapa].map(([id, ls]) => [id, ls.map((l) => ({ id: l.id, nome: nomeLinha(l), quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome }))]));
 }
 
 /** "Onde está cada área" (handoff §5.5): enviados × respondidos por área. */

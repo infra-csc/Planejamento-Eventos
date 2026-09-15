@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { listarEventos, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { linhasAtaResumidas, listarEventos, opcoesReferencias } from "@/server/services/eventos";
 import { obterSolicitacao } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
 import { getDb } from "@/server/db";
@@ -29,13 +29,8 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
 
   const [todos, opcoes, config] = await Promise.all([listarEventos(usuario), opcoesReferencias(), obterConfiguracoes(await getDb())]);
   const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
-  const linhasPorEvento = Object.fromEntries(
-    await Promise.all(
-      aceitando
-        .filter((e) => e.status === "ABERTO")
-        .map(async (e) => [e.id, (await obterLinhasAta(e.id)).map((l) => ({ id: l.id, nome: l.nome, quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome }))] as const),
-    ),
-  );
+  // Linhas da ata de todos os eventos abertos numa consulta só.
+  const linhasPorEvento = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,

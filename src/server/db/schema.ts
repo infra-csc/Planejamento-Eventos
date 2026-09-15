@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
+  check,
   customType,
   date,
   index,
@@ -209,7 +211,7 @@ export const projetoItens = pgTable(
       .references(() => pecas.id),
     quantidade: integer("quantidade").notNull(),
   },
-  (t) => [index("projeto_itens_versao_idx").on(t.versaoId)],
+  (t) => [index("projeto_itens_versao_idx").on(t.versaoId), check("projeto_itens_quantidade_chk", sql`${t.quantidade} > 0`)],
 );
 
 export const anexos = pgTable(
@@ -265,7 +267,7 @@ export const eventos = pgTable(
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
-  (t) => [index("eventos_status_idx").on(t.status), index("eventos_data_inicio_idx").on(t.dataInicio)],
+  (t) => [index("eventos_status_idx").on(t.status), index("eventos_data_inicio_idx").on(t.dataInicio), index("eventos_periodo_idx").on(t.dataMontagem, t.dataDesmontagem)],
 );
 
 export const solicitacoes = pgTable(
@@ -301,6 +303,9 @@ export const solicitacoes = pgTable(
     index("solicitacoes_evento_idx").on(t.eventoId),
     index("solicitacoes_area_idx").on(t.areaId),
     index("solicitacoes_status_idx").on(t.status),
+    // Lista padrão (mais recentes) e verificação de prazo a cada 5 minutos.
+    index("solicitacoes_atualizado_idx").on(t.atualizadoEm).where(sql`not ${t.excluida}`),
+    index("solicitacoes_prazo_abertas_idx").on(t.prazoRespostaEm).where(sql`${t.status} in ('ENVIADA', 'EM_ANALISE') and not ${t.excluida}`),
   ],
 );
 
@@ -321,7 +326,7 @@ export const eventoItens = pgTable(
     destino: text("destino"),
     areaId: text("area_id").references(() => areas.id),
     origem: eventoItemOrigemEnum("origem").notNull(),
-    solicitacaoItemId: text("solicitacao_item_id"),
+    solicitacaoItemId: text("solicitacao_item_id").references((): AnyPgColumn => solicitacaoItens.id, { onDelete: "set null" }),
     justificativaAjuste: text("justificativa_ajuste"),
     ativo: boolean("ativo").notNull().default(true),
     removidoEm: ts("removido_em"),
@@ -334,6 +339,9 @@ export const eventoItens = pgTable(
     index("evento_itens_evento_idx").on(t.eventoId),
     // Uma resposta gera no máximo uma linha: barra duplicata mesmo se duas respostas escaparem da trava.
     uniqueIndex("evento_itens_solicitacao_item_idx").on(t.solicitacaoItemId).where(sql`${t.solicitacaoItemId} is not null`),
+    // Uso de projetos (biblioteca, versões defasadas).
+    index("evento_itens_projeto_ativo_idx").on(t.projetoId).where(sql`${t.ativo}`),
+    check("evento_itens_quantidade_chk", sql`${t.quantidade} >= 0`),
   ],
 );
 
@@ -361,11 +369,16 @@ export const solicitacaoItens = pgTable(
     pendenciaCompra: boolean("pendencia_compra").notNull().default(false),
     respondidoPorId: text("respondido_por_id").references(() => usuarios.id),
     respondidoEm: ts("respondido_em"),
-    eventoItemGeradoId: text("evento_item_gerado_id"),
+    eventoItemGeradoId: text("evento_item_gerado_id").references((): AnyPgColumn => eventoItens.id, { onDelete: "set null" }),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
-  (t) => [index("solicitacao_itens_solicitacao_idx").on(t.solicitacaoId)],
+  (t) => [
+    index("solicitacao_itens_solicitacao_idx").on(t.solicitacaoId),
+    index("solicitacao_itens_evento_item_idx").on(t.eventoItemId),
+    index("solicitacao_itens_pendencia_idx").on(t.respondidoEm).where(sql`${t.pendenciaCompra}`),
+    check("solicitacao_itens_quantidade_chk", sql`${t.quantidadeSolicitada} >= 0`),
+  ],
 );
 
 export const ataVersoes = pgTable(
@@ -393,6 +406,8 @@ export const osVersoes = pgTable(
     numero: integer("numero").notNull(),
     gatilho: osGatilhoEnum("gatilho").notNull(),
     descricao: text("descricao"),
+    /** O que mudou em relação à versão anterior, calculado na geração (lista de versões sem carregar o JSON). */
+    resumo: text("resumo"),
     conteudo: jsonb("conteudo").$type<OsConteudo>().notNull(),
     geradaPorId: text("gerada_por_id").references(() => usuarios.id),
     geradaEm: criadoEm(),
@@ -408,7 +423,8 @@ export const historico = pgTable(
   "historico",
   {
     id: id(),
-    eventoId: text("evento_id").references(() => eventos.id, { onDelete: "cascade" }),
+    // Auditoria não some junto com o evento.
+    eventoId: text("evento_id").references(() => eventos.id, { onDelete: "set null" }),
     entidade: text("entidade").notNull(),
     entidadeId: text("entidade_id").notNull(),
     acao: text("acao").notNull(),
@@ -418,7 +434,7 @@ export const historico = pgTable(
     usuarioId: text("usuario_id").references(() => usuarios.id),
     criadoEm: criadoEm(),
   },
-  (t) => [index("historico_evento_idx").on(t.eventoId), index("historico_entidade_idx").on(t.entidade, t.entidadeId)],
+  (t) => [index("historico_evento_idx").on(t.eventoId, t.criadoEm), index("historico_entidade_idx").on(t.entidade, t.entidadeId)],
 );
 
 export const notificacoes = pgTable(
@@ -438,6 +454,7 @@ export const notificacoes = pgTable(
   },
   (t) => [
     index("notificacoes_usuario_idx").on(t.usuarioId, t.lidaEm),
+    index("notificacoes_usuario_criado_idx").on(t.usuarioId, t.criadoEm),
     uniqueIndex("notificacoes_dedupe_idx").on(t.usuarioId, t.chaveDedupe),
   ],
 );

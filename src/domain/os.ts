@@ -101,6 +101,22 @@ export function diffOS(antes: OsConteudo, depois: OsConteudo): DiffLinha[] {
   return out.sort((x, y) => x.codigo.localeCompare(y.codigo, "pt-BR"));
 }
 
+/** Resumo curto de uma diferença de OS: "BOX-600 +4 · CUBO −2 · +3". */
+export function resumirDiff(diff: DiffLinha[]): string {
+  if (diff.length === 0) return "sem mudança nas quantidades";
+  const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
+  return partes.join(" · ") + (diff.length > 3 ? ` · +${diff.length - 3}` : "");
+}
+
+/** Texto da lista de versões: o que mudou em relação à anterior, ou o tamanho da primeira. */
+export function resumoVersaoOs(anterior: OsConteudo | null, atual: OsConteudo): string {
+  if (!anterior) {
+    const n = atual.setores.reduce((a, s) => a + s.linhas.length, 0);
+    return `${n} ${n === 1 ? "tipo de peça" : "tipos de peça"}`;
+  }
+  return resumirDiff(diffOS(anterior, atual));
+}
+
 export function totalPecas(os: OsConteudo): number {
   return os.setores.reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
 }

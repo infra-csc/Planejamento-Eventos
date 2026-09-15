@@ -1,7 +1,7 @@
 import { requirePermissao } from "@/server/auth/session";
-import { obterEvento } from "@/server/services/eventos";
-import { listarOsVersoes } from "@/server/services/os";
-import { diffOS, SETOR_LABEL, type DiffLinha } from "@/domain/os";
+import { listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { obterEventoCache } from "@/server/cache";
+import { diffOS, resumoVersaoOs, SETOR_LABEL, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
@@ -20,12 +20,6 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
   REABERTURA: "reabertura",
   ENCERRAMENTO: "OS final",
 };
-
-function resumoDiff(diff: DiffLinha[]) {
-  if (diff.length === 0) return "sem mudança nas quantidades";
-  const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
-  return partes.join(" · ") + (diff.length > 3 ? ` · +${diff.length - 3}` : "");
-}
 
 function ChipDiff({ d }: { d: DiffLinha }) {
   const delta = d.depois - d.antes;
@@ -50,7 +44,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes] = await Promise.all([obterEvento(usuario, id), listarOsVersoes(id)]);
+  const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id)]);
 
   if (versoes.length === 0) {
     return (
@@ -64,37 +58,44 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const atual = versoes[0];
   const exibida = versoes.find((x) => String(x.numero) === sp.v) ?? atual;
   const base = sp.base && sp.base !== String(exibida.numero) ? versoes.find((x) => String(x.numero) === sp.base) : undefined;
-  const anterior = (n: number) => versoes.find((x) => x.numero === n - 1);
+  const existe = (n: number) => versoes.some((x) => x.numero === n);
+
+  // Só o JSON das versões exibidas; versões antigas sem resumo gravado carregam tudo uma vez.
+  const legado = versoes.some((v) => v.resumo == null);
+  const conteudos = await obterConteudosOs(id, legado ? versoes.map((v) => v.numero) : [exibida.numero, exibida.numero - 1, ...(base ? [base.numero] : [])]);
+  const conteudo = (n: number) => conteudos.get(n) ?? null;
+  const os = conteudo(exibida.numero) ?? { setores: [], semSetor: [] };
 
   let tituloDiff: string;
   let subDiff: string;
   let diff: DiffLinha[];
   if (base) {
     const [menor, maior] = base.numero < exibida.numero ? [base, exibida] : [exibida, base];
-    diff = diffOS(menor.conteudo, maior.conteudo);
+    const a = conteudo(menor.numero);
+    const b = conteudo(maior.numero);
+    diff = a && b ? diffOS(a, b) : [];
     tituloDiff = `Diferença entre v${menor.numero} e v${maior.numero}`;
     const n = maior.numero - menor.numero;
     subDiff = `Soma de ${n} ${n === 1 ? "alteração" : "alterações"} no intervalo`;
   } else {
-    const ant = anterior(exibida.numero);
-    diff = ant ? diffOS(ant.conteudo, exibida.conteudo) : [];
+    const ant = existe(exibida.numero - 1) ? conteudo(exibida.numero - 1) : null;
+    diff = ant ? diffOS(ant, os) : [];
     tituloDiff = ant ? `O que mudou na v${exibida.numero}` : `v${exibida.numero} · primeira versão`;
     subDiff = exibida.descricao ?? GATILHO_LABEL[exibida.gatilho];
   }
 
   const paramsAtuais = { v: sp.v, base: sp.base };
   const qsExport = exibida.numero !== atual.numero ? `?v=${exibida.numero}` : "";
-  const os = exibida.conteudo;
 
   const lista: VersaoOsView[] = versoes.map((ver) => {
-    const ant = anterior(ver.numero);
+    const c = conteudo(ver.numero);
     return {
       numero: ver.numero,
       gatilho: GATILHO_LABEL[ver.gatilho],
       quando: diaMesHora(ver.geradaEm),
       autor: ver.geradaPor?.nome ?? "Sistema",
       descricao: ver.descricao,
-      resumo: ant ? resumoDiff(diffOS(ant.conteudo, ver.conteudo)) : `${ver.conteudo.setores.reduce((a, s) => a + s.linhas.length, 0)} tipos de peça`,
+      resumo: ver.resumo ?? (c ? resumoVersaoOs(conteudo(ver.numero - 1), c) : ""),
       exibida: ver.id === exibida.id,
       base: ver.id === base?.id,
       atual: ver.id === atual.id,
@@ -120,7 +121,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             )}
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {diff.length === 0 ? <span className="text-[12.5px] text-on-dark-4">{anterior(exibida.numero) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
+            {diff.length === 0 ? <span className="text-[12.5px] text-on-dark-4">{existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
           </div>
         </section>
 

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
-import { listarFila, listarSolicitacoes, type SolicitacaoLista } from "@/server/services/solicitacoes";
+import { FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
-import { estaAtrasada } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
-import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
+import { hrefCom, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/layout";
@@ -16,24 +15,13 @@ export const metadata: Metadata = { title: "Solicitações" };
 
 const POR_PAGINA = 8;
 
-const FILTROS = [
-  ["ABERTAS", "Aguardando resposta"],
-  ["ATRASADAS", "Atrasadas"],
-  ["RASCUNHO", "Rascunhos e devolvidas"],
-  ["RESPONDIDA", "Respondidas"],
-  ["TODAS", "Todas"],
-] as const;
-type Filtro = (typeof FILTROS)[number][0];
-
-function passa(s: SolicitacaoLista, f: Filtro, agora: Date) {
-  if (f === "ABERTAS") return s.status === "ENVIADA" || s.status === "EM_ANALISE";
-  if (f === "ATRASADAS") return estaAtrasada(s.status, s.prazoRespostaEm, agora);
-  if (f === "RASCUNHO") return s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
-  if (f === "RESPONDIDA") return s.status === "RESPONDIDA";
-  return true;
-}
-
-const ORDEM_STATUS = { DEVOLVIDA: 0, RASCUNHO: 1, ENVIADA: 2, EM_ANALISE: 3, RESPONDIDA: 4, CANCELADA: 5 } as const;
+const ROTULO_FILTRO: Record<FiltroLista, string> = {
+  ABERTAS: "Aguardando resposta",
+  ATRASADAS: "Atrasadas",
+  RASCUNHO: "Rascunhos e devolvidas",
+  RESPONDIDA: "Respondidas",
+  TODAS: "Todas",
+};
 
 export default async function SolicitacoesPage({ searchParams }: { searchParams: Promise<{ filtro?: string; ordem?: string; dir?: string; pagina?: string }> }) {
   const usuario = await requireUsuario();
@@ -42,24 +30,8 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   const ehLogistica = pode(usuario, "solicitacao.responder");
   const podeCriar = pode(usuario, "solicitacao.criar");
-  const [todas, fila] = await Promise.all([listarSolicitacoes(usuario), ehLogistica ? listarFila(usuario) : Promise.resolve([])]);
-
-  const filtro: Filtro = FILTROS.some(([v]) => v === sp.filtro) ? (sp.filtro as Filtro) : "ABERTAS";
-  const filtradas = todas.filter((s) => passa(s, filtro, agora));
-  const padrao = [...filtradas].sort((a, b) => (a.prazoRespostaEm?.getTime() ?? Infinity) - (b.prazoRespostaEm?.getTime() ?? Infinity) || b.atualizadoEm.getTime() - a.atualizadoEm.getTime());
-  const ordenadas = ordenar(
-    padrao,
-    {
-      codigo: (s) => s.codigo,
-      titulo: (s) => (s.titulo ?? "").toLowerCase(),
-      itens: (s) => s.totalItens,
-      status: (s) => ORDEM_STATUS[s.status],
-      prazo: (s) => s.prazoRespostaEm?.getTime() ?? Number.MAX_SAFE_INTEGER,
-    },
-    sp.ordem,
-    sp.dir,
-  );
-  const pag = paginar(ordenadas, sp.pagina, POR_PAGINA);
+  const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : "ABERTAS";
+  const [pag, primeiraFila] = await Promise.all([paginarSolicitacoes(usuario, { filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, porPagina: POR_PAGINA }), ehLogistica ? primeiraDaFila(usuario) : Promise.resolve(null)]);
   const params = { filtro: sp.filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
 
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
@@ -91,8 +63,8 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         description={veTodas ? "Necessidades pré-reunião e alterações pós-ata de todas as áreas. Cada item recebe resposta própria." : `O que a área ${usuario.areaNome ?? ""} enviou, o que voltou para ajuste e o que já foi respondido.`}
         actions={
           <>
-            {ehLogistica && fila.length > 0 && (
-              <ButtonLink href={`/solicitacoes/${fila[0].id}?fila=1`} variant="secondary" size="lg" className="no-underline">
+            {primeiraFila && (
+              <ButtonLink href={`/solicitacoes/${primeiraFila}?fila=1`} variant="secondary" size="lg" className="no-underline">
                 Responder em fila
               </ButtonLink>
             )}
@@ -108,9 +80,9 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
       <div className="mb-[18px]">
         <Pills
           rotulo="Filtrar solicitações"
-          itens={FILTROS.map(([v, label]) => ({
-            label,
-            n: todas.filter((s) => passa(s, v, agora)).length,
+          itens={FILTROS_LISTA.map((v) => ({
+            label: ROTULO_FILTRO[v],
+            n: pag.contagens[v],
             href: hrefCom("/solicitacoes", params, { filtro: v === "ABERTAS" ? null : v, pagina: null }),
             ativo: filtro === v,
           }))}
@@ -126,7 +98,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         ) : (
           <>
             <table className="w-full border-collapse">
-              <CaptionOculta>{`Solicitações · ${FILTROS.find(([v]) => v === filtro)![1]}`}</CaptionOculta>
+              <CaptionOculta>{`Solicitações · ${ROTULO_FILTRO[filtro]}`}</CaptionOculta>
               <thead>
                 <tr className="bg-subtle">
                   {th("codigo", "Código", 110)}
