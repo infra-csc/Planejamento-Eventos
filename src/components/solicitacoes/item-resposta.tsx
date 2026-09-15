@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import type { ItemOperacao, ItemStatus } from "@/server/db/schema";
 import { Button } from "@/components/ui/button";
 import { COR_ITEM, ItemStatusBadge } from "@/components/ui/badge";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
 export type ItemParaResposta = {
@@ -69,23 +69,44 @@ export function RespostaProvider({
     refs.current = { foco, edicao, itens };
   });
 
+  /* Trava síncrona: A A rápido ou Enter repetido não pode disparar duas respostas antes de `pendente` virar true. */
+  const enviandoRef = useRef(false);
   const enviar = (item: ItemParaResposta, dados: DadosResposta) =>
     new Promise<boolean>((resolve) => {
+      if (enviandoRef.current) {
+        resolve(false);
+        return;
+      }
+      enviandoRef.current = true;
       iniciar(async () => {
-        const r = await responderItemAction(item.id, dados);
+        let r: Awaited<ReturnType<typeof responderItemAction>>;
+        try {
+          r = await responderItemAction(item.id, dados);
+        } catch {
+          enviandoRef.current = false;
+          toastErro("Não foi possível responder. Verifique a conexão e tente de novo.");
+          resolve(false);
+          return;
+        }
+        enviandoRef.current = false;
         if (!r.ok) {
-          toast(r.campos ? Object.values(r.campos)[0] ?? r.erro : r.erro);
+          toastErro(r.campos ? (Object.values(r.campos)[0] ?? r.erro) : r.erro);
           resolve(false);
           return;
         }
         setEdicao(null);
-        const d = r.dados!;
+        const d = r.dados;
+        if (!d) {
+          resolve(true);
+          return;
+        }
         const msg = dados.status === "ATENDIDO" && !dados.justificativa ? `${item.descricao} atendido — ${sufixoToast}` : `${d.codigo} · item respondido — ${sufixoToast}`;
         toast(msg, {
           desfazer: d.podeDesfazer
             ? async () => {
                 const u = await desfazerRespostaAction(item.id);
-                toast(u.ok ? "Resposta desfeita" : u.erro);
+                if (u.ok) toast("Resposta desfeita");
+                else toastErro(u.erro);
               }
             : undefined,
         });
@@ -149,6 +170,11 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const [erro, setErro] = useState<string | null>(null);
 
   const confirmar = async () => {
+    if (pendente) return;
+    if (status === "PARCIAL" && (!Number.isInteger(qtd) || qtd < 1 || qtd >= item.quantidadeSolicitada)) {
+      setErro(`No parcial, a quantidade atendida fica entre 1 e ${item.quantidadeSolicitada - 1}.`);
+      return;
+    }
     if (status !== "ATENDIDO" && !obs.trim()) {
       setErro("Parcial e não atendido exigem motivo.");
       return;
@@ -210,7 +236,10 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           value={obs}
           onChange={(e) => setObs(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void confirmar();
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void confirmar();
+            }
           }}
           aria-label="Motivo"
           placeholder={status === "ATENDIDO" ? "Observação (opcional)" : "Motivo — obrigatório em parcial e não atendido"}
@@ -232,7 +261,11 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           Gerar pendência de compra ou locação
         </label>
       )}
-      {erro && <p className="mb-2.5 mt-0 text-[12px] text-danger">{erro}</p>}
+      {erro && (
+        <p role="alert" className="mb-2.5 mt-0 text-[12px] text-danger">
+          {erro}
+        </p>
+      )}
       <div className="flex gap-[7px]">
         <Button variant="primary" size="sm" onClick={confirmar} loading={pendente}>
           {corrigir ? "Salvar correção" : "Confirmar resposta"}
@@ -255,7 +288,13 @@ export function ItemResposta({ item }: { item: ItemParaResposta }) {
 
   return (
     <div
+      tabIndex={0}
+      aria-label={`${item.descricao}, ${textoQuantidade(item)}${emAnalise && item.respondivel ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
+      aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}
+      onFocus={(e) => {
+        if (e.target === e.currentTarget) setFoco(item.id);
+      }}
       className={cn("cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected shadow-[inset_3px_0_0_#8e2740]")}
     >
       <div className="flex items-start gap-3">

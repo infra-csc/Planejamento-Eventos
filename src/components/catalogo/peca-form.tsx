@@ -54,7 +54,7 @@ export function PecaForm({
             <Textarea id="descricao" name="descricao" defaultValue={valores.descricao ?? ""} className="min-h-16" />
           </Field>
           <div className="sm:col-span-2">
-            <Checkbox id="permiteEmProjeto" name="permiteEmProjeto" label="Pode entrar na lista de peças de projetos padrão" description="Desmarque para peças sempre lançadas avulsas com destino, como fechamento de tenda (RN-09)." defaultChecked={valores.permiteEmProjeto ?? true} />
+            <Checkbox id="permiteEmProjeto" name="permiteEmProjeto" label="Pode entrar na lista de peças de projetos padrão" description="Desmarque para peças sempre lançadas avulsas com destino, como fechamento de tenda." defaultChecked={valores.permiteEmProjeto ?? true} />
           </div>
         </div>
       </Panel>

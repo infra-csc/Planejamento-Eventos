@@ -77,7 +77,7 @@ async function validarItens(itens: DadosProjeto["itens"]) {
   for (const i of itens) {
     const p = rows.find((r) => r.id === i.pecaId);
     if (!p || !p.ativo) throw new ValidacaoError("Uma das peças está inativa ou não existe.");
-    if (!p.permiteEmProjeto) throw new ValidacaoError(`"${p.nome}" não pode entrar em BOM: é sempre item avulso (RN-09).`);
+    if (!p.permiteEmProjeto) throw new ValidacaoError(`"${p.nome}" não pode entrar em BOM: é sempre lançada como item avulso.`);
     if (!Number.isInteger(i.quantidade) || i.quantidade <= 0) throw new ValidacaoError("Quantidades devem ser inteiros maiores que zero.");
   }
 }

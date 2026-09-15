@@ -128,26 +128,49 @@ export function NovaSolicitacaoForm({
   const salvoRef = useRef(rascunho ? assinatura : "");
   const podeAutosalvar = Boolean(evento?.aceita) && (titulo.trim() !== "" || itens.length > 0);
 
-  useEffect(() => {
-    if (!podeAutosalvar || !eventoId || assinatura === salvoRef.current || enviandoRef.current) return;
-    pendenteSalvarRef.current = true;
-    const t = setTimeout(async () => {
-      if (enviandoRef.current) return;
-      setEstadoSalvo({ tipo: "salvando" });
-      const r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(false, eventoId)));
+  const autosalvar = async (assin: string, evId: string) => {
+    if (enviandoRef.current || assin === salvoRef.current) return;
+    setEstadoSalvo({ tipo: "salvando" });
+    try {
+      const r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(false, evId)));
       if (r.ok && r.dados) {
-        salvoRef.current = assinatura;
+        salvoRef.current = assin;
         pendenteSalvarRef.current = false;
         lembrarRascunho(r.dados.id, r.dados.codigo);
         setEstadoSalvo({ tipo: "salvo", em: new Date() });
       } else if (!r.ok) {
         setEstadoSalvo({ tipo: "erro", msg: r.campos ? (Object.values(r.campos)[0] ?? r.erro) : r.erro });
       }
-    }, 1500);
+    } catch {
+      setEstadoSalvo({ tipo: "erro", msg: "sem conexão com o servidor. Tentaremos de novo na próxima alteração." });
+    }
+  };
+  /* Guarda a versão mais recente para salvar ao sair da página (link da sidebar cancela o debounce). */
+  const flushRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    flushRef.current = podeAutosalvar && eventoId ? () => void autosalvar(assinatura, eventoId) : null;
+  });
+
+  useEffect(() => {
+    if (!podeAutosalvar || !eventoId || assinatura === salvoRef.current || enviandoRef.current) return;
+    pendenteSalvarRef.current = true;
+    const t = setTimeout(() => void autosalvar(assinatura, eventoId), 1500);
     return () => clearTimeout(t);
-    // montarPayload/emFila/lembrarRascunho mudam a cada render; a assinatura já representa o conteúdo.
+    // autosalvar/montarPayload mudam a cada render; a assinatura já representa o conteúdo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assinatura, podeAutosalvar, eventoId]);
+
+  useEffect(() => {
+    const aoOcultar = () => {
+      if (document.visibilityState === "hidden") flushRef.current?.();
+    };
+    document.addEventListener("visibilitychange", aoOcultar);
+    return () => {
+      document.removeEventListener("visibilitychange", aoOcultar);
+      // Navegação interna (sidebar, busca): salva o que ainda não foi salvo antes de desmontar.
+      if (!enviandoRef.current) flushRef.current?.();
+    };
+  }, []);
 
   useEffect(() => {
     const avisar = (e: BeforeUnloadEvent) => {
@@ -162,13 +185,12 @@ export function NovaSolicitacaoForm({
       toast("Para trocar de evento, exclua este rascunho e crie outro");
       return;
     }
+    const mantidos = itens.filter((i) => i.operacao === "ADICIONAR" || (e.tipo === "ALTERACAO" && (linhasPorEvento[e.id] ?? []).some((x) => x.id === i.eventoItemId)));
+    const descartados = itens.length - mantidos.length;
+    if (descartados > 0 && !window.confirm(`${descartados} ${descartados === 1 ? "item referencia" : "itens referenciam"} a ata do evento anterior e ${descartados === 1 ? "será removido" : "serão removidos"}. Trocar de evento mesmo assim?`)) return;
     setEventoId(e.id);
-    if (e.tipo === "PRE_REUNIAO") {
-      setItens((l) => l.filter((i) => i.operacao === "ADICIONAR"));
-      if (modo === "ata") setModo("projeto");
-    } else {
-      setItens((l) => l.filter((i) => i.operacao === "ADICIONAR" || (linhasPorEvento[e.id] ?? []).some((x) => x.id === i.eventoItemId)));
-    }
+    setItens(mantidos);
+    if (e.tipo === "PRE_REUNIAO" && modo === "ata") setModo("projeto");
   };
 
   const adicionarRef = (tipo: "projeto" | "peca", r: Referencia) => {
@@ -256,14 +278,22 @@ export function NovaSolicitacaoForm({
     }
     iniciar(async () => {
       if (enviar) enviandoRef.current = true;
-      const r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(enviar, eventoId)));
+      let r: Awaited<ReturnType<typeof salvarSolicitacaoCompletaAction>>;
+      try {
+        r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(enviar, eventoId)));
+      } catch {
+        enviandoRef.current = false;
+        setErroGeral("Não foi possível falar com o servidor. O que você preencheu continua aqui — tente de novo.");
+        return;
+      }
       if (!r.ok || !r.dados?.enviada) enviandoRef.current = false;
       if (!r.ok) {
         if (r.campos?.titulo) setErroTitulo(r.campos.titulo);
-        setErroGeral(r.campos ? Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? r.erro : r.erro);
+        setErroGeral(r.campos ? (Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? r.erro) : r.erro);
         return;
       }
-      const d = r.dados!;
+      const d = r.dados;
+      if (!d) return;
       salvoRef.current = assinatura;
       pendenteSalvarRef.current = false;
       lembrarRascunho(d.id, d.codigo);
@@ -293,7 +323,12 @@ export function NovaSolicitacaoForm({
 
       <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
         {eventos.length === 0 ? (
-          <p className="m-0 px-[18px] py-8 text-center text-[13px] text-muted">Nenhum evento aceitando solicitações agora.</p>
+          <div className="px-[18px] py-8 text-center">
+            <p className="m-0 text-[13px] font-medium text-ink">Nenhum evento aceitando solicitações agora.</p>
+            <p className="mb-0 mt-1 text-[12.5px] text-muted">
+              Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece.
+            </p>
+          </div>
         ) : (
           <div role="radiogroup" aria-label="Evento" className="flex flex-col gap-2 p-3.5">
             {eventos.map((e) => {
@@ -506,7 +541,7 @@ export function NovaSolicitacaoForm({
           Salvar rascunho
         </Button>
         <span className="text-[12.5px] text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
-        <span className="ml-auto text-right text-[12px]" aria-live="polite" style={{ color: estadoSalvo.tipo === "erro" ? "#a8400f" : "#6f6366" }}>
+        <span className={cn("ml-auto text-right text-[12px]", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
           {estadoSalvo.tipo === "salvando"
             ? "salvando rascunho…"
             : estadoSalvo.tipo === "salvo"

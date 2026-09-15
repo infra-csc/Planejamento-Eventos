@@ -87,9 +87,9 @@ export function BuscaGlobal() {
   return (
     <DialogPrimitive.Root open={estaAberto} onOpenChange={(o) => (o ? definirAberto(true) : fechar())}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-[rgba(22,23,26,0.4)]" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-[rgba(22,23,26,0.4)]" />
         <DialogPrimitive.Content
-          className="fixed left-1/2 top-[14vh] z-[61] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_24px_60px_rgba(22,23,26,0.22)] focus:outline-none"
+          className="fixed left-1/2 top-[14vh] z-[calc(var(--z-busca)+1)] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_24px_60px_rgba(22,23,26,0.22)] focus:outline-none"
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();

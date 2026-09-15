@@ -329,7 +329,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
         ref={wrapperRef}
         className={cn(
           "overflow-hidden border border-line bg-[#e6e2dc]",
-          telaCheia ? "fixed inset-0 z-[70] h-[100dvh] w-screen rounded-none border-0" : "relative h-[calc(100dvh-190px)] min-h-[600px] rounded-[12px]",
+          telaCheia ? "fixed inset-0 z-[var(--z-tela-cheia)] h-[100dvh] w-screen rounded-none border-0" : "relative h-[calc(100dvh-190px)] min-h-[600px] rounded-[12px]",
         )}
       >
         {/* Cena 3D */}

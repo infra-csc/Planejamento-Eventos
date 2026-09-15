@@ -85,8 +85,29 @@
   }
 }
 
+/* Camadas (z-index): uma escala só, para tela cheia da arena não cobrir modais, busca e avisos. */
+:root {
+  --z-header: 20;
+  --z-tela-cheia: 50;
+  --z-popover: 55;
+  --z-busca: 60;
+  --z-dialogo: 65;
+  --z-toast: 70;
+}
+
 html {
   color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {

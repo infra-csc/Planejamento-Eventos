@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { iniciais } from "@/lib/format";
 import { PERFIL_LABEL } from "@/domain/permissions";
@@ -24,6 +24,16 @@ function Atualizado() {
   }, []);
   const min = Math.floor((agora - inicio) / 60_000);
   return <>{min < 1 ? "Atualizado agora" : `Atualizado há ${min} min`}</>;
+}
+
+/** ⌘K no Mac, Ctrl K nos demais (decidido no cliente para não divergir da renderização do servidor). */
+function AtalhoBusca() {
+  const mac = useSyncExternalStore(
+    () => () => {},
+    () => /Mac|iPhone|iPad/.test(navigator.platform),
+    () => false,
+  );
+  return <>{mac ? "⌘K" : "Ctrl K"}</>;
 }
 
 function ItemNav({ item, ativo }: { item: NavItem; ativo: boolean }) {
@@ -54,6 +64,9 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
 
   return (
     <div className="flex min-h-screen bg-page">
+      <a href="#conteudo" className="no-print sr-only rounded-lg bg-dark px-3 py-2 text-[13px] text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[var(--z-toast)]">
+        Pular para o conteúdo
+      </a>
       <aside className="no-print sticky top-0 flex h-screen w-[236px] shrink-0 flex-col bg-dark">
         <Link href="/" className="flex items-center gap-[9px] px-[18px] pb-[18px] pt-5 no-underline">
           <span aria-hidden className="block size-5 shrink-0 rounded-[5px] bg-accent-light" />
@@ -69,7 +82,9 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
           className="mx-3 mb-3.5 flex cursor-pointer items-center gap-2 rounded-lg border border-dark-3 bg-dark-4 px-2.5 py-2 text-[13px] text-on-dark-3 hover:text-on-dark-2"
         >
           <span className="flex-1 text-left">Buscar ou executar</span>
-          <kbd className="rounded-[4px] bg-dark-3 px-[5px] py-px font-mono text-[11px] text-on-dark-2">⌘K</kbd>
+          <kbd className="rounded-[4px] bg-dark-3 px-[5px] py-px font-mono text-[11px] text-on-dark-2">
+            <AtalhoBusca />
+          </kbd>
         </button>
 
         <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3">
@@ -126,7 +141,8 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
           </Dropdown>
         </header>
 
-        <main className="flex-1 overflow-x-auto px-7 pb-16 pt-7">
+        {/* Sem overflow no <main>: um contêiner de rolagem aqui quebra o `sticky` das colunas laterais (ata, OS, biblioteca). */}
+        <main id="conteudo" tabIndex={-1} className="flex-1 px-7 pb-16 pt-7 focus:outline-none">
           <div key={pathname} className="mx-auto min-w-[1000px] max-w-[1240px] animate-fade-up">
             {children}
           </div>
