@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "evento_itens_solicitacao_item_idx" ON "evento_itens" USING btree ("solicitacao_item_id") WHERE "evento_itens"."solicitacao_item_id" is not null;

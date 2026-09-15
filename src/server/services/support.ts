@@ -5,6 +5,19 @@ import { configuracoes, historico, notificacoes, sequencias, usuarios, type Perf
 export type Executor = Db | Tx;
 
 /* ------------------------------------------------------------------ */
+/* Concorrência                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Trava a linha do evento até o fim da transação. Toda mutação que mexe na ata, na OS ou na fase do
+ * evento chama isto primeiro: duas pessoas respondendo, ajustando ou fechando a ata do mesmo evento
+ * passam a acontecer uma depois da outra, e cada uma relê o estado já atualizado.
+ */
+export async function bloquearEvento(tx: Executor, eventoId: string) {
+  await tx.execute(sql`select id from eventos where id = ${eventoId} for update`);
+}
+
+/* ------------------------------------------------------------------ */
 /* Histórico / auditoria                                                */
 /* ------------------------------------------------------------------ */
 

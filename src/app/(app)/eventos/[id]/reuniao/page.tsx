@@ -3,9 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
 import { obterEvento, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
-import { descricaoItem, listarSolicitacoes, obterSolicitacao } from "@/server/services/solicitacoes";
+import { descricaoItem, listarSolicitacoes, obterSolicitacoes } from "@/server/services/solicitacoes";
 import { listarAreas } from "@/server/services/admin";
-import { podeCorrigirResposta, podeResponder } from "@/domain/solicitacao";
+import { podeCorrigirResposta, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
 import { diaMesHora } from "@/lib/format";
 import { Section } from "@/components/ui/layout";
 import { SolicitacaoStatusBadge } from "@/components/ui/badge";
@@ -25,7 +25,11 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
 
   const [lista, linhas, opcoes, areas] = await Promise.all([listarSolicitacoes(usuario, { eventoId: id }), obterLinhasAta(id), opcoesReferencias(), listarAreas()]);
   const pre = lista.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA" && s.status !== "DEVOLVIDA").sort((a, b) => a.codigo.localeCompare(b.codigo));
-  const detalhes = await Promise.all(pre.map((s) => obterSolicitacao(usuario, s.id)));
+  const detalhes = await obterSolicitacoes(
+    usuario,
+    pre.map((s) => s.id),
+  );
+  const faseOk = podeResponderNaFase("PRE_REUNIAO", ev.status);
 
   const porSolicitacao = detalhes.map((s) => ({
     s,
@@ -42,8 +46,8 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         quantidadeAtendida: i.quantidadeAtendida,
         observacaoLogistica: i.observacaoLogistica,
         pendenciaCompra: i.pendenciaCompra,
-        respondivel: podeResponder(s.status),
-        corrigivel: (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && i.status !== "EM_ANALISE",
+        respondivel: faseOk && podeResponder(s.status),
+        corrigivel: faseOk && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && i.status !== "EM_ANALISE",
       }),
     ),
   }));

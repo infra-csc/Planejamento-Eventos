@@ -330,7 +330,11 @@ export const eventoItens = pgTable(
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
-  (t) => [index("evento_itens_evento_idx").on(t.eventoId)],
+  (t) => [
+    index("evento_itens_evento_idx").on(t.eventoId),
+    // Uma resposta gera no máximo uma linha: barra duplicata mesmo se duas respostas escaparem da trava.
+    uniqueIndex("evento_itens_solicitacao_item_idx").on(t.solicitacaoItemId).where(sql`${t.solicitacaoItemId} is not null`),
+  ],
 );
 
 export const solicitacaoItens = pgTable(

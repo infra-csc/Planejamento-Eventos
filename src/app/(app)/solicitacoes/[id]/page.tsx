@@ -5,7 +5,7 @@ import { descricaoItem, listarFila, obterSolicitacao } from "@/server/services/s
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
-import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder } from "@/domain/solicitacao";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, Section } from "@/components/ui/layout";
@@ -34,7 +34,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
   const agora = new Date();
   const ehLogistica = pode(usuario, "solicitacao.responder");
-  const faseOk = s.tipo === "PRE_REUNIAO" ? s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO" : s.evento.status === "ABERTO";
+  const faseOk = podeResponderNaFase(s.tipo, s.evento.status);
   const respondivel = ehLogistica && podeResponder(s.status) && faseOk;
   const corrigivel = ehLogistica && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && faseOk;
   const algumRespondido = s.itens.some((i) => i.status !== "EM_ANALISE");

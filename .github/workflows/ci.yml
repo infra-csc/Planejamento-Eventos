@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Testes (domínio + integração com PGlite em memória)
+        run: npm test
+      - name: Migrações, seed e teste de fumaça (PGlite)
+        run: npm run setup && npm run test:smoke
+      - name: Build de produção
+        run: npm run build

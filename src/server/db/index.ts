@@ -28,14 +28,16 @@ async function connect(): Promise<Conn> {
   if (url) {
     const { drizzle } = await import("drizzle-orm/node-postgres");
     const { Pool } = await import("pg");
-    const pool = new Pool({ connectionString: url, max: 10 });
+    // Pool pequeno: o deployment Autoscale sobe várias instâncias e cada uma abre o seu.
+    const pool = new Pool({ connectionString: url, max: Number(process.env.DB_POOL_MAX) || 5, idleTimeoutMillis: 30_000 });
     const db = drizzle(pool, { schema }) as unknown as Db;
     return { db, kind: "postgres", close: () => pool.end() };
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
   const dir = getDataDir();
-  fs.mkdirSync(dir, { recursive: true });
+  // "memory://" = banco em memória (testes de integração); não há pasta para criar.
+  if (!dir.startsWith("memory://")) fs.mkdirSync(dir, { recursive: true });
   const client = new PGlite(dir);
   await client.waitReady;
   const db = drizzle(client, { schema }) as unknown as Db;

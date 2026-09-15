@@ -4,9 +4,9 @@ import { calcularOS, type LinhaAta } from "@/domain/os";
 import type { Executor } from "./support";
 
 /** Carrega as linhas ativas da ata de um evento no formato que o cálculo de OS espera. */
-export async function montarLinhasAta(ex: Executor, eventoId: string, incluirInativas = false): Promise<Array<LinhaAta & { registro: typeof eventoItens.$inferSelect & { projeto: { id: string; codigo: string; nome: string; versaoAtual: number } | null; peca: { id: string; codigo: string; nome: string; setor: "ESTRUTURA" | "TENDA" | "MARCENARIA"; unidade: string } | null; area: { id: string; nome: string } | null; projetoVersao: { numero: number } | null } }>> {
+export async function montarLinhasAta(ex: Executor, eventoId: string, opcoes: { incluirInativas?: boolean; linhaId?: string } = {}): Promise<Array<LinhaAta & { registro: typeof eventoItens.$inferSelect & { projeto: { id: string; codigo: string; nome: string; versaoAtual: number } | null; peca: { id: string; codigo: string; nome: string; setor: "ESTRUTURA" | "TENDA" | "MARCENARIA"; unidade: string } | null; area: { id: string; nome: string } | null; projetoVersao: { numero: number } | null } }>> {
   const rows = await ex.query.eventoItens.findMany({
-    where: incluirInativas ? eq(eventoItens.eventoId, eventoId) : and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)),
+    where: and(eq(eventoItens.eventoId, eventoId), opcoes.incluirInativas ? undefined : eq(eventoItens.ativo, true), opcoes.linhaId ? eq(eventoItens.id, opcoes.linhaId) : undefined),
     with: { projeto: true, peca: true, area: true, projetoVersao: true },
     orderBy: (t, { asc }) => [asc(t.criadoEm)],
   });

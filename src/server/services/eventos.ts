@@ -24,7 +24,7 @@ import { pode } from "@/domain/permissions";
 import { descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta } from "./os";
-import { notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
+import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -165,16 +165,6 @@ export async function listarAtaVersoes(eventoId: string) {
   });
 }
 
-export async function resumoSolicitacoesEvento(eventoId: string) {
-  const db = await getDb();
-  const rows = await db
-    .select({ status: solicitacoes.status, tipo: solicitacoes.tipo, n: count() })
-    .from(solicitacoes)
-    .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false)))
-    .groupBy(solicitacoes.status, solicitacoes.tipo);
-  return rows.map((r) => ({ ...r, n: Number(r.n) }));
-}
-
 /** "Onde está cada área" (handoff §5.5): enviados × respondidos por área. */
 export async function progressoAreas(eventoId: string) {
   const db = await getDb();
@@ -262,11 +252,19 @@ export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
 
 export async function editarEvento(usuario: UsuarioAtual, id: string, dados: DadosEvento) {
   exigir(usuario, "evento.editar");
+  if (dados.dataInicio < dados.dataMontagem || dados.dataFim < dados.dataInicio || dados.dataDesmontagem < dados.dataFim) {
+    throw new ValidacaoError("As datas precisam seguir a ordem: montagem, início, fim e desmontagem.");
+  }
   const db = await getDb();
-  const atual = await db.query.eventos.findFirst({ where: eq(eventos.id, id) });
-  if (!atual) throw new NaoEncontradoError("Evento");
-  if (atual.status === "CANCELADO") throw new DomainError("Evento cancelado não pode ser editado.");
   return db.transaction(async (tx) => {
+    await bloquearEvento(tx, id);
+    const atual = await tx.query.eventos.findFirst({ where: eq(eventos.id, id) });
+    if (!atual) throw new NaoEncontradoError("Evento");
+    if (atual.status === "CANCELADO") throw new DomainError("Evento cancelado não pode ser editado.");
+    if (atual.status === "ENCERRADO") throw new DomainError("Evento encerrado não pode ser editado. Se precisar, a gestão reabre em exceção.");
+    if (atual.status !== "PREPARACAO" && Math.abs(atual.dataReuniao.getTime() - dados.dataReuniao.getTime()) >= 60_000) {
+      throw new ValidacaoError("A reunião de OS já começou ou aconteceu; a data dela não muda mais.", { dataReuniao: "Reunião já iniciada ou realizada." });
+    }
     const [ev] = await tx
       .update(eventos)
       .set({ ...dados, cliente: dados.cliente ?? "", local: dados.local ?? "" })
@@ -353,6 +351,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
 
   const db = await getDb();
   return db.transaction(async (tx) => {
+    await bloquearEvento(tx, id);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, id) });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (!transicaoPermitida(ev.status, acao)) {
@@ -362,6 +361,16 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const agora = new Date();
     const patch: Partial<typeof eventos.$inferInsert> = { status: t.para };
     let osNumero: number | null = null;
+    /* Solicitações que a transição deixa sem saída (nunca mais poderiam ser enviadas ou respondidas). */
+    let canceladasAuto: Array<{ id: string; codigo: string; areaId: string; criadoPorId: string; motivo: string }> = [];
+    const cancelarOrfas = async (status: Array<"RASCUNHO" | "DEVOLVIDA" | "ENVIADA" | "EM_ANALISE">, motivo: string, tipo?: "PRE_REUNIAO") => {
+      const rows = await tx
+        .update(solicitacoes)
+        .set({ status: "CANCELADA", canceladaEm: agora, canceladaMotivo: motivo, atualizadoPorId: usuario.id })
+        .where(and(eq(solicitacoes.eventoId, id), eq(solicitacoes.excluida, false), inArray(solicitacoes.status, status), tipo ? eq(solicitacoes.tipo, tipo) : undefined))
+        .returning({ id: solicitacoes.id, codigo: solicitacoes.codigo, areaId: solicitacoes.areaId, criadoPorId: solicitacoes.criadoPorId });
+      canceladasAuto = rows.map((r) => ({ ...r, motivo }));
+    };
 
     if (acao === "FECHAR_ATA") {
       const pend = await tx
@@ -385,6 +394,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       osNumero = (await gerarOsVersao(tx, id, "ATA_FECHADA", usuario.id, "OS inicial gerada no fechamento da ata")).numero;
       patch.ataFechadaEm = agora;
       patch.ataFechadaPorId = usuario.id;
+      await cancelarOrfas(["RASCUNHO", "DEVOLVIDA"], "Ata fechada antes do envio desta necessidade. Mudanças agora entram como alteração pós-ata.", "PRE_REUNIAO");
     }
 
     if (acao === "ENCERRAR") {
@@ -393,6 +403,8 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
         if (pend.length > 0) {
           throw new DomainError(`Existem ${pend.length} solicitação(ões) sem resposta (${pend.map((p) => p.codigo).join(", ")}). Responda ou devolva todas antes de encerrar.`);
         }
+      } else {
+        await cancelarOrfas(["ENVIADA", "EM_ANALISE"], "Evento encerrado para alterações antes da resposta desta solicitação.");
       }
       osNumero = (await gerarOsVersao(tx, id, "ENCERRAMENTO", usuario.id, "OS final — evento encerrado para alterações")).numero;
       patch.encerradoEm = agora;
@@ -453,7 +465,17 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       link: `/eventos/${id}`,
       excetoUsuarioId: usuario.id,
     });
-    return { ...ev, ...patch, osNumero };
+    for (const c of canceladasAuto) {
+      await registrarHistorico(tx, { eventoId: id, entidade: "solicitacao", entidadeId: c.id, acao: "CANCELADA", descricao: `${c.codigo} cancelada automaticamente — ${c.motivo}`, usuarioId: usuario.id });
+      await notificar(tx, {
+        usuarioIds: [c.criadoPorId, ...(await usuariosDaArea(tx, c.areaId))],
+        tipo: "SOLICITACAO_CANCELADA",
+        titulo: `${c.codigo} cancelada: ${ev.nome}`,
+        mensagem: c.motivo,
+        link: `/solicitacoes/${c.id}`,
+      });
+    }
+    return { ...ev, ...patch, osNumero, canceladasAuto: canceladasAuto.length };
   });
 }
 
@@ -509,6 +531,7 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
     if (!ev) throw new NaoEncontradoError("Evento");
     const geraOs = exigirEstadoAjuste(ev.status, dados.justificativa);
@@ -530,7 +553,7 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
       valores = { ...base, tipo: "AVULSO", descricaoLivre: dados.descricaoLivre };
     }
     const [linha] = await tx.insert(eventoItens).values(valores).returning();
-    const [l] = await montarLinhasAta(tx, eventoId).then((ls) => ls.filter((x) => x.id === linha.id));
+    const [l] = await montarLinhasAta(tx, eventoId, { linhaId: linha.id });
     const desc = descricaoLinha(l);
     await registrarHistorico(tx, {
       eventoId,
@@ -561,11 +584,12 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
     if (!ev) throw new NaoEncontradoError("Evento");
     const geraOs = exigirEstadoAjuste(ev.status, justificativa);
     if (geraOs) exigir(usuario, "ata.ajustar");
-    const [linha] = await montarLinhasAta(tx, eventoId).then((ls) => ls.filter((x) => x.id === linhaId));
+    const [linha] = await montarLinhasAta(tx, eventoId, { linhaId });
     if (!linha) throw new NaoEncontradoError("Linha da ata");
     const desc = descricaoLinha(linha);
     const remover = quantidade <= 0;
@@ -603,6 +627,7 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (ev.status === "ENCERRADO" || ev.status === "CANCELADO") throw new DomainError("Evento encerrado ou cancelado não aceita atualização de versão.");

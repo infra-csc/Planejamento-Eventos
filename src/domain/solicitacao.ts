@@ -1,5 +1,5 @@
-import type { ItemOperacao, ItemStatus, SolicitacaoStatus, SolicitacaoTipo } from "@/server/db/schema";
-import { ValidacaoError } from "./errors";
+import type { EventoStatus, ItemOperacao, ItemStatus, SolicitacaoStatus, SolicitacaoTipo } from "@/server/db/schema";
+import { DomainError, ValidacaoError } from "./errors";
 
 /**
  * Máquina de estados da Solicitação e regras de resposta por item (§6.2 e §6.3).
@@ -26,12 +26,6 @@ export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
   NAO_ATENDIDO: "Não atendido",
 };
 
-export const ITEM_OPERACAO_LABEL: Record<ItemOperacao, string> = {
-  ADICIONAR: "Adicionar",
-  ALTERAR_QUANTIDADE: "Alterar quantidade",
-  REMOVER: "Remover",
-};
-
 export const STATUS_ABERTOS: SolicitacaoStatus[] = ["ENVIADA", "EM_ANALISE"];
 export const STATUS_EDITAVEIS: SolicitacaoStatus[] = ["RASCUNHO", "DEVOLVIDA"];
 
@@ -54,6 +48,11 @@ export function podeResponder(status: SolicitacaoStatus) {
 
 export function podeCorrigirResposta(status: SolicitacaoStatus) {
   return status === "RESPONDIDA";
+}
+
+/** Em que fase do evento cada tipo de solicitação pode ser respondida, devolvida ou corrigida. */
+export function podeResponderNaFase(tipo: SolicitacaoTipo, statusEvento: EventoStatus) {
+  return tipo === "PRE_REUNIAO" ? statusEvento === "PREPARACAO" || statusEvento === "EM_REUNIAO" : statusEvento === "ABERTO";
 }
 
 export function estaAtrasada(status: SolicitacaoStatus, prazoRespostaEm: Date | null, agora: Date) {
@@ -115,6 +114,89 @@ export function validarResposta(
     observacaoLogistica: obs,
     pendenciaCompra: status === "ATENDIDO" ? false : Boolean(resposta.pendenciaCompra),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Efeito da resposta na linha da ata                                   */
+/* ------------------------------------------------------------------ */
+
+export type EstadoItemResposta = {
+  operacao: ItemOperacao;
+  status: ItemStatus;
+  quantidadeAtendida: number | null;
+  /**
+   * ALTERAR_QUANTIDADE: quantidade da linha quando o item foi respondido pela primeira vez.
+   * REMOVER: preenchido só quando foi esta resposta que tirou a linha da ata.
+   */
+  quantidadeAnterior: number | null;
+};
+
+export type LinhaAtual = { ativo: boolean; quantidade: number };
+
+export type EfeitoLinha =
+  | { acao: "nada"; quantidadeAnterior: number | null }
+  | { acao: "criar"; quantidade: number; quantidadeAnterior: null }
+  | { acao: "atualizar"; ativo: boolean; quantidade: number; quantidadeAnterior: number | null };
+
+/** Quanto a resposta de um item soma hoje na linha (0 quando em análise ou não atendido). */
+function contribuicao(item: EstadoItemResposta, anterior: number | null): number {
+  if (item.status === "EM_ANALISE" || item.status === "NAO_ATENDIDO") return 0;
+  if (item.operacao === "ADICIONAR") return item.quantidadeAtendida ?? 0;
+  if (item.operacao === "ALTERAR_QUANTIDADE") return (item.quantidadeAtendida ?? 0) - (anterior ?? 0);
+  return 0;
+}
+
+/**
+ * Efeito de responder, corrigir ou desfazer (novo = EM_ANALISE) um item sobre a linha da ata.
+ *
+ * Aplica só a diferença entre o que a resposta anterior somava e o que a nova soma, para não apagar
+ * mudanças feitas depois por outra solicitação ou por ajuste da logística. E nunca reativa uma linha
+ * que outra ação removeu.
+ */
+export function calcularEfeitoLinha(antes: EstadoItemResposta, novo: { status: ItemStatus; quantidadeAtendida: number | null }, linha: LinhaAtual | null): EfeitoLinha {
+  const depois: EstadoItemResposta = { ...antes, status: novo.status, quantidadeAtendida: novo.quantidadeAtendida };
+
+  if (antes.operacao === "ADICIONAR") {
+    const prev = contribuicao(antes, null);
+    const next = contribuicao(depois, null);
+    if (!linha) return next > 0 ? { acao: "criar", quantidade: next, quantidadeAnterior: null } : { acao: "nada", quantidadeAnterior: null };
+    if (!linha.ativo && prev > 0) {
+      if (next === 0) return { acao: "nada", quantidadeAnterior: null };
+      throw new DomainError("A linha gerada por este item foi removida da ata depois da resposta (por ajuste ou outra solicitação). Inclua a linha de novo pela ata, se precisar.");
+    }
+    const nova = (linha.ativo ? linha.quantidade : 0) - prev + next;
+    if (nova <= 0) return linha.ativo ? { acao: "atualizar", ativo: false, quantidade: linha.quantidade, quantidadeAnterior: null } : { acao: "nada", quantidadeAnterior: null };
+    return { acao: "atualizar", ativo: true, quantidade: nova, quantidadeAnterior: null };
+  }
+
+  if (!linha) throw new DomainError("A linha da ata referenciada não existe mais.");
+
+  if (antes.operacao === "ALTERAR_QUANTIDADE") {
+    const anterior = antes.quantidadeAnterior ?? linha.quantidade;
+    const prev = contribuicao(antes, anterior);
+    const next = contribuicao(depois, anterior);
+    if (!linha.ativo) {
+      if (prev === 0 && next === 0) return { acao: "nada", quantidadeAnterior: anterior };
+      throw new DomainError("A linha foi removida da ata e a alteração de quantidade não pode mais ser aplicada. Responda como não atendido.");
+    }
+    const nova = linha.quantidade - prev + next;
+    if (nova < 0) throw new DomainError("A linha mudou depois desta resposta e o resultado ficaria negativo. Ajuste a quantidade direto na ata.");
+    if (nova === linha.quantidade) return { acao: "nada", quantidadeAnterior: anterior };
+    return nova === 0
+      ? { acao: "atualizar", ativo: false, quantidade: linha.quantidade, quantidadeAnterior: anterior }
+      : { acao: "atualizar", ativo: true, quantidade: nova, quantidadeAnterior: anterior };
+  }
+
+  // REMOVER
+  const removidaPorEste = antes.status === "ATENDIDO" && antes.quantidadeAnterior != null;
+  const querRemover = novo.status === "ATENDIDO";
+  if (removidaPorEste && !querRemover) {
+    return linha.ativo ? { acao: "nada", quantidadeAnterior: null } : { acao: "atualizar", ativo: true, quantidade: linha.quantidade, quantidadeAnterior: null };
+  }
+  if (!removidaPorEste && querRemover) {
+    return linha.ativo ? { acao: "atualizar", ativo: false, quantidade: linha.quantidade, quantidadeAnterior: linha.quantidade } : { acao: "nada", quantidadeAnterior: null };
+  }
+  return { acao: "nada", quantidadeAnterior: removidaPorEste ? antes.quantidadeAnterior : null };
 }
 
 export type ItemRascunho = {

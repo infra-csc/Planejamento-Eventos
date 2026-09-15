@@ -32,6 +32,9 @@ export function tratarErro(e: unknown): ActionResult<never> {
   }
   // Next usa exceções para redirect(); não engolir.
   if (e && typeof e === "object" && "digest" in e && typeof (e as { digest?: unknown }).digest === "string") throw e;
+  // Violação de índice único (23505): duas pessoas gravaram a mesma coisa ao mesmo tempo.
+  const codigo = (e as { code?: string; cause?: { code?: string } } | null)?.code ?? (e as { cause?: { code?: string } } | null)?.cause?.code;
+  if (codigo === "23505") return { ok: false, erro: "Outra pessoa alterou este registro ao mesmo tempo. Recarregue a página e tente de novo." };
   console.error(e);
   return { ok: false, erro: "Não foi possível concluir a operação. Tente novamente." };
 }
