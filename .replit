@@ -1,5 +1,5 @@
 modules = ["nodejs-24", "postgresql-16"]
-run = "npm run setup && npm run dev"
+run = "npm run setup && npm run dev -- -H 0.0.0.0 -p 3000"
 
 [nix]
 channel = "stable-24_11"
@@ -9,17 +9,15 @@ deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]
 run = ["sh", "-c", "npm run db:migrate && npm run start"]
 
+# Uma porta só: o app escuta na 3000 e o Replit publica na porta padrão (sem ":porta" na URL).
 [[ports]]
 localPort = 3000
 externalPort = 80
 
-[[ports]]
-localPort = 5000
-externalPort = 5000
-
 [env]
 PORT = "3000"
 
+# Botão Run. O projeto usa npm (package-lock.json); não trocar para pnpm.
 [workflows]
 runButton = "Project"
 
@@ -38,8 +36,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm exec next dev -H 0.0.0.0 -p 5000"
-waitForPort = 5000
+args = "npm run setup && npm run dev -- -H 0.0.0.0 -p 3000"
+waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "webview"
