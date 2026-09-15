@@ -9,6 +9,16 @@ const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha"];
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Diagnóstico de proxy (Replit): o Next recusa Server Actions quando origin e host não batem.
+  if (request.method === "POST" && request.headers.has("next-action")) {
+    const origem = request.headers.get("origin");
+    const hostEncaminhado = request.headers.get("x-forwarded-host");
+    const host = request.headers.get("host");
+    const hostOrigem = origem && origem !== "null" ? new URL(origem).host : origem;
+    if (hostOrigem !== (hostEncaminhado?.split(",")[0]?.trim() ?? host)) {
+      console.warn(`[origem-action] origin=${origem ?? "(ausente)"} x-forwarded-host=${hostEncaminhado ?? "(ausente)"} host=${host ?? "(ausente)"}`);
+    }
+  }
   const temCookie = Boolean(request.cookies.get(COOKIE)?.value);
   const publica = PUBLICAS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
