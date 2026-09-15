@@ -139,7 +139,8 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     }
   });
   const calcadaMesh = juntar(calcadas, m.ruido(PALETA.calcada, { variacao: 0.1, metrosPorTile: 16 }), alta);
-  const asfaltoMesh = juntar(asfaltos, m.ruido(PALETA.asfalto, { variacao: 0.14, metrosPorTile: 20, rugosidade: 0.92 }), alta);
+  // Asfalto reflete um pouco do céu.
+  const asfaltoMesh = juntar(asfaltos, m.ruido(PALETA.asfalto, { variacao: 0.14, metrosPorTile: 20, rugosidade: 0.86 }), alta);
   if (calcadaMesh) base.add(calcadaMesh);
   if (asfaltoMesh) base.add(asfaltoMesh);
   const tracosMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(3.2, 0.16), m.solido(PALETA.faixa, { rugosidade: 1 }), tracos.length);
@@ -267,6 +268,15 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     mesh.computeBoundingSphere();
   }
   base.add(troncos, copasF, copasA);
+  // Mancha de contato sob cada copa: assenta o parque inteiro no chão.
+  if (alta) {
+    const manchaGeo = new THREE.PlaneGeometry(1, 1);
+    manchaGeo.rotateX(-Math.PI / 2);
+    const manchas = new THREE.InstancedMesh(manchaGeo, m.contato(), arvores.length);
+    arvores.forEach((a, i) => manchas.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(a.x, 0.02, a.z), q.identity(), new THREE.Vector3(a.s * 2.4, 1, a.s * 2.4))));
+    manchas.computeBoundingSphere();
+    base.add(manchas);
+  }
 
   // Camada "Áreas": currais coloridos por pelotão e áreas de apoio com contorno tracejado.
   const zonas = new THREE.Group();

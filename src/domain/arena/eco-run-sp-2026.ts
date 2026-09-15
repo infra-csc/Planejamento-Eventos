@@ -176,7 +176,22 @@ export const ARENA_ECO_RUN_SP_2026: Arena = {
       { nome: "ATA ECO RUN SP.xlsx", detalhe: "Reunião de OS de 12/05/2026 · lista de materiais e quantidades" },
     ],
     nota: "Posições lidas do mapa de arena com precisão de alguns metros. Quantidades da ata. Onde as fontes divergem, o ponto mostra as duas.",
+    rotuloPlanta: "Planta R03",
+    rotuloAta: "Ata 12/05",
   },
+  divergencias: [
+    { id: "geradores", tipo: "quantidade", titulo: "Geradores", planta: "3", ata: "2", texto: "A planta marca geradores na largada, na chegada e no palco; a ata lista 2.", pontoIds: ["som-largada", "som-chegada", "palco"] },
+    { id: "tendas-lixo", tipo: "quantidade", titulo: "Tendas de lixo", planta: "3", ata: "2", texto: "A planta desenha 3 tendas 5x5 junto à alça de retorno; a ata lista 2.", pontoIds: ["lixo"] },
+    { id: "quadros", tipo: "quantidade", titulo: "Quadros de foto", planta: "7 de 4 m", ata: "3 de 4×3", texto: "Quantidade e medida diferentes entre as fontes.", pontoIds: ["quadro-fotos"] },
+    { id: "ambulancia", tipo: "so-planta", titulo: "Ambulância", planta: "desenhada", ata: "ausente", texto: "Consta no mapa de arena; não aparece na lista de materiais da ata.", pontoIds: ["ambulancia"] },
+    { id: "cacamba", tipo: "so-planta", titulo: "Caçamba", planta: "desenhada", ata: "ausente", texto: "Consta no mapa de arena; não aparece na ata.", pontoIds: ["cacamba"] },
+    { id: "espaco-livelo", tipo: "so-planta", titulo: "Espaço Livelo", planta: "desenhado", ata: "não detalhado", texto: "A ata não detalha materiais para este espaço de ativação.", pontoIds: ["espaco-livelo"] },
+    { id: "oitava-marca", tipo: "nome", titulo: "8ª marca de estande", planta: "Mudas", ata: "Espaço Verde", texto: "Os itens de ativação da oitava marca não foram associados ao estande até confirmar o nome.", pontoIds: ["estande-mudas"] },
+    { id: "portico-largada", tipo: "confirmar", titulo: "Pórtico de largada", planta: "vão 6,60 m", ata: "confirmar", texto: "Vão cotado na planta; a ata pede confirmar com Tarcísio.", pontoIds: ["largada"] },
+    { id: "portico-chegada", tipo: "confirmar", titulo: "Pórtico de chegada", planta: "sem cota", ata: "6,00 m", texto: "A planta não cota o vão da chegada; o 6,00 m vem da ata, que pede confirmar com Tarcísio.", pontoIds: ["chegada"] },
+    { id: "banheiros", tipo: "sem-cota", titulo: "Banheiros", planta: "linha sem quantidade", ata: "—", texto: "A planta desenha a linha de sanitários (cerca de 48 m) sem informar a quantidade; a ata não lista banheiros.", pontoIds: ["banheiros"] },
+    { id: "assessorias", tipo: "sem-cota", titulo: "Assessorias", planta: "área marcada", ata: "—", texto: "A área está marcada; as tendas das assessorias não são detalhadas em nenhuma das fontes.", pontoIds: ["assessorias"] },
+  ],
   percurso: {
     trechos: [
       { id: "largada", nome: "Currais e saída da largada", largura: 9, eixo: PL([1006.9, 815], [1167.8, 839.2], [1300, 846], [1388.1, 849.4], [1450.6, 841.5], [1477, 839], [1554, 820]) },

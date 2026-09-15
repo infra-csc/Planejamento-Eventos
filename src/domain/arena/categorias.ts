@@ -14,6 +14,18 @@ export const CAMADAS: Array<{ id: Camada; rotulo: string; descricao: string; pad
   { id: "rotulos", rotulo: "Rótulos", descricao: "Nomes dos pontos principais", padrao: true },
 ];
 
+/** Camadas agrupadas por pergunta de planejamento: conteúdo do mapa separado de preferência de exibição. */
+export const GRUPOS_CAMADAS: Array<{ titulo: string; camadas: Camada[] }> = [
+  { titulo: "O que vai ser montado", camadas: ["estruturas", "apoio", "patrocinio"] },
+  { titulo: "Como a prova acontece", camadas: ["percurso", "zonas", "publico", "fluxo"] },
+  { titulo: "Exibição", camadas: ["rotulos"] },
+];
+
+export const camadasPadrao = () => Object.fromEntries(CAMADAS.map((c) => [c.id, c.padrao])) as Record<Camada, boolean>;
+export const camadasTudo = () => Object.fromEntries(CAMADAS.map((c) => [c.id, true])) as Record<Camada, boolean>;
+/** Configuração de quem confere implantação, não apresenta: padrões sem o público. */
+export const camadasEssenciais = () => Object.fromEntries(CAMADAS.map((c) => [c.id, c.padrao && c.id !== "publico"])) as Record<Camada, boolean>;
+
 /** Cores sóbrias derivadas da paleta do app; nada de neon. */
 export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; camada: Camada }> = {
   largada: { rotulo: "Largada e chegada", cor: "#2a1418", camada: "estruturas" },
@@ -28,7 +40,8 @@ export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; c
 
 export const ZONA_VISUAL: Record<TipoZona, { rotulo: string; cor: string }> = {
   arena: { rotulo: "Arena", cor: "#ddd5c8" },
-  atletas: { rotulo: "Área de atletas", cor: "#e7cdd3" },
+  // Cinza-quente neutro: o rosa da marca em superfície grande sobre o gramado lia como erro de impressão.
+  atletas: { rotulo: "Área de atletas", cor: "#dcd2cc" },
   apoio: { rotulo: "Área de apoio", cor: "#e6dfcf" },
   restrita: { rotulo: "Acesso restrito", cor: "#a8400f" },
   parque: { rotulo: "Parque", cor: "#a3ab90" },

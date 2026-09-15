@@ -3,13 +3,14 @@ import { MapControls } from "three/addons/controls/MapControls.js";
 import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import type { Arena } from "@/domain/arena/tipos";
+import type { Arena, PontoArena, Vec2 } from "@/domain/arena/tipos";
 import { CATEGORIAS, type Camada } from "@/domain/arena/categorias";
 import { limitesArena } from "@/domain/arena/geometria";
-import { Materiais, PALETA, type Qualidade } from "./materiais";
+import { COR_HORIZONTE, Materiais, PALETA, type Qualidade } from "./materiais";
 import { construirAmbiente } from "./ambiente";
 import { construirModelo } from "./estruturas";
 import { construirFluxo, construirPercurso, construirPublico, type Fluxo } from "./percurso";
+import { fita } from "./fita";
 
 export type Vista = "perspectiva" | "superior";
 
@@ -66,7 +67,12 @@ export class MotorArena {
   private materiais: Materiais;
   private alvos: Alvo[] = [];
   private hits: THREE.Mesh[] = [];
+  private alvoPorHit = new Map<THREE.Object3D, Alvo>();
+  private pontoPorId: Map<string, PontoArena>;
   private objetosCamada = new Map<Camada, THREE.Object3D[]>();
+  /** Objetos que só aparecem de longe (linha do percurso): lista fixa, sem varrer a cena por quadro. */
+  private lodLonge: THREE.Object3D[] = [];
+  private ceu: THREE.Mesh | null = null;
   private trilho: LineMaterial | null = null;
   private fluxo: Fluxo | null = null;
   private realce: { hover: Line2; selecao: Line2; matHover: LineMaterial; matSel: LineMaterial } | null = null;
@@ -92,10 +98,11 @@ export class MotorArena {
     this.materiais = new Materiais(o.qualidade);
     this.camadas = { ...o.camadas };
     this.limites = limitesArena(o.arena, 80);
+    this.pontoPorId = new Map(o.arena.pontos.map((p) => [p.id, p]));
   }
 
   iniciar() {
-    const { container, qualidade } = this.o;
+    const { container, qualidade, arena } = this.o;
     const alta = qualidade === "alta";
     try {
       this.renderer = new THREE.WebGLRenderer({ antialias: alta, powerPreference: alta ? "high-performance" : "low-power" });
@@ -106,7 +113,7 @@ export class MotorArena {
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, alta ? 2 : 1.25));
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMappingExposure = 1.0;
     r.shadowMap.enabled = alta;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     // A cena é estática: a sombra é calculada uma vez e refeita só quando uma camada muda.
@@ -118,32 +125,42 @@ export class MotorArena {
     container.appendChild(r.domElement);
     r.domElement.addEventListener("webglcontextlost", this.aoPerderContexto);
 
-    this.scene.background = this.materiais.ceu();
-    this.scene.fog = new THREE.Fog(0xe6e2dc, 1000, 3000);
+    // Céu em esfera que acompanha a câmera; névoa exponencial com a cor do horizonte.
+    this.scene.background = new THREE.Color(COR_HORIZONTE);
+    this.scene.fog = new THREE.FogExp2(COR_HORIZONTE, 0.00035);
+    this.ceu = this.materiais.ceuEsfera();
+    this.scene.add(this.ceu);
 
-    this.scene.add(new THREE.HemisphereLight(0xf7f2ea, 0x8a8f7f, 1.15));
-    // Sol de manhã vindo do leste, baixo: largada às 06:30.
+    // Ambiente discreto: preenche, não ilumina (luz demais achatava tudo na faixa clara do ACES).
+    this.scene.add(new THREE.HemisphereLight(0xeae6dd, 0x8d9280, 0.62));
     const l = this.limites;
     const centro = new THREE.Vector3((l.minX + l.maxX) / 2, 0, (l.minZ + l.maxZ) / 2);
-    const sol = new THREE.DirectionalLight(0xffeedb, 2.3);
-    sol.position.set(centro.x + 520, 380, centro.z - 160);
+    // Sol das 06:30 (largada): baixo (~20°), vindo do leste, com sombra longa que revela a altura.
+    const sol = new THREE.DirectionalLight(0xffe4c4, 1.75);
+    sol.position.set(centro.x + 520, 190, centro.z - 150);
     sol.target.position.copy(centro);
+    // Rebatimento do lado oposto, sem sombra: evita face escura morta.
+    const rebatimento = new THREE.DirectionalLight(0xdce6f0, 0.28);
+    rebatimento.position.set(centro.x - 400, 160, centro.z + 300);
+    rebatimento.target.position.copy(centro);
     if (alta) {
       sol.castShadow = true;
-      sol.shadow.mapSize.set(2048, 2048);
+      // Calculada uma vez (autoUpdate desligado): o custo é só memória.
+      sol.shadow.mapSize.set(4096, 4096);
+      const u = limitesArena(arena, 60);
       const s = sol.shadow.camera;
-      const meiaL = (l.maxX - l.minX) / 2 + 40;
-      const meiaA = (l.maxZ - l.minZ) / 2 + 60;
+      const meiaL = (u.maxX - u.minX) / 2;
+      const meiaA = (u.maxZ - u.minZ) / 2 + 20;
       s.left = -meiaL;
       s.right = meiaL;
       s.top = meiaA;
       s.bottom = -meiaA;
       s.near = 50;
-      s.far = 1400;
-      sol.shadow.bias = -0.0006;
-      sol.shadow.normalBias = 0.6;
+      s.far = 1600;
+      sol.shadow.bias = -0.0004;
+      sol.shadow.normalBias = 0.5;
     }
-    this.scene.add(sol, sol.target);
+    this.scene.add(sol, sol.target, rebatimento, rebatimento.target);
 
     this.construir();
 
@@ -189,16 +206,35 @@ export class MotorArena {
   private construir() {
     const { arena } = this.o;
     const m = this.materiais;
+    const alta = m.qualidade === "alta";
     const { base, zonas } = construirAmbiente(arena, m);
     this.scene.add(base);
     this.registrar("zonas", zonas);
 
     const percurso = construirPercurso(arena, m);
     this.trilho = percurso.trilho;
+    percurso.grupo.traverse((obj) => {
+      if (obj.userData.lod === "longe") this.lodLonge.push(obj);
+    });
     this.registrar("percurso", percurso.grupo);
     this.registrar("publico", construirPublico(arena, m));
     this.fluxo = construirFluxo(arena, m);
     this.registrar("fluxo", this.fluxo.mesh);
+
+    // Piso do corredor entre as duas fileiras de estandes, como os pisos que as ativações usam.
+    const estandes = arena.pontos.filter((p) => p.modelos.some((mo) => mo.tipo === "estander"));
+    if (estandes.length >= 2) {
+      const xs = estandes.map((p) => p.posicao[0]);
+      const zs = estandes.map((p) => p.posicao[1]);
+      const meioZ = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const eixo: Vec2[] = [
+        [Math.min(...xs) - 6, meioZ],
+        [Math.max(...xs) + 6, meioZ],
+      ];
+      const corredor = new THREE.Mesh(fita(eixo, 12, 0.05), m.ruido(0xddd3c4, { variacao: 0.06, metrosPorTile: 8 }));
+      corredor.receiveShadow = alta;
+      this.registrar("patrocinio", corredor);
+    }
 
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     for (const ponto of arena.pontos) {
@@ -230,7 +266,9 @@ export class MotorArena {
         }
       });
       const contorno = cantos.length >= 3 ? envoltoria(cantos).map(([x, z]) => new THREE.Vector3(x, 0.25, z)) : [];
-      this.alvos.push({ id: ponto.id, camada, caixa, hit, grupo, contorno });
+      const alvo: Alvo = { id: ponto.id, camada, caixa, hit, grupo, contorno };
+      this.alvos.push(alvo);
+      this.alvoPorHit.set(hit, alvo);
     }
 
     const matHover = new LineMaterial({ color: 0x2a1418, linewidth: 2, transparent: true, opacity: 0.55, depthTest: false });
@@ -308,6 +346,7 @@ export class MotorArena {
     if (!this.sujo) return;
     this.sujo = false;
     this.atualizarLod();
+    this.ceu?.position.copy(this.camera.position);
     this.renderer.render(this.scene, this.camera);
     this.projetarMarcadores();
     this.o.eventos.aoMoverCamera?.(this.pegadaCamera());
@@ -337,19 +376,18 @@ export class MotorArena {
     const d = this.distancia();
     const nivel = d > 900 ? "longe" : d > 260 ? "medio" : "perto";
     if (this.o.overlay.dataset.zoom !== nivel) this.o.overlay.dataset.zoom = nivel;
-    this.scene.traverse((obj) => {
-      if (obj.userData.lod === "longe") obj.visible = this.camadas.percurso && d > 220;
-    });
+    const visivel = this.camadas.percurso && d > 220;
+    for (const obj of this.lodLonge) obj.visible = visivel;
   }
 
   private projetarMarcadores() {
-    const { overlay, arena } = this.o;
+    const { overlay } = this.o;
     const w = overlay.clientWidth;
     const h = overlay.clientHeight;
     const v = new THREE.Vector3();
     const visiveis: Array<{ el: HTMLElement; x: number; y: number; prioridade: number }> = [];
     overlay.querySelectorAll<HTMLElement>("[data-ponto-id]").forEach((el) => {
-      const ponto = arena.pontos.find((p) => p.id === el.dataset.pontoId);
+      const ponto = this.pontoPorId.get(el.dataset.pontoId ?? "");
       if (!ponto) return;
       v.set(ponto.posicao[0], ponto.alturaMarcador, ponto.posicao[1]).project(this.camera);
       const fora = v.z > 1 || v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.1;
@@ -399,7 +437,7 @@ export class MotorArena {
   private pick(e: PointerEvent): string | null {
     this.raycaster.setFromCamera(this.coordenadas(e), this.camera);
     const visiveis = this.hits.filter((h) => {
-      const alvo = this.alvos.find((a) => a.hit === h);
+      const alvo = this.alvoPorHit.get(h);
       return alvo ? this.camadas[alvo.camada] : false;
     });
     const [hit] = this.raycaster.intersectObjects(visiveis, false);
@@ -451,6 +489,29 @@ export class MotorArena {
     if (this.realce) {
       this.contorno(this.realce.selecao, id);
       this.contorno(this.realce.hover, this.hoverId && this.hoverId !== id ? this.hoverId : null);
+    }
+    this.sujo = true;
+  }
+
+  /**
+   * Modo conferência: estruturas fora de `ids` ficam num material cinza esmaecido; `null` restaura.
+   * O material original fica guardado na própria malha.
+   */
+  definirRealce(ids: Set<string> | null) {
+    const esmaecido = this.materiais.solido(0xc3bcbc, { rugosidade: 1 });
+    for (const alvo of this.alvos) {
+      const apagar = ids !== null && !ids.has(alvo.id);
+      alvo.grupo.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || mesh.userData.semRealce) return;
+        if (apagar) {
+          if (!mesh.userData.materialOriginal) mesh.userData.materialOriginal = mesh.material;
+          mesh.material = esmaecido;
+        } else if (mesh.userData.materialOriginal) {
+          mesh.material = mesh.userData.materialOriginal as THREE.Material;
+          delete mesh.userData.materialOriginal;
+        }
+      });
     }
     this.sujo = true;
   }

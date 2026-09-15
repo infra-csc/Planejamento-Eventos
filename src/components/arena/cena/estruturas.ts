@@ -25,14 +25,14 @@ function caixa(w: number, h: number, d: number, x: number, y: number, z: number,
   return g;
 }
 
-/** Barra de treliça entre dois pontos; a UV repete a textura a cada 40 cm ao longo da barra. */
-function trelica(a: THREE.Vector3, b: THREE.Vector3) {
+/** Barra de treliça entre dois pontos; a UV repete a textura a cada seção ao longo da barra. */
+function trelica(a: THREE.Vector3, b: THREE.Vector3, secao = SECAO) {
   const dir = new THREE.Vector3().subVectors(b, a);
   const len = dir.length();
-  const g = new THREE.BoxGeometry(len, SECAO, SECAO);
+  const g = new THREE.BoxGeometry(len, secao, secao);
   const uv = g.getAttribute("uv") as THREE.BufferAttribute;
   // Faces 2..5 (py, ny, pz, nz) têm u ao longo do comprimento.
-  for (let i = 8; i < 24; i++) uv.setX(i, uv.getX(i) * (len / SECAO));
+  for (let i = 8; i < 24; i++) uv.setX(i, uv.getX(i) * (len / secao));
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir.normalize()));
   g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
   return g;
@@ -65,29 +65,33 @@ function montar(partes: Partes, nome: string): THREE.Group {
   return grupo;
 }
 
+/** Pórticos são os marcos da prova: treliça de 50 cm e orelhas de 1,9 m, ainda em escala real. */
+const SECAO_PORTICO = 0.5;
+
 function portico(m: Materiais, vao: number, testeira: number | undefined, rotulo: string) {
   const partes: Partes = new Map();
   const t = m.trelica();
   const altura = 6;
-  const x = vao / 2 + SECAO / 2;
-  adicionar(partes, t, trelica(v(-x, 0, 0), v(-x, altura, 0)));
-  adicionar(partes, t, trelica(v(x, 0, 0), v(x, altura, 0)));
-  adicionar(partes, t, trelica(v(-x - 0.2, altura + 0.2, 0), v(x + 0.2, altura + 0.2, 0)));
-  const metal = m.solido(PALETA.metal, { rugosidade: 0.5, metal: 0.4 });
-  adicionar(partes, metal, caixa(1.1, 0.08, 1.1, -x, 0.04, 0));
-  adicionar(partes, metal, caixa(1.1, 0.08, 1.1, x, 0.04, 0));
+  const s = SECAO_PORTICO;
+  const x = vao / 2 + s / 2;
+  adicionar(partes, t, trelica(v(-x, 0, 0), v(-x, altura, 0), s));
+  adicionar(partes, t, trelica(v(x, 0, 0), v(x, altura, 0), s));
+  adicionar(partes, t, trelica(v(-x - 0.25, altura + s / 2, 0), v(x + 0.25, altura + s / 2, 0), s));
+  const metal = m.solido(PALETA.metal, { rugosidade: 0.35, metal: 0.72 });
+  adicionar(partes, metal, caixa(1.2, 0.08, 1.2, -x, 0.04, 0));
+  adicionar(partes, metal, caixa(1.2, 0.08, 1.2, x, 0.04, 0));
   // Orelhas laterais, levemente abertas.
-  const lona = m.solido(PALETA.painel, { rugosidade: 0.95 });
-  adicionar(partes, lona, caixa(1.5, 4.4, 0.06, -x - 1.05, 2.6, 0.25, 0.35));
-  adicionar(partes, lona, caixa(1.5, 4.4, 0.06, x + 1.05, 2.6, 0.25, -0.35));
+  const lona = m.solido(PALETA.painel, { rugosidade: 0.7 });
+  adicionar(partes, lona, caixa(1.9, 4.4, 0.06, -x - 1.3, 2.6, 0.3, 0.35));
+  adicionar(partes, lona, caixa(1.9, 4.4, 0.06, x + 1.3, 2.6, 0.3, -0.35));
   const grupo = montar(partes, "portico");
   // Testeira com o nome, legível dos dois lados do pórtico.
   const hTesteira = testeira ?? 1.1;
-  const larg = vao + SECAO * 2 + 0.4;
+  const larg = vao + s * 2 + 0.5;
   const matTexto = m.texto(rotulo.toUpperCase(), { fundo: "#2a1418", cor: "#ffffff", proporcao: larg / hTesteira, faixa: "#8e2740" });
   for (const lado of [1, -1]) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(larg, hTesteira), matTexto);
-    p.position.set(0, altura + 0.2 + SECAO / 2 + hTesteira / 2, lado * 0.06);
+    p.position.set(0, altura + s + hTesteira / 2, lado * 0.06);
     if (lado < 0) p.rotation.y = Math.PI;
     grupo.add(p);
   }
@@ -101,8 +105,9 @@ function tendas(m: Materiais, lado: number, quantidade: number, colunas: number 
   const passo = passoXZ?.[0] ?? lado + 0.5;
   const passoZ = passoXZ?.[1] ?? passo;
   const beiral = 2.4;
-  const perna = m.solido(PALETA.metal, { rugosidade: 0.5, metal: 0.5 });
-  const lona = m.solido(PALETA.lona, { rugosidade: 0.95 });
+  // Metal com brilho e lona com especular suave: materiais diferentes informam o que é cada peça.
+  const perna = m.solido(PALETA.metal, { rugosidade: 0.35, metal: 0.72 });
+  const lona = m.solido(PALETA.lona, { rugosidade: 0.62 });
   const parede = m.solido(PALETA.fechamento, { rugosidade: 1, duplo: true });
   for (let i = 0; i < quantidade; i++) {
     const cx = (i % cols) * passo - ((cols - 1) * passo) / 2;
@@ -133,6 +138,9 @@ function palco(m: Materiais, w: number, d: number) {
   adicionar(partes, m.solido(0x3a3335, { rugosidade: 0.8 }), caixa(w, 1.2, d, 0, 0.6, 0));
   adicionar(partes, m.solido(0x3a3335, { rugosidade: 0.8 }), caixa(1.4, 0.6, 1.2, w / 2 - 1, 0.3, d / 2 + 0.6));
   gaiola(partes, m, w, d, 6, 1.2);
+  // Line array pendurado nos cantos da frente: lê como "palco de som" de longe.
+  const caixaSom = m.solido(0x2b2829, { rugosidade: 0.6 });
+  for (const lado of [-1, 1]) adicionar(partes, caixaSom, caixa(0.6, 1.8, 0.5, lado * (w / 2 - 0.55), 1.2 + 6 - 0.35 - 0.9, d / 2 - 0.35));
   const grupo = montar(partes, "palco");
   const fundo = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 4.4), m.texto("ECO RUN SP 2026", { fundo: "#2a1418", cor: "#f4f1ec", proporcao: (w - 0.8) / 4.4, faixa: "#8e2740" }));
   fundo.position.set(0, 1.2 + 2.4, -d / 2 + 0.3);
@@ -241,8 +249,11 @@ function veiculo(m: Materiais, forma: "ambulancia" | "van" | "moto") {
   return montar(partes, forma);
 }
 
-/** Piso claro sob a estrutura: marca a área ocupada e ajuda a ler a implantação de longe. */
-function pisoSob(g: THREE.Group, m: Materiais) {
+/**
+ * Piso claro sob a estrutura (marca a área ocupada de longe) e, por baixo dele, uma mancha de contato
+ * 1,5× maior que escurece a borda e assenta a estrutura no chão.
+ */
+function pisoSob(g: THREE.Group, m: Materiais): THREE.Mesh[] {
   const b = new THREE.Box3();
   g.updateMatrixWorld(true);
   for (const c of g.children) {
@@ -256,7 +267,15 @@ function pisoSob(g: THREE.Group, m: Materiais) {
   const piso = new THREE.Mesh(geo, m.solido(0xe6dccb, { rugosidade: 1 }));
   piso.position.set((b.min.x + b.max.x) / 2, 0.04, (b.min.z + b.max.z) / 2);
   piso.name = "piso";
-  return piso;
+  const contatoGeo = new THREE.PlaneGeometry((b.max.x - b.min.x + 2.4) * 1.5, (b.max.z - b.min.z + 2.4) * 1.5);
+  contatoGeo.rotateX(-Math.PI / 2);
+  const contato = new THREE.Mesh(contatoGeo, m.contato());
+  contato.position.set(piso.position.x, 0.03, piso.position.z);
+  contato.name = "contato";
+  contato.renderOrder = 0;
+  contato.userData.semSombra = true;
+  contato.userData.semRealce = true;
+  return [piso, contato];
 }
 
 /** Constrói um modelo posicionado e girado no plano da arena. */
@@ -332,7 +351,7 @@ export function construirModelo(modelo: Modelo, m: Materiais, rotulo: string): T
       g = veiculo(m, modelo.forma);
       break;
   }
-  if (modelo.tipo !== "veiculo" && modelo.tipo !== "espaco" && modelo.tipo !== "totem") g.add(pisoSob(g, m));
+  if (modelo.tipo !== "veiculo" && modelo.tipo !== "espaco" && modelo.tipo !== "totem") g.add(...pisoSob(g, m));
   g.position.set(modelo.posicao[0], 0, modelo.posicao[1]);
   g.rotation.y = "rotacao" in modelo ? (modelo.rotacao ?? 0) : 0;
   sombrear(g, m.qualidade);

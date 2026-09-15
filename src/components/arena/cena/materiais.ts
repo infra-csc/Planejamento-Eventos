@@ -33,6 +33,9 @@ export const PALETA = {
   pessoa: 0x6f6366,
 } as const;
 
+/** Cor do horizonte do céu e da névoa (iguais, para não haver degrau). */
+export const COR_HORIZONTE = "#ece5dc";
+
 type OpcoesSolido = { rugosidade?: number; metal?: number; opacidade?: number; duplo?: boolean };
 
 /**
@@ -74,10 +77,13 @@ export class Materiais {
     g.strokeStyle = "#c5c9cd";
     g.lineWidth = 7;
     g.strokeRect(3.5, 3.5, 57, 57);
+    // Diagonais em X: box truss real tem zigue-zague; uma diagonal só repetida vira escada.
     g.lineWidth = 4;
     g.beginPath();
     g.moveTo(6, 6);
     g.lineTo(58, 58);
+    g.moveTo(6, 58);
+    g.lineTo(58, 6);
     g.stroke();
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -119,8 +125,30 @@ export class Materiais {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     this.texturas.push(tex);
-    const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
+    // Lona impressa tem especular suave.
+    const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7 });
     this.cache.set(chave, m);
+    return m;
+  }
+
+  /** Mancha de contato: escurece o chão sob a estrutura e a assenta (sem ela, tudo parece flutuar). */
+  contato(): THREE.MeshBasicMaterial {
+    const existente = this.cache.get("contato") as THREE.MeshBasicMaterial | undefined;
+    if (existente) return existente;
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d")!;
+    const grad = g.createRadialGradient(64, 64, 10, 64, 64, 64);
+    grad.addColorStop(0, "rgba(44,38,30,0.34)");
+    grad.addColorStop(0.55, "rgba(44,38,30,0.16)");
+    grad.addColorStop(1, "rgba(44,38,30,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.texturas.push(tex);
+    const m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    this.cache.set("contato", m);
     return m;
   }
 
@@ -199,22 +227,36 @@ export class Materiais {
     return m;
   }
 
-  /** Céu em gradiente suave: horizonte quente de manhã, topo mais frio. */
-  ceu(): THREE.CanvasTexture {
-    const c = document.createElement("canvas");
-    c.width = 4;
-    c.height = 256;
-    const g = c.getContext("2d")!;
-    const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, "#c9d3d8");
-    grad.addColorStop(0.55, "#e4e3dd");
-    grad.addColorStop(1, "#ece5dc");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 4, 256);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    this.texturas.push(tex);
-    return tex;
+  /**
+   * Céu como esfera invertida com gradiente por altura (acompanha a câmera, inclusive de cima).
+   * O horizonte tem a mesma cor da névoa: sem degrau entre o chão distante e o céu.
+   */
+  ceuEsfera(): THREE.Mesh {
+    const raio = 2600;
+    const geo = new THREE.SphereGeometry(raio, 32, 16);
+    const pos = geo.getAttribute("position") as THREE.BufferAttribute;
+    const topo = new THREE.Color("#c9d3d8");
+    const meio = new THREE.Color("#e4e3dd");
+    const horizonte = new THREE.Color(COR_HORIZONTE);
+    const cores = new Float32Array(pos.count * 3);
+    const c = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getY(i) / raio;
+      if (t <= 0.02) c.copy(horizonte);
+      else if (t < 0.3) c.lerpColors(horizonte, meio, (t - 0.02) / 0.28);
+      else c.lerpColors(meio, topo, Math.min(1, (t - 0.3) / 0.7));
+      cores[i * 3] = c.r;
+      cores[i * 3 + 1] = c.g;
+      cores[i * 3 + 2] = c.b;
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(cores, 3));
+    const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false });
+    this.cache.set("ceu", mat);
+    const ceu = new THREE.Mesh(geo, mat);
+    ceu.name = "ceu";
+    ceu.renderOrder = -1;
+    ceu.frustumCulled = false;
+    return ceu;
   }
 
   /** Material comum com vertex colors (sombreamento embutido em árvores e prédios). */
@@ -239,6 +281,11 @@ export class Materiais {
 /** Marca sombras conforme a qualidade. */
 export function sombrear(obj: THREE.Object3D, qualidade: Qualidade, recebe = true) {
   obj.traverse((o) => {
+    if (o.userData.semSombra) {
+      o.castShadow = false;
+      o.receiveShadow = false;
+      return;
+    }
     if ((o as THREE.Mesh).isMesh) {
       o.castShadow = qualidade === "alta";
       o.receiveShadow = recebe && qualidade === "alta";

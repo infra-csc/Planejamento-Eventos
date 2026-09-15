@@ -42,6 +42,26 @@ export type Modelo =
 
 export type StatusPonto = { rotulo: string; tom: "neutro" | "atencao" | "ok" };
 
+/** Como planta e ata discordam sobre um item. */
+export type TipoDivergencia = "quantidade" | "so-planta" | "nome" | "confirmar" | "sem-cota";
+
+/**
+ * Divergência entre as duas fontes do evento, conhecida por quem transcreveu a planta.
+ * Nada é corrigido automaticamente: resolver exige decidir qual fonte vale.
+ */
+export type Divergencia = {
+  id: string;
+  tipo: TipoDivergencia;
+  titulo: string;
+  /** O que a planta diz, curto ("3", "desenhada", "vão 6,60 m"). */
+  planta: string;
+  /** O que a ata diz, curto. */
+  ata: string;
+  texto: string;
+  /** Pontos do mapa envolvidos (os geradores, por exemplo, estão em três). */
+  pontoIds: string[];
+};
+
 export type PontoArena = {
   id: string;
   nome: string;
@@ -111,7 +131,10 @@ export type Arena = {
     largadas: Array<{ distancia: string; hora: string }>;
     organizadora: string;
   };
-  fonte: { documentos: Array<{ nome: string; detalhe: string }>; nota: string };
+  /** `rotuloPlanta`/`rotuloAta`: nomes curtos das duas fontes para a conferência ("Planta R03", "Ata 12/05"). */
+  fonte: { documentos: Array<{ nome: string; detalhe: string }>; nota: string; rotuloPlanta: string; rotuloAta: string };
+  /** Divergências entre planta e ata. Sem este campo, são derivadas das observações dos pontos. */
+  divergencias?: Divergencia[];
   /** Trechos do corredor isolado dentro da área da planta; fora dela o percurso não é desenhado. */
   percurso: { trechos: TrechoPercurso[]; nota: string; conesGrandes: number };
   currais: Curral[];

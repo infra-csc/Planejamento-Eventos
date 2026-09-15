@@ -154,7 +154,8 @@ export function construirPublico(arena: Arena, m: Materiais): THREE.InstancedMes
     mesh.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x, 0.02, z));
     mesh.setColorAt(i, cor.setHex(CORES_ROUPA[Math.floor(r() * CORES_ROUPA.length)]));
   }
-  mesh.castShadow = alta;
+  // 1100 cápsulas no passe de sombra não aparecem na resolução do mapa: só custam.
+  mesh.castShadow = false;
   return mesh;
 }
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ARENA_ECO_RUN_SP_2026 as arena, ATA_ECO_RUN_SP } from "./eco-run-sp-2026";
 import { amostrar, buscarPontos, comprimento, comprimentoPercurso, itensNaoPosicionados, limitesArena, poligonoFaixa, pontoNaDistancia } from "./geometria";
-import { CATEGORIAS } from "./categorias";
+import { CAMADAS, CATEGORIAS, GRUPOS_CAMADAS, camadasEssenciais } from "./categorias";
+import { derivarDivergencias, divergenciasDaArena, divergenciasDoPonto } from "./conferencia";
 
 describe("arena Eco Run SP 2026", () => {
   it("usa só itens que existem na ata", () => {
@@ -45,6 +46,34 @@ describe("arena Eco Run SP 2026", () => {
     expect(buscarPontos(arena.pontos, "medica").map((p) => p.id)).toContain("tenda-medica");
     expect(buscarPontos(arena.pontos, "12").map((p) => p.id)).toContain("guarda-volumes");
     expect(buscarPontos(arena.pontos, "banheiro")).toHaveLength(1);
+  });
+});
+
+describe("conferência planta × ata", () => {
+  it("lista as 11 divergências, cada uma apontando para pontos que existem", () => {
+    const lista = divergenciasDaArena(arena);
+    expect(lista).toHaveLength(11);
+    const ids = new Set(arena.pontos.map((p) => p.id));
+    for (const d of lista) {
+      expect(d.pontoIds.length).toBeGreaterThan(0);
+      for (const id of d.pontoIds) expect(ids.has(id)).toBe(true);
+    }
+    expect(lista[0].tipo).toBe("quantidade");
+    expect(lista[lista.length - 1].tipo).toBe("sem-cota");
+    expect(divergenciasDoPonto(arena, "palco").map((d) => d.id)).toEqual(["geradores"]);
+  });
+
+  it("a derivação por texto (compatibilidade) encontra os mesmos pontos", () => {
+    const declaradas = new Set(arena.divergencias!.flatMap((d) => d.pontoIds));
+    const derivadas = new Set(derivarDivergencias({ ...arena, divergencias: undefined }).flatMap((d) => d.pontoIds));
+    expect([...derivadas].sort()).toEqual([...declaradas].sort());
+    expect(derivarDivergencias({ ...arena, divergencias: undefined })).toHaveLength(11);
+  });
+
+  it("grupos de camadas cobrem cada camada uma única vez", () => {
+    const agrupadas = GRUPOS_CAMADAS.flatMap((g) => g.camadas);
+    expect([...agrupadas].sort()).toEqual(CAMADAS.map((c) => c.id).sort());
+    expect(camadasEssenciais().publico).toBe(false);
   });
 });
 

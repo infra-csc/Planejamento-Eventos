@@ -58,7 +58,7 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 
 - Códigos sequenciais: eventos `EVT-0001`, solicitações `SOL-0001`, projetos `PRJ-0001`.
 - `/` painel por perfil · `/eventos` · `/eventos/[id]` (visão geral, ata, consolidar ata, solicitações, OS, histórico) · `/solicitacoes` (`?filtro=ABERTAS|ATRASADAS|RASCUNHO|RESPONDIDA|TODAS`, `?fila=1` no detalhe) · `/solicitacoes/nova` (`?evento=` e `?rascunho=`) · `/biblioteca` (`?aba=pecas`) · `/consolidacao` (`?dias=15|30|60`) · `/admin` (`?aba=areas|config`) · `/notificacoes`.
-- `/arena` Arena 3D do evento (primeiro caso: Eco Run SP 2026, a partir do mapa de arena R03 e da ata de OS). **Os dados da arena são estáticos** (`src/domain/arena/eco-run-sp-2026.ts`), ainda não ligados aos eventos do banco. Detalhes em docs/02-entregaveis.md §18.
+- `/arena` Arena 3D do evento (primeiro caso: Eco Run SP 2026, a partir do mapa de arena R03 e da ata de OS). **Os dados da arena são estáticos** (`src/domain/arena/eco-run-sp-2026.ts`), ainda não ligados aos eventos do banco. Vistas Perspectiva / De cima / Planta; **modo conferência** lista as divergências entre planta e ata (`Arena.divergencias`, `src/domain/arena/conferencia.ts`) e acende só os pontos divergentes. Detalhes em docs/02-entregaveis.md §18.
 - Busca global: `Ctrl/⌘ + K`.
 
 ## Scripts
