@@ -151,6 +151,83 @@ export class Materiais {
     return m;
   }
 
+  /**
+   * Superfície com variação sutil (gramado, asfalto): quebra o aspecto de plástico sem foto.
+   * `metrosPorTile` define a escala sobre UVs em metros/4.
+   */
+  ruido(cor: number, o: { variacao: number; metrosPorTile: number; rugosidade?: number; vertexColors?: boolean }): THREE.MeshStandardMaterial {
+    const chave = `r|${cor}|${o.variacao}|${o.metrosPorTile}|${o.rugosidade ?? 1}|${o.vertexColors ? 1 : 0}`;
+    const existente = this.cache.get(chave) as THREE.MeshStandardMaterial | undefined;
+    if (existente) return existente;
+    const n = this.qualidade === "alta" ? 256 : 128;
+    const c = document.createElement("canvas");
+    c.width = c.height = n;
+    const g = c.getContext("2d")!;
+    const base = new THREE.Color(cor);
+    const img = g.createImageData(n, n);
+    let s = 1337;
+    const rnd = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+    // Ruído em duas oitavas, suavizado por blocos, para manchas e grão.
+    const grosso = Array.from({ length: 17 * 17 }, rnd);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const gx = (x / n) * 16;
+        const gy = (y / n) * 16;
+        const ix = Math.floor(gx);
+        const iy = Math.floor(gy);
+        const fx = gx - ix;
+        const fy = gy - iy;
+        const v = (i: number, j: number) => grosso[((j % 16) * 17 + (i % 16)) % grosso.length];
+        const mancha = v(ix, iy) * (1 - fx) * (1 - fy) + v(ix + 1, iy) * fx * (1 - fy) + v(ix, iy + 1) * (1 - fx) * fy + v(ix + 1, iy + 1) * fx * fy;
+        const k = 1 + (mancha - 0.5) * o.variacao + (rnd() - 0.5) * o.variacao * 0.35;
+        const p = (y * n + x) * 4;
+        img.data[p] = Math.min(255, base.r * 255 * k);
+        img.data[p + 1] = Math.min(255, base.g * 255 * k);
+        img.data[p + 2] = Math.min(255, base.b * 255 * k);
+        img.data[p + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4 / o.metrosPorTile, 4 / o.metrosPorTile);
+    tex.colorSpace = THREE.LinearSRGBColorSpace;
+    tex.anisotropy = this.qualidade === "alta" ? 8 : 2;
+    this.texturas.push(tex);
+    const m = new THREE.MeshStandardMaterial({ map: tex, roughness: o.rugosidade ?? 1, vertexColors: o.vertexColors ?? false });
+    this.cache.set(chave, m);
+    return m;
+  }
+
+  /** Céu em gradiente suave: horizonte quente de manhã, topo mais frio. */
+  ceu(): THREE.CanvasTexture {
+    const c = document.createElement("canvas");
+    c.width = 4;
+    c.height = 256;
+    const g = c.getContext("2d")!;
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, "#c9d3d8");
+    grad.addColorStop(0.55, "#e4e3dd");
+    grad.addColorStop(1, "#ece5dc");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 4, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.texturas.push(tex);
+    return tex;
+  }
+
+  /** Material comum com vertex colors (sombreamento embutido em árvores e prédios). */
+  comVertices(cor: number, rugosidade = 1): THREE.MeshStandardMaterial {
+    const chave = `v|${cor}|${rugosidade}`;
+    let m = this.cache.get(chave) as THREE.MeshStandardMaterial | undefined;
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color: cor, roughness: rugosidade, vertexColors: true });
+      this.cache.set(chave, m);
+    }
+    return m;
+  }
+
   dispose() {
     for (const m of this.cache.values()) m.dispose();
     for (const t of this.texturas) t.dispose();

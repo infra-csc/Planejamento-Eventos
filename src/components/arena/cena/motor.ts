@@ -19,6 +19,8 @@ export type EventosMotor = {
   aoPronto: () => void;
   aoErro: (mensagem: string) => void;
   aoDesempenhoBaixo: () => void;
+  /** Recebe a área do chão vista pela câmera (4 cantos), a cada quadro desenhado. */
+  aoMoverCamera?: (pegada: Array<[number, number]>) => void;
 };
 
 type OpcoesMotor = {
@@ -107,14 +109,17 @@ export class MotorArena {
     r.toneMappingExposure = 1.05;
     r.shadowMap.enabled = alta;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
+    // A cena é estática: a sombra é calculada uma vez e refeita só quando uma camada muda.
+    r.shadowMap.autoUpdate = false;
+    r.shadowMap.needsUpdate = true;
     r.domElement.style.display = "block";
     r.domElement.style.touchAction = "none";
     r.domElement.setAttribute("aria-hidden", "true");
     container.appendChild(r.domElement);
     r.domElement.addEventListener("webglcontextlost", this.aoPerderContexto);
 
-    this.scene.background = new THREE.Color(PALETA.ceu);
-    this.scene.fog = new THREE.Fog(PALETA.ceu, 1100, 3200);
+    this.scene.background = this.materiais.ceu();
+    this.scene.fog = new THREE.Fog(0xe6e2dc, 1000, 3000);
 
     this.scene.add(new THREE.HemisphereLight(0xf7f2ea, 0x8a8f7f, 1.15));
     // Sol de manhã vindo do leste, baixo: largada às 06:30.
@@ -169,6 +174,8 @@ export class MotorArena {
     this.redimensionar();
     this.aplicarCamadas();
     this.laco();
+    this.o.eventos.aoMoverCamera?.(this.pegadaCamera());
+    if (new URLSearchParams(window.location.search).has("diagnostico")) (window as unknown as { __arena?: MotorArena }).__arena = this;
     this.o.eventos.aoPronto();
   }
 
@@ -303,6 +310,7 @@ export class MotorArena {
     this.atualizarLod();
     this.renderer.render(this.scene, this.camera);
     this.projetarMarcadores();
+    this.o.eventos.aoMoverCamera?.(this.pegadaCamera());
     this.medirDesempenho(agora);
   };
 
@@ -497,6 +505,7 @@ export class MotorArena {
 
   private aplicarCamadas() {
     for (const [camada, objs] of this.objetosCamada) for (const o of objs) o.visible = this.camadas[camada];
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
     if (this.realce) {
       this.contorno(this.realce.selecao, this.selecaoId);
       this.contorno(this.realce.hover, null);
@@ -515,6 +524,42 @@ export class MotorArena {
     this.camera.updateProjectionMatrix();
     for (const mat of [this.trilho, this.realce?.matHover, this.realce?.matSel]) mat?.resolution.set(w, h);
     this.sujo = true;
+  }
+
+  /** Cantos da vista projetados no chão (para o minimapa). Acima do horizonte, projeta ao longe. */
+  pegadaCamera(): Array<[number, number]> {
+    const plano = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const ray = new THREE.Raycaster();
+    const ponto = new THREE.Vector3();
+    return ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([x, y]) => {
+      ray.setFromCamera(new THREE.Vector2(x, y), this.camera);
+      const hit = ray.ray.intersectPlane(plano, ponto);
+      if (hit && hit.distanceTo(this.camera.position) < 3500) return [hit.x, hit.z] as [number, number];
+      const longe = ray.ray.direction.clone().setY(0).normalize().multiplyScalar(2500).add(this.camera.position);
+      return [longe.x, longe.z] as [number, number];
+    });
+  }
+
+  /** Centraliza a câmera num ponto do chão mantendo distância e ângulo (clique no minimapa). */
+  irPara(x: number, z: number) {
+    const alvo = new THREE.Vector3(x, 0, z);
+    const offset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+    this.moverCamera(alvo.clone().add(offset), alvo, true);
+  }
+
+  /** Desloca a câmera para frente/lado relativo ao que se vê (setas do teclado). */
+  mover(frente: number, lado: number) {
+    const passo = this.distancia() * 0.14;
+    const dir = new THREE.Vector3().subVectors(this.controls.target, this.camera.position).setY(0).normalize();
+    const direita = new THREE.Vector3(-dir.z, 0, dir.x);
+    const delta = dir.multiplyScalar(frente * passo).add(direita.multiplyScalar(lado * passo));
+    this.moverCamera(this.camera.position.clone().add(delta), this.controls.target.clone().add(delta), true);
+  }
+
+  /** Diagnóstico: chamadas de desenho e triângulos do último quadro. */
+  estatisticas() {
+    const i = this.renderer.info;
+    return { chamadas: i.render.calls, triangulos: i.render.triangles, geometrias: i.memory.geometries, texturas: i.memory.textures };
   }
 
   /** Força um quadro (por exemplo, quando marcadores HTML entram ou saem). */

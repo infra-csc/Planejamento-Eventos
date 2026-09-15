@@ -59,6 +59,20 @@ export const IconePerspectiva = (p: P) => (
     <path d="M12 13V3" />
   </svg>
 );
+export const IconeLista = (p: P) => (
+  <svg {...base} className={p.className}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
+export const IconeTeclado = (p: P) => (
+  <svg {...base} className={p.className}>
+    <rect x="3" y="6" width="18" height="12" rx="2" />
+    <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+  </svg>
+);
 export const IconeSuperior = (p: P) => (
   <svg {...base} className={p.className}>
     <rect x="4" y="4" width="16" height="16" rx="2" />
