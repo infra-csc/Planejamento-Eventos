@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Backups automáticos do agente do Replit (cache de build, não é código)
 /.migration-backup
+
+# scripts descartáveis de diagnóstico (podem conter tokens de sessão)
+/scripts/.tmp

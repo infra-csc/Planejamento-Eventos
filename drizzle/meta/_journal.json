@@ -8,6 +8,13 @@
       "when": 1789396176578,
       "tag": "0000_late_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789501691461,
+      "tag": "0001_seguranca_tentativas",
+      "breakpoints": true
     }
   ]
 }

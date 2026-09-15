@@ -1,26 +1,30 @@
-import { and, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventos, solicitacoes } from "@/server/db/schema";
-import { notificar, obterConfiguracoes, usuariosDaArea, usuariosLogistica } from "@/server/services/support";
+import { areas, eventos, sessoes, solicitacoes, tokensRecuperacao, usuarios } from "@/server/db/schema";
+import { notificar, obterConfiguracoes, usuariosLogistica } from "@/server/services/support";
+import { purgarTentativasAntigas } from "@/server/auth/limite";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
 
 const INTERVALO_MS = 5 * 60_000;
 const estado = globalThis as unknown as { __npeUltimaVerificacao?: number; __npeVerificando?: boolean };
 
 /**
- * Verificações de tempo (SLA vencido e lembrete de reunião), disparadas por requisições
- * no máximo a cada 5 minutos. Sem cron externo no MVP.
+ * Verificações de tempo (SLA vencido, prazo próximo, lembrete de reunião) e limpeza de registros
+ * expirados, no máximo a cada 5 minutos por instância. O layout dispara depois de responder
+ * (`after`), então nenhum usuário espera o job. Notificações têm chave de deduplicação: rodar em
+ * duas instâncias ao mesmo tempo não duplica avisos.
  */
 export async function executarVerificacoesSeNecessario() {
   const agora = Date.now();
   if (estado.__npeVerificando) return;
   if (estado.__npeUltimaVerificacao && agora - estado.__npeUltimaVerificacao < INTERVALO_MS) return;
   estado.__npeVerificando = true;
+  estado.__npeUltimaVerificacao = agora;
   try {
     await verificarSlaVencido();
     await avisoPrazoProximo();
     await lembreteReuniao();
-    estado.__npeUltimaVerificacao = Date.now();
+    await limparExpirados();
   } catch (e) {
     console.error("[verificacoes]", e);
   } finally {
@@ -31,7 +35,7 @@ export async function executarVerificacoesSeNecessario() {
 async function verificarSlaVencido() {
   const db = await getDb();
   const vencidas = await db.query.solicitacoes.findMany({
-    where: and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), lt(solicitacoes.prazoRespostaEm, new Date())),
+    where: and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false), lt(solicitacoes.prazoRespostaEm, new Date())),
     with: { evento: { columns: { nome: true } }, area: true },
   });
   if (!vencidas.length) return;
@@ -58,6 +62,7 @@ async function avisoPrazoProximo() {
   const proximas = await db.query.solicitacoes.findMany({
     where: and(
       inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+      eq(solicitacoes.excluida, false),
       gt(solicitacoes.prazoRespostaEm, agora),
       lt(solicitacoes.prazoRespostaEm, new Date(agora.getTime() + horas * 3_600_000)),
     ),
@@ -87,16 +92,29 @@ async function lembreteReuniao() {
     columns: { id: true, nome: true, dataReuniao: true },
   });
   if (!proximos.length) return;
-  const todasAreas = await db.query.areas.findMany({ where: eq(areas.ativo, true) });
-  for (const ev of proximos) {
-    const enviaram = await db
-      .select({ areaId: solicitacoes.areaId })
+  // Uma consulta para áreas + usuários e outra para quem já enviou, em vez de uma por evento × área.
+  const [todasAreas, pessoas, enviaram] = await Promise.all([
+    db.query.areas.findMany({ where: eq(areas.ativo, true), columns: { id: true, nome: true } }),
+    db.select({ id: usuarios.id, areaId: usuarios.areaId }).from(usuarios).where(and(eq(usuarios.ativo, true), isNotNull(usuarios.areaId))),
+    db
+      .select({ eventoId: solicitacoes.eventoId, areaId: solicitacoes.areaId })
       .from(solicitacoes)
-      .where(and(eq(solicitacoes.eventoId, ev.id), eq(solicitacoes.tipo, "PRE_REUNIAO"), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA", "DEVOLVIDA"])));
-    const jaEnviaram = new Set(enviaram.map((e) => e.areaId));
+      .where(
+        and(
+          inArray(
+            solicitacoes.eventoId,
+            proximos.map((e) => e.id),
+          ),
+          eq(solicitacoes.tipo, "PRE_REUNIAO"),
+          notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA", "DEVOLVIDA"]),
+        ),
+      ),
+  ]);
+  const jaEnviaram = new Set(enviaram.map((e) => `${e.eventoId}:${e.areaId}`));
+  for (const ev of proximos) {
     for (const a of todasAreas) {
-      if (jaEnviaram.has(a.id)) continue;
-      const ids = await usuariosDaArea(db, a.id);
+      if (jaEnviaram.has(`${ev.id}:${a.id}`)) continue;
+      const ids = pessoas.filter((p) => p.areaId === a.id).map((p) => p.id);
       if (!ids.length) continue;
       await notificar(db, {
         usuarioIds: ids,
@@ -108,4 +126,13 @@ async function lembreteReuniao() {
       });
     }
   }
+}
+
+/** Sessões e links vencidos, e tentativas de acesso com mais de um dia. */
+async function limparExpirados() {
+  const db = await getDb();
+  const agora = new Date();
+  await db.delete(sessoes).where(lt(sessoes.expiraEm, agora));
+  await db.delete(tokensRecuperacao).where(or(lt(tokensRecuperacao.expiraEm, agora), isNotNull(tokensRecuperacao.usadoEm)));
+  await purgarTentativasAntigas();
 }

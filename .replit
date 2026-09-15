@@ -16,6 +16,9 @@ externalPort = 80
 
 [env]
 PORT = "3000"
+# Login de demonstração com um clique. Qualquer pessoa com o link entra como qualquer perfil:
+# troque para "false" (ou apague a linha) assim que houver dados reais.
+EXIBIR_DEMO = "true"
 
 # Botão Run. O projeto usa npm (package-lock.json); não trocar para pnpm.
 [workflows]

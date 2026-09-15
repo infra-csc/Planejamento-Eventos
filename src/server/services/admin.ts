@@ -6,7 +6,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { hashSenha, verificarSenha } from "@/server/auth/password";
-import { gerarLinkAcesso, VALIDADE_CONVITE_MS } from "./recuperacao";
+import { gerarLinkAcesso, invalidarLinksPendentes, VALIDADE_CONVITE_MS } from "./recuperacao";
 import { obterConfiguracoes, registrarHistorico, salvarConfiguracao, type ChaveConfig } from "./support";
 
 /* ------------------------------------------------------------------ */
@@ -163,6 +163,7 @@ export async function alterarPropriaSenha(usuario: UsuarioAtual, senhaAtual: str
   const u = await db.query.usuarios.findFirst({ where: eq(usuarios.id, usuario.id) });
   if (!u || !(await verificarSenha(senhaAtual, u.senhaHash))) throw new ValidacaoError("Senha atual incorreta.", { senhaAtual: "Senha incorreta." });
   await db.update(usuarios).set({ senhaHash: await hashSenha(nova) }).where(eq(usuarios.id, usuario.id));
+  await invalidarLinksPendentes(db, usuario.id);
 }
 
 /* ------------------------------------------------------------------ */

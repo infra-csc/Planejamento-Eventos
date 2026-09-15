@@ -32,6 +32,7 @@ export async function salvarUsuarioAction(payload: { id?: string | null; nome: s
 
 export async function alternarAtivoUsuarioAction(id: string, ativo: boolean) {
   const usuario = await requireUsuario();
+  if (typeof id !== "string" || typeof ativo !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
   const r = await executar(() => alterarAtivoUsuario(usuario, id, ativo));
   revalidarAdmin();
   return r;
@@ -39,6 +40,7 @@ export async function alternarAtivoUsuarioAction(id: string, ativo: boolean) {
 
 export async function gerarLinkAcessoAction(id: string) {
   const usuario = await requireUsuario();
+  if (typeof id !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   return executar(() => gerarNovoLinkAcesso(usuario, id));
 }
 

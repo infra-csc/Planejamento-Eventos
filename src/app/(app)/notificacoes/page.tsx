@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/layout";
 import { tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { destinoInterno } from "@/lib/destino";
 
 export const metadata: Metadata = { title: "Notificações" };
 
@@ -24,7 +25,7 @@ async function abrirAction(formData: FormData) {
   revalidatePath("/", "layout");
   const link = String(formData.get("link") ?? "");
   // Só links internos: a notificação é gerada pelo sistema, mas não seguimos URLs externas.
-  redirect(link.startsWith("/") && !link.startsWith("//") ? link : "/notificacoes");
+  redirect(destinoInterno(link, "/notificacoes"));
 }
 
 export default async function NotificacoesPage() {

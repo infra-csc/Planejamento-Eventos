@@ -34,6 +34,10 @@ function dt(dias: number, hora = 10): Date {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.SEED_DEMO !== "true") {
+    console.error("Seed de demonstração bloqueado em produção (senha fixa para todos). Use SEED_DEMO=true se for mesmo um ambiente de demonstração.");
+    process.exit(1);
+  }
   const conn = await getConnection();
   const db = conn.db;
   const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(usuarios);

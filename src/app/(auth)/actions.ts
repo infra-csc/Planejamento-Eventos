@@ -5,13 +5,13 @@ import { autenticar, encerrarSessao } from "@/server/auth/session";
 import { solicitarRecuperacao, redefinirSenha } from "@/server/services/recuperacao";
 import { loginSchema, recuperarSenhaSchema, redefinirSenhaSchema } from "@/lib/schemas";
 import { parseForm, tratarErro, type ActionResult } from "@/lib/action";
+import { destinoInterno } from "@/lib/destino";
 
 export async function loginAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   let destino = "/";
   try {
     const dados = parseForm(loginSchema, formData);
-    const next = String(formData.get("next") ?? "");
-    if (next.startsWith("/") && !next.startsWith("//")) destino = next;
+    destino = destinoInterno(String(formData.get("next") ?? ""), "/");
     const r = await autenticar(dados.email, dados.senha);
     if (!r.ok) return { ok: false, erro: r.erro };
   } catch (e) {
@@ -25,11 +25,11 @@ export async function logoutAction() {
   redirect("/login");
 }
 
-export async function recuperarSenhaAction(_prev: ActionResult<{ link: string | null }>, formData: FormData): Promise<ActionResult<{ link: string | null }>> {
+export async function recuperarSenhaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   try {
     const dados = parseForm(recuperarSenhaSchema, formData);
-    const r = await solicitarRecuperacao(dados.email);
-    return { ok: true, dados: r, mensagem: "Se o e-mail existir, um link de redefinição foi gerado." };
+    await solicitarRecuperacao(dados.email);
+    return { ok: true, mensagem: "Pedido registrado. Se o e-mail estiver cadastrado, o administrador vai entrar em contato com um novo link de acesso." };
   } catch (e) {
     return tratarErro(e);
   }

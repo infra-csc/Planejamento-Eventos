@@ -14,8 +14,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       headers: {
         "Content-Type": a.mime,
         "Content-Length": String(a.tamanho),
-        "Content-Disposition": `${a.tipo === "PDF" ? "inline" : "inline"}; filename*=UTF-8''${nome}`,
+        "Content-Disposition": `inline; filename*=UTF-8''${nome}`,
         "Cache-Control": "private, max-age=3600",
+        // O navegador não "adivinha" outro tipo e o arquivo abre isolado, sem scripts nem acesso à origem do app.
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
       },
     });
   } catch (e) {

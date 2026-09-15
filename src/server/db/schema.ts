@@ -139,6 +139,20 @@ export const tokensRecuperacao = pgTable("tokens_recuperacao", {
   criadoEm: criadoEm(),
 });
 
+/**
+ * Tentativas de login e de recuperação de senha, para limitar força bruta por e-mail e por IP.
+ * Fica no banco (não em memória) para valer entre instâncias do deployment Autoscale.
+ */
+export const tentativasAcesso = pgTable(
+  "tentativas_acesso",
+  {
+    id: id(),
+    chave: text("chave").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("tentativas_acesso_chave_idx").on(t.chave, t.criadoEm)],
+);
+
 export const pecas = pgTable("pecas", {
   id: id(),
   codigo: text("codigo").notNull().unique(),

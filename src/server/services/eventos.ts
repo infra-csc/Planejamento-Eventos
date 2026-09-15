@@ -20,6 +20,7 @@ import {
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain/evento";
+import { pode } from "@/domain/permissions";
 import { descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta } from "./os";
@@ -126,11 +127,29 @@ export async function obterLinhasAta(eventoId: string) {
 
 export type LinhaAtaDetalhe = Awaited<ReturnType<typeof obterLinhasAta>>[number];
 
+/**
+ * Histórico do evento. Quem não tem `historico.ver_tudo` (requisitante, cenografia) vê o que é do evento
+ * e da ata, mais o que diz respeito às solicitações da própria área — não motivos e observações de outras áreas.
+ */
 export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string, limite = 300) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
+  const areaId = usuario.areaId ?? "";
+  const escopo = pode(usuario, "historico.ver_tudo")
+    ? eq(historico.eventoId, eventoId)
+    : and(
+        eq(historico.eventoId, eventoId),
+        or(
+          inArray(historico.entidade, ["evento", "evento_item"]),
+          and(eq(historico.entidade, "solicitacao"), sql`${historico.entidadeId} in (select id from solicitacoes where area_id = ${areaId})`),
+          and(
+            eq(historico.entidade, "solicitacao_item"),
+            sql`${historico.entidadeId} in (select si.id from solicitacao_itens si join solicitacoes s on s.id = si.solicitacao_id where s.area_id = ${areaId})`,
+          ),
+        ),
+      );
   return db.query.historico.findMany({
-    where: eq(historico.eventoId, eventoId),
+    where: escopo,
     with: { usuario: { columns: { id: true, nome: true } } },
     orderBy: [desc(historico.criadoEm)],
     limit: limite,

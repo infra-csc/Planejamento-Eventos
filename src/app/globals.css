@@ -26,6 +26,8 @@
   /* Bordas */
   --color-line: #e4dedd;
   --color-line-strong: #d7d2d2;
+  /* Borda de campos de formulário: 3:1 sobre branco (WCAG 1.4.11). line-strong fica para divisórias. */
+  --color-line-control: #958b8d;
   --color-line-soft: #ece7e6;
   --color-line-row: #f0eceb;
   --color-line-faint: #f3efee;

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { requireUsuario } from "@/server/auth/session";
 import { contarNaoLidas } from "@/server/services/notificacoes";
@@ -9,7 +10,8 @@ import { AppShell, type NavItem } from "@/components/shell/app-shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const usuario = await requireUsuario();
-  await executarVerificacoesSeNecessario();
+  // Depois da resposta: nenhum usuário espera prazos e lembretes serem verificados.
+  after(executarVerificacoesSeNecessario);
   const naoLidas = await contarNaoLidas(usuario);
 
   // Contador de solicitações aguardando resposta (logística e gestão) — derivado, nunca persistido.
@@ -28,8 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/eventos", label: "Eventos" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     { href: "/arena", label: "Arena 3D", secao: "Operação" },
+    ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Consolidação", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
-    ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Consolidação", secao: "Cadastros" }] : []),
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
   ];
 

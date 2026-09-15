@@ -7,9 +7,14 @@ import { getDb } from "@/server/db";
 import { SETORES, type Setor } from "@/server/db/schema";
 import { SETOR_LABEL } from "@/domain/os";
 
-function csvEscape(v: string | number) {
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/**
+ * Escapa uma célula para CSV aberto no Excel. Valores que começam com = + - @ tab ou CR viram texto
+ * (prefixo ') para não serem executados como fórmula (CSV injection).
+ */
+export function csvEscape(v: string | number) {
+  let s = String(v);
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[";\r\n]/.test(s) || s.startsWith("'") ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string; setor: string }> }) {
