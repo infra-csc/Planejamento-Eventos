@@ -171,3 +171,37 @@ Fonte: `docs/design-handoff/` (README com tokens, telas, estados, microinteraç�
 | Ordenação/paginação só em Solicitações e Catálogo | Igual; eventos agrupados, usuários com busca e filtro | Seguido como está (§11 do handoff) |
 | Focus trap nos modais ausente no protótipo | Radix Dialog com focus trap e devolução de foco | Resolve pendência de acessibilidade do §11 |
 | Ações de exceção (voltar para preparação, cancelar) no cabeçalho | Movidas para a página de edição do evento | Cabeçalho fica com a próxima ação da fase |
+
+## 18. Arena 3D (briefing, slide 6: "Mapa de Arena 3D — consome dados daqui")
+
+Rota `/arena` (menu Operação → Arena 3D). Primeiro caso real: **Eco Run 1 - São Paulo - 2026** (SKU ECO26SP1), da Norte Marketing Esportivo.
+
+### Fontes e honestidade dos dados
+
+| Fonte | O que entrega |
+|---|---|
+| Mapa de Arena — Eco Run (R03), 08/06/2026 | Posição e dimensão de cada estrutura, currais com metragem e grades, corredores isolados, legenda 01–30 |
+| ATA ECO RUN SP.xlsx, reunião de OS de 12/05/2026 | Itens e quantidades, divisão por marca, diretor de prova, público esperado |
+
+- As coordenadas foram lidas da planta renderizada e convertidas pela escala aferida nas cotas da própria planta (0,445 m/px; GV de 45 m e curral branco de 73 m). Precisão de alguns metros.
+- Divergências ficam visíveis no painel do ponto: 3 geradores na planta e 2 na ata; 7 quadros de foto na planta e 3 na ata; 3 tendas de lixo na planta e 2 na ata; “Mudas” na planta e “Espaço Verde” na ata.
+- Nada é inventado: a Trimandala está na legenda mas sem posição, e aparece em “Sem posição no mapa” com as linhas da ata que não têm lugar (cochos, cones pequenos, rampas...). O percurso fora da área da planta não é desenhado.
+- Corredores: o tipo `Corredor` (número, categoria, status, checkpoint, tempo) está pronto, mas a lista chega vazia; a animação de fluxo é marcada como ilustrativa e começa desligada.
+
+### Arquitetura
+
+- `src/domain/arena`: tipos, dados da arena, geometria pura (faixas, amostragem, busca) e testes. A cena e o plano 2D leem só essa estrutura; trocar a fonte (outro arquivo, banco, importação do CAD) não muda a interface.
+- `src/components/arena/cena`: three.js puro (sem React Three Fiber), carregado com `import()` só nesta tela — um pedaço de ~155 KB gzip.
+- Desempenho: renderização sob demanda (só quando a câmera ou uma camada muda), instâncias para árvores, público, grades, cones e faixas, uma malha por material em cada estrutura, pausa quando a aba ou o mapa saem de vista, qualidade automática por aparelho (sombras, densidade de árvores e público) com troca manual e aviso quando o 3D fica lento.
+- Legibilidade: percurso com linha de espessura constante em pixels quando a câmera se afasta, piso claro sob cada estrutura, marcadores HTML acessíveis com anticolisão de rótulos por prioridade, contorno de seleção que acompanha a orientação da estrutura.
+- Fallback: planta 2D vetorial com os mesmos pontos, camadas e painel, usada quando não há WebGL ou o módulo não carrega.
+
+### Interação
+
+Busca por nome, número da legenda ou item da ata; camadas (percurso, estruturas, apoio ao atleta, patrocinadores, áreas, público, fluxo, rótulos); zoom, visão geral, norte para cima, vista superior/perspectiva; tela cheia; painel com localização (“a 235 m a oeste do Obelisco de São Paulo”), itens da ata, responsável quando a fonte informa e observações. Esc fecha painéis.
+
+### Limitações conhecidas
+
+- O app segue o handoff (desktop, 1000 px). No celular, a arena abre em tela cheia (API de tela cheia ou modo expandido quando o aparelho não oferece a API) com o painel como folha inferior.
+- Posições dependem da leitura da planta; para outras provas o ideal é exportar coordenadas do CAD.
+- Primeira abertura em modo de desenvolvimento é lenta (compilação do three.js); em produção o pedaço já vem pronto.

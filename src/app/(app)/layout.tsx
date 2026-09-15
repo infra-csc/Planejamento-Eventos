@@ -27,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/", label: "Painel", exato: true },
     { href: "/eventos", label: "Eventos" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
+    { href: "/arena", label: "Arena 3D", secao: "Operação" },
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
     ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Consolidação", secao: "Cadastros" }] : []),
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
