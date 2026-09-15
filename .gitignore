@@ -45,3 +45,6 @@ next-env.d.ts
 !.env.example
 .next-dev.log
 .next-prod.log
+
+# Backups automáticos do agente do Replit (cache de build, não é código)
+/.migration-backup
