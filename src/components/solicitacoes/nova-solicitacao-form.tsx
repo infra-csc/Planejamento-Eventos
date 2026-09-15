@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Aviso } from "@/components/ui/layout";
 import { toast } from "@/components/ui/toast";
+import { hora } from "@/lib/format";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import type { ItemOperacao } from "@/server/db/schema";
 
@@ -84,8 +85,80 @@ export function NovaSolicitacaoForm({
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
 
+  /*
+   * Rascunho salvo automaticamente (briefing, slide 7: "a área digita aos poucos, sem perder o que já
+   * preencheu"). Todos os salvamentos passam por uma fila para que o primeiro crie o rascunho e os
+   * seguintes (automáticos ou pelo botão) reutilizem o mesmo id, sem duplicar.
+   */
+  const rascunhoIdRef = useRef<string | null>(rascunho?.id ?? null);
+  const [codigoRascunho, setCodigoRascunho] = useState<string | null>(rascunho?.codigo ?? null);
+  const [estadoSalvo, setEstadoSalvo] = useState<{ tipo: "ocioso" } | { tipo: "salvando" } | { tipo: "salvo"; em: Date } | { tipo: "erro"; msg: string }>({ tipo: "ocioso" });
+  const fila = useRef<Promise<unknown>>(Promise.resolve());
+  const enviandoRef = useRef(false);
+  const pendenteSalvarRef = useRef(false);
+  const emFila = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const promessa = fila.current.then(fn, fn);
+    fila.current = promessa.catch(() => undefined);
+    return promessa;
+  };
+  const montarPayload = (enviar: boolean, evId: string) => ({
+    id: rascunhoIdRef.current,
+    eventoId: evId,
+    titulo,
+    observacao,
+    enviar,
+    itens: itens.map((i) => ({
+      operacao: i.operacao,
+      projetoId: i.projetoId,
+      pecaId: i.pecaId,
+      eventoItemId: i.eventoItemId,
+      descricaoLivre: i.descricaoLivre,
+      quantidadeSolicitada: i.quantidade,
+      destino: i.destino,
+      justificativa: i.justificativa,
+    })),
+  });
+  const lembrarRascunho = (id: string, codigo: string) => {
+    if (rascunhoIdRef.current) return;
+    rascunhoIdRef.current = id;
+    setCodigoRascunho(codigo);
+    window.history.replaceState(null, "", `/solicitacoes/nova?rascunho=${id}`);
+  };
+  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa])]);
+  const salvoRef = useRef(rascunho ? assinatura : "");
+  const podeAutosalvar = Boolean(evento?.aceita) && (titulo.trim() !== "" || itens.length > 0);
+
+  useEffect(() => {
+    if (!podeAutosalvar || !eventoId || assinatura === salvoRef.current || enviandoRef.current) return;
+    pendenteSalvarRef.current = true;
+    const t = setTimeout(async () => {
+      if (enviandoRef.current) return;
+      setEstadoSalvo({ tipo: "salvando" });
+      const r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(false, eventoId)));
+      if (r.ok && r.dados) {
+        salvoRef.current = assinatura;
+        pendenteSalvarRef.current = false;
+        lembrarRascunho(r.dados.id, r.dados.codigo);
+        setEstadoSalvo({ tipo: "salvo", em: new Date() });
+      } else if (!r.ok) {
+        setEstadoSalvo({ tipo: "erro", msg: r.campos ? (Object.values(r.campos)[0] ?? r.erro) : r.erro });
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+    // montarPayload/emFila/lembrarRascunho mudam a cada render; a assinatura já representa o conteúdo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinatura, podeAutosalvar, eventoId]);
+
+  useEffect(() => {
+    const avisar = (e: BeforeUnloadEvent) => {
+      if (pendenteSalvarRef.current && !enviandoRef.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, []);
+
   const escolherEvento = (e: EventoOpcao) => {
-    if (rascunho && e.id !== rascunho.eventoId) {
+    if (rascunhoIdRef.current && e.id !== eventoId) {
       toast("Para trocar de evento, exclua este rascunho e crie outro");
       return;
     }
@@ -182,29 +255,18 @@ export function NovaSolicitacaoForm({
       if (!titulo.trim() || itens.length === 0) return;
     }
     iniciar(async () => {
-      const r = await salvarSolicitacaoCompletaAction({
-        id: rascunho?.id ?? null,
-        eventoId,
-        titulo,
-        observacao,
-        enviar,
-        itens: itens.map((i) => ({
-          operacao: i.operacao,
-          projetoId: i.projetoId,
-          pecaId: i.pecaId,
-          eventoItemId: i.eventoItemId,
-          descricaoLivre: i.descricaoLivre,
-          quantidadeSolicitada: i.quantidade,
-          destino: i.destino,
-          justificativa: i.justificativa,
-        })),
-      });
+      if (enviar) enviandoRef.current = true;
+      const r = await emFila(() => salvarSolicitacaoCompletaAction(montarPayload(enviar, eventoId)));
+      if (!r.ok || !r.dados?.enviada) enviandoRef.current = false;
       if (!r.ok) {
         if (r.campos?.titulo) setErroTitulo(r.campos.titulo);
         setErroGeral(r.campos ? Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? r.erro : r.erro);
         return;
       }
       const d = r.dados!;
+      salvoRef.current = assinatura;
+      pendenteSalvarRef.current = false;
+      lembrarRascunho(d.id, d.codigo);
       if (d.enviada) {
         toast(`${d.codigo} enviada para a logística`);
         router.push(`/solicitacoes/${d.id}`);
@@ -213,7 +275,7 @@ export function NovaSolicitacaoForm({
         router.push(`/solicitacoes/${d.id}`);
       } else {
         toast(`Rascunho ${d.codigo} salvo`);
-        if (!rascunho) router.replace(`/solicitacoes/nova?rascunho=${d.id}`);
+        setEstadoSalvo({ tipo: "salvo", em: new Date() });
       }
     });
   };
@@ -444,6 +506,17 @@ export function NovaSolicitacaoForm({
           Salvar rascunho
         </Button>
         <span className="text-[12.5px] text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
+        <span className="ml-auto text-right text-[12px]" aria-live="polite" style={{ color: estadoSalvo.tipo === "erro" ? "#a8400f" : "#6f6366" }}>
+          {estadoSalvo.tipo === "salvando"
+            ? "salvando rascunho…"
+            : estadoSalvo.tipo === "salvo"
+              ? `Rascunho ${codigoRascunho ?? ""} salvo às ${hora(estadoSalvo.em)}`
+              : estadoSalvo.tipo === "erro"
+                ? `Rascunho não salvo: ${estadoSalvo.msg}`
+                : evento?.aceita
+                  ? "O rascunho é salvo automaticamente enquanto você preenche."
+                  : ""}
+        </span>
       </div>
     </div>
   );
