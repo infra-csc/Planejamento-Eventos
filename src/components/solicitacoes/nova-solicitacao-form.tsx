@@ -29,7 +29,7 @@ type Referencia = { id: string; codigo: string; nome: string; meta: string };
 type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 type Modo = "projeto" | "peca" | "avulso" | "ata";
 
-const campo = "h-9 w-full rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none";
+const campo = "h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none";
 let seq = 0;
 const novaChave = () => `n${Date.now()}-${seq++}`;
 
@@ -380,7 +380,7 @@ export function NovaSolicitacaoForm({
                   onChange={(e) => mudar(i.chave, { destino: e.target.value })}
                   placeholder="Destino"
                   maxLength={60}
-                  className="h-8 w-[130px] rounded-[7px] border border-line-strong bg-surface px-2.5 text-[12.5px] focus:border-accent focus:outline-none"
+                  className="h-8 w-[130px] rounded-[7px] border border-line-control bg-surface px-2.5 text-[12.5px] focus:border-accent focus:outline-none"
                 />
                 {i.operacao === "REMOVER" ? (
                   <span className="w-[112px] text-center text-[12px] font-medium text-danger">remover da ata</span>
@@ -395,7 +395,7 @@ export function NovaSolicitacaoForm({
                       min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1}
                       value={i.quantidade}
                       onChange={(e) => mudar(i.chave, { quantidade: Math.max(0, Number(e.target.value) || 0) })}
-                      className="h-8 w-12 border-y border-line-strong bg-surface text-center font-mono text-[13px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      className="h-8 w-12 border-y border-line-control bg-surface text-center font-mono text-[13px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button type="button" aria-label="Aumentar" onClick={() => mudar(i.chave, { quantidade: i.quantidade + 1 })} className="h-8 w-8 cursor-pointer rounded-r-[7px] border border-line-strong bg-subtle text-[14px] text-ink-2 hover:bg-control">
                       +
@@ -525,7 +525,7 @@ export function NovaSolicitacaoForm({
             <label htmlFor="observacao" className="mb-1.5 block text-[13px] font-medium text-ink-2">
               Observação <span className="font-normal text-muted">opcional</span>
             </label>
-            <textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[88px] w-full resize-y rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-[13.5px] focus:border-accent focus:outline-none" />
+            <textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[88px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] focus:border-accent focus:outline-none" />
           </div>
         </div>
       </Passo>

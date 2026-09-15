@@ -50,7 +50,7 @@ export function ObservacoesAutosave({ eventoId, valor }: { eventoId: string; val
           void salvar(texto);
         }}
         placeholder="Quem participou, o que foi decidido, combinados com o cliente."
-        className="min-h-[112px] w-full resize-y rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none"
+        className="min-h-[112px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none"
       />
       <p className="mb-0 mt-1.5 text-[11.5px]" aria-live="polite" style={{ color: estado === "erro" ? "#a8400f" : "#6f6366" }}>
         {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo automaticamente" : "salvo automaticamente ao digitar"}

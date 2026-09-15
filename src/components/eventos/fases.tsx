@@ -13,7 +13,7 @@ export function BarrasFase({ status, rotuloStatus }: { status: EventoStatus; rot
           key={f}
           title={NOMES[i]}
           className="block h-1 flex-1 rounded-sm"
-          style={{ background: status === "CANCELADO" ? "#e4dedd" : i < idx ? "#8e2740" : i === idx ? "#2a1418" : "#e4dedd" }}
+          style={{ background: status === "CANCELADO" ? "var(--color-line)" : i < idx ? "var(--color-accent)" : i === idx ? "var(--color-dark)" : "var(--color-line)" }}
         />
       ))}
     </span>
@@ -31,7 +31,7 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
         {passos.map((p, i) => {
           const feito = i < idx;
           const atual = i === idx;
-          const cor = feito ? "#8e2740" : atual ? "#2a1418" : "#d7d2d2";
+          const cor = feito ? "var(--color-accent)" : atual ? "var(--color-dark)" : "var(--color-line-strong)";
           return (
             <li key={p.titulo} className="min-w-0 flex-1 pr-4" aria-current={atual ? "step" : undefined}>
               <div className="mb-2 flex items-center gap-2">
@@ -40,9 +40,9 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
                   className="block shrink-0 rounded-full"
                   style={{ width: atual ? 11 : 9, height: atual ? 11 : 9, background: cor, boxShadow: atual ? "0 0 0 4px #f6e6ea" : undefined }}
                 />
-                <span aria-hidden className="block h-0.5 flex-1" style={{ background: feito ? "#8e2740" : "#ece7e6" }} />
+                <span aria-hidden className="block h-0.5 flex-1" style={{ background: feito ? "var(--color-accent)" : "var(--color-line-soft)" }} />
               </div>
-              <p className="m-0 text-[13.5px]" style={{ fontWeight: atual ? 600 : 500, color: atual || feito ? "#2a1418" : "#6f6366" }}>
+              <p className="m-0 text-[13.5px]" style={{ fontWeight: atual ? 600 : 500, color: atual || feito ? "var(--color-dark)" : "#6f6366" }}>
                 {p.titulo}
               </p>
               <p className="mt-0.5 font-mono text-[12px] text-muted">{p.quando}</p>

@@ -7,7 +7,7 @@ import { FormError } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/button";
 import { ESTADO_INICIAL } from "@/lib/action";
 
-const campo = "h-[42px] w-full rounded-lg border border-line-strong bg-surface px-3 text-[14.5px] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
+const campo = "h-[42px] w-full rounded-lg border border-line-control bg-surface px-3 text-[14.5px] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
 
 export function RedefinirForm({ token }: { token: string }) {
   const [state, action] = useActionState(redefinirSenhaAction, ESTADO_INICIAL);

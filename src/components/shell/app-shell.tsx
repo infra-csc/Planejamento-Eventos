@@ -67,7 +67,8 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
       <a href="#conteudo" className="no-print sr-only rounded-lg bg-dark px-3 py-2 text-[13px] text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[var(--z-toast)]">
         Pular para o conteúdo
       </a>
-      <aside className="no-print sticky top-0 flex h-screen w-[236px] shrink-0 flex-col bg-dark">
+      {/* Abaixo de 1280 px a sidebar e o respiro encolhem: notebook de 1280 cabe sem rolagem horizontal. */}
+      <aside className="no-print sticky top-0 flex h-screen w-[200px] shrink-0 flex-col bg-dark xl:w-[236px]">
         <Link href="/" className="flex items-center gap-[9px] px-[18px] pb-[18px] pt-5 no-underline">
           <span aria-hidden className="block size-5 shrink-0 rounded-[5px] bg-accent-light" />
           <span>
@@ -112,7 +113,7 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-20 flex h-14 items-center gap-3.5 border-b border-line bg-[rgba(241,239,238,0.9)] px-7 backdrop-blur-[8px]">
+        <header className="no-print sticky top-0 z-20 flex h-14 items-center gap-3.5 border-b border-line bg-[rgba(241,239,238,0.9)] px-5 backdrop-blur-[8px] xl:px-7">
           <Trilha />
           <Link
             href="/notificacoes"
@@ -142,7 +143,7 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
         </header>
 
         {/* Sem overflow no <main>: um contêiner de rolagem aqui quebra o `sticky` das colunas laterais (ata, OS, biblioteca). */}
-        <main id="conteudo" tabIndex={-1} className="flex-1 px-7 pb-16 pt-7 focus:outline-none">
+        <main id="conteudo" tabIndex={-1} className="flex-1 px-5 pb-16 pt-7 focus:outline-none xl:px-7">
           <div key={pathname} className="mx-auto min-w-[1000px] max-w-[1240px] animate-fade-up">
             {children}
           </div>

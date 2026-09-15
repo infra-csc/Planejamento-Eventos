@@ -73,17 +73,17 @@ RV-01 a RV-21 (§8 da especificação), cada um com o padrão implementado. Os q
 
 ## 13. Arquitetura implementada
 
-- `src/domain`: regras puras (permissões, estados, cálculo de OS, consolidação, validação de resposta) — 21 testes unitários.
+- `src/domain`: regras puras (permissões, estados, cálculo de OS, consolidação, validação de resposta, efeito da resposta na linha da ata) — testes unitários em Vitest; `src/server/services/integracao.test.ts` roda os services contra PGlite em memória com as migrações reais.
 - `src/server/services`: casos de uso transacionais; cada um autoriza, aplica a regra, persiste, registra histórico e notifica dentro da mesma transação.
 - `src/app/**/actions.ts`: Server Actions finas (parse Zod → serviço → revalidate); erros de domínio viram `{ ok:false, erro, campos }`.
-- `src/components/ui`: biblioteca interna (Button, Field, Badge, Panel, Dialog, Dropdown, ConfirmDialog, TabsNav, FiltersBar, ActionForm).
+- `src/components/ui`: biblioteca interna (Button, Field, Badge, Panel, Dialog, Dropdown, ConfirmDialog, TabsNav, Pills, Tabela, LinhaLink, Toast, ActionForm).
 - Segurança: sessão em cookie HttpOnly/SameSite, hash bcrypt, tokens de recuperação com hash e expiração, limite de tentativas de login, autorização no servidor em toda leitura/mutação, uploads validados por tipo/tamanho e servidos por rota autenticada, IDs opacos (UUID).
 
 ## 14. Testes realizados
 
 | Tipo | O quê | Resultado |
 |---|---|---|
-| Unitários (Vitest) | cálculo de OS (soma, agrupamento, setores, diff), máquinas de estado, resposta por item, permissões, consolidação por pico | 21/21 |
+| Unitários e integração (Vitest, `npm test`) | cálculo de OS (soma, agrupamento, setores, diff), máquinas de estado, resposta por item e efeito na ata, permissões, consolidação, arena; integração com PGlite: concorrência, atender tudo, fases, permissões no service, histórico por área, consultas paginadas | 65/65 |
 | Fumaça de serviços (`npm run test:smoke`) | 33 cenários: bloqueios de transição, justificativas obrigatórias, permissões por perfil, devolução/reenvio/correção com efeito na ata, anexos bytea, catálogo e admin | 33/33 |
 | Seed pelos serviços reais | 9 eventos em todos os estados, 20 solicitações, versões de ata/OS, reabertura, cancelamento, projeto com nova versão | executa sem erro |
 | Navegador (dev) | login errado/correto, painel, lista e detalhe de eventos, ata, OS com versões e diff, histórico, solicitações com atraso, responder item parcial com pendência, projetos e detalhe, catálogo com filtro por URL, consolidação, pendências, notificações (inclusive SLA vencido gerado pelo job), perfil, logout, redirecionamento 403 para requisitante em OS/consolidação/admin, criação de rascunho, item com validação (quantidade 0) e aviso “já existe na ata”, envio com confirmação | OK após correções |

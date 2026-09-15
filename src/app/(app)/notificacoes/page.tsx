@@ -58,7 +58,7 @@ export default async function NotificacoesPage() {
             const prazo = /PRAZO|SLA/.test(n.tipo);
             return (
               <div key={n.id} className={cn("flex items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 last:border-b-0", !n.lidaEm && "bg-selected")}>
-                <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: n.lidaEm ? "transparent" : prazo ? "#a8400f" : "#8e2740" }} />
+                <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0 rounded-full", n.lidaEm ? "bg-transparent" : prazo ? "bg-danger" : "bg-accent")} />
                 <div className="min-w-0 flex-1">
                   <p className={cn("m-0 text-[13.5px] text-ink", !n.lidaEm && "font-medium")}>
                     {!n.lidaEm && <span className="sr-only">Não lida: </span>}
@@ -68,7 +68,7 @@ export default async function NotificacoesPage() {
                   <p className="mb-0 mt-1 font-mono text-[11.5px] text-meta">{tempoRelativo(n.criadoEm)}</p>
                 </div>
                 {n.link && (
-                  <form action={abrirAction}>
+                  <form action={abrirAction} aria-label={`Abrir: ${n.titulo}`}>
                     <input type="hidden" name="id" value={n.id} />
                     <input type="hidden" name="link" value={n.link} />
                     <Button type="submit" variant="secondary" size="sm">

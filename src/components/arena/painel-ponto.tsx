@@ -122,7 +122,7 @@ export function PainelPonto({ arena, ponto, estreito, onFechar, onAproximar }: {
         <button type="button" onClick={onAproximar} className="h-8 cursor-pointer rounded-[7px] border-0 bg-accent px-3 text-[12.5px] font-medium text-white hover:bg-accent-hover">
           Aproximar
         </button>
-        <button type="button" onClick={onFechar} className="h-8 cursor-pointer rounded-[7px] border border-line-strong bg-surface px-3 text-[12.5px] text-ink-2 hover:bg-subtle">
+        <button type="button" onClick={onFechar} className="h-8 cursor-pointer rounded-[7px] border border-line-control bg-surface px-3 text-[12.5px] text-ink-2 hover:bg-subtle">
           Fechar
         </button>
         <span className="ml-auto text-[11px] text-meta">A câmera fica onde está</span>

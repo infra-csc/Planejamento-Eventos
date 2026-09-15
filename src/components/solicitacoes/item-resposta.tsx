@@ -225,7 +225,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
             max={item.quantidadeSolicitada - 1}
             value={qtd}
             onChange={(e) => setQtd(Number(e.target.value))}
-            className="h-[30px] w-[76px] rounded-[7px] border border-line-strong bg-surface px-[9px] font-mono text-[13px] focus:border-accent focus:outline-none"
+            className="h-[30px] w-[76px] rounded-[7px] border border-line-control bg-surface px-[9px] font-mono text-[13px] focus:border-accent focus:outline-none"
           />
           <span className="text-[12.5px] text-muted">de {item.quantidadeSolicitada}</span>
         </div>
@@ -243,7 +243,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           }}
           aria-label="Motivo"
           placeholder={status === "ATENDIDO" ? "Observação (opcional)" : "Motivo — obrigatório em parcial e não atendido"}
-          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-strong bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
+          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-control bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
         />
       ) : null}
       {corrigir && (
@@ -252,12 +252,12 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           onChange={(e) => setJustificativa(e.target.value)}
           aria-label="Justificativa da correção"
           placeholder="Por que a resposta está sendo corrigida — fica no histórico"
-          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-strong bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
+          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-control bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
         />
       )}
       {status !== "ATENDIDO" && (
         <label className="mb-2.5 flex items-center gap-2 text-[12.5px] text-ink-2">
-          <input type="checkbox" checked={pendencia} onChange={(e) => setPendencia(e.target.checked)} className="size-[15px] accent-[#8e2740]" />
+          <input type="checkbox" checked={pendencia} onChange={(e) => setPendencia(e.target.checked)} className="size-[15px] accent-accent" />
           Gerar pendência de compra ou locação
         </label>
       )}
@@ -295,7 +295,7 @@ export function ItemResposta({ item }: { item: ItemParaResposta }) {
       onFocus={(e) => {
         if (e.target === e.currentTarget) setFoco(item.id);
       }}
-      className={cn("cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected shadow-[inset_3px_0_0_#8e2740]")}
+      className={cn("cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
     >
       <div className="flex items-start gap-3">
         <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: COR_ITEM[item.status] }} />

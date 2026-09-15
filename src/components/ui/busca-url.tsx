@@ -38,7 +38,7 @@ export function BuscaUrl({ param = "q", placeholder, ariaLabel, className, largu
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => aplicar(v), 280);
       }}
-      className={cn("h-[34px] rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none", className)}
+      className={cn("h-[34px] rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none", className)}
       style={{ flex: `0 0 ${largura}px`, width: largura }}
     />
   );

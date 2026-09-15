@@ -38,7 +38,7 @@ export function Plano2D({
         viewBox={`${minX} ${minZ} ${largura} ${altura}`}
         preserveAspectRatio="xMidYMid meet"
         className="h-full w-full touch-none select-none"
-        role="img"
+        role="group"
         aria-label={`Planta 2D da arena ${arena.evento.nome}`}
         onWheel={(e) => zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15)}
         onPointerDown={(e) => {

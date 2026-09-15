@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { PerfilBadge } from "@/components/ui/badge";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { alternarAtivoUsuarioAction, gerarLinkAcessoAction, salvarUsuarioAction } from "@/app/(app)/admin/actions";
 import { PERFIL_DESCRICAO, PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { PERFIS, type Perfil } from "@/server/db/schema";
@@ -14,7 +14,7 @@ import { PERFIS, type Perfil } from "@/server/db/schema";
 type U = { id: string; nome: string; email: string; perfil: Perfil; areaId: string | null; areaNome: string | null; ativo: boolean; ultimoAcesso: string };
 type Form = { nome: string; email: string; perfil: Perfil; areaId: string };
 
-const campo = "h-9 w-full rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
+const campo = "h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function absoluto(link: string) {
@@ -53,6 +53,17 @@ function LinkAcesso({ nome, link, onClose }: { nome: string; link: string; onClo
   );
 }
 
+/** Desativar corta o acesso na hora: o toast oferece desfazer (Ctrl+Z) em vez de pedir confirmação antes. */
+function avisarDesativado(u: { id: string; nome: string }) {
+  toast(`Acesso de ${u.nome} desativado`, {
+    desfazer: async () => {
+      const r = await alternarAtivoUsuarioAction(u.id, true);
+      if (r.ok) toast(`${u.nome} reativado`);
+      else toastErro(r.erro);
+    },
+  });
+}
+
 function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usuario: U | null; areas: Array<{ id: string; nome: string }>; emails: Array<{ id: string; email: string }>; meuId: string; onClose: () => void; onLink: (nome: string, link: string) => void }) {
   const [f, setF] = useState<Form>({ nome: usuario?.nome ?? "", email: usuario?.email ?? "", perfil: usuario?.perfil ?? "REQUISITANTE", areaId: usuario?.areaId ?? "" });
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -84,28 +95,34 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
         return;
       }
       onClose();
-      toast(r.dados!.criado ? `${r.dados!.nome} criado` : "Alterações salvas");
-      if (r.dados!.linkAcesso) onLink(r.dados!.nome, r.dados!.linkAcesso);
+      const d = r.dados;
+      if (!d) return;
+      toast(d.criado ? `${d.nome} criado` : "Alterações salvas");
+      if (d.linkAcesso) onLink(d.nome, d.linkAcesso);
     });
   };
 
-  const desativar = () =>
+  const desativar = () => {
+    if (!usuario) return;
     iniciar(async () => {
-      const r = await alternarAtivoUsuarioAction(usuario!.id, false);
+      const r = await alternarAtivoUsuarioAction(usuario.id, false);
       if (r.ok) {
         onClose();
-        toast(`Acesso de ${usuario!.nome} desativado`);
+        avisarDesativado(usuario);
       } else setErroGeral(r.erro);
     });
+  };
 
-  const novoLink = () =>
+  const novoLink = () => {
+    if (!usuario) return;
     iniciar(async () => {
-      const r = await gerarLinkAcessoAction(usuario!.id);
+      const r = await gerarLinkAcessoAction(usuario.id);
       if (r.ok && r.dados) {
         onClose();
-        onLink(usuario!.nome, r.dados);
+        onLink(usuario.nome, r.dados);
       } else if (!r.ok) setErroGeral(r.erro);
     });
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -122,8 +139,12 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
             <label htmlFor="u-nome" className="mb-1.5 block text-[13px] font-medium text-ink-2">
               Nome
             </label>
-            <input id="u-nome" autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} aria-invalid={Boolean(erros.nome)} className={campo} />
-            {erros.nome && <p className="mb-0 mt-[5px] text-[12px] text-danger">{erros.nome}</p>}
+            <input id="u-nome" autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} aria-invalid={Boolean(erros.nome)} aria-describedby={erros.nome ? "u-nome-erro" : undefined} className={campo} />
+            {erros.nome && (
+              <p id="u-nome-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
+                {erros.nome}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="u-email" className="mb-1.5 block text-[13px] font-medium text-ink-2">
@@ -136,9 +157,14 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
               readOnly={Boolean(usuario)}
               onChange={(e) => setF({ ...f, email: e.target.value })}
               aria-invalid={Boolean(erros.email)}
+              aria-describedby={erros.email ? "u-email-erro" : undefined}
               className={cn(campo, usuario && "cursor-default bg-subtle text-ink-3")}
             />
-            {erros.email && <p className="mb-0 mt-[5px] text-[12px] text-danger">{erros.email}</p>}
+            {erros.email && (
+              <p id="u-email-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
+                {erros.email}
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="u-perfil" className="mb-1.5 block text-[13px] font-medium text-ink-2">
@@ -158,7 +184,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
               <label htmlFor="u-area" className="mb-1.5 block text-[13px] font-medium text-ink-2">
                 Área
               </label>
-              <select id="u-area" value={f.areaId} onChange={(e) => setF({ ...f, areaId: e.target.value })} aria-invalid={Boolean(erros.areaId)} className={campo}>
+              <select id="u-area" value={f.areaId} onChange={(e) => setF({ ...f, areaId: e.target.value })} aria-invalid={Boolean(erros.areaId)} aria-describedby={erros.areaId ? "u-area-erro" : undefined} className={campo}>
                 <option value="">Selecione</option>
                 {areas.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -166,7 +192,11 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
                   </option>
                 ))}
               </select>
-              {erros.areaId && <p className="mb-0 mt-[5px] text-[12px] text-danger">{erros.areaId}</p>}
+              {erros.areaId && (
+                <p id="u-area-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
+                  {erros.areaId}
+                </p>
+              )}
             </div>
           )}
           {usuario && (
@@ -203,7 +233,9 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
   const alternar = (u: U) =>
     iniciar(async () => {
       const r = await alternarAtivoUsuarioAction(u.id, !u.ativo);
-      toast(r.ok ? `${u.nome} ${u.ativo ? "desativado" : "reativado"}` : r.erro);
+      if (!r.ok) toastErro(r.erro);
+      else if (u.ativo) avisarDesativado(u);
+      else toast(`${u.nome} reativado`);
     });
 
   return (

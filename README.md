@@ -11,7 +11,7 @@ Especificação completa: [docs/01-analise-e-especificacao.md](docs/01-analise-e
 - Next.js 16 (App Router, Server Actions) + TypeScript + Tailwind CSS 4
 - Drizzle ORM sobre PostgreSQL. Sem `DATABASE_URL`, usa PostgreSQL embutido (PGlite) em `./.data/pglite` — nada para instalar localmente.
 - Autenticação própria (sessão em cookie HttpOnly), permissões verificadas no servidor.
-- Testes: Vitest (domínio) e teste de fumaça dos serviços (`npm run test:smoke`).
+- Testes: Vitest (domínio + integração dos services com PGlite em memória) e teste de fumaça contra o banco (`npm run test:smoke`). CI em `.github/workflows/ci.yml`.
 
 ## Rodando localmente
 
@@ -21,7 +21,7 @@ npm run setup      # migrações + dados de demonstração
 npm run dev        # http://localhost:3000
 ```
 
-Usuários de demonstração (senha de todos: `norte1234`). Fora de produção, a tela de login mostra o bloco "Demonstração — entrar como" com um clique por perfil:
+Usuários de demonstração (senha de todos: `norte1234`). Localmente, a tela de login mostra o bloco "Demonstração — entrar como" com um clique por perfil:
 
 | Perfil | E-mail |
 |---|---|
@@ -32,13 +32,33 @@ Usuários de demonstração (senha de todos: `norte1234`). Fora de produção, a
 | Requisitante (Ativação / Gráfica / Atendimento) | julia.fontes@ · diego.sampaio@ · lucia.barros@nortemkt.com.br |
 | Administrador | admin@nortemkt.com.br |
 
-Recomeçar do zero: `npm run db:reset && npm run setup`.
+As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos vencendo). Para uma apresentação, recarregue os dados **no dia**: `npm run db:reset && npm run setup` (local).
+
+## Variáveis de ambiente
+
+| Variável | Onde | Para quê |
+|---|---|---|
+| `DATABASE_URL` | Replit (automática) | PostgreSQL. Vazia = PGlite local. |
+| `PGLITE_DATA_DIR` | local, opcional | Pasta do PGlite (padrão `./.data/pglite`; `memory://` nos testes). |
+| `APP_URL` | produção | URL pública: links de acesso gerados pelo administrador e origem liberada para Server Actions. |
+| `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração no Replit/produção (qualquer pessoa com o link entra como qualquer perfil). Local já aparece; `false` esconde. |
+| `DB_POOL_MAX` | opcional | Conexões por instância (padrão 5). |
+| `SEED_DEMO` | opcional | `true` permite rodar o seed com `NODE_ENV=production`. |
+
+## Regras de negócio que mais importam
+
+- **Fases do evento:** Preparação (áreas enviam necessidades) → Em reunião (logística consolida a ata) → Aberto a alterações (ata fechada, OS v1) → Encerrado. Só a gestão reabre. Cancelar cancela o que estiver em aberto.
+- **Resposta por item:** atendido, parcial (quantidade + motivo) ou não atendido (motivo). Cada resposta a uma alteração pós-ata gera uma nova versão da OS; "Atender tudo" gera uma só.
+- **Efeito na ata:** respostas, correções e "desfazer" aplicam só a diferença na linha, sem apagar mudanças feitas depois por outra solicitação ou por ajuste da logística, e nunca trazem de volta uma linha que outra ação removeu (`calcularEfeitoLinha`, em `src/domain/solicitacao.ts`).
+- **Concorrência:** toda mutação que mexe na ata, na OS ou na fase trava o evento (`bloquearEvento`): duas pessoas na reunião respondem uma depois da outra, sem linha duplicada.
+- **Fechamentos automáticos:** fechar a ata cancela necessidades pré-reunião que ficaram em rascunho; encerrar com o bloqueio desligado cancela solicitações sem resposta (com aviso à área).
+- **Visibilidade:** requisitante e cenografia veem só as solicitações e o histórico da própria área.
 
 ## Códigos e rotas
 
 - Códigos sequenciais: eventos `EVT-0001`, solicitações `SOL-0001`, projetos `PRJ-0001`.
 - `/` painel por perfil · `/eventos` · `/eventos/[id]` (visão geral, ata, consolidar ata, solicitações, OS, histórico) · `/solicitacoes` (`?filtro=ABERTAS|ATRASADAS|RASCUNHO|RESPONDIDA|TODAS`, `?fila=1` no detalhe) · `/solicitacoes/nova` (`?evento=` e `?rascunho=`) · `/biblioteca` (`?aba=pecas`) · `/consolidacao` (`?dias=15|30|60`) · `/admin` (`?aba=areas|config`) · `/notificacoes`.
-- `/arena` Arena 3D do evento (primeiro caso: Eco Run SP 2026, a partir do mapa de arena R03 e da ata de OS). Detalhes em docs/02-entregaveis.md §18.
+- `/arena` Arena 3D do evento (primeiro caso: Eco Run SP 2026, a partir do mapa de arena R03 e da ata de OS). **Os dados da arena são estáticos** (`src/domain/arena/eco-run-sp-2026.ts`), ainda não ligados aos eventos do banco. Detalhes em docs/02-entregaveis.md §18.
 - Busca global: `Ctrl/⌘ + K`.
 
 ## Scripts
@@ -47,32 +67,41 @@ Recomeçar do zero: `npm run db:reset && npm run setup`.
 |---|---|
 | `npm run dev` / `build` / `start` | desenvolvimento / build de produção / servidor de produção |
 | `npm run db:generate` | gera migração SQL a partir de `src/server/db/schema.ts` |
-| `npm run db:migrate` | aplica migrações (PGlite ou Postgres, conforme `DATABASE_URL`) |
+| `npm run db:migrate` | aplica migrações (PGlite ou Postgres; no Postgres com advisory lock) |
 | `npm run db:seed` | dados de demonstração (só em banco vazio) |
-| `npm run db:reset` | apaga tudo |
-| `npm test` | testes unitários do domínio |
-| `npm run test:smoke` | cenários de negócio contra o banco (rode após `setup`) |
+| `npm run db:reset` | **apaga tudo**. Com `DATABASE_URL`, exige `-- --force` |
+| `npm test` | testes de domínio e de integração (PGlite em memória, não toca no seu banco) |
+| `npm run test:smoke` | cenários de negócio contra o banco atual — **altera os dados**; rode logo após `setup` |
 | `npm run typecheck` / `lint` | TypeScript / ESLint |
 
-## Deploy no Replit
+## Replit
 
-1. Importe o repositório no Replit. O arquivo `.replit` já define Node 24, PostgreSQL 16, build (`npm ci && npm run build`) e run (`npm run db:migrate && npm run start`) para deployment Autoscale, porta 3000.
-2. Crie o banco PostgreSQL do Replit (aba Database). A variável `DATABASE_URL` é injetada automaticamente.
-3. Em Secrets, defina `APP_SECRET` (valor aleatório) e `APP_URL` (URL pública do deployment). Opcional: `EXIBIR_DEMO=true` mostra o bloco de login de demonstração também em produção (útil para apresentar com os dados do seed; não use com dados reais).
-4. No Shell do Replit, rode uma vez: `npm run setup` (migrações + dados de demonstração). Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro usuário administrador com `npm run db:seed` seguido de limpeza, ou ajuste o seed.
-5. Publique o deployment.
+**Desenvolvimento / demonstração (botão Run).** O `.replit` roda `npm run setup && npm run dev` na porta 3000 e liga `EXIBIR_DEMO="true"`. Para atualizar o código e recarregar os dados de demonstração:
 
-Sem SMTP no MVP: a recuperação de senha gera um link registrado no log do servidor (e exibido na tela fora de produção). Ao criar um usuário, o administrador recebe na tela um link de acesso (válido por 7 dias, uso único) para enviar à pessoa definir a senha. Configure e-mail antes de liberar para todos.
+```bash
+git fetch origin && git reset --hard origin/main && npm install
+npm run db:reset -- --force && npm run setup
+```
+
+Depois clique em Run. **Antes de colocar dados reais**, troque `EXIBIR_DEMO` para `"false"` no `.replit`.
+
+**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública. Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com o seed (`SEED_DEMO=true npm run db:seed`), troque a senha dele pelo perfil e desative os usuários de demonstração em Administração.
+
+**Login falhando com "Invalid Server Actions request".** A origem do navegador não está liberada. As origens vêm de `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` e `APP_URL` (`next.config.ts`); o `proxy.ts` registra `[origem-action]` no console com origin e host quando eles divergem.
+
+**Sem e-mail no MVP.** Ao criar um usuário, o administrador recebe um link de acesso (7 dias, uso único) para enviar à pessoa. "Esqueci minha senha" não mostra link: avisa os administradores, que geram um novo link na tela de usuários.
+
+**Backup.** O banco do Replit é a única cópia. Exporte antes de mudanças grandes (`pg_dump "$DATABASE_URL" > backup.sql` no Shell) e guarde fora do Replit.
 
 ## Estrutura
 
 ```
 src/
   app/            rotas (App Router): (auth), (app), api, impressao
-  components/     ui/ (primitivas) e por funcionalidade (eventos, solicitacoes, projetos, ...)
-  domain/         regras puras + testes: permissões, máquinas de estado, cálculo de OS, consolidação
-  server/         auth, db (drizzle), services (casos de uso), jobs (verificações de prazo)
-  lib/            formatação, schemas zod, helpers de action
+  components/     ui/ (primitivas) e por funcionalidade (eventos, solicitacoes, projetos, arena, ...)
+  domain/         regras puras + testes: permissões, máquinas de estado, cálculo de OS, efeito na ata, consolidação
+  server/         auth, db (drizzle), services (casos de uso + integracao.test.ts), jobs (verificações de prazo)
+  lib/            formatação, schemas zod, helpers de action e redirecionamento seguro
 scripts/          migrate, seed, reset, smoke
 drizzle/          migrações SQL
 docs/             especificação, entregáveis e design-handoff/ (protótipo e especificação visual)

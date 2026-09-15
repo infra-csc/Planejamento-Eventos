@@ -1,8 +1,9 @@
-import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { Children, cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
+/* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). */
 const base =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
+  "w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(base, "h-[34px]", className)} {...rest} />;
@@ -20,12 +21,23 @@ export function Label({ htmlFor, children, className, optional, obrigatorio }: {
   return (
     <label htmlFor={htmlFor} className={cn("mb-[5px] block text-[12.5px] text-ink-2", className)}>
       {children}
-      {obrigatorio && <span className="text-danger"> *</span>}
+      {obrigatorio && (
+        <span className="text-danger" aria-hidden>
+          {" "}
+          *
+        </span>
+      )}
       {optional && <span className="text-meta"> (opcional)</span>}
     </label>
   );
 }
 
+type PropsAria = { "aria-describedby"?: string; "aria-invalid"?: boolean | "true" | "false"; "aria-required"?: boolean };
+
+/**
+ * Rótulo + campo + mensagem. Com `htmlFor`, liga a mensagem (erro ou dica) ao campo por
+ * `aria-describedby` e marca `aria-invalid`/`aria-required`: o leitor de tela anuncia o motivo do erro.
+ */
 export function Field({
   label,
   htmlFor,
@@ -45,6 +57,16 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
+  const idMensagem = htmlFor && (error || hint) ? `${htmlFor}-${error ? "erro" : "dica"}` : undefined;
+  const unico = Children.count(children) === 1 && isValidElement<PropsAria>(children) ? children : null;
+  const campo =
+    unico && htmlFor
+      ? cloneElement(unico, {
+          "aria-describedby": [unico.props["aria-describedby"], idMensagem].filter(Boolean).join(" ") || undefined,
+          ...(error ? { "aria-invalid": true } : {}),
+          ...(obrigatorio ? { "aria-required": true } : {}),
+        })
+      : children;
   return (
     <div className={cn("min-w-0", className)}>
       {label && (
@@ -52,8 +74,16 @@ export function Field({
           {label}
         </Label>
       )}
-      {children}
-      {error ? <span className="mt-[5px] block text-[12px] text-danger">{error}</span> : hint ? <p className="mt-1.5 text-[12px] leading-[1.45] text-muted">{hint}</p> : null}
+      {campo}
+      {error ? (
+        <span id={idMensagem} className="mt-[5px] block text-[12px] text-danger">
+          {error}
+        </span>
+      ) : hint ? (
+        <p id={idMensagem} className="mt-1.5 text-[12px] leading-[1.45] text-muted">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -84,7 +114,7 @@ export function Checkbox({
         defaultChecked={defaultChecked}
         checked={checked}
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
-        className="mt-[2px] size-[15px] shrink-0 accent-[#8e2740]"
+        className="mt-[2px] size-[15px] shrink-0 accent-accent"
       />
       <span>
         {label}

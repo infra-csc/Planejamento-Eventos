@@ -130,7 +130,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col gap-5">
           <Section titulo="Versões">
             {p.versoes.map((v) => (
-              <div key={v.id} className="border-b border-line-row px-4 py-3 last:border-b-0" style={{ boxShadow: v.numero === p.versaoAtual ? "inset 3px 0 0 #8e2740" : undefined }}>
+              <div key={v.id} className="border-b border-line-row px-4 py-3 last:border-b-0" style={{ boxShadow: v.numero === p.versaoAtual ? "inset 3px 0 0 var(--color-accent)" : undefined }}>
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-[13px] font-semibold">v{v.numero}</span>
                   <span className="flex-1 font-mono text-[11.5px] text-muted">{diaMesHora(v.criadoEm)}</span>

@@ -12,12 +12,6 @@ export function formatarDataHora(d: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: TZ }).format(date);
 }
 
-export function formatarDataCurta(d: Date | string | null | undefined): string {
-  if (!d) return "—";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: TZ }).format(date).replace(".", "");
-}
-
 export function formatarPeriodo(inicio: string, fim: string): string {
   if (inicio === fim) return formatarData(inicio);
   return `${formatarData(inicio)} – ${formatarData(fim)}`;
@@ -48,14 +42,6 @@ export function tempoRelativo(d: Date | string, agora = new Date()): string {
   else txt = `${dias} dias`;
   if (txt === "agora") return txt;
   return diff > 0 ? `em ${txt}` : `há ${txt}`;
-}
-
-export function numero(n: number): string {
-  return new Intl.NumberFormat("pt-BR").format(n);
-}
-
-export function plural(n: number, singular: string, pluralForm: string): string {
-  return `${numero(n)} ${n === 1 ? singular : pluralForm}`;
 }
 
 export function iniciais(nome: string): string {

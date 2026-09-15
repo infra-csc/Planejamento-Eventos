@@ -60,34 +60,6 @@ export const eventoSchema = z
 
 export const justificativaSchema = z.object({ justificativa: texto(500, "Informe a justificativa") });
 
-export const solicitacaoCabecalhoSchema = z.object({
-  titulo: textoOpcional(120),
-  observacao: textoOpcional(1000),
-});
-
-export const solicitacaoItemSchema = z
-  .object({
-    operacao: z.enum(ITEM_OPERACOES),
-    referenciaTipo: z.enum(["PROJETO", "PECA", "AVULSO"]).optional(),
-    projetoId: textoOpcional(64),
-    pecaId: textoOpcional(64),
-    descricaoLivre: textoOpcional(160),
-    eventoItemId: textoOpcional(64),
-    quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0),
-    destino: textoOpcional(60),
-    justificativa: textoOpcional(500),
-  })
-  .transform((d) => {
-    // Mantém apenas a referência escolhida
-    if (d.operacao === "ADICIONAR") {
-      if (d.referenciaTipo === "PROJETO") return { ...d, pecaId: null, descricaoLivre: null, eventoItemId: null };
-      if (d.referenciaTipo === "PECA") return { ...d, projetoId: null, descricaoLivre: null, eventoItemId: null };
-      if (d.referenciaTipo === "AVULSO") return { ...d, projetoId: null, pecaId: null, eventoItemId: null };
-      return { ...d, eventoItemId: null };
-    }
-    return { ...d, projetoId: null, pecaId: null, descricaoLivre: null };
-  });
-
 export const respostaItemSchema = z.object({
   status: z.enum(ITEM_STATUS),
   quantidadeAtendida: z.coerce.number().int().min(0).optional(),

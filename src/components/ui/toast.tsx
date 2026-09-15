@@ -119,7 +119,7 @@ export function Toaster() {
             <div
               key={t.id}
               className={cn(
-                "flex animate-fade-up-rapido items-center gap-2.5 rounded-[10px] px-4 py-3 text-white shadow-[0_12px_32px_rgba(42,20,24,.28)]",
+                "flex animate-fade-up-rapido items-center gap-2.5 rounded-cartao px-4 py-3 text-white shadow-toast",
                 t.tipo === "erro" ? "bg-danger" : "bg-dark",
               )}
               role={t.tipo === "erro" ? "alert" : undefined}

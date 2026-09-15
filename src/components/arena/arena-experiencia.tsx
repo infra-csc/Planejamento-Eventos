@@ -504,7 +504,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
                       type="checkbox"
                       checked={camadas[c.id]}
                       onChange={(e) => setCamadas((v) => ({ ...v, [c.id]: e.target.checked }))}
-                      className="mt-0.5 size-4 accent-[#8e2740]"
+                      className="mt-0.5 size-4 accent-accent"
                     />
                     <span className="min-w-0">
                       <span className="block text-[13px] text-ink">{c.rotulo}</span>
@@ -633,7 +633,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
                 setEstado("carregando");
                 setTentativa((t) => t + 1);
               }}
-              className="h-8 shrink-0 cursor-pointer rounded-[7px] border border-line-strong bg-surface px-2.5 text-[12px] text-ink hover:bg-subtle"
+              className="h-8 shrink-0 cursor-pointer rounded-[7px] border border-line-control bg-surface px-2.5 text-[12px] text-ink hover:bg-subtle"
             >
               Tentar de novo
             </button>
@@ -686,7 +686,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
             setSelecionado(null);
             setSemPosicao(true);
           }}
-          className="h-8 cursor-pointer rounded-[7px] border border-line-strong bg-surface px-3 text-[12.5px] text-ink-2 hover:bg-subtle"
+          className="h-8 cursor-pointer rounded-[7px] border border-line-control bg-surface px-3 text-[12.5px] text-ink-2 hover:bg-subtle"
         >
           Sem posição no mapa ({foraDoMapa})
         </button>

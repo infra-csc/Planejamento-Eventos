@@ -95,7 +95,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     href={hrefCom("/biblioteca", {}, { p: p.id })}
                     scroll={false}
                     aria-current={sel ? "true" : undefined}
-                    className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 no-underline last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_#8e2740]")}
+                    className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 no-underline last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">

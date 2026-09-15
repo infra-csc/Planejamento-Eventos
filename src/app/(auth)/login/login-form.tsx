@@ -17,7 +17,7 @@ const PERFIS_DEMO = [
   { nome: "Administrador do Sistema", perfil: "Administrador", email: "admin@nortemkt.com.br" },
 ];
 
-const campo = "h-[42px] w-full rounded-lg border border-line-strong bg-surface px-3 text-[14.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
+const campo = "h-[42px] w-full rounded-lg border border-line-control bg-surface px-3 text-[14.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
 
 export function LoginForm({ next, redefinida, demo }: { next: string; redefinida: boolean; demo: boolean }) {
   const [state, action] = useActionState(loginAction, ESTADO_INICIAL);

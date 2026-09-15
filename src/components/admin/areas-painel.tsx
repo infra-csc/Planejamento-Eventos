@@ -44,11 +44,11 @@ function ModalArea({ area, onClose }: { area: A | null; onClose: () => void }) {
             <label htmlFor="a-nome" className="mb-1.5 block text-[13px] font-medium text-ink-2">
               Nome
             </label>
-            <input id="a-nome" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} aria-invalid={Boolean(erro)} className="h-9 w-full rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input" />
+            <input id="a-nome" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} aria-invalid={Boolean(erro)} className="h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input" />
             {erro && <p className="mb-0 mt-[5px] text-[12px] text-danger">{erro}</p>}
           </div>
           <label className="flex items-center gap-2 text-[13px] text-ink-2">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="size-[15px] accent-[#8e2740]" />
+            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="size-[15px] accent-accent" />
             Área ativa
           </label>
           <DialogFooter>

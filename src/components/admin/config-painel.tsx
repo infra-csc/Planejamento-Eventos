@@ -49,7 +49,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
               max={l.max}
               value={v[l.chave] ?? ""}
               onChange={(e) => setV({ ...v, [l.chave]: e.target.value })}
-              className="h-9 w-[84px] rounded-lg border border-line-strong bg-surface px-2.5 text-right font-mono text-[13.5px] focus:border-accent focus:outline-none"
+              className="h-9 w-[84px] rounded-lg border border-line-control bg-surface px-2.5 text-right font-mono text-[13.5px] focus:border-accent focus:outline-none"
             />
             <span className="w-8 text-[12.5px] text-muted">{l.unidade}</span>
           </span>
@@ -60,7 +60,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
           <span className="block text-[13.5px] font-medium text-ink">Bloquear encerramento com solicitações abertas</span>
           <span className="mt-0.5 block text-[12.5px] text-muted">Recomendado. Desmarcado, a logística encerra mesmo com itens sem resposta.</span>
         </label>
-        <input id="bloquear" type="checkbox" checked={v.bloquear_encerramento_com_pendentes === "true"} onChange={(e) => setV({ ...v, bloquear_encerramento_com_pendentes: String(e.target.checked) })} className="size-[17px] accent-[#8e2740]" />
+        <input id="bloquear" type="checkbox" checked={v.bloquear_encerramento_com_pendentes === "true"} onChange={(e) => setV({ ...v, bloquear_encerramento_com_pendentes: String(e.target.checked) })} className="size-[17px] accent-accent" />
       </div>
       <div className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
         <span className="min-w-0 flex-1">
