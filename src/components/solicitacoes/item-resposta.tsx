@@ -373,7 +373,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
 
 export function DicaAtalhos() {
   return (
-    <span className="flex items-center gap-2.5">
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
       <span className="text-[11.5px] text-meta">atalhos com um item selecionado:</span>
       {([["A", "atender"], ["P", "parcial"], ["N", "não atender"]] as const).map(([k, o]) => (
         <span key={k} className="flex items-center gap-1 text-[11.5px] text-meta">

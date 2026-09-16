@@ -99,8 +99,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 no-underline last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="text-[14px] font-medium text-ink">{p.nome}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate text-[14px] font-medium text-ink">{p.nome}</span>
                         <span className="rounded-[5px] bg-control px-1.5 font-mono text-[11px] text-ink-3">v{p.versaoAtual}</span>
                       </span>
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted">
@@ -108,8 +108,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                         {p.descricao ? ` · ${p.descricao}` : ""}
                       </span>
                     </span>
-                    <span className="w-[92px] shrink-0 text-[12.5px] text-ink-3">{p.categoria || "—"}</span>
-                    <span className="w-[64px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.tiposPeca} tipos</span>
+                    <span className="w-[92px] shrink-0 text-[12.5px] text-ink-3 max-xl:hidden">{p.categoria || "—"}</span>
+                    <span className="w-[64px] shrink-0 text-right font-mono text-[12.5px] text-ink-2 max-xl:hidden">{p.tiposPeca} tipos</span>
                     <span className="w-[72px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.totalPecas} pç</span>
                     <span className={cn("w-[84px] shrink-0 text-right text-[12px]", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</span>
                   </Link>

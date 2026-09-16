@@ -63,8 +63,8 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start">
         <RespostaProvider itens={todos} sufixoToast="ata atualizada">
           <div className="flex flex-col gap-3.5">
-            <div className="flex items-center justify-between">
-              <h2 className="m-0 text-[14px] font-semibold">Necessidades enviadas pelas áreas</h2>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+              <h2 className="m-0 whitespace-nowrap text-[14px] font-semibold">Necessidades enviadas pelas áreas</h2>
               {todos.length > 0 && <DicaAtalhos />}
             </div>
 

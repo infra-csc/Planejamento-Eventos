@@ -10,7 +10,7 @@ export type Aba = { href: string; label: string; n?: number | string | null; exa
 export function TabsNav({ tabs, className }: { tabs: Aba[]; className?: string }) {
   const pathname = usePathname();
   return (
-    <nav className={cn("mb-5 flex gap-0.5 overflow-x-auto border-b border-line", className)} aria-label="Seções do evento">
+    <nav className={cn("mb-5 flex gap-0.5 overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none]", className)} aria-label="Seções do evento">
       {tabs.map((t) => {
         const ativo = t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/");
         return (

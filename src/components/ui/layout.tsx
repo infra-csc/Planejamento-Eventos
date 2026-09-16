@@ -61,7 +61,7 @@ export function Section({
   return (
     <Tag className={cn("overflow-hidden rounded-[10px] border border-line bg-surface", className)}>
       {(titulo || acoes) && (
-        <div className="flex items-center justify-between gap-3 border-b border-line-soft px-[18px] py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line-soft px-[18px] py-3.5">
           <div className="min-w-0">
             {titulo && <h2 className="m-0 text-[14px] font-semibold tracking-[-0.01em]">{titulo}</h2>}
             {sub && <p className="mt-0.5 text-[12.5px] text-muted">{sub}</p>}
