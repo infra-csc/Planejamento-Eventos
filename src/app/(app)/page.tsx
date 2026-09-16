@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { dadosPainel, type ItemAgenda, type ItemFila } from "@/server/services/dashboard";
-import { PERFIL_LABEL } from "@/domain/permissions";
+import { pode } from "@/domain/permissions";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
-import { dataExtenso, ultimoAcesso } from "@/lib/format";
+import { dataExtenso } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
 import { Metric, MetricStrip, Section } from "@/components/ui/layout";
-import { PerfilBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
+import { TipoSolicitacaoTag } from "@/components/ui/badge";
 import { AtenderRapido } from "@/components/painel/atender-rapido";
 
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
@@ -77,6 +77,8 @@ export default async function PainelPage() {
   const d = await dadosPainel(usuario);
   const primeiroNome = usuario.nome.split(" ")[0];
   const agora = new Date();
+  // Logística e Administrador respondem: fila com atendimento rápido e modo fila.
+  const responde = pode(usuario, "solicitacao.responder");
 
   let subtitulo: string;
   let acao: { label: string; href: string } | null;
@@ -92,12 +94,9 @@ export default async function PainelPage() {
         : d.reuniaoHoje
           ? { label: "Consolidar ata de hoje", href: `/eventos/${d.reuniaoHoje.id}/reuniao` }
           : { label: "Novo evento", href: "/eventos/novo" };
-  } else if (d.tipo === "requisitante") {
+  } else {
     subtitulo = `Área ${usuario.areaNome ?? ""}: o que você enviou, o que voltou para ajuste e onde ainda dá para pedir alteração.`;
     acao = { label: "Nova solicitação", href: "/solicitacoes/nova" };
-  } else {
-    subtitulo = "Usuários, áreas e configurações do sistema.";
-    acao = { label: "Novo usuário", href: "/admin?novo=1" };
   }
 
   return (
@@ -118,7 +117,7 @@ export default async function PainelPage() {
       {d.tipo === "operacao" && (
         <MetricStrip>
           <Metric
-            label={usuario.perfil === "LOGISTICA" ? "Aguardando sua resposta" : "Aguardando resposta"}
+            label={responde ? "Aguardando sua resposta" : "Aguardando resposta"}
             valor={d.metricas.aguardando}
             hint={d.metricas.atrasadas > 0 ? `${d.metricas.atrasadas} com prazo vencido` : "nenhuma vencida"}
             href="/solicitacoes?filtro=ABERTAS"
@@ -147,14 +146,6 @@ export default async function PainelPage() {
           <Metric label="Eventos aceitando envio" valor={d.metricas.aceitando} hint={`${d.metricas.nPrep} em preparação · ${plural(d.metricas.nAberto, "aberto", "abertos")}`} href="/eventos" />
         </MetricStrip>
       )}
-      {d.tipo === "admin" && (
-        <MetricStrip>
-          <Metric label="Usuários ativos" valor={d.metricas.ativos} hint="com acesso ao sistema" href="/admin?filtro=ATIVOS" />
-          <Metric label="Inativos" valor={d.metricas.inativos} hint="sem acesso" href="/admin?filtro=INATIVOS" />
-          <Metric label="Áreas" valor={d.metricas.areas} hint="requisitantes e logística" href="/admin?aba=areas" />
-          <Metric label="Sem acesso há 30 dias" valor={d.metricas.semAcesso} cor={d.metricas.semAcesso > 0 ? "#7a5f00" : undefined} hint="ativos que não entram" href="/admin" />
-        </MetricStrip>
-      )}
 
       <div className="grid grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)] items-start gap-5">
         <div className="flex flex-col gap-5">
@@ -163,7 +154,7 @@ export default async function PainelPage() {
               titulo="Fila de resposta"
               sub="Ordenada por prazo. O que tem um item só pode ser resolvido aqui."
               acoes={
-                usuario.perfil === "LOGISTICA" && d.fila.length > 0 ? (
+                responde && d.fila.length > 0 ? (
                   <ButtonLink href={`/solicitacoes/${d.fila[0].id}?fila=1`} variant="primary" size="sm" className="no-underline">
                     Modo fila
                   </ButtonLink>
@@ -176,7 +167,7 @@ export default async function PainelPage() {
                   <p className="mt-1 text-[12.5px] text-muted">Nenhuma solicitação aguardando resposta.</p>
                 </div>
               ) : (
-                d.fila.map((f) => <LinhaFila key={f.id} f={f} rapida={usuario.perfil === "LOGISTICA"} />)
+                d.fila.map((f) => <LinhaFila key={f.id} f={f} rapida={responde} />)
               )}
             </Section>
           )}
@@ -221,20 +212,6 @@ export default async function PainelPage() {
             </>
           )}
 
-          {d.tipo === "admin" && (
-            <Section titulo="Acessos recentes" sub="Quem entrou por último e com qual perfil.">
-              {d.recentes.map((u) => (
-                <Link key={u.id} href="/admin" className="flex items-center gap-3 border-b border-line-row px-[18px] py-3 no-underline last:border-b-0 hover:bg-subtle">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] text-ink">{u.nome}</span>
-                    <span className="block text-[12px] text-muted">{u.areaNome ?? PERFIL_LABEL[u.perfil]}</span>
-                  </span>
-                  <PerfilBadge perfil={u.perfil} />
-                  <span className="basis-[110px] text-right font-mono text-[12px] text-muted">{u.ativo ? ultimoAcesso(u.ultimoAcessoEm, agora) : "inativo"}</span>
-                </Link>
-              ))}
-            </Section>
-          )}
         </div>
 
         <div className="flex flex-col gap-5">

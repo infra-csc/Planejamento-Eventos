@@ -202,6 +202,23 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
   });
 });
 
+describe("administrador com acesso total", { timeout: 30_000 }, () => {
+  it("cria solicitação em nome de uma área, responde e reabre evento encerrado", async () => {
+    const db = await getDb();
+    const [u] = await db.insert(usuarios).values({ nome: "Admin Teste", email: "admin.teste@teste.local", perfil: "ADMIN", areaId: null, senhaHash: "x" }).returning();
+    const admin: UsuarioAtual = { id: u.id, nome: u.nome, email: u.email, perfil: "ADMIN", areaId: null, areaNome: null };
+    const { ev } = await eventoAberto();
+    await expect(salvarSolicitacaoCompleta(admin, { eventoId: ev.id, titulo: "Sem área", observacao: null, enviar: false, itens: [] })).rejects.toThrow(/área/);
+    const r = await salvarSolicitacaoCompleta(admin, { eventoId: ev.id, areaId: producao.areaId, titulo: "Pedido do admin", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Tenda extra", quantidadeSolicitada: 1 }] });
+    expect(r.enviada).toBe(true);
+    const s = await obterSolicitacao(admin, r.id);
+    expect(s.areaId).toBe(producao.areaId);
+    await responderItem(admin, s.itens[0].id, { status: "ATENDIDO" });
+    await transicionarEvento(admin, ev.id, "ENCERRAR");
+    await expect(transicionarEvento(admin, ev.id, "REABRIR", "Exceção aprovada")).resolves.toBeTruthy();
+  });
+});
+
 describe("consultas otimizadas", { timeout: 30_000 }, () => {
   it("lista de solicitações pagina e conta no banco, respeitando a área", async () => {
     const { ev } = await eventoAberto();

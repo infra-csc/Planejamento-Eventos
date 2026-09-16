@@ -137,6 +137,8 @@ const textoLivre = (max: number) => z.string().trim().max(max, `Máximo de ${max
 export const solicitacaoCompletaSchema = z.object({
   id: idOpcional,
   eventoId: z.string().min(1, "Escolha o evento"),
+  /** Só o Administrador escolhe a área; os demais perfis usam a própria. */
+  areaId: idOpcional,
   titulo: textoLivre(120),
   observacao: textoLivre(1000),
   enviar: z.boolean(),

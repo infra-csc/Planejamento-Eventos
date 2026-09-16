@@ -31,7 +31,9 @@ export function AcoesEvento({
   const base = `/eventos/${evento.id}`;
 
   const botoes: React.ReactNode[] = [];
-  if (perfil === "LOGISTICA") {
+  // Administrador tem acesso total: vê os botões da Logística e o de reabrir da Gestão.
+  const admin = perfil === "ADMIN";
+  if (perfil === "LOGISTICA" || admin) {
     if (evento.status === "PREPARACAO") {
       botoes.push(
         <Button key="iniciar" variant="primary" size="lg" onClick={() => setAcao("INICIAR_REUNIAO")}>
@@ -84,7 +86,7 @@ export function AcoesEvento({
       );
     }
   }
-  if (perfil === "GESTAO" && evento.status === "ENCERRADO") {
+  if ((perfil === "GESTAO" || admin) && evento.status === "ENCERRADO") {
     botoes.push(
       <Button key="reabrir" variant="secondary" size="lg" onClick={() => setAcao("REABRIR")}>
         Reabrir em exceção

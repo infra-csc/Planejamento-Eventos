@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventos, solicitacaoItens, solicitacoes, usuarios, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
+import { eventos, solicitacaoItens, solicitacoes, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { ehRequisitante, pode } from "@/domain/permissions";
 import { addDiasISO, diaMesHora, diaMesISO, diaSemanaCurto, hojeISO, hora, isoSP } from "@/lib/format";
@@ -158,26 +158,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     };
   }
 
-  if (usuario.perfil === "ADMIN") {
-    const [us, [{ n: nAreas }]] = await Promise.all([
-      db.query.usuarios.findMany({ with: { area: true }, orderBy: [desc(usuarios.ultimoAcessoEm)] }),
-      db.select({ n: count() }).from(areas).where(eq(areas.ativo, true)),
-    ]);
-    const ativos = us.filter((u) => u.ativo);
-    return {
-      tipo: "admin" as const,
-      agenda: agenda.slice(0, 6),
-      metricas: {
-        ativos: ativos.length,
-        inativos: us.length - ativos.length,
-        areas: Number(nAreas),
-        semAcesso: ativos.filter((u) => !u.ultimoAcessoEm || agora.getTime() - u.ultimoAcessoEm.getTime() > 30 * 86_400_000).length,
-      },
-      recentes: us.slice(0, 8).map((u) => ({ id: u.id, nome: u.nome, perfil: u.perfil, areaNome: u.area?.nome ?? null, ultimoAcessoEm: u.ultimoAcessoEm, ativo: u.ativo })),
-    };
-  }
-
-  // Logística e Gestão
+  // Logística, Gestão e Administrador (acesso total: vê a operação; usuários ficam em /admin)
   const abertas = await db.query.solicitacoes.findMany({
     where: and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])),
     with: {

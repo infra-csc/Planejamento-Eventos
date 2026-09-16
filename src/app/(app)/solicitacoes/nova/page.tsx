@@ -4,6 +4,7 @@ import { requirePermissao } from "@/server/auth/session";
 import { linhasAtaResumidas, listarEventos, opcoesReferencias } from "@/server/services/eventos";
 import { obterSolicitacao } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
+import { listarAreas } from "@/server/services/admin";
 import { getDb } from "@/server/db";
 import { podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEnviar } from "@/domain/solicitacao";
@@ -27,7 +28,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     : null;
   if (rascunho && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
 
-  const [todos, opcoes, config] = await Promise.all([listarEventos(usuario), opcoesReferencias(), obterConfiguracoes(await getDb())]);
+  const [todos, opcoes, config, todasAreas] = await Promise.all([listarEventos(usuario), opcoesReferencias(), obterConfiguracoes(await getDb()), usuario.perfil === "ADMIN" ? listarAreas() : Promise.resolve(null)]);
+  // Administrador pede em nome de uma área: escolhe qual no formulário.
+  const areasAdmin = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
   const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
   // Linhas da ata de todos os eventos abertos numa consulta só.
   const linhasPorEvento = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
@@ -71,6 +74,8 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       <NovaSolicitacaoForm
         rascunho={rascunho ? { id: rascunho.id, codigo: rascunho.codigo, titulo: rascunho.titulo ?? "", observacao: rascunho.observacao ?? "", eventoId: rascunho.eventoId, devolvidaMotivo: rascunho.status === "DEVOLVIDA" ? rascunho.devolvidaMotivo : null } : null}
         eventos={eventos}
+        areas={areasAdmin}
+        areaInicial={rascunho?.areaId ?? null}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · ") }))}

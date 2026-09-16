@@ -29,7 +29,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   INICIAR_REUNIAO: {
     de: ["PREPARACAO"],
     para: "EM_REUNIAO",
-    perfis: ["LOGISTICA"],
+    perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: false,
     label: "Iniciar reunião",
     descricao: "Bloqueia novos envios de necessidades e abre a consolidação da ata.",
@@ -37,7 +37,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   VOLTAR_PREPARACAO: {
     de: ["EM_REUNIAO"],
     para: "PREPARACAO",
-    perfis: ["LOGISTICA"],
+    perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: true,
     label: "Voltar para preparação",
     descricao: "Reunião adiada: as áreas voltam a poder enviar necessidades.",
@@ -45,7 +45,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   FECHAR_ATA: {
     de: ["EM_REUNIAO"],
     para: "ABERTO",
-    perfis: ["LOGISTICA"],
+    perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: false,
     label: "Fechar ata",
     descricao: "Congela a ata, gera a OS v1 e abre o evento para solicitações de alteração.",
@@ -53,7 +53,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   ENCERRAR: {
     de: ["ABERTO"],
     para: "ENCERRADO",
-    perfis: ["LOGISTICA"],
+    perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: false,
     label: "Encerrar para alterações",
     descricao: "Nenhuma solicitação nova entra. A OS final é gerada.",
@@ -61,7 +61,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   REABRIR: {
     de: ["ENCERRADO"],
     para: "ABERTO",
-    perfis: ["GESTAO"],
+    perfis: ["GESTAO", "ADMIN"],
     exigeJustificativa: true,
     label: "Reabrir em exceção",
     descricao: "Exceção aprovada pela gestão: o evento volta a aceitar alterações.",
@@ -69,7 +69,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
   CANCELAR: {
     de: ["PREPARACAO", "EM_REUNIAO", "ABERTO"],
     para: "CANCELADO",
-    perfis: ["LOGISTICA"],
+    perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: true,
     label: "Cancelar evento",
     descricao: "Cancela o evento e todas as solicitações em aberto.",

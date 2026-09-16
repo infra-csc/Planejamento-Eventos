@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { aceitaSolicitacao, janelaPreReuniaoAberta, tipoSolicitacaoParaStatus } from "@/domain/evento";
@@ -233,10 +233,16 @@ async function verificarJanelaPreReuniao(ex: Executor, ev: { dataReuniao: Date }
   }
 }
 
-async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: string) {
+async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: string, areaEscolhida?: string | null) {
   exigir(usuario, "solicitacao.criar");
-  const areaId = usuario.areaId;
-  if (!areaId) throw new DomainError("Seu usuário não está vinculado a uma área. Peça ao administrador.");
+  const admin = usuario.perfil === "ADMIN";
+  // O Administrador pede em nome de uma área que ele escolhe; os demais perfis, pela própria área.
+  const areaId = admin ? (areaEscolhida ?? usuario.areaId) : usuario.areaId;
+  if (!areaId) throw new ValidacaoError(admin ? "Escolha a área que está pedindo." : "Seu usuário não está vinculado a uma área. Peça ao administrador.", admin ? { areaId: "Escolha a área." } : undefined);
+  if (admin) {
+    const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)) });
+    if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
+  }
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
   if (!ev) throw new NaoEncontradoError("Evento");
   const tipo = tipoSolicitacaoParaStatus(ev.status);
@@ -255,9 +261,9 @@ async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: st
   return s;
 }
 
-export async function criarRascunho(usuario: UsuarioAtual, eventoId: string) {
+export async function criarRascunho(usuario: UsuarioAtual, eventoId: string, areaId?: string | null) {
   const db = await getDb();
-  return db.transaction((tx) => criarRascunhoTx(tx, usuario, eventoId));
+  return db.transaction((tx) => criarRascunhoTx(tx, usuario, eventoId, areaId));
 }
 
 /**
@@ -265,7 +271,7 @@ export async function criarRascunho(usuario: UsuarioAtual, eventoId: string) {
  * fica preservado para consulta); excluir continua permitido.
  */
 async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string, opcoes: { permitirEventoFechado?: boolean } = {}) {
-  const s = await ex.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { evento: true, itens: true } });
+  const s = await ex.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { evento: true, itens: true, area: true } });
   if (!s) throw new NaoEncontradoError("Solicitação");
   if (!podeEditarSolicitacao(usuario, s)) throw new SemPermissaoError("Só usuários da área da solicitação podem editá-la.");
   if (!podeEnviar(s.status)) throw new DomainError("Esta solicitação não está mais em rascunho.");
@@ -352,6 +358,8 @@ export async function excluirRascunho(usuario: UsuarioAtual, id: string) {
 export type DadosSolicitacaoCompleta = {
   id?: string | null;
   eventoId: string;
+  /** Usado só quando quem cria é o Administrador. */
+  areaId?: string | null;
   titulo: string | null;
   observacao: string | null;
   enviar: boolean;
@@ -382,7 +390,7 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
       s = await carregarEditavel(tx, usuario, dados.id);
       if (s.eventoId !== dados.eventoId) throw new DomainError("Para trocar de evento, exclua este rascunho e crie outro.");
     } else {
-      const novo = await criarRascunhoTx(tx, usuario, dados.eventoId);
+      const novo = await criarRascunhoTx(tx, usuario, dados.eventoId, dados.areaId);
       s = await carregarEditavel(tx, usuario, novo.id);
     }
     await tx
@@ -449,14 +457,14 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
       entidade: "solicitacao",
       entidadeId: id,
       acao: "ENVIADA",
-      descricao: `${s.codigo} enviada pela ${usuario.areaNome ?? "área"} — ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"} · prazo ${formatarDataHora(prazo)}`,
+      descricao: `${s.codigo} enviada pela ${s.area.nome}${usuario.perfil === "ADMIN" ? " (pelo administrador)" : ""} — ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"} · prazo ${formatarDataHora(prazo)}`,
       usuarioId: usuario.id,
     });
     await notificar(tx, {
       usuarioIds: await usuariosLogistica(tx),
       tipo: "SOLICITACAO_ENVIADA",
       titulo: s.tipo === "PRE_REUNIAO" ? "Nova necessidade pré-reunião" : "Nova solicitação de alteração",
-      mensagem: `${s.codigo} · ${usuario.areaNome ?? "Área"} · ${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}`,
+      mensagem: `${s.codigo} · ${s.area.nome} · ${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}`,
       link: `/solicitacoes/${id}`,
     });
     return { codigo: s.codigo, prazo };

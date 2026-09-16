@@ -3,7 +3,7 @@ import { acoesDisponiveis, aceitaSolicitacao, janelaPreReuniaoAberta, statusExib
 import { classificarHistorico } from "./historico";
 import { prazoInfo } from "@/lib/prazo";
 import { estaAtrasada, podeCancelar, statusAposResposta, validarItem, validarResposta } from "./solicitacao";
-import { pode, podeEditarSolicitacao, podeVerSolicitacao } from "./permissions";
+import { ACOES, pode, podeEditarSolicitacao, podeVerSolicitacao } from "./permissions";
 import { consolidar } from "./consolidacao";
 import { calcularOS } from "./os";
 
@@ -20,6 +20,13 @@ describe("máquina de estados do evento", () => {
     expect(acoesDisponiveis("ENCERRADO", "LOGISTICA")).toEqual([]);
     expect(acoesDisponiveis("ABERTO", "LOGISTICA")).toEqual(["ENCERRAR", "CANCELAR"]);
     expect(acoesDisponiveis("ABERTO", "REQUISITANTE")).toEqual([]);
+  });
+  it("o Administrador tem acesso total", () => {
+    for (const acao of ACOES) expect(pode({ perfil: "ADMIN", areaId: null }, acao)).toBe(true);
+    expect(acoesDisponiveis("ENCERRADO", "ADMIN")).toEqual(["REABRIR"]);
+    expect(acoesDisponiveis("ABERTO", "ADMIN")).toEqual(["ENCERRAR", "CANCELAR"]);
+    expect(podeEditarSolicitacao({ perfil: "ADMIN", areaId: null }, { areaId: "qualquer" })).toBe(true);
+    expect(podeEditarSolicitacao({ perfil: "LOGISTICA", areaId: "a" }, { areaId: "a" })).toBe(false);
   });
   it("aceita cada tipo de solicitação só no estado certo", () => {
     expect(aceitaSolicitacao("PREPARACAO", "PRE_REUNIAO")).toBe(true);

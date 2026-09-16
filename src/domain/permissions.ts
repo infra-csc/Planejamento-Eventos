@@ -35,25 +35,30 @@ export type Acao = (typeof ACOES)[number];
 const TODOS: Perfil[] = ["REQUISITANTE", "CENOGRAFIA", "LOGISTICA", "GESTAO", "ADMIN"];
 const REQUISITANTES: Perfil[] = ["REQUISITANTE", "CENOGRAFIA"];
 
+/**
+ * O Administrador tem acesso total: toda ação da matriz inclui ADMIN. Ele age em nome de qualquer
+ * perfil (responde, fecha ata, reabre, cria solicitação escolhendo a área) e fica registrado no
+ * histórico com o próprio nome.
+ */
 const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "evento.ver": TODOS,
-  "evento.criar": ["LOGISTICA"],
-  "evento.editar": ["LOGISTICA"],
-  "evento.transicionar": ["LOGISTICA"],
-  "evento.reabrir": ["GESTAO"],
-  "ata.consolidar": ["LOGISTICA"],
-  "ata.ajustar": ["LOGISTICA"],
-  "solicitacao.criar": REQUISITANTES,
+  "evento.criar": ["LOGISTICA", "ADMIN"],
+  "evento.editar": ["LOGISTICA", "ADMIN"],
+  "evento.transicionar": ["LOGISTICA", "ADMIN"],
+  "evento.reabrir": ["GESTAO", "ADMIN"],
+  "ata.consolidar": ["LOGISTICA", "ADMIN"],
+  "ata.ajustar": ["LOGISTICA", "ADMIN"],
+  "solicitacao.criar": [...REQUISITANTES, "ADMIN"],
   "solicitacao.ver_todas": ["LOGISTICA", "GESTAO", "ADMIN"],
-  "solicitacao.responder": ["LOGISTICA"],
+  "solicitacao.responder": ["LOGISTICA", "ADMIN"],
   "os.ver": ["LOGISTICA", "CENOGRAFIA", "GESTAO", "ADMIN"],
   "os.exportar": ["LOGISTICA", "CENOGRAFIA", "GESTAO", "ADMIN"],
   "catalogo.ver": TODOS,
-  "catalogo.gerenciar": ["LOGISTICA", "CENOGRAFIA"],
+  "catalogo.gerenciar": ["LOGISTICA", "CENOGRAFIA", "ADMIN"],
   "projeto.ver": TODOS,
-  "projeto.gerenciar": ["CENOGRAFIA"],
-  "consolidacao.ver": ["LOGISTICA", "GESTAO"],
-  "pendencias.ver": ["LOGISTICA", "GESTAO"],
+  "projeto.gerenciar": ["CENOGRAFIA", "ADMIN"],
+  "consolidacao.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
+  "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],
   "admin.usuarios": ["ADMIN"],
   "admin.areas": ["ADMIN"],
@@ -72,9 +77,10 @@ export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { are
   return usuario.areaId !== null && usuario.areaId === solicitacao.areaId;
 }
 
-/** Rascunhos pertencem à área (RV-07): qualquer usuário da mesma área pode editar e enviar. */
+/** Rascunhos pertencem à área (RV-07): qualquer usuário da mesma área pode editar e enviar. O Administrador edita os de qualquer área. */
 export function podeEditarSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string }): boolean {
-  return pode(usuario, "solicitacao.criar") && usuario.areaId === solicitacao.areaId;
+  if (!pode(usuario, "solicitacao.criar")) return false;
+  return usuario.perfil === "ADMIN" || usuario.areaId === solicitacao.areaId;
 }
 
 export function ehRequisitante(perfil: Perfil): boolean {
@@ -99,5 +105,5 @@ export const PERFIL_DESCRICAO: Record<Perfil, string> = {
   CENOGRAFIA: "Além de solicitar, mantém os projetos padrão e o catálogo de peças.",
   LOGISTICA: "Conduz a reunião, responde item a item, fecha a ata e gera a OS.",
   GESTAO: "Acompanha todos os eventos e é o único perfil que reabre um evento encerrado.",
-  ADMIN: "Gerencia usuários, áreas e configurações. Não participa do fluxo de solicitações.",
+  ADMIN: "Acesso total: gerencia usuários, áreas e configurações e pode executar qualquer ação dos outros perfis.",
 };

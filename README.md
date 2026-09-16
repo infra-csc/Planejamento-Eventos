@@ -53,6 +53,7 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 - **Concorrência:** toda mutação que mexe na ata, na OS ou na fase trava o evento (`bloquearEvento`): duas pessoas na reunião respondem uma depois da outra, sem linha duplicada.
 - **Fechamentos automáticos:** fechar a ata cancela necessidades pré-reunião que ficaram em rascunho; encerrar com o bloqueio desligado cancela solicitações sem resposta (com aviso à área).
 - **Visibilidade:** requisitante e cenografia veem só as solicitações e o histórico da própria área.
+- **Administrador:** acesso total. Vê e executa tudo o que os outros perfis fazem (responder, fechar ata, reabrir, cadastrar peças e projetos) e, ao criar uma solicitação, escolhe em nome de qual área. As ações ficam no histórico com o nome dele.
 
 ## Códigos e rotas
 

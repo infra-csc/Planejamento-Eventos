@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Contador de solicitações aguardando resposta (logística e gestão) — derivado, nunca persistido.
   let abertas: number | null = null;
-  if (usuario.perfil === "LOGISTICA" || usuario.perfil === "GESTAO") {
+  if (usuario.perfil === "LOGISTICA" || usuario.perfil === "GESTAO" || usuario.perfil === "ADMIN") {
     const db = await getDb();
     const [r] = await db
       .select({ n: count() })

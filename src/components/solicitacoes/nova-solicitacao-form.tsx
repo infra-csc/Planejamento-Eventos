@@ -51,6 +51,8 @@ function Passo({ n, titulo, sub, children }: { n: number; titulo: string; sub?: 
 export function NovaSolicitacaoForm({
   rascunho,
   eventos,
+  areas,
+  areaInicial,
   eventoInicial,
   itensIniciais,
   projetos,
@@ -60,6 +62,9 @@ export function NovaSolicitacaoForm({
 }: {
   rascunho: { id: string; codigo: string; titulo: string; observacao: string; eventoId: string; devolvidaMotivo: string | null } | null;
   eventos: EventoOpcao[];
+  /** Só para o Administrador, que pede em nome de uma área. `null` para os demais perfis. */
+  areas: Array<{ id: string; nome: string }> | null;
+  areaInicial: string | null;
   eventoInicial: string | null;
   itensIniciais: ItemNovo[];
   projetos: Referencia[];
@@ -69,6 +74,7 @@ export function NovaSolicitacaoForm({
 }) {
   const router = useRouter();
   const [eventoId, setEventoId] = useState<string | null>(eventoInicial);
+  const [areaId, setAreaId] = useState<string | null>(areaInicial);
   const [itens, setItens] = useState<ItemNovo[]>(itensIniciais);
   const [modo, setModo] = useState<Modo>("projeto");
   const [busca, setBusca] = useState("");
@@ -104,6 +110,7 @@ export function NovaSolicitacaoForm({
   const montarPayload = (enviar: boolean, evId: string) => ({
     id: rascunhoIdRef.current,
     eventoId: evId,
+    areaId: areas ? areaId : null,
     titulo,
     observacao,
     enviar,
@@ -126,7 +133,7 @@ export function NovaSolicitacaoForm({
   };
   const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa])]);
   const salvoRef = useRef(rascunho ? assinatura : "");
-  const podeAutosalvar = Boolean(evento?.aceita) && (titulo.trim() !== "" || itens.length > 0);
+  const podeAutosalvar = Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
 
   const autosalvar = async (assin: string, evId: string) => {
     if (enviandoRef.current || assin === salvoRef.current) return;
@@ -267,6 +274,10 @@ export function NovaSolicitacaoForm({
 
   const salvar = (enviar: boolean) => {
     setErroGeral(null);
+    if (areas && !areaId) {
+      setErroGeral("Escolha a área que está pedindo.");
+      return;
+    }
     if (!eventoId) {
       setErroGeral("Escolha o evento.");
       return;
@@ -322,6 +333,28 @@ export function NovaSolicitacaoForm({
       )}
 
       <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
+        {areas && (
+          <div className="border-b border-line-soft px-[18px] py-3.5">
+            <label htmlFor="area-solicitante" className="mb-1.5 block text-[13px] font-medium text-ink-2">
+              Área solicitante <span className="font-normal text-muted">você está pedindo como administrador</span>
+            </label>
+            <select
+              id="area-solicitante"
+              value={areaId ?? ""}
+              disabled={Boolean(rascunho)}
+              onChange={(e) => setAreaId(e.target.value || null)}
+              aria-invalid={tentouEnviar && !areaId}
+              className={cn(campo, "max-w-[320px] aria-[invalid=true]:border-danger-input disabled:bg-subtle disabled:text-ink-3")}
+            >
+              <option value="">Selecione a área</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {eventos.length === 0 ? (
           <div className="px-[18px] py-8 text-center">
             <p className="m-0 text-[13px] font-medium text-ink">Nenhum evento aceitando solicitações agora.</p>
