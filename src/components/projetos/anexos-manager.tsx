@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormError } from "@/components/ui/field";
 import { useActionFeedback } from "@/components/ui/use-action-feedback";
 import { ESTADO_INICIAL } from "@/lib/action";
+import { ImagemZoom } from "@/components/ui/imagem-zoom";
 
 type Anexo = { id: string; tipo: "IMAGEM" | "PDF"; nomeArquivo: string; tamanho: number };
 
@@ -34,10 +35,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
         <div className="grid grid-cols-1 gap-3 p-[18px] sm:grid-cols-2">
           {imagens.map((a) => (
             <figure key={a.id} className="group relative m-0">
-              <a href={`/api/anexos/${a.id}`} target="_blank" rel="noopener">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full rounded-controle border border-line bg-white object-contain" />
-              </a>
+              <ImagemZoom src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full overflow-hidden rounded-controle border border-line" />
               <figcaption className="mt-1 truncate text-[11.5px] text-muted">{a.nomeArquivo}</figcaption>
               {podeGerenciar && (
                 <button

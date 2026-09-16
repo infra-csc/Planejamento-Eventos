@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { hora } from "@/lib/format";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import type { ItemOperacao } from "@/server/db/schema";
+import { ImagemZoom } from "@/components/ui/imagem-zoom";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -268,6 +269,7 @@ export function NovaSolicitacaoForm({
   // Painel "Ajustar peças" aberto (um por vez).
   const [ajustando, setAjustando] = useState<string | null>(null);
   const bomDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.bom ?? [] : []);
+  const capaDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.capaId ?? null : null);
   const resumoAjustes = (i: ItemNovo) => {
     const bom = bomDe(i);
     const partes = Object.entries(i.ajustes)
@@ -422,6 +424,7 @@ export function NovaSolicitacaoForm({
             {itens.map((i) => (
               <div key={i.chave} className="border-b border-line-row last:border-b-0">
               <div className="flex flex-wrap items-center gap-3 px-[18px] py-2.5">
+                {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-9 w-12 shrink-0 overflow-hidden rounded-[5px] border border-line" />}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] text-ink">{i.rotulo}</span>
                   <span className="block text-[11.5px] text-muted">
@@ -473,9 +476,13 @@ export function NovaSolicitacaoForm({
               </div>
               {ajustando === i.chave && (
                 <div className="border-t border-line-faint bg-subtle/60 px-[18px] pb-3 pt-2.5">
-                  <p className="m-0 mb-2 text-[12px] text-muted">
-                    Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
-                  </p>
+                  <div className="mb-2 flex items-start gap-3">
+                    {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-[72px] w-24 shrink-0 overflow-hidden rounded-[7px] border border-line" />}
+                    <p className="m-0 text-[12px] text-muted">
+                      Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
+                      {capaDe(i) && <span className="block text-meta">Clique na imagem para ver o desenho em tamanho grande.</span>}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
                     {bomDe(i).map((b) => {
                       const delta = i.ajustes[b.pecaId] ?? 0;
@@ -568,8 +575,7 @@ export function NovaSolicitacaoForm({
                     <div key={r.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
                       {modo === "projeto" &&
                         (r.capaId ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={`/api/anexos/${r.capaId}`} alt="" className="h-9 w-12 shrink-0 rounded-[5px] border border-line object-cover" loading="lazy" />
+                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-[5px] border border-line" />
                         ) : (
                           <span aria-hidden className="h-9 w-12 shrink-0 rounded-[5px] border border-dashed border-line-strong" />
                         ))}

@@ -106,6 +106,13 @@ export async function obterLinhasAta(eventoId: string) {
         .where(inArray(solicitacaoItens.id, ids))
     : [];
   const mapa = new Map(origens.map((o) => [o.id, o]));
+  // Miniatura do projeto padrão na linha da ata (primeira imagem anexada).
+  const projetoIds = [...new Set(linhas.map((l) => l.registro.projetoId).filter((x): x is string => Boolean(x)))];
+  const capas = projetoIds.length
+    ? await db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(and(inArray(anexos.projetoId, projetoIds), eq(anexos.tipo, "IMAGEM"))).orderBy(asc(anexos.criadoEm))
+    : [];
+  const capaDe = new Map<string, string>();
+  for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
   return linhas.map((l) => {
     const o = l.registro.solicitacaoItemId ? mapa.get(l.registro.solicitacaoItemId) : undefined;
     const origemLabel = o
@@ -124,6 +131,7 @@ export async function obterLinhasAta(eventoId: string) {
       versao,
       versaoAtual,
       versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,
+      capaId: l.registro.projetoId ? (capaDe.get(l.registro.projetoId) ?? null) : null,
     };
   });
 }

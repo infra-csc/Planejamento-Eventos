@@ -15,5 +15,6 @@ export function paraView(l: LinhaAtaDetalhe): LinhaAtaView {
     versao: l.versao,
     versaoAtual: l.versaoAtual,
     versaoDefasada: l.versaoDefasada,
+    capaId: l.capaId ?? null,
   };
 }

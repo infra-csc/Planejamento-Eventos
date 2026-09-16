@@ -188,7 +188,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Pórtico boca de 3 m sem orelha",
-    imagens: ["portico-boca-3m-sem-orelha.jpg"],
+    imagens: ["portico-boca-3m-render.jpg", "portico-boca-3m-sem-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 simples, vão de 3 m.",
     itens: [["BOX-1000", 2], ["BOX-3000", 8], ["CUBO", 6], ["PARAF", 64]],
@@ -203,7 +203,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Palcos ---------------------------------------------------------------------------------
   {
     nome: "Palco 8×4 m com escada e rampa",
-    imagens: ["palco-8x4-escada-rampa.jpg", "palco-8x4-detalhamento.jpg"],
+    imagens: ["palco-8x4-render.jpg", "palco-8x4-escada-rampa.jpg", "palco-8x4-detalhamento.jpg"],
     categoria: "Palco",
     descricao: "Palco em praticável 2×1 a 1 m, rampa em praticável com patamar, fundo em box truss Q30 para backdrop.",
     itens: [
@@ -214,13 +214,14 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Palco 8×4 m sem praticável (rebaixado)",
+    imagens: ["palco-8x4-rebaixado-esquema.jpg"],
     categoria: "Palco",
     descricao: "Só o fundo em box truss Q30 para backdrop, sem piso elevado.",
     itens: [["BOX-700", 2], ["BOX-3000", 3], ["BOX-3500", 2], ["BOX-5000", 2], ["CUBO", 6], ["GRAPPLE", 2], ["PARAF", 96], ["BACKDROP-PALCO", 1]],
   },
   {
     nome: "Palco show grande 9×6 m com LED",
-    imagens: ["palco-show-grande-9x6-modulacao.jpg"],
+    imagens: ["palco-show-grande-render.jpg", "palco-show-grande-9x6-modulacao.jpg"],
     categoria: "Palco",
     descricao: "Palco show (Night Run): praticável 2×1 a 1 m, torre Q30 com painel de LED 36 placas.",
     itens: [
@@ -270,6 +271,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Quadro 6×2,3 m",
+    imagens: ["quadro-6x2-3-esquema.jpg"],
     categoria: "Quadro",
     descricao: "Quadro Q30 baixo, 6 m de boca.",
     itens: [["BOX-400", 2], ["BOX-700", 2], ["BOX-1000", 2], ["BOX-2000", 2], ["BOX-2500", 4], ["CUBO", 4], ["PARAF", 64]],
@@ -283,6 +285,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Quadro Q15 2,30×2,30 m com sapata",
+    imagens: ["quadro-q15-2-3x2-3-esquema.jpg"],
     categoria: "Quadro",
     descricao: "Quadro em treliça Q15 (entrega de kit).",
     itens: [["Q15-2000", 4], ["Q15-CUBO", 4], ["SAPATA", 2]],
@@ -297,6 +300,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Ícones e ativações ---------------------------------------------------------------------
   {
     nome: "Mandala",
+    imagens: ["mandala-esquema.jpg"],
     categoria: "Ativação",
     descricao: "Mandala/trimandala em Q30 com fechamento de faces e medalhas cenográficas.",
     itens: [["BOX-400", 4], ["BOX-700", 4], ["BOX-1000", 4], ["BOX-2000", 8], ["BOX-2500", 4], ["CUBO", 13], ["GRAPPLE", 8], ["PARAF", 160], ["FECH-FACE", 4], ["MEDALHA-CEN", 4]],
@@ -317,7 +321,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Ativação microfone",
-    imagens: ["ativacao-microfone.jpg"],
+    imagens: ["ativacao-microfone-render.jpg", "ativacao-microfone.jpg"],
     categoria: "Ativação",
     descricao: "Base em cruz Q30 com cubo de 5 faces para painel pentagonal.",
     itens: [["BOX-700", 5], ["CUBO-5F", 1], ["PARAF", 20]],
@@ -331,7 +335,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Ativação fone (marcenaria)",
-    imagens: ["ativacao-fone.jpg"],
+    imagens: ["ativacao-fone-render.jpg", "ativacao-fone.jpg"],
     categoria: "Ativação",
     descricao: "Ícone fone/celular em compensado virolinha sobre base Q30.",
     itens: [["BOX-500", 1], ["BOX-1000", 2], ["BOX-2000", 2], ["CUBO", 2], ["PARAF", 24], ["COMP-VIROL-10", 5], ["COMP-FLEX", 2], ["SARRAFO-70", 77], ["METALON-50X30", 9]],
@@ -346,12 +350,14 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Tendas ---------------------------------------------------------------------------------
   {
     nome: "Tenda 5×5 m",
+    imagens: ["tenda-5x5-esquema.jpg"],
     categoria: "Tenda",
     descricao: "Estrutura da tenda 5×5 com lona. Fechamentos laterais e calha de união pedidos por unidade.",
     itens: [["TND5-CANT", 4], ["TND5-TRAV", 4], ["TND5-PE", 4], ["TND5-MASTRO", 1], ["TND5-CABO", 1], ["TND5-LONA", 1]],
   },
   {
     nome: "Tenda 3×3 m",
+    imagens: ["tenda-3x3-esquema.jpg"],
     categoria: "Tenda",
     descricao: "Estrutura da tenda 3×3 com lona. Fechamentos laterais pedidos por unidade.",
     itens: [["TND3-CANT", 4], ["TND3-TRAV", 4], ["TND3-PE", 4], ["TND3-MASTRO", 1], ["TND3-CABO", 1], ["TND3-LONA", 1]],
@@ -359,18 +365,21 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Percurso -------------------------------------------------------------------------------
   {
     nome: "Posto de hidratação (cocho)",
+    imagens: ["posto-hidratacao-esquema.jpg"],
     categoria: "Percurso",
     descricao: "Um cocho de água sobre dois cavaletes de ferro.",
     itens: [["COCHO", 1], ["CAV-COCHO", 2]],
   },
   {
     nome: "Prisma com grades 2×1",
+    imagens: ["prisma-grades-esquema.jpg"],
     categoria: "Percurso",
     descricao: "Prisma (cavalete grande) com duas grades 2×1.",
     itens: [["PRISMA", 1], ["GRADE-2X1", 2]],
   },
   {
     nome: "Grade de merchandising com pés",
+    imagens: ["grade-merch-esquema.jpg"],
     categoria: "Percurso",
     descricao: "Uma grade de merchandising com dois pés.",
     itens: [["GRADE-MERCH", 1], ["PE-GRADE-MERCH", 2]],

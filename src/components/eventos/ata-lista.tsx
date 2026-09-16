@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { Tag } from "@/components/ui/badge";
+import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast, toastErro } from "@/components/ui/toast";
 import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction } from "@/app/(app)/eventos/actions";
@@ -26,6 +27,8 @@ export type LinhaAtaView = {
   versao: number | null;
   versaoAtual: number | null;
   versaoDefasada: boolean;
+  /** Primeira imagem do projeto padrão (miniatura na linha). */
+  capaId?: string | null;
 };
 
 const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
@@ -117,6 +120,7 @@ export function AtaLista({
               {linhas.map((l) => (
                 <tr key={l.id} className="hover:bg-subtle">
                   <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
+                    {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-[5px] border border-line" />}
                     <span className="text-[13.5px] text-ink">{l.nome}</span>
                     {!compacta && (
                       <Tag className="ml-2" tom="muted">
