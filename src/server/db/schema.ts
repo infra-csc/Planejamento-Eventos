@@ -246,6 +246,8 @@ export const eventos = pgTable(
     dataDesmontagem: date("data_desmontagem", { mode: "string" }).notNull(),
     dataReuniao: ts("data_reuniao").notNull(),
     dataCarga: date("data_carga", { mode: "string" }),
+    /** Até quando alterações pós-ata entram no fluxo normal; depois disso ainda entram, mas marcadas "fora da janela". */
+    janelaAlteracoesAte: date("janela_alteracoes_ate", { mode: "string" }),
     responsavelId: text("responsavel_id")
       .notNull()
       .references(() => usuarios.id),
@@ -292,6 +294,8 @@ export const solicitacoes = pgTable(
     canceladaEm: ts("cancelada_em"),
     canceladaMotivo: text("cancelada_motivo"),
     excluida: boolean("excluida").notNull().default(false),
+    /** Alteração enviada depois da janela definida pela logística: entra, mas com destaque para decisão. */
+    foraDaJanela: boolean("fora_da_janela").notNull().default(false),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
@@ -519,9 +523,24 @@ export type OsSetor = {
   avulsos: Array<{ descricao: string; quantidade: number; destino: string | null; area: string | null }>;
 };
 
+/** Projeto padrão na OS: quantas unidades e o que cada unidade leva (lista já com os ajustes da área). */
+export type OsProjeto = {
+  codigo: string;
+  nome: string;
+  versao: number;
+  quantidade: number;
+  destino: string | null;
+  area: string | null;
+  pecas: Array<{ codigo: string; nome: string; setor: Setor; unidade: string; porUnidade: number; total: number }>;
+};
+
 export type OsConteudo = {
   setores: OsSetor[];
   semSetor: Array<{ descricao: string; quantidade: number; destino: string | null; area: string | null }>;
+  /** Visão "por projeto" (ausente em OS geradas antes desta versão). */
+  projetos?: OsProjeto[];
+  /** Peças pedidas soltas, fora de projeto (ausente em OS antigas). */
+  individuais?: Array<{ codigo: string; nome: string; setor: Setor; unidade: string; quantidade: number; destino: string | null; area: string | null }>;
 };
 
 /* ------------------------------------------------------------------ */

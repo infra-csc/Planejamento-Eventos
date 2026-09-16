@@ -11,7 +11,6 @@ import type { UsuarioAtual } from "../src/server/auth/autorizacao";
 import { DomainError } from "../src/domain/errors";
 import { obterLinhasAta, transicionarEvento } from "../src/server/services/eventos";
 import {
-  atenderTudo,
   atualizarCabecalho,
   criarRascunho,
   desfazerResposta,
@@ -58,7 +57,6 @@ async function main() {
     return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null };
   };
   const marina = U("marina.castro@nortemkt.com.br");
-  const rafael = U("rafael.nunes@nortemkt.com.br");
   const helena = U("helena.prado@nortemkt.com.br");
   const paulo = U("paulo.ribeiro@nortemkt.com.br");
   const diego = U("diego.sampaio@nortemkt.com.br");
@@ -76,17 +74,19 @@ async function main() {
   ok(cons.pecas.some((p) => p.pico > 0), "consolidação calcula a demanda das peças no período");
   const e2p = await ev("EVT-0002");
   const consProj = await calcularConsolidacao({ inicio: e2p.dataMontagem, fim: e2p.dataDesmontagem });
-  ok(consProj.pecas.some((p) => p.temProjecao && p.eventosNoPico.some((x) => x.codigo === "EVT-0002" && x.projetado)), "consolidação inclui demanda projetada de evento sem ata");
+  ok(consProj.pecas.some((p) => p.eventosNoPico.some((x) => x.codigo === "EVT-0002")), "consolidação inclui a demanda de evento ainda sem ata fechada");
 
-  console.log("\n1. Reunião: fechar ata bloqueada com item pendente; resposta; fechamento gera OS v1");
+  console.log("\n1. Reunião: pré-reunião já está na ata; logística corrige na reunião; fechamento gera OS v1");
   const e3 = await ev("EVT-0003");
-  await deveFalhar(() => transicionarEvento(marina, e3.id, "FECHAR_ATA"), "fechar ata com item pendente é bloqueado", "sem resposta");
-  const pend = (await listarSolicitacoes(marina, { eventoId: e3.id, status: "ABERTAS" }))[0];
-  const sol = await obterSolicitacao(marina, pend.id);
-  const item = sol.itens.find((i) => i.status === "EM_ANALISE")!;
-  await deveFalhar(() => responderItem(marina, item.id, { status: "NAO_ATENDIDO" }), "não atendido sem observação é rejeitado", "observação");
-  await deveFalhar(() => responderItem(paulo, item.id, { status: "ATENDIDO" }), "requisitante não pode responder", "permissão");
-  await responderItem(marina, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "Fechamentos já reservados para a Praia Sonora." });
+  const naAta = (await listarSolicitacoes(marina, { eventoId: e3.id, status: "RESPONDIDA" }))[0];
+  const sol = await obterSolicitacao(marina, naAta.id);
+  const item = sol.itens.find((i) => i.status === "ATENDIDO")!;
+  ok(Boolean(item) && sol.status === "RESPONDIDA", "necessidade pré-reunião entrou na ata sem avaliação");
+  ok((await obterLinhasAta(e3.id)).some((l) => l.registro.solicitacaoItemId === item.id), "linha correspondente existe na ata");
+  await deveFalhar(() => responderItem(marina, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "x" }), "corrigir sem justificativa é rejeitado", "justificativa");
+  await deveFalhar(() => responderItem(paulo, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "x" }, "y"), "requisitante não pode corrigir", "permissão");
+  await responderItem(marina, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "Fechamentos já reservados para a Praia Sonora." }, "Conferido na reunião de OS.");
+  ok(!(await obterLinhasAta(e3.id)).some((l) => l.registro.solicitacaoItemId === item.id), "correção para não atendido tira a linha da ata");
   await transicionarEvento(marina, e3.id, "FECHAR_ATA");
   const v3 = await listarOsVersoes(e3.id);
   ok(v3.length === 1 && v3[0].gatilho === "ATA_FECHADA", "OS v1 gerada ao fechar a ata");
@@ -192,6 +192,7 @@ async function main() {
   );
   const rasc = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: null, observacao: "rascunho", enviar: false, itens: [] });
   ok(!rasc.enviada && (await obterSolicitacao(paulo, rasc.id)).status === "RASCUNHO", "salvar rascunho sem título é permitido");
+  const linhasAntes = (await obterLinhasAta(e2b.id)).length;
   const r = await salvarSolicitacaoCompleta(paulo, {
     id: rasc.id,
     eventoId: e2b.id,
@@ -204,19 +205,14 @@ async function main() {
     ],
   });
   const sr = await obterSolicitacao(marina, r.id);
-  ok(r.id === rasc.id && sr.status === "ENVIADA" && sr.itens.length === 2, "rascunho atualizado e enviado com 2 itens");
+  ok(r.id === rasc.id && sr.itens.length === 2, "rascunho atualizado e enviado com 2 itens");
+  ok(sr.status === "RESPONDIDA" && sr.itens.every((i) => i.status === "ATENDIDO"), "necessidade pré-reunião entra na ata sem avaliação");
   ok(sr.prazoRespostaEm?.getTime() === e2b.dataReuniao.getTime(), "prazo da necessidade pré-reunião é a própria reunião");
-  const linhasAntes = (await obterLinhasAta(e2b.id)).length;
-  await responderItem(marina, sr.itens[0].id, { status: "ATENDIDO" });
-  ok((await obterLinhasAta(e2b.id)).length === linhasAntes + 1, "resposta inclui linha na ata em construção");
-  await deveFalhar(() => desfazerResposta(rafael, sr.itens[0].id), "outro usuário não desfaz a resposta", "desfeita");
-  await desfazerResposta(marina, sr.itens[0].id);
+  ok((await obterLinhasAta(e2b.id)).length === linhasAntes + 2, "projeto e avulso viraram linhas na ata em construção");
+  await responderItem(marina, sr.itens[0].id, { status: "PARCIAL", quantidadeAtendida: 1, observacaoLogistica: "Só uma tenda disponível." }, "Conferido na reunião de OS.");
   const sr2 = await obterSolicitacao(marina, r.id);
-  ok(sr2.itens[0].status === "EM_ANALISE" && sr2.status === "ENVIADA", "desfazer volta o item para análise");
-  ok((await obterLinhasAta(e2b.id)).length === linhasAntes, "desfazer tira a linha da ata");
-  const n = await atenderTudo(marina, r.id);
-  ok(n === 2 && (await obterSolicitacao(marina, r.id)).status === "RESPONDIDA", "atender tudo responde os itens pendentes");
-  ok((await obterLinhasAta(e2b.id)).length === linhasAntes + 2, "linha reativada e avulso incluído após atender tudo");
+  ok(sr2.itens[0].status === "PARCIAL" && sr2.itens[0].quantidadeAtendida === 1, "correção na reunião vira parcial");
+  ok((await obterLinhasAta(e2b.id)).find((l) => l.registro.solicitacaoItemId === sr.itens[0].id)?.quantidade === 1, "linha da ata segue a correção");
   const resDiego = await buscar(diego, "SOL-");
   ok(resDiego.filter((x) => x.tag === "solic.").length > 0 && resDiego.filter((x) => x.tag === "solic.").every((x) => x.sub.startsWith("Gráfica")), "busca respeita a área do requisitante");
   const resMarina = await buscar(marina, "");

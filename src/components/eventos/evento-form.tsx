@@ -19,6 +19,7 @@ export type EventoFormValores = {
   dataDesmontagem?: string;
   dataReuniao?: string; // datetime-local
   dataCarga?: string | null;
+  janelaAlteracoesAte?: string | null;
   responsavelId?: string;
 };
 
@@ -62,8 +63,11 @@ export function EventoForm({ valores, responsaveis, cancelarHref }: { valores: E
           <Field label="Reunião de OS" htmlFor="dataReuniao" error={c?.dataReuniao} hint="As áreas podem enviar necessidades até este momento." className="sm:col-span-2">
             <Input id="dataReuniao" name="dataReuniao" type="datetime-local" defaultValue={valores.dataReuniao ?? ""} required />
           </Field>
-          <Field label="Carga do caminhão" htmlFor="dataCarga" error={c?.dataCarga} optional hint="Só informativa: o encerramento continua sendo comando da logística." className="sm:col-span-2">
+          <Field label="Carga do caminhão" htmlFor="dataCarga" error={c?.dataCarga} optional hint="Só informativa: o encerramento continua sendo comando da logística.">
             <Input id="dataCarga" name="dataCarga" type="date" defaultValue={valores.dataCarga ?? ""} />
+          </Field>
+          <Field label="Janela de alterações até" htmlFor="janelaAlteracoesAte" error={c?.janelaAlteracoesAte} optional hint="Depois desta data, alterações ainda entram, mas chegam marcadas “fora da janela” para a logística decidir. Vazio = até encerrar.">
+            <Input id="janelaAlteracoesAte" name="janelaAlteracoesAte" type="date" defaultValue={valores.janelaAlteracoesAte ?? ""} />
           </Field>
         </div>
       </Panel>

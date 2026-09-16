@@ -19,7 +19,7 @@ import {
   validarResposta,
   type ItemRascunho,
 } from "@/domain/solicitacao";
-import { formatarDataHora } from "@/lib/format";
+import { diaMesISO, formatarDataHora, hojeISO } from "@/lib/format";
 import { gerarOsVersao } from "./os";
 import { snapshotBom } from "./eventos";
 import { aplicarAjustesBom } from "@/domain/os";
@@ -467,22 +467,47 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
       .returning({ id: solicitacoes.id });
     if (res.length === 0) throw new DomainError("A solicitação já foi enviada.");
     await tx.update(solicitacaoItens).set({ status: "EM_ANALISE" }).where(eq(solicitacaoItens.solicitacaoId, id));
+    // Alteração enviada depois da janela que a logística definiu: entra, mas marcada para decisão.
+    const foraDaJanela = s.tipo === "ALTERACAO" && Boolean(s.evento.janelaAlteracoesAte) && hojeISO() > String(s.evento.janelaAlteracoesAte);
+    if (foraDaJanela) await tx.update(solicitacoes).set({ foraDaJanela: true }).where(eq(solicitacoes.id, id));
     await registrarHistorico(tx, {
       eventoId: s.eventoId,
       entidade: "solicitacao",
       entidadeId: id,
       acao: "ENVIADA",
-      descricao: `${s.codigo} enviada pela ${s.area.nome}${usuario.perfil === "ADMIN" ? " (pelo administrador)" : ""} — ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"} · prazo ${formatarDataHora(prazo)}`,
+      descricao: `${s.codigo} enviada pela ${s.area.nome}${usuario.perfil === "ADMIN" ? " (pelo administrador)" : ""} — ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}${foraDaJanela ? " · FORA DA JANELA de alterações" : ` · prazo ${formatarDataHora(prazo)}`}`,
       usuarioId: usuario.id,
     });
+
+    // Antes da reunião não há avaliação: tudo entra na ata e a logística confere (e corrige) na reunião de OS.
+    if (s.tipo === "PRE_REUNIAO") {
+      for (const item of s.itens) {
+        await responderNaTransacao(tx, usuario, item.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
+      }
+      await tx
+        .update(solicitacaoItens)
+        .set({ respondidoPorId: null, observacaoLogistica: "Registrado na ata automaticamente; conferido pela logística na reunião de OS." })
+        .where(eq(solicitacaoItens.solicitacaoId, id));
+      await notificar(tx, {
+        usuarioIds: await usuariosLogistica(tx),
+        tipo: "SOLICITACAO_ENVIADA",
+        titulo: `Registrado na ata: ${s.codigo} · ${s.area.nome}`,
+        mensagem: `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. Confira e ajuste na reunião de OS.`,
+        link: `/solicitacoes/${id}`,
+      });
+      return { codigo: s.codigo, prazo, registradaNaAta: true, foraDaJanela: false };
+    }
+
     await notificar(tx, {
       usuarioIds: await usuariosLogistica(tx),
-      tipo: "SOLICITACAO_ENVIADA",
-      titulo: s.tipo === "PRE_REUNIAO" ? "Nova necessidade pré-reunião" : "Nova solicitação de alteração",
-      mensagem: `${s.codigo} · ${s.area.nome} · ${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}`,
+      tipo: foraDaJanela ? "SOLICITACAO_FORA_JANELA" : "SOLICITACAO_ENVIADA",
+      titulo: foraDaJanela ? `FORA DA JANELA: ${s.codigo} · ${s.area.nome}` : "Nova solicitação de alteração",
+      mensagem: foraDaJanela
+        ? `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. A janela de alterações terminou em ${diaMesISO(String(s.evento.janelaAlteracoesAte))}; a logística decide se atende.`
+        : `${s.codigo} · ${s.area.nome} · ${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}`,
       link: `/solicitacoes/${id}`,
     });
-    return { codigo: s.codigo, prazo };
+    return { codigo: s.codigo, prazo, registradaNaAta: false, foraDaJanela };
   });
 }
 

@@ -23,6 +23,8 @@ export type ItemFila = {
   total: number;
   respondidos: number;
   prazoRespostaEm: Date | null;
+  /** Alteração enviada depois da janela: destaque para a logística decidir. */
+  foraDaJanela: boolean;
   pendenteUnico: { id: string; descricao: string; quantidade: number; destino: string | null; operacao: ItemOperacao } | null;
 };
 
@@ -35,6 +37,7 @@ type SolicitacaoComItens = {
   tipo: SolicitacaoTipo;
   status: SolicitacaoStatus;
   prazoRespostaEm: Date | null;
+  foraDaJanela?: boolean;
   area: { nome: string };
   evento: { nome: string };
   itens: Array<Parameters<typeof descricaoItem>[0] & { id: string; status: string; quantidadeSolicitada: number; destino: string | null; operacao: ItemOperacao }>;
@@ -55,6 +58,7 @@ function paraFila(s: SolicitacaoComItens): ItemFila {
     total: s.itens.length,
     respondidos: s.itens.length - pendentes.length,
     prazoRespostaEm: s.prazoRespostaEm,
+    foraDaJanela: Boolean(s.foraDaJanela),
     pendenteUnico: aberta && pendentes.length === 1 ? { id: p.id, descricao: descricaoItem(p), quantidade: p.quantidadeSolicitada, destino: p.destino, operacao: p.operacao } : null,
   };
 }

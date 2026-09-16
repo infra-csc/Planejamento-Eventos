@@ -1,13 +1,12 @@
 import { requirePermissao } from "@/server/auth/session";
-import { listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { calcularOsAoVivo, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { obterEventoCache } from "@/server/cache";
-import { diffOS, resumoVersaoOs, SETOR_LABEL, type DiffLinha } from "@/domain/os";
+import { diffOS, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { buttonClasses } from "@/components/ui/button-classes";
-import { Section } from "@/components/ui/layout";
-import { CaptionOculta, Th } from "@/components/ui/tabela";
+import { Aviso, Section } from "@/components/ui/layout";
+import { OsVisoes, visaoDe } from "@/components/eventos/os-visoes";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
 
@@ -40,17 +39,30 @@ function ChipDiff({ d }: { d: DiffLinha }) {
   );
 }
 
-export default async function OsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; base?: string }> }) {
+export default async function OsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; base?: string; visao?: string }> }) {
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
   const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id)]);
 
   if (versoes.length === 0) {
+    // Antes do fechamento da ata, a logística confere o que a OS vai conter: mesma leitura, calculada ao vivo da ata em construção.
+    const previa = await calcularOsAoVivo(id);
+    const visao = visaoDe(sp.visao);
+    const temAlgo = previa.setores.length > 0 || previa.semSetor.length > 0;
     return (
-      <div className="rounded-[10px] border border-line bg-surface px-[18px] py-14 text-center">
-        <p className="m-0 text-[14px] font-medium">OS ainda não gerada</p>
-        <p className="mx-auto mt-1 max-w-[440px] text-[13px] text-muted">A OS é gerada automaticamente quando a ata for fechada. Nenhuma peça é somada antes disso.</p>
+      <div className="flex flex-col gap-5">
+        <Aviso tom="warning" titulo="Prévia — a OS ainda não foi gerada">
+          Esta é a leitura atual da ata em construção. A OS v1 é gerada no fechamento da ata; até lá, tudo aqui pode mudar conforme a reunião corrige as linhas.
+        </Aviso>
+        {temAlgo ? (
+          <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
+        ) : (
+          <div className="rounded-[10px] border border-line bg-surface px-[18px] py-14 text-center">
+            <p className="m-0 text-[14px] font-medium">A ata ainda não tem linhas</p>
+            <p className="mx-auto mt-1 max-w-[440px] text-[13px] text-muted">As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS.</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -64,7 +76,9 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const legado = versoes.some((v) => v.resumo == null);
   const conteudos = await obterConteudosOs(id, legado ? versoes.map((v) => v.numero) : [exibida.numero, exibida.numero - 1, ...(base ? [base.numero] : [])]);
   const conteudo = (n: number) => conteudos.get(n) ?? null;
-  const os = conteudo(exibida.numero) ?? { setores: [], semSetor: [] };
+  // Versões gravadas antes das visões por projeto/peças soltas: a versão atual é recalculada ao vivo (mesmas linhas da ata).
+  const gravado = conteudo(exibida.numero);
+  const os = gravado && !gravado.projetos && exibida.numero === atual.numero ? await calcularOsAoVivo(id) : (gravado ?? { setores: [], semSetor: [] });
 
   let tituloDiff: string;
   let subDiff: string;
@@ -84,7 +98,8 @@ export default async function OsPage({ params, searchParams }: { params: Promise
     subDiff = exibida.descricao ?? GATILHO_LABEL[exibida.gatilho];
   }
 
-  const paramsAtuais = { v: sp.v, base: sp.base };
+  const paramsAtuais = { v: sp.v, base: sp.base, visao: sp.visao };
+  const visao = visaoDe(sp.visao);
   const qsExport = exibida.numero !== atual.numero ? `?v=${exibida.numero}` : "";
 
   const lista: VersaoOsView[] = versoes.map((ver) => {
@@ -125,68 +140,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           </div>
         </section>
 
-        {os.setores.map((s) => {
-          const unidades = s.linhas.reduce((a, l) => a + l.total, 0);
-          return (
-            <Section
-              key={s.setor}
-              titulo={SETOR_LABEL[s.setor]}
-              sub={`${s.linhas.length} ${s.linhas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${unidades} unidades`}
-              acoes={
-                <a href={`/api/os/${id}/${s.setor}${qsExport}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
-                  CSV
-                </a>
-              }
-            >
-              <table className="w-full border-collapse">
-                <CaptionOculta>{`OS ${SETOR_LABEL[s.setor]} v${exibida.numero}`}</CaptionOculta>
-                <thead>
-                  <tr className="bg-subtle">
-                    <Th largura={108}>Código</Th>
-                    <Th>Peça</Th>
-                    <Th largura={260}>Origens</Th>
-                    <Th largura={90} alinhar="right">
-                      Total
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.linhas.map((l) => (
-                    <tr key={l.pecaId} className="hover:bg-subtle">
-                      <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-[12.5px] text-ink">{l.codigo}</td>
-                      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-[13.5px] font-normal text-ink">
-                        {l.nome}
-                      </th>
-                      <td className="border-b border-line-row px-2.5 py-2.5 text-[11.5px] leading-[1.45] text-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
-                      <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-[13.5px] font-semibold">
-                        {l.total} <span className="text-[11px] font-normal text-muted">{l.unidade}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
-          );
-        })}
-
-        {os.setores.length === 0 && (
-          <div className="rounded-[10px] border border-line bg-surface px-[18px] py-10 text-center">
-            <p className="m-0 text-[13.5px] font-medium">Nenhuma peça nesta versão</p>
-            <p className="mt-1 text-[12.5px] text-muted">A ata não tem linhas que somem peças do catálogo.</p>
-          </div>
-        )}
-
-        {os.semSetor.length > 0 && (
-          <Section titulo="Itens avulsos" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
-            {os.semSetor.map((a, i) => (
-              <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
-                <span className="min-w-0 flex-1 text-[13.5px] text-ink">{a.descricao}</span>
-                <span className="text-[12px] text-muted">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>
-                <span className="w-[60px] text-right font-mono text-[13px] font-semibold">{a.quantidade}</span>
-              </div>
-            ))}
-          </Section>
-        )}
+        <OsVisoes os={os} visao={visao} titulo={`OS v${exibida.numero}`} hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, paramsAtuais, { visao: v === "totais" ? null : v })} csvHref={(setor) => `/api/os/${id}/${setor}${qsExport}`} />
       </div>
 
       <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">

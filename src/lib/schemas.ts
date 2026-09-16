@@ -58,6 +58,10 @@ export const eventoSchema = z
     dataDesmontagem: dataISO,
     dataReuniao: z.string().min(1, "Informe a data e hora da reunião"),
     dataCarga: z.union([dataISO, z.literal("")]).transform((v) => (v ? v : null)),
+    janelaAlteracoesAte: z
+      .union([dataISO, z.literal("")])
+      .nullish()
+      .transform((v) => (v ? v : null)),
     responsavelId: z.string().min(1, "Escolha o responsável"),
   })
   .superRefine((d, ctx) => {

@@ -1,4 +1,4 @@
-import type { AjusteBom, BomSnapshotLinha, OsConteudo, OsLinha, OsSetor, Setor } from "@/server/db/schema";
+import type { AjusteBom, BomSnapshotLinha, OsConteudo, OsLinha, OsProjeto, OsSetor, Setor } from "@/server/db/schema";
 import { SETORES } from "@/domain/constantes";
 
 /**
@@ -52,6 +52,8 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
     else linha.origens.push({ descricao: origem, quantidade: qtd });
   };
 
+  const projetosOs: OsProjeto[] = [];
+  const individuais: NonNullable<OsConteudo["individuais"]> = [];
   for (const l of linhas) {
     if (l.quantidade <= 0) continue;
     if (l.tipo === "PROJETO" && l.projeto) {
@@ -59,9 +61,21 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
       for (const b of l.projeto.bom) {
         acumular(b.setor, { id: b.pecaId, codigo: b.codigo, nome: b.nome, unidade: b.unidade }, b.quantidade * l.quantidade, origem);
       }
+      projetosOs.push({
+        codigo: l.projeto.codigo,
+        nome: l.projeto.nome,
+        versao: l.projeto.versao,
+        quantidade: l.quantidade,
+        destino: l.destino,
+        area: l.areaNome,
+        pecas: [...l.projeto.bom]
+          .sort((a, b) => SETORES.indexOf(a.setor) - SETORES.indexOf(b.setor) || a.codigo.localeCompare(b.codigo, "pt-BR"))
+          .map((b) => ({ codigo: b.codigo, nome: b.nome, setor: b.setor, unidade: b.unidade, porUnidade: b.quantidade, total: b.quantidade * l.quantidade })),
+      });
     } else if (l.tipo === "PECA" && l.peca) {
       const origem = l.destino ? `Avulso · ${l.destino}` : "Avulso";
       acumular(l.peca.setor, l.peca, l.quantidade, origem);
+      individuais.push({ codigo: l.peca.codigo, nome: l.peca.nome, setor: l.peca.setor, unidade: l.peca.unidade, quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     } else {
       semSetor.push({ descricao: l.descricaoLivre ?? "Item avulso", quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     }
@@ -73,7 +87,7 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
     avulsos: avulsosPorSetor.get(setor)!,
   })).filter((s) => s.linhas.length > 0 || s.avulsos.length > 0);
 
-  return { setores, semSetor };
+  return { setores, semSetor, projetos: projetosOs, individuais };
 }
 
 export type DiffLinha = { codigo: string; nome: string; setor: Setor; antes: number; depois: number };

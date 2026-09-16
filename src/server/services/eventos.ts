@@ -264,6 +264,8 @@ export type DadosEvento = {
   dataDesmontagem: string;
   dataReuniao: Date;
   dataCarga: string | null;
+  /** Fim da janela de alterações pós-ata (opcional; sem data = até encerrar). */
+  janelaAlteracoesAte?: string | null;
   responsavelId: string;
 };
 

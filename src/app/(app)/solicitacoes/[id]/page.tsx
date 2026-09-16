@@ -10,7 +10,7 @@ import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeRespo
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, Section } from "@/components/ui/layout";
-import { SolicitacaoStatusBadge } from "@/components/ui/badge";
+import { ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
 import { DefinirTrilha } from "@/components/shell/trilha";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
@@ -109,6 +109,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-[15px] font-medium">{s.codigo}</span>
             <SolicitacaoStatusBadge status={s.status} />
+            {s.foraDaJanela && <ForaJanelaTag />}
             {pi.vencido && <span className="text-[12.5px] font-medium text-danger">atrasada {pi.sub}</span>}
           </div>
           <h1 className="mb-0 mt-1 text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">{s.titulo || "Solicitação sem título"}</h1>
@@ -137,6 +138,13 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </div>
       </div>
 
+      {s.foraDaJanela && (s.status === "ENVIADA" || s.status === "EM_ANALISE") && (
+        <Aviso tom="danger" titulo="Enviada fora da janela de alterações" className="mb-[18px]">
+          {ehLogistica
+            ? "A janela definida para este evento já terminou. Decida item a item: atender, atender parcialmente ou não atender, com o motivo."
+            : "A janela de alterações deste evento já terminou. A logística vai avaliar se ainda dá para atender."}
+        </Aviso>
+      )}
       {s.status === "DEVOLVIDA" && (
         <Aviso tom="warning" titulo="Devolvida pela logística" className="mb-[18px]">
           {s.devolvidaMotivo}. Corrija e reenvie.

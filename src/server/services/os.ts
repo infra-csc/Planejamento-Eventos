@@ -114,3 +114,8 @@ export async function numeroOsAtual(ex: Executor, eventoId: string): Promise<num
     .where(eq(osVersoes.eventoId, eventoId));
   return Number(r?.v ?? 0);
 }
+
+/** OS calculada agora a partir da ata (prévia antes do fechamento; versão atual gravada sem as visões novas). */
+export async function calcularOsAoVivo(eventoId: string) {
+  return calcularOsAtual(await getDb(), eventoId);
+}

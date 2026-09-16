@@ -33,6 +33,7 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
           dataDesmontagem: ev.dataDesmontagem,
           dataReuniao: toDateTimeLocal(ev.dataReuniao),
           dataCarga: ev.dataCarga,
+          janelaAlteracoesAte: ev.janelaAlteracoesAte,
           responsavelId: ev.responsavelId,
         }}
         responsaveis={responsaveis}

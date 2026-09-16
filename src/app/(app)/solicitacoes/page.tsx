@@ -5,7 +5,7 @@ import { pode } from "@/domain/permissions";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { hrefCom, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
+import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
@@ -118,6 +118,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="text-[13.5px] text-ink">{s.titulo || "sem título"}</span>
                           <TipoSolicitacaoTag tipo={s.tipo} />
+                          {s.foraDaJanela && <ForaJanelaTag />}
                         </span>
                         <span className="mt-0.5 block text-[12px] text-muted">
                           {s.area.nome} · {s.evento.nome} · {s.criadoPor.nome}

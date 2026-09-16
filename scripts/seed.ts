@@ -148,7 +148,10 @@ async function main() {
     const s = await obterSolicitacao(usuario, solicitacaoId);
     for (let i = 0; i < s.itens.length && i < respostas.length; i++) {
       const r = respostas[i];
-      await responderItem(usuario, s.itens[i].id, { status: r.status, quantidadeAtendida: r.qtd, observacaoLogistica: r.obs, pendenciaCompra: r.pendencia });
+      // Pré-reunião já entra na ata como atendida: só o que muda vira correção (conferida na reunião).
+      const jaAtendido = s.itens[i].status === "ATENDIDO";
+      if (jaAtendido && r.status === "ATENDIDO") continue;
+      await responderItem(usuario, s.itens[i].id, { status: r.status, quantidadeAtendida: r.qtd, observacaoLogistica: r.obs, pendenciaCompra: r.pendencia }, jaAtendido ? "Conferido na reunião de OS." : undefined);
     }
   }
   const ev = (dados: Parameters<typeof criarEvento>[1]) => criarEvento(marina, dados);
@@ -206,7 +209,8 @@ async function main() {
   await transicionarEvento(marina, e3.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s3a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }]);
   const s3bObj = await obterSolicitacao(marina, s3b);
-  await responderItem(marina, s3bObj.itens[0].id, { status: "ATENDIDO" });
+  // Pré-reunião já entrou na ata; deixa o segundo item com ressalva para a demo de correção na reunião.
+  await responderItem(marina, s3bObj.itens[1].id, { status: "PARCIAL", quantidadeAtendida: 1, observacaoLogistica: "Só um fechamento disponível na data." }, "Conferido na reunião de OS.");
 
   /* ---------------------------------------------------------------- */
   /* EVT-0004 — Feira Gastronômica (ENCERRADO, futuro)                  */

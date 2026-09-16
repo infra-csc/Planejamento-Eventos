@@ -7,7 +7,7 @@ import { dataExtenso } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
 import { Metric, MetricStrip, Section } from "@/components/ui/layout";
-import { TipoSolicitacaoTag } from "@/components/ui/badge";
+import { ForaJanelaTag, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { AtenderRapido } from "@/components/painel/atender-rapido";
 
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
@@ -29,6 +29,7 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
             {f.titulo || "sem título"}
           </Link>
           <TipoSolicitacaoTag tipo={f.tipo} />
+          {f.foraDaJanela && <ForaJanelaTag />}
         </div>
         <p className="mt-[3px] text-[12.5px] text-muted">{contexto}</p>
         {rapida && f.pendenteUnico && (

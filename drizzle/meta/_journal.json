@@ -36,6 +36,13 @@
       "when": 1789570843403,
       "tag": "0004_catalogo_arena_ajustes_bom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789582953937,
+      "tag": "0005_janela_alteracoes",
+      "breakpoints": true
     }
   ]
 }

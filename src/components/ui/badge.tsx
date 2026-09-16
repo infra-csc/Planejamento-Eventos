@@ -86,6 +86,11 @@ export function PerfilBadge({ perfil }: { perfil: Perfil }) {
   return <Badge tom={TOM_PERFIL[perfil]}>{PERFIL_LABEL[perfil]}</Badge>;
 }
 
+/** Alteração enviada depois da janela definida pela logística: chama a atenção para a decisão. */
+export function ForaJanelaTag({ className }: { className?: string }) {
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] bg-danger-bg px-[7px] py-px text-[11px] font-semibold text-danger", className)}>fora da janela</span>;
+}
+
 export function TipoSolicitacaoTag({ tipo }: { tipo: "PRE_REUNIAO" | "ALTERACAO" }) {
   return (
     <span className={cn("inline-flex whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]", tipo === "PRE_REUNIAO" ? "bg-neutral-bg text-ink-2" : "bg-accent-bg text-accent")}>

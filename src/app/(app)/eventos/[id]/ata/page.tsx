@@ -5,6 +5,7 @@ import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
 import { diaMesHora } from "@/lib/format";
 import { Section } from "@/components/ui/layout";
+import { ButtonLink } from "@/components/ui/button";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 
@@ -38,6 +39,17 @@ export default async function AtaPage({ params }: { params: Promise<{ id: string
             {ev.observacoesReuniao ? <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.55] text-ink-2">{ev.observacoesReuniao}</p> : <p className="m-0 text-[12.5px] text-muted">Nenhuma observação registrada.</p>}
           </div>
         </Section>
+
+        {!ev.ataFechadaEm && (
+          <Section titulo="Prévia da OS" sub="Confira antes de fechar">
+            <div className="px-[18px] py-3.5">
+              <p className="mb-2.5 mt-0 text-[12.5px] leading-[1.5] text-ink-3">Totais por peça, por projeto e peças soltas calculados desta ata. A OS v1 é gerada no fechamento.</p>
+              <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="sm" className="no-underline">
+                Ver prévia da OS
+              </ButtonLink>
+            </div>
+          </Section>
+        )}
 
         {congelada && (
           <Section titulo="Ata congelada" sub={`v${congelada.numero} · ${diaMesHora(congelada.fechadaEm)}`}>
