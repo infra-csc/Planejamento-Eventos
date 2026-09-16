@@ -80,7 +80,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, capaId: p.capaId }))}
-        pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, `estoque ${p.estoqueProprio} ${p.unidade}`].filter(Boolean).join(" · ") }))}
+        pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
         slaHoras={Number(config.sla_resposta_horas)}
       />

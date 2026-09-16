@@ -191,7 +191,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     .sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
 
   const cons = await calcularConsolidacao({ inicio: hoje, fim: addDiasISO(hoje, 30) });
-  const deficit = cons.pecas.filter((p) => p.saldo < 0);
+  // Sem estoque cadastrado (0) não há como apontar déficit — só peças com estoque informado entram no risco.
+  const deficit = cons.pecas.filter((p) => p.estoque > 0 && p.saldo < 0);
 
   return {
     tipo: "operacao" as const,

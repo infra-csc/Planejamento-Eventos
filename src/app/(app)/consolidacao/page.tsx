@@ -20,7 +20,8 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
   const [{ eventos, pecas }, pendenciasTodas] = await Promise.all([consolidarPeriodo(usuario, { inicio, fim }), listarPendenciasCompra(usuario)]);
 
   const demandadas = pecas.filter((p) => p.pico > 0).sort((a, b) => a.saldo - b.saldo || b.pico - a.pico);
-  const deficit = demandadas.filter((p) => p.saldo < 0);
+  // Estoque 0 = não informado: não conta como déficit.
+  const deficit = demandadas.filter((p) => p.estoque > 0 && p.saldo < 0);
   const aLocar = deficit.reduce((a, p) => a - p.saldo, 0);
   const pendencias = pendenciasTodas.filter((p) => p.solicitacao.evento.status !== "CANCELADO" && p.solicitacao.evento.status !== "ENCERRADO" && p.faltante > 0);
 
@@ -65,13 +66,13 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                       <span aria-hidden className="absolute -top-1 block h-4 w-0.5 bg-dark" style={{ left: `calc(${(p.estoque / escala) * 100}% - 1px)` }} />
                     </span>
                     <span className="mt-1.5 block text-[11.5px] text-ink-3">
-                      demanda <span className="font-mono">{p.pico}</span> · estoque <span className="font-mono">{p.estoque}</span>
+                      demanda <span className="font-mono">{p.pico}</span> · {p.estoque > 0 ? <>estoque <span className="font-mono">{p.estoque}</span></> : "estoque não informado"}
                       {p.eventosNoPico.length > 0 && <span className="text-meta"> · {p.eventosNoPico.map((e) => `${e.codigo} ${e.quantidade}${e.projetado ? " (projetado)" : ""}`).join(" · ")}</span>}
                     </span>
                   </span>
                   <span className="w-[108px] shrink-0 text-right">
-                    <span className={falta ? "inline-block rounded-[5px] bg-danger-bg px-2 py-0.5 font-mono text-[12px] font-medium text-danger" : "inline-block rounded-[5px] bg-success-bg px-2 py-0.5 font-mono text-[12px] font-medium text-success"}>
-                      {falta ? `faltam ${-p.saldo}` : `sobram ${p.saldo}`}
+                    <span className={p.estoque === 0 ? "inline-block rounded-[5px] bg-neutral-bg px-2 py-0.5 font-mono text-[12px] text-muted" : falta ? "inline-block rounded-[5px] bg-danger-bg px-2 py-0.5 font-mono text-[12px] font-medium text-danger" : "inline-block rounded-[5px] bg-success-bg px-2 py-0.5 font-mono text-[12px] font-medium text-success"}>
+                      {p.estoque === 0 ? "sem estoque" : falta ? `faltam ${-p.saldo}` : `sobram ${p.saldo}`}
                     </span>
                     <span className="mt-1 block font-mono text-[11px] text-meta">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
                   </span>

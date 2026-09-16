@@ -197,7 +197,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-2">{SETOR_LABEL[p.setor]}</td>
       <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-3">{p.familia || "—"}</td>
       <td className="border-b border-line-row px-2.5 py-2.5 text-right font-mono text-[12.5px]">
-        {p.estoqueProprio} <span className="text-[11px] text-muted">{p.unidade}</span>
+        {p.estoqueProprio > 0 ? p.estoqueProprio : "—"} <span className="text-[11px] text-muted">{p.unidade}</span>
       </td>
       <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-[12.5px] text-ink-3">{emBom.get(p.id) ?? 0}</td>
     </>
