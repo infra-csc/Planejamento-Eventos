@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, osVersoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
-import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento } from "./eventos";
+import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento, conferirTodasLinhas, salvarDadosReuniao } from "./eventos";
 import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, paginarSolicitacoes, primeiraDaFila, responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
 import { listarOsResumo, obterConteudosOs } from "./os";
 import { buscar } from "./busca";
@@ -57,6 +57,8 @@ async function eventoAberto() {
   const ev = await novoEvento();
   const linha = await incluirLinhaAta(logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId, descricaoLivre: null, quantidade: 10, destino: null, areaId: producao.areaId, justificativa: null });
   await transicionarEvento(logistica, ev.id, "INICIAR_REUNIAO");
+  await conferirTodasLinhas(logistica, ev.id);
+  await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística, Produção", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
   return { ev, linhaId: linha.id };
 }
@@ -168,6 +170,8 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
     const ev = await novoEvento();
     const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem", quantidadeSolicitada: 1 }] });
     await transicionarEvento(logistica, ev.id, "INICIAR_REUNIAO");
+    await conferirTodasLinhas(logistica, ev.id);
+    await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
     const t = await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
     expect(t.canceladasAuto).toBe(1);
     const db = await getDb();

@@ -47,6 +47,19 @@ export const alterarSenhaSchema = z
   })
   .refine((d) => d.senha === d.confirmacao, { message: "As senhas não conferem", path: ["confirmacao"] });
 
+export const dadosReuniaoSchema = z.object({
+  reuniaoPresentes: textoOpcional(2000),
+  publicoEsperado: z
+    .string()
+    .trim()
+    .transform((v) => (v ? Number(v.replace(/\./g, "")) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v >= 0 && v <= 10_000_000), "Informe um número inteiro"),
+  caminhaoCarrega: textoOpcional(120),
+  caminhaoSai: textoOpcional(120),
+  arenaDescarrega: textoOpcional(120),
+  kitDescarrega: textoOpcional(120),
+});
+
 export const eventoSchema = z
   .object({
     nome: texto(120),

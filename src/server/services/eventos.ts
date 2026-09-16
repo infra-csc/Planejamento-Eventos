@@ -17,6 +17,7 @@ import {
   type AtaConteudo,
   type BomSnapshotLinha,
   type EventoStatus,
+  usuarios,
 } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
@@ -113,6 +114,7 @@ export async function obterLinhasAta(eventoId: string) {
     : [];
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
+  const nomesConferiu = await nomesUsuarios(db, linhas.map((l) => l.registro.conferidoPorId));
   return linhas.map((l) => {
     const o = l.registro.solicitacaoItemId ? mapa.get(l.registro.solicitacaoItemId) : undefined;
     const origemLabel = o
@@ -132,6 +134,8 @@ export async function obterLinhasAta(eventoId: string) {
       versaoAtual,
       versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,
       capaId: l.registro.projetoId ? (capaDe.get(l.registro.projetoId) ?? null) : null,
+      conferidoEm: l.registro.conferidoEm,
+      conferidoPor: l.registro.conferidoPorId ? (nomesConferiu.get(l.registro.conferidoPorId) ?? null) : null,
     };
   });
 }
@@ -360,16 +364,38 @@ export async function solicitacoesPendentes(ex: Executor, eventoId: string) {
   });
 }
 
-async function montarAtaConteudo(ex: Executor, eventoId: string, observacoes: string | null): Promise<AtaConteudo> {
+async function nomesUsuarios(ex: Executor, ids: Array<string | null | undefined>) {
+  const unicos = [...new Set(ids.filter((x): x is string => Boolean(x)))];
+  const rows = unicos.length ? await ex.select({ id: usuarios.id, nome: usuarios.nome }).from(usuarios).where(inArray(usuarios.id, unicos)) : [];
+  return new Map(rows.map((r) => [r.id, r.nome]));
+}
+
+async function montarAtaConteudo(ex: Executor, ev: typeof eventos.$inferSelect, fechadaPor: UsuarioAtual, agora: Date): Promise<AtaConteudo> {
+  const eventoId = ev.id;
+  const observacoes = ev.observacoesReuniao;
   const linhas = await montarLinhasAta(ex, eventoId);
+  const nomesPor = await nomesUsuarios(ex, [ev.responsavelId, ...linhas.map((l) => l.registro.conferidoPorId)]);
   const sols = await ex.query.solicitacoes.findMany({
     where: and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.tipo, "PRE_REUNIAO"), inArray(solicitacoes.status, ["RESPONDIDA"])),
     with: { area: true, itens: { with: { projeto: true, peca: true } } },
   });
   return {
     observacoes,
+    reuniao: {
+      iniciadaEm: ev.reuniaoIniciadaEm?.toISOString() ?? null,
+      fechadaEm: agora.toISOString(),
+      fechadaPor: fechadaPor.nome,
+      conduzidaPor: nomesPor.get(ev.responsavelId) ?? "",
+      presentes: ev.reuniaoPresentes,
+      publicoEsperado: ev.publicoEsperado,
+      caminhaoCarrega: ev.caminhaoCarrega,
+      caminhaoSai: ev.caminhaoSai,
+      arenaDescarrega: ev.arenaDescarrega,
+      kitDescarrega: ev.kitDescarrega,
+    },
     linhas: linhas.map((l) => ({
       id: l.id,
+      conferidoPor: l.registro.conferidoPorId ? (nomesPor.get(l.registro.conferidoPorId) ?? null) : null,
       tipo: l.tipo,
       descricao: descricaoLinha(l),
       codigo: l.projeto?.codigo ?? l.peca?.codigo ?? null,
@@ -424,6 +450,10 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       canceladasAuto = rows.map((r) => ({ ...r, motivo }));
     };
 
+    if (acao === "INICIAR_REUNIAO") {
+      patch.reuniaoIniciadaEm = agora;
+    }
+
     if (acao === "FECHAR_ATA") {
       const pend = await tx
         .select({ n: count() })
@@ -440,8 +470,20 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       if (Number(pend[0].n) > 0) {
         throw new DomainError(`Ainda há ${Number(pend[0].n)} item(ns) de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.`);
       }
+      // A ata só fecha depois de a logística conferir cada linha na reunião e registrar quem estava presente.
+      const [naoConferidas] = await tx
+        .select({ n: count() })
+        .from(eventoItens)
+        .where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+      const nc = Number(naoConferidas.n);
+      if (nc > 0) {
+        throw new DomainError(`Ainda há ${nc} ${nc === 1 ? "linha da ata sem conferência" : "linhas da ata sem conferência"}. Marque cada item ou projeto como conferido na reunião antes de fechar.`);
+      }
+      if (!ev.reuniaoPresentes?.trim()) {
+        throw new DomainError("Registre quem estava presente na reunião antes de fechar a ata.");
+      }
       const [ultima] = await tx.select({ numero: ataVersoes.numero }).from(ataVersoes).where(eq(ataVersoes.eventoId, id)).orderBy(desc(ataVersoes.numero)).limit(1);
-      const conteudo = await montarAtaConteudo(tx, id, ev.observacoesReuniao);
+      const conteudo = await montarAtaConteudo(tx, ev, usuario, agora);
       await tx.insert(ataVersoes).values({ eventoId: id, numero: (ultima?.numero ?? 0) + 1, conteudo, fechadaPorId: usuario.id });
       osNumero = (await gerarOsVersao(tx, id, "ATA_FECHADA", usuario.id, "OS inicial gerada no fechamento da ata")).numero;
       patch.ataFechadaEm = agora;
@@ -558,6 +600,60 @@ export async function salvarObservacoesReuniao(usuario: UsuarioAtual, id: string
   await db.update(eventos).set({ observacoesReuniao: observacoes }).where(eq(eventos.id, id));
 }
 
+export type DadosReuniao = {
+  reuniaoPresentes: string | null;
+  publicoEsperado: number | null;
+  caminhaoCarrega: string | null;
+  caminhaoSai: string | null;
+  arenaDescarrega: string | null;
+  kitDescarrega: string | null;
+};
+
+/** Campos da ata preenchidos pela logística na reunião (presentes, público, carga). Congelam no fechamento. */
+export async function salvarDadosReuniao(usuario: UsuarioAtual, id: string, dados: DadosReuniao) {
+  exigir(usuario, "ata.consolidar");
+  const db = await getDb();
+  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, id) });
+  if (!ev) throw new NaoEncontradoError("Evento");
+  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("Os dados da reunião só podem ser editados antes de fechar a ata.");
+  await db.update(eventos).set(dados).where(eq(eventos.id, id));
+}
+
+/** Marca (ou desmarca) uma linha da ata como conferida na reunião. Pré-requisito para fechar a ata. */
+export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string, conferida: boolean) {
+  exigir(usuario, "ata.consolidar");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
+    const [linha] = await tx
+      .update(eventoItens)
+      .set(conferida ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : { conferidoEm: null, conferidoPorId: null })
+      .where(and(eq(eventoItens.id, linhaId), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)))
+      .returning({ id: eventoItens.id });
+    if (!linha) throw new NaoEncontradoError("Linha da ata");
+    const [{ total, conferidas }] = await tx
+      .select({ total: count(), conferidas: sql<number>`count(${eventoItens.conferidoEm})` })
+      .from(eventoItens)
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)));
+    return { total: Number(total), conferidas: Number(conferidas) };
+  });
+}
+
+/** Conferência em lote (seed, testes, "conferir todas as restantes"). */
+export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: string) {
+  exigir(usuario, "ata.consolidar");
+  const db = await getDb();
+  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+  if (!ev) throw new NaoEncontradoError("Evento");
+  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
+  await db
+    .update(eventoItens)
+    .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
+    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+}
+
 /* ------------------------------------------------------------------ */
 /* Linhas da ata (inclusão direta / ajuste da logística)                */
 /* ------------------------------------------------------------------ */
@@ -611,7 +707,8 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     }
 
     let valores: typeof eventoItens.$inferInsert;
-    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
+    // Linha incluída pela própria logística na reunião já nasce conferida.
+    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id, ...(geraOs ? {} : { conferidoEm: new Date(), conferidoPorId: usuario.id }) };
     if (dados.referenciaTipo === "PROJETO") {
       if (!dados.projetoId) throw new ValidacaoError("Escolha o projeto padrão.");
       const snap = await snapshotBom(tx, dados.projetoId);

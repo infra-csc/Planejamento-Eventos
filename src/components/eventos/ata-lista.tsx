@@ -10,7 +10,7 @@ import { Tag } from "@/components/ui/badge";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast, toastErro } from "@/components/ui/toast";
-import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction } from "@/app/(app)/eventos/actions";
+import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import type { EventoStatus } from "@/server/db/schema";
 
@@ -29,7 +29,42 @@ export type LinhaAtaView = {
   versaoDefasada: boolean;
   /** Primeira imagem do projeto padrão (miniatura na linha). */
   capaId?: string | null;
+  /** Conferida na reunião de OS (ISO) e por quem. */
+  conferidoEm?: string | null;
+  conferidoPor?: string | null;
 };
+
+/** Caixa de conferência da linha: a logística marca item a item na reunião; a ata só fecha com todas marcadas. */
+function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) {
+  const [pendente, iniciar] = useTransition();
+  const [otimista, setOtimista] = useState<boolean | null>(null);
+  const marcada = otimista ?? Boolean(l.conferidoEm);
+  return (
+    <label className={cn("inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-1.5 py-1 text-[12px]", marcada ? "text-success" : "text-ink-3 hover:bg-subtle")} title={marcada && l.conferidoPor ? `Conferido por ${l.conferidoPor}` : "Marcar como conferido na reunião"}>
+      <input
+        type="checkbox"
+        className="size-4 cursor-pointer accent-[var(--color-success)]"
+        checked={marcada}
+        disabled={pendente}
+        aria-label={`${l.nome}: conferido na reunião`}
+        onChange={(e) => {
+          const v = e.target.checked;
+          setOtimista(v);
+          iniciar(async () => {
+            const r = await conferirLinhaAction(eventoId, l.id, v);
+            if (!r.ok) {
+              setOtimista(null);
+              toastErro(r.erro);
+            } else if (r.dados && r.dados.conferidas === r.dados.total) {
+              toast("Todas as linhas conferidas — a ata pode ser fechada");
+            }
+          });
+        }}
+      />
+      <span className="hidden sm:inline">{marcada ? "conferido" : "conferir"}</span>
+    </label>
+  );
+}
 
 const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
 
@@ -69,6 +104,7 @@ export function AtaLista({
   areas,
   compacta = false,
   dataReuniao,
+  conferivel = false,
 }: {
   eventoId: string;
   status: EventoStatus;
@@ -78,8 +114,12 @@ export function AtaLista({
   areas: Array<{ id: string; nome: string }>;
   compacta?: boolean;
   dataReuniao: string;
+  /** Reunião em andamento: mostra a coluna de conferência item a item. */
+  conferivel?: boolean;
 }) {
   const [incluir, setIncluir] = useState(false);
+  const [conferindoTodas, iniciarTodas] = useTransition();
+  const conferidas = linhas.filter((l) => l.conferidoEm).length;
   const [ajustar, setAjustar] = useState<LinhaAtaView | null>(null);
   const exigeJustificativa = status === "ABERTO";
   const soma = linhas.reduce((a, l) => a + l.quantidade, 0);
@@ -113,12 +153,13 @@ export function AtaLista({
                 {!compacta && <Th largura={130}>Destino</Th>}
                 {!compacta && <Th largura={120}>Área</Th>}
                 <Th largura={compacta ? 120 : 170}>Origem</Th>
+                {conferivel && <Th largura={compacta ? 44 : 110}>{compacta ? <span className="sr-only">Conferido</span> : "Conferido"}</Th>}
                 {editavel && !compacta && <Th largura={70}></Th>}
               </tr>
             </thead>
             <tbody>
               {linhas.map((l) => (
-                <tr key={l.id} className="hover:bg-subtle">
+                <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
                   <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
                     {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-[5px] border border-line" />}
                     <span className="text-[13.5px] text-ink">{l.nome}</span>
@@ -142,6 +183,11 @@ export function AtaLista({
                       l.origemLabel
                     )}
                   </td>
+                  {conferivel && (
+                    <td className="border-b border-line-row px-1.5 py-[7px]">
+                      <CheckConferida l={l} eventoId={eventoId} />
+                    </td>
+                  )}
                   {editavel && !compacta && (
                     <td className="border-b border-line-row py-[11px] pr-[18px] text-right">
                       <button type="button" onClick={() => setAjustar(l)} className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-accent hover:underline" aria-label={`Ajustar ${l.nome}`}>
@@ -156,8 +202,35 @@ export function AtaLista({
           <div className="flex items-center justify-between gap-3 bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
             <span>
               {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} na ata · <span className="font-mono">{soma}</span> unidades
+              {conferivel && (
+                <>
+                  {" · "}
+                  <span className={cn("font-mono", conferidas === linhas.length ? "text-success" : "text-warning")}>
+                    {conferidas}/{linhas.length}
+                  </span>{" "}
+                  conferidas
+                </>
+              )}
             </span>
-            {botaoIncluir}
+            <span className="flex flex-wrap items-center gap-3">
+              {conferivel && conferidas < linhas.length && linhas.length - conferidas > 1 && (
+                <button
+                  type="button"
+                  disabled={conferindoTodas}
+                  onClick={() =>
+                    iniciarTodas(async () => {
+                      const r = await conferirTodasAction(eventoId);
+                      if (r.ok) toast("Linhas restantes marcadas como conferidas");
+                      else toastErro(r.erro);
+                    })
+                  }
+                  className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-ink-2 hover:underline disabled:opacity-60"
+                >
+                  {conferindoTodas ? "conferindo…" : `Conferir as ${linhas.length - conferidas} restantes`}
+                </button>
+              )}
+              {botaoIncluir}
+            </span>
           </div>
         </>
       )}

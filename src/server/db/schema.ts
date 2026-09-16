@@ -253,6 +253,14 @@ export const eventos = pgTable(
       .references(() => usuarios.id),
     status: eventoStatusEnum("status").notNull().default("PREPARACAO"),
     observacoesReuniao: text("observacoes_reuniao"),
+    /** Dados da reunião de OS (campos da ata): quando começou, quem estava e a logística de carga. */
+    reuniaoIniciadaEm: ts("reuniao_iniciada_em"),
+    reuniaoPresentes: text("reuniao_presentes"),
+    publicoEsperado: integer("publico_esperado"),
+    caminhaoCarrega: text("caminhao_carrega"),
+    caminhaoSai: text("caminhao_sai"),
+    arenaDescarrega: text("arena_descarrega"),
+    kitDescarrega: text("kit_descarrega"),
     ataFechadaEm: ts("ata_fechada_em"),
     ataFechadaPorId: text("ata_fechada_por_id").references(() => usuarios.id),
     encerradoEm: ts("encerrado_em"),
@@ -328,6 +336,9 @@ export const eventoItens = pgTable(
     origem: eventoItemOrigemEnum("origem").notNull(),
     solicitacaoItemId: text("solicitacao_item_id").references((): AnyPgColumn => solicitacaoItens.id, { onDelete: "set null" }),
     justificativaAjuste: text("justificativa_ajuste"),
+    /** Conferida na reunião de OS: a ata só fecha com todas as linhas conferidas. */
+    conferidoEm: ts("conferido_em"),
+    conferidoPorId: text("conferido_por_id").references(() => usuarios.id),
     ativo: boolean("ativo").notNull().default(true),
     removidoEm: ts("removido_em"),
     removidoPorId: text("removido_por_id").references(() => usuarios.id),
@@ -488,10 +499,26 @@ export type BomSnapshotLinha = {
   quantidade: number;
 };
 
+export type AtaReuniao = {
+  iniciadaEm: string | null;
+  fechadaEm: string;
+  fechadaPor: string | null;
+  conduzidaPor: string;
+  presentes: string | null;
+  publicoEsperado: number | null;
+  caminhaoCarrega: string | null;
+  caminhaoSai: string | null;
+  arenaDescarrega: string | null;
+  kitDescarrega: string | null;
+};
+
 export type AtaConteudo = {
   observacoes: string | null;
+  /** Ausente em atas fechadas antes destes campos. */
+  reuniao?: AtaReuniao;
   linhas: Array<{
     id: string;
+    conferidoPor?: string | null;
     tipo: EventoItemTipo;
     descricao: string;
     codigo: string | null;

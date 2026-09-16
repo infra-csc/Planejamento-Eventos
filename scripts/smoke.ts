@@ -9,7 +9,7 @@ import { getConnection } from "../src/server/db";
 import { areas, eventoItens, eventos, projetos, usuarios } from "../src/server/db/schema";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
 import { DomainError } from "../src/domain/errors";
-import { obterLinhasAta, transicionarEvento } from "../src/server/services/eventos";
+import { conferirLinha, conferirTodasLinhas, listarAtaVersoes, obterLinhasAta, salvarDadosReuniao, transicionarEvento } from "../src/server/services/eventos";
 import {
   atualizarCabecalho,
   criarRascunho,
@@ -87,7 +87,19 @@ async function main() {
   await deveFalhar(() => responderItem(paulo, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "x" }, "y"), "requisitante não pode corrigir", "permissão");
   await responderItem(marina, item.id, { status: "NAO_ATENDIDO", observacaoLogistica: "Fechamentos já reservados para a Praia Sonora." }, "Conferido na reunião de OS.");
   ok(!(await obterLinhasAta(e3.id)).some((l) => l.registro.solicitacaoItemId === item.id), "correção para não atendido tira a linha da ata");
+  await deveFalhar(() => transicionarEvento(marina, e3.id, "FECHAR_ATA"), "fechar ata sem conferir as linhas é bloqueado", "conferência");
+  const linhasE3 = await obterLinhasAta(e3.id);
+  const c1 = await conferirLinha(marina, e3.id, linhasE3[0].id, true);
+  ok(c1.conferidas === 1 && c1.total === linhasE3.length, "conferência item a item conta certo");
+  await deveFalhar(() => conferirLinha(paulo, e3.id, linhasE3[0].id, true), "requisitante não confere linha", "permissão");
+  await conferirTodasLinhas(marina, e3.id);
+  ok((await obterLinhasAta(e3.id)).every((l) => l.conferidoEm), "todas as linhas conferidas");
+  await deveFalhar(() => transicionarEvento(marina, e3.id, "FECHAR_ATA"), "fechar ata sem presentes é bloqueado", "presente");
+  await salvarDadosReuniao(marina, e3.id, { reuniaoPresentes: "Marina (Logística), Paulo (Produção)", publicoEsperado: 1200, caminhaoCarrega: "véspera, 14h", caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(marina, e3.id, "FECHAR_ATA");
+  const ataE3 = (await listarAtaVersoes(e3.id))[0];
+  ok(Boolean(ataE3.conteudo.reuniao?.iniciadaEm) && ataE3.conteudo.reuniao?.presentes?.includes("Paulo") === true && ataE3.conteudo.linhas.every((l) => l.conferidoPor), "ata congelada traz início, presentes e quem conferiu cada linha");
+  await deveFalhar(() => salvarDadosReuniao(marina, e3.id, { reuniaoPresentes: "x", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null }), "dados da reunião congelam após fechar", "fechar");
   const v3 = await listarOsVersoes(e3.id);
   ok(v3.length === 1 && v3[0].gatilho === "ATA_FECHADA", "OS v1 gerada ao fechar a ata");
   ok((await ev("EVT-0003")).status === "ABERTO", "evento passou para ABERTO");

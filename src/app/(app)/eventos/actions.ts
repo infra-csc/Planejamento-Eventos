@@ -6,13 +6,16 @@ import { requireUsuario } from "@/server/auth/session";
 import {
   alterarQuantidadeLinha,
   atualizarVersaoLinha,
+  conferirLinha,
+  conferirTodasLinhas,
+  salvarDadosReuniao,
   criarEvento,
   editarEvento,
   incluirLinhaAta,
   salvarObservacoesReuniao,
   transicionarEvento,
 } from "@/server/services/eventos";
-import { ataAlterarQuantidadeSchema, ataLinhaSchema, eventoSchema, justificativaSchema } from "@/lib/schemas";
+import { ataAlterarQuantidadeSchema, ataLinhaSchema, dadosReuniaoSchema, eventoSchema, justificativaSchema } from "@/lib/schemas";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
@@ -113,6 +116,36 @@ export async function alterarQuantidadeLinhaAction(_prev: ActionResult, formData
     r = tratarErro(e);
   }
   revalidarTudo();
+  return r;
+}
+
+export async function conferirLinhaAction(eventoId: string, linhaId: string, conferida: boolean) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof conferida !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => conferirLinha(usuario, eventoId, linhaId, conferida));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  return r;
+}
+
+export async function conferirTodasAction(eventoId: string) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => conferirTodasLinhas(usuario, eventoId));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  return r;
+}
+
+export async function salvarDadosReuniaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const usuario = await requireUsuario();
+  const eventoId = String(formData.get("eventoId") ?? "");
+  let r: ActionResult;
+  try {
+    const dados = parseForm(dadosReuniaoSchema, formData);
+    r = await executar(() => salvarDadosReuniao(usuario, eventoId, dados));
+  } catch (e) {
+    r = tratarErro(e);
+  }
+  revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
 }
 

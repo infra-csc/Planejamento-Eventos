@@ -14,7 +14,7 @@ import { PECAS, PROJETOS } from "./dados/catalogo";
 import { hashSenha } from "../src/server/auth/password";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
 import { criarProjeto, editarProjeto } from "../src/server/services/projetos";
-import { alterarQuantidadeLinha, criarEvento, incluirLinhaAta, obterLinhasAta, salvarObservacoesReuniao, transicionarEvento } from "../src/server/services/eventos";
+import { alterarQuantidadeLinha, conferirTodasLinhas, criarEvento, incluirLinhaAta, obterLinhasAta, salvarDadosReuniao, salvarObservacoesReuniao, transicionarEvento } from "../src/server/services/eventos";
 import { atualizarCabecalho, criarRascunho, devolverSolicitacao, enviarSolicitacao, obterSolicitacao, responderItem, salvarItem } from "../src/server/services/solicitacoes";
 import { marcarTodasLidas } from "../src/server/services/notificacoes";
 
@@ -144,6 +144,13 @@ async function main() {
     if (enviar) await enviarSolicitacao(usuario, s.id);
     return s.id;
   }
+  /** Reunião: confere todas as linhas e registra presentes (exigido para fechar a ata). */
+  async function fecharReuniao(usuario: UsuarioAtual, eventoId: string, presentes: string, extras: Partial<Parameters<typeof salvarDadosReuniao>[2]> = {}) {
+    await conferirTodasLinhas(usuario, eventoId);
+    await salvarDadosReuniao(usuario, eventoId, { reuniaoPresentes: presentes, publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null, ...extras });
+    await transicionarEvento(usuario, eventoId, "FECHAR_ATA");
+  }
+
   async function responderTodos(usuario: UsuarioAtual, solicitacaoId: string, respostas: Array<{ status: "ATENDIDO" | "PARCIAL" | "NAO_ATENDIDO"; qtd?: number; obs?: string; pendencia?: boolean }>) {
     const s = await obterSolicitacao(usuario, solicitacaoId);
     for (let i = 0; i < s.itens.length && i < respostas.length; i++) {
@@ -176,7 +183,7 @@ async function main() {
   await responderTodos(rafael, s1c, [{ status: "ATENDIDO" }]);
   await incluirLinhaAta(marina, e1.id, { referenciaTipo: "PROJETO", projetoId: tenda3.id, pecaId: null, descricaoLivre: null, quantidade: 2, destino: "Backstage", areaId: area("Atendimento").id, justificativa: null });
   await salvarObservacoesReuniao(marina, e1.id, "Participaram: Produção (Paulo), Ativação (Júlia), Cenografia (Bruno), Atendimento (Lúcia), Logística (Marina, Rafael).\nDecisões: pórtico sul pode ser substituído por 4 m se faltar box 3,5 m. Carga sai 1 dia antes da montagem.");
-  await transicionarEvento(marina, e1.id, "FECHAR_ATA");
+  await fecharReuniao(marina, e1.id, "Marina (Logística), Rafael (Logística), Paulo (Produção), Júlia (Ativação), Bruno (Cenografia), Lúcia (Atendimento)", { publicoEsperado: 8000, caminhaoCarrega: "véspera da montagem, 14h", caminhaoSai: "montagem, 6h", arenaDescarrega: "montagem, 9h", kitDescarrega: "montagem, 11h" });
   // Alterações pós-ata
   const s1d = await solicitar(julia, e1.id, "Pórtico extra na área de ativação", [{ projetoId: portico4.id, qtd: 1, destino: "Ativação — acesso lateral", just: "Patrocinador confirmou espaço de ativação lateral." }]);
   await responderTodos(rafael, s1d, [{ status: "ATENDIDO" }]);
@@ -221,7 +228,7 @@ async function main() {
   await transicionarEvento(rafael, e4.id, "INICIAR_REUNIAO");
   await responderTodos(rafael, s4a, [{ status: "ATENDIDO" }, { status: "NAO_ATENDIDO", obs: "Estande comprometido com o Festival Praia Sonora. Use duas tendas 5×5 unidas.", pendencia: false }]);
   await responderTodos(rafael, s4b, [{ status: "ATENDIDO" }]);
-  await transicionarEvento(rafael, e4.id, "FECHAR_ATA");
+  await fecharReuniao(rafael, e4.id, "Rafael (Logística), Paulo (Produção), Bruno (Cenografia)", { publicoEsperado: 3500 });
   const s4c = await solicitar(paulo, e4.id, "Mais duas tendas", [{ projetoId: tenda5.id, qtd: 2, destino: "Ala C" }]);
   await responderTodos(rafael, s4c, [{ status: "ATENDIDO" }]);
   await transicionarEvento(rafael, e4.id, "ENCERRAR");
@@ -233,7 +240,7 @@ async function main() {
   const s5a = await solicitar(julia, e5.id, "Largada e chegada", [{ projetoId: portico660.id, qtd: 1, destino: "Largada" }, { projetoId: portico4.id, qtd: 1, destino: "Chegada" }, { projetoId: quadroFoto.id, qtd: 2, destino: "Largada" }]);
   await transicionarEvento(marina, e5.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s5a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "ATENDIDO" }]);
-  await transicionarEvento(marina, e5.id, "FECHAR_ATA");
+  await fecharReuniao(marina, e5.id, "Marina (Logística), Júlia (Ativação)", { publicoEsperado: 2500, caminhaoSai: "montagem, 5h" });
   await transicionarEvento(marina, e5.id, "ENCERRAR");
   await transicionarEvento(helena, e5.id, "REABRIR", "Patrocinador master entrou na última hora e exige pórtico exclusivo na chegada. Aprovado pela direção.");
   await solicitar(julia, e5.id, "Pórtico do patrocinador", [{ projetoId: portico660.id, qtd: 1, destino: "Chegada — patrocinador", just: "Exigência contratual do patrocinador master." }]);
@@ -256,7 +263,7 @@ async function main() {
     const s = await solicitar(paulo, e.id, titulo, [{ projetoId: palco84.id, qtd: 1, destino: "Palco" }, { pecaCodigo: "BALCAO-120", qtd: 2, destino: "Recepção" }, { projetoId: quadroFoto.id, qtd: 2 }]);
     await transicionarEvento(marina, e.id, "INICIAR_REUNIAO");
     await responderTodos(marina, s, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "ATENDIDO" }]);
-    await transicionarEvento(marina, e.id, "FECHAR_ATA");
+    await fecharReuniao(marina, e.id, "Marina (Logística), Paulo (Produção)");
     await transicionarEvento(marina, e.id, "ENCERRAR");
   }
 

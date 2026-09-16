@@ -43,6 +43,13 @@
       "when": 1789582953937,
       "tag": "0005_janela_alteracoes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789584758215,
+      "tag": "0006_reuniao_conferencia",
+      "breakpoints": true
     }
   ]
 }

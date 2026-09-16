@@ -13,6 +13,7 @@ import { SolicitacaoStatusBadge } from "@/components/ui/badge";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { BannerReuniao } from "@/components/eventos/banner-reuniao";
 import { ObservacoesAutosave } from "@/components/eventos/observacoes-autosave";
+import { DadosReuniaoForm } from "@/components/eventos/dados-reuniao-form";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { paraView } from "@/components/eventos/ata-view";
 
@@ -54,13 +55,13 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
     ),
   }));
   const todos = porSolicitacao.flatMap((x) => x.itens);
-  const respondidos = todos.filter((i) => i.status !== "EM_ANALISE").length;
+  const conferidas = linhas.filter((l) => l.conferidoEm).length;
   const comEnvio = new Set(pre.map((s) => s.areaId));
   const semEnvio = areas.filter((a) => a.nome !== "Logística" && !comEnvio.has(a.id));
 
   return (
     <>
-      <BannerReuniao eventoId={id} nome={ev.nome} codigo={ev.codigo} status={ev.status} respondidos={respondidos} total={todos.length} />
+      <BannerReuniao eventoId={id} nome={ev.nome} codigo={ev.codigo} status={ev.status} conferidas={conferidas} total={linhas.length} presentesOk={Boolean(ev.reuniaoPresentes?.trim())} iniciadaEm={ev.reuniaoIniciadaEm ? diaMesHora(ev.reuniaoIniciadaEm) : null} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start">
         <RespostaProvider itens={todos} sufixoToast="ata atualizada">
@@ -106,16 +107,31 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         </RespostaProvider>
 
         <div className="lg:sticky lg:top-[76px] flex flex-col gap-3.5">
-          <Section titulo="Ata em construção" sub="Atualiza a cada resposta.">
+          <Section titulo="Ata em construção" sub={ev.status === "EM_REUNIAO" ? "Marque cada linha conforme for confirmada na reunião." : "As necessidades das áreas entram aqui automaticamente."}>
             <AtaLista
               eventoId={id}
               status={ev.status}
               editavel
               compacta
+              conferivel
               opcoes={opcoes}
               areas={areas.map((a) => ({ id: a.id, nome: a.nome }))}
               linhas={linhas.map(paraView)}
               dataReuniao={diaMesHora(ev.dataReuniao)}
+            />
+          </Section>
+          <Section titulo="Dados da reunião" sub={ev.reuniaoIniciadaEm ? `Iniciada ${diaMesHora(ev.reuniaoIniciadaEm)} · conduzida por ${ev.responsavel.nome}` : `Marcada para ${diaMesHora(ev.dataReuniao)} · conduzida por ${ev.responsavel.nome}`}>
+            <DadosReuniaoForm
+              eventoId={id}
+              editavel
+              valores={{
+                reuniaoPresentes: ev.reuniaoPresentes,
+                publicoEsperado: ev.publicoEsperado,
+                caminhaoCarrega: ev.caminhaoCarrega,
+                caminhaoSai: ev.caminhaoSai,
+                arenaDescarrega: ev.arenaDescarrega,
+                kitDescarrega: ev.kitDescarrega,
+              }}
             />
           </Section>
           <Section titulo="Observações da reunião">
