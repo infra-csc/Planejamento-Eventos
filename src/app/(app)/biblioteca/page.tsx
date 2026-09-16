@@ -15,6 +15,7 @@ import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
+import { ImagemZoom } from "@/components/ui/imagem-zoom";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -91,22 +92,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 const sel = p.id === selecionado?.id;
                 const n = uso.get(p.id) ?? 0;
                 return (
-                  <Link
-                    key={p.id}
-                    href={hrefCom("/biblioteca", {}, { p: p.id })}
-                    scroll={false}
-                    aria-current={sel ? "true" : undefined}
-                    className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 no-underline last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
-                  >
+                  <div key={p.id} className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}>
                     {p.capa ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`/api/anexos/${p.capa.id}`} alt="" className="h-10 w-14 shrink-0 rounded-[6px] border border-line bg-white object-contain" loading="lazy" />
+                      <ImagemZoom src={`/api/anexos/${p.capa.id}`} alt={p.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-[6px] border border-line" />
                     ) : (
                       <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-[6px] border border-dashed border-line-strong text-[10px] text-meta">
                         sem foto
                       </span>
                     )}
-                    <span className="min-w-0 flex-1">
+                    <Link href={hrefCom("/biblioteca", {}, { p: p.id })} scroll={false} aria-current={sel ? "true" : undefined} className="min-w-0 flex-1 no-underline">
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="min-w-0 text-[14px] font-medium leading-[1.25] text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.nome}</span>
                         <span className="rounded-[5px] bg-control px-1.5 font-mono text-[11px] text-ink-3">v{p.versaoAtual}</span>
@@ -115,12 +109,12 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                         <span className="font-mono">{p.codigo}</span>
                         {p.descricao ? ` · ${p.descricao}` : ""}
                       </span>
-                    </span>
+                    </Link>
                     <span className="w-[92px] shrink-0 text-[12.5px] text-ink-3 max-xl:hidden">{p.categoria || "—"}</span>
                     <span className="w-[64px] shrink-0 text-right font-mono text-[12.5px] text-ink-2 max-xl:hidden">{p.tiposPeca} tipos</span>
                     <span className="w-[72px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.totalPecas} pç</span>
                     <span className={cn("w-[84px] shrink-0 text-right text-[12px] max-lg:hidden", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</span>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -131,11 +125,27 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   titulo={detalhe.nome}
                   sub={`Lista de peças · v${detalhe.versaoAtual} · ${bom.reduce((a, i) => a + i.quantidade, 0)} unidades por projeto`}
                   acoes={
-                    <Link href={`/projetos/${detalhe.id}`} className="link text-[12.5px]">
-                      Abrir
-                    </Link>
+                    <span className="flex items-center gap-3">
+                      {pode(usuario, "projeto.gerenciar") && (
+                        <Link href={`/projetos/${detalhe.id}/editar`} className="link text-[12.5px]">
+                          Editar
+                        </Link>
+                      )}
+                      <Link href={`/projetos/${detalhe.id}`} className="link text-[12.5px]">
+                        Abrir
+                      </Link>
+                    </span>
                   }
                 >
+                  {detalhe.anexos.some((a) => a.tipo === "IMAGEM") && (
+                    <div className="flex gap-2 overflow-x-auto border-b border-line-soft px-[18px] py-3">
+                      {detalhe.anexos
+                        .filter((a) => a.tipo === "IMAGEM")
+                        .map((a) => (
+                          <ImagemZoom key={a.id} src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} legenda={`${detalhe.nome} · ${a.nomeArquivo}`} className="h-[84px] w-28 shrink-0 overflow-hidden rounded-[7px] border border-line" />
+                        ))}
+                    </div>
+                  )}
                   <div>
                     {bom.map((i) => {
                       const novo = anterior && !anterior.itens.some((x) => x.pecaId === i.pecaId);
