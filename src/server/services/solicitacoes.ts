@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type AjusteBom, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { aceitaSolicitacao, janelaPreReuniaoAberta, tipoSolicitacaoParaStatus } from "@/domain/evento";
@@ -22,6 +22,7 @@ import {
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao } from "./os";
 import { snapshotBom } from "./eventos";
+import { aplicarAjustesBom } from "@/domain/os";
 import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "./support";
 
 /** Uma resposta a item pode ser desfeita pelo próprio autor por este tempo (toast "Desfazer"). */
@@ -305,6 +306,7 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
     pecaId: null,
     descricaoLivre: null,
     eventoItemId: null,
+    ajustesBom: null,
   };
   if (dados.operacao === "ADICIONAR") {
     if (dados.projetoId) {
@@ -313,6 +315,16 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
       const snap = await snapshotBom(tx, p.id);
       valores.projetoId = p.id;
       valores.projetoVersaoId = snap.versaoId;
+      // Ajustes só sobre peças que fazem parte do projeto; o resultado nunca fica negativo.
+      const ajustes: AjusteBom[] = [];
+      for (const a of dados.ajustesBom ?? []) {
+        if (!a.quantidade) continue;
+        const linha = snap.bom.find((l) => l.pecaId === a.pecaId);
+        if (!linha) throw new ValidacaoError("Só dá para ajustar peças que fazem parte do projeto.");
+        if (linha.quantidade + a.quantidade < 0) throw new ValidacaoError(`${linha.nome}: o projeto tem ${linha.quantidade}; não dá para tirar ${Math.abs(a.quantidade)}.`);
+        ajustes.push({ pecaId: linha.pecaId, codigo: linha.codigo, nome: linha.nome, quantidade: a.quantidade });
+      }
+      valores.ajustesBom = ajustes.length ? ajustes : null;
     } else if (dados.pecaId) {
       const pc = await tx.query.pecas.findFirst({ where: eq(pecas.id, dados.pecaId) });
       if (!pc || !pc.ativo) throw new DomainError("Peça inativa ou inexistente.");
@@ -542,7 +554,7 @@ async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId:
     let valores: typeof eventoItens.$inferInsert;
     if (item.projetoId) {
       const snap = await snapshotBom(tx, item.projetoId);
-      valores = { ...base, tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom };
+      valores = { ...base, tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, item.ajustesBom) };
     } else if (item.pecaId) {
       valores = { ...base, tipo: "PECA", pecaId: item.pecaId };
     } else {

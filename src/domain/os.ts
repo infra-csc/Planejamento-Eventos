@@ -1,4 +1,4 @@
-import type { BomSnapshotLinha, OsConteudo, OsLinha, OsSetor, Setor } from "@/server/db/schema";
+import type { AjusteBom, BomSnapshotLinha, OsConteudo, OsLinha, OsSetor, Setor } from "@/server/db/schema";
 import { SETORES } from "@/domain/constantes";
 
 /**
@@ -21,6 +21,7 @@ export const SETOR_LABEL: Record<Setor, string> = {
   ESTRUTURA: "Estrutura (box truss)",
   TENDA: "Tendas",
   MARCENARIA: "Marcenaria",
+  ARENA: "Arena e percurso",
 };
 
 export function descricaoLinha(l: LinhaAta): string {
@@ -115,6 +116,22 @@ export function resumoVersaoOs(anterior: OsConteudo | null, atual: OsConteudo): 
     return `${n} ${n === 1 ? "tipo de peça" : "tipos de peça"}`;
   }
   return resumirDiff(diffOS(anterior, atual));
+}
+
+/** Lista padrão do projeto com os ajustes da solicitação aplicados (delta por peça, nunca abaixo de zero). */
+export function aplicarAjustesBom(bom: BomSnapshotLinha[], ajustes: AjusteBom[] | null | undefined): BomSnapshotLinha[] {
+  if (!ajustes || ajustes.length === 0) return bom;
+  const delta = new Map(ajustes.map((a) => [a.pecaId, a.quantidade]));
+  return bom.map((l) => ({ ...l, quantidade: Math.max(0, l.quantidade + (delta.get(l.pecaId) ?? 0)) })).filter((l) => l.quantidade > 0);
+}
+
+/** "+2 Praticável 2×1 · −1 Cubo" — para mostrar o que o solicitante mudou no projeto. */
+export function resumirAjustes(ajustes: AjusteBom[] | null | undefined): string | null {
+  if (!ajustes || ajustes.length === 0) return null;
+  return ajustes
+    .filter((a) => a.quantidade !== 0)
+    .map((a) => `${a.quantidade > 0 ? "+" : "−"}${Math.abs(a.quantidade)} ${a.nome}`)
+    .join(" · ");
 }
 
 export function totalPecas(os: OsConteudo): number {

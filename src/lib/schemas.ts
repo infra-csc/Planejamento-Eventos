@@ -161,6 +161,12 @@ export const solicitacaoCompletaSchema = z.object({
         quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0).max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`),
         destino: textoLivre(60),
         justificativa: textoLivre(500),
+        ajustesBom: z
+          .array(z.object({ pecaId: z.string().min(1), quantidade: z.coerce.number().int().min(-QTD_MAX).max(QTD_MAX) }))
+          .max(200)
+          .nullable()
+          .optional()
+          .transform((v) => (v ? v.filter((a) => a.quantidade !== 0) : null)),
       }),
     )
     .max(100, "Máximo de 100 itens por solicitação"),

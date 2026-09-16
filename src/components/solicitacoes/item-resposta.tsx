@@ -16,6 +16,8 @@ export type ItemParaResposta = {
   quantidadeAtual: number | null;
   destino: string | null;
   justificativa: string | null;
+  /** Projeto com peças ajustadas pelo solicitante ("+2 Praticável 2×1 · −1 Cubo"). */
+  ajustes?: string | null;
   status: ItemStatus;
   quantidadeAtendida: number | null;
   observacaoLogistica: string | null;
@@ -283,7 +285,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
   const selecionado = foco === item.id;
   const editando = edicao?.id === item.id ? edicao : null;
   const emAnalise = item.status === "EM_ANALISE";
-  const contexto = [item.destino ? `Destino: ${item.destino}` : null, item.justificativa].filter(Boolean).join(" · ") || "sem observação do solicitante";
+  const contexto = [item.ajustes ? `Peças ajustadas: ${item.ajustes}` : null, item.destino ? `Destino: ${item.destino}` : null, item.justificativa].filter(Boolean).join(" · ") || "sem observação do solicitante";
   const observacao = [item.observacaoLogistica, item.pendenciaCompra ? "pendência de compra/locação" : null].filter(Boolean).join(" · ") || "sem ressalvas";
 
   return (

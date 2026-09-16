@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { descricaoItem, listarFila, obterSolicitacao } from "@/server/services/solicitacoes";
+import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
@@ -59,6 +60,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
     destino: i.destino,
     justificativa: i.justificativa,
+    ajustes: resumirAjustes(i.ajustesBom),
     status: i.status,
     quantidadeAtendida: i.quantidadeAtendida,
     observacaoLogistica: i.observacaoLogistica,

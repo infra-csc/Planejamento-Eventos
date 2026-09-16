@@ -1,5 +1,6 @@
 "use client";
 
+import { SETORES } from "@/domain/constantes";
 import { useActionState, useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { incluirLinhaAtaAction } from "@/app/(app)/eventos/actions";
@@ -65,7 +66,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
             <option value="" disabled>
               Selecione
             </option>
-            {(["ESTRUTURA", "TENDA", "MARCENARIA"] as const).map((s) => (
+            {SETORES.map((s) => (
               <optgroup key={s} label={SETOR_LABEL[s]}>
                 {opcoes.pecas
                   .filter((p) => p.setor === s)

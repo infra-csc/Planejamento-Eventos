@@ -22,10 +22,13 @@ export type ItemNovo = {
   quantidadeAtual: number | null;
   destino: string;
   justificativa: string;
+  /** Projeto: delta por peça (pecaId → unidades a mais ou a menos). */
+  ajustes: Record<string, number>;
   rotulo: string;
   meta: string;
 };
-type Referencia = { id: string; codigo: string; nome: string; meta: string };
+export type LinhaBom = { pecaId: string; codigo: string; nome: string; unidade: string; quantidade: number };
+type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?: LinhaBom[] };
 type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 type Modo = "projeto" | "peca" | "avulso" | "ata";
 
@@ -123,6 +126,9 @@ export function NovaSolicitacaoForm({
       quantidadeSolicitada: i.quantidade,
       destino: i.destino,
       justificativa: i.justificativa,
+      ajustesBom: Object.entries(i.ajustes)
+        .filter(([, d]) => d !== 0)
+        .map(([pecaId, quantidade]) => ({ pecaId, quantidade })),
     })),
   });
   const lembrarRascunho = (id: string, codigo: string) => {
@@ -131,7 +137,7 @@ export function NovaSolicitacaoForm({
     setCodigoRascunho(codigo);
     window.history.replaceState(null, "", `/solicitacoes/nova?rascunho=${id}`);
   };
-  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa])]);
+  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.ajustes])]);
   const salvoRef = useRef(rascunho ? assinatura : "");
   const podeAutosalvar = Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
 
@@ -218,6 +224,7 @@ export function NovaSolicitacaoForm({
           quantidadeAtual: null,
           destino: "",
           justificativa: "",
+          ajustes: {},
           rotulo: tipo === "projeto" ? r.nome : `${r.codigo} · ${r.nome}`,
           meta: tipo === "projeto" ? `${r.codigo} · projeto padrão` : "peça do catálogo",
         },
@@ -233,7 +240,7 @@ export function NovaSolicitacaoForm({
     }
     setErroAvulso(null);
     setAvulso("");
-    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", rotulo: d, meta: "item avulso" }]);
+    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", ajustes: {}, rotulo: d, meta: "item avulso" }]);
   };
 
   const adicionarLinha = (l: LinhaAta, operacao: "ALTERAR_QUANTIDADE" | "REMOVER") => {
@@ -250,6 +257,7 @@ export function NovaSolicitacaoForm({
         quantidadeAtual: l.quantidade,
         destino: l.destino ?? "",
         justificativa: "",
+        ajustes: {},
         rotulo: l.nome,
         meta: operacao === "REMOVER" ? "remover da ata" : `hoje ${l.quantidade} na ata`,
       },
@@ -257,6 +265,16 @@ export function NovaSolicitacaoForm({
   };
 
   const mudar = (chave: string, patch: Partial<ItemNovo>) => setItens((l) => l.map((i) => (i.chave === chave ? { ...i, ...patch } : i)));
+  // Painel "Ajustar peças" aberto (um por vez).
+  const [ajustando, setAjustando] = useState<string | null>(null);
+  const bomDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.bom ?? [] : []);
+  const resumoAjustes = (i: ItemNovo) => {
+    const bom = bomDe(i);
+    const partes = Object.entries(i.ajustes)
+      .filter(([, d]) => d !== 0)
+      .map(([pecaId, d]) => `${d > 0 ? "+" : "−"}${Math.abs(d)} ${bom.find((b) => b.pecaId === pecaId)?.nome ?? "peça"}`);
+    return partes.length ? partes.join(" · ") : null;
+  };
 
   const resultados = useMemo(() => {
     const t = busca.trim().toLowerCase();
@@ -402,11 +420,25 @@ export function NovaSolicitacaoForm({
         ) : (
           <div className="border-b border-line-soft">
             {itens.map((i) => (
-              <div key={i.chave} className="flex flex-wrap items-center gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
+              <div key={i.chave} className="border-b border-line-row last:border-b-0">
+              <div className="flex flex-wrap items-center gap-3 px-[18px] py-2.5">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] text-ink">{i.rotulo}</span>
-                  <span className="block text-[11.5px] text-muted">{i.meta}</span>
+                  <span className="block text-[11.5px] text-muted">
+                    {i.meta}
+                    {resumoAjustes(i) && <span className="text-accent"> · {resumoAjustes(i)}</span>}
+                  </span>
                 </span>
+                {i.projetoId && bomDe(i).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))}
+                    aria-expanded={ajustando === i.chave}
+                    className={cn("cursor-pointer rounded-[7px] border px-2.5 py-1 text-[12px]", ajustando === i.chave ? "border-accent bg-accent-bg text-accent" : "border-line-strong bg-surface text-ink-2 hover:bg-subtle")}
+                  >
+                    {ajustando === i.chave ? "Fechar peças" : "Ajustar peças"}
+                  </button>
+                )}
                 <input
                   aria-label={`Destino de ${i.rotulo}`}
                   value={i.destino}
@@ -438,6 +470,47 @@ export function NovaSolicitacaoForm({
                 <button type="button" onClick={() => setItens((l) => l.filter((x) => x.chave !== i.chave))} className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-ink-3 hover:text-danger">
                   Remover
                 </button>
+              </div>
+              {ajustando === i.chave && (
+                <div className="border-t border-line-faint bg-subtle/60 px-[18px] pb-3 pt-2.5">
+                  <p className="m-0 mb-2 text-[12px] text-muted">
+                    Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
+                  </p>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
+                    {bomDe(i).map((b) => {
+                      const delta = i.ajustes[b.pecaId] ?? 0;
+                      const pedir = b.quantidade + delta;
+                      const definir = (v: number) => mudar(i.chave, { ajustes: { ...i.ajustes, [b.pecaId]: Math.max(0, v) - b.quantidade } });
+                      return (
+                        <div key={b.pecaId} className="flex items-center gap-2 py-1">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[12.5px] text-ink">{b.nome}</span>
+                            <span className="block font-mono text-[11px] text-meta">
+                              {b.codigo} · padrão {b.quantidade} {b.unidade}
+                            </span>
+                          </span>
+                          <span className="flex items-center">
+                            <button type="button" aria-label={`Menos ${b.nome}`} onClick={() => definir(pedir - 1)} className="h-7 w-7 cursor-pointer rounded-l-[6px] border border-line-strong bg-surface text-[13px] text-ink-2 hover:bg-control">
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              aria-label={`Quantidade de ${b.nome}`}
+                              min={0}
+                              value={pedir}
+                              onChange={(e) => definir(Number(e.target.value) || 0)}
+                              className={cn("h-7 w-12 border-y border-line-control bg-surface text-center font-mono text-[12.5px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none", delta !== 0 && "text-accent")}
+                            />
+                            <button type="button" aria-label={`Mais ${b.nome}`} onClick={() => definir(pedir + 1)} className="h-7 w-7 cursor-pointer rounded-r-[6px] border border-line-strong bg-surface text-[13px] text-ink-2 hover:bg-control">
+                              +
+                            </button>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               </div>
             ))}
           </div>

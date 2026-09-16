@@ -357,6 +357,8 @@ export const solicitacaoItens = pgTable(
     descricaoLivre: text("descricao_livre"),
     quantidadeSolicitada: integer("quantidade_solicitada").notNull(),
     destino: text("destino"),
+    /** Ajustes nas peças do projeto pedido: unidades a mais (ou a menos) por peça, em cima da lista padrão. */
+    ajustesBom: jsonb("ajustes_bom").$type<AjusteBom[]>(),
     justificativa: text("justificativa"),
     status: itemStatusEnum("status").notNull().default("EM_ANALISE"),
     quantidadeAtendida: integer("quantidade_atendida"),
@@ -469,6 +471,9 @@ export const sequencias = pgTable("sequencias", {
 /* ------------------------------------------------------------------ */
 /* Tipos JSON                                                           */
 /* ------------------------------------------------------------------ */
+
+/** Delta por peça aplicado à lista padrão do projeto numa solicitação. */
+export type AjusteBom = { pecaId: string; codigo: string; nome: string; quantidade: number };
 
 export type BomSnapshotLinha = {
   pecaId: string;

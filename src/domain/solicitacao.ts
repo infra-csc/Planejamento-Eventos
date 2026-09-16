@@ -207,6 +207,8 @@ export type ItemRascunho = {
   eventoItemId?: string | null;
   quantidadeSolicitada: number;
   destino?: string | null;
+  /** Só para projeto: unidades a mais (ou a menos) por peça da lista padrão. */
+  ajustesBom?: Array<{ pecaId: string; quantidade: number }> | null;
 };
 
 /** Valida a consistência estrutural de um item de solicitação (exatamente uma referência). */

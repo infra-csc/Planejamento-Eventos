@@ -4,7 +4,7 @@
  * (Importar do schema em um client component arrasta o drizzle inteiro para o bundle.)
  */
 export const PERFIS = ["REQUISITANTE", "CENOGRAFIA", "LOGISTICA", "GESTAO", "ADMIN"] as const;
-export const SETORES = ["ESTRUTURA", "TENDA", "MARCENARIA"] as const;
+export const SETORES = ["ESTRUTURA", "TENDA", "MARCENARIA", "ARENA"] as const;
 export const EVENTO_STATUS = ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO", "CANCELADO"] as const;
 export const SOLICITACAO_TIPOS = ["PRE_REUNIAO", "ALTERACAO"] as const;
 export const SOLICITACAO_STATUS = ["RASCUNHO", "ENVIADA", "EM_ANALISE", "RESPONDIDA", "DEVOLVIDA", "CANCELADA"] as const;

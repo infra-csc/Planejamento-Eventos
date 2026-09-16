@@ -58,6 +58,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       quantidadeAtual: i.eventoItem?.quantidade ?? null,
       destino: i.destino ?? "",
       justificativa: i.justificativa ?? "",
+      ajustes: Object.fromEntries((i.ajustesBom ?? []).map((a) => [a.pecaId, a.quantidade])),
       rotulo: descricaoItem(i),
       meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "item avulso",
     })) ?? [];
@@ -78,7 +79,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         areaInicial={rascunho?.areaId ?? null}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
-        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · ") }))}
+        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom }))}
         pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, `estoque ${p.estoqueProprio} ${p.unidade}`].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
         slaHoras={Number(config.sla_resposta_horas)}

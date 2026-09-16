@@ -4,6 +4,7 @@ import { requirePermissao } from "@/server/auth/session";
 import { obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { descricaoItem, listarSolicitacoes, obterSolicitacoes } from "@/server/services/solicitacoes";
+import { resumirAjustes } from "@/domain/os";
 import { listarAreas } from "@/server/services/admin";
 import { podeCorrigirResposta, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
 import { diaMesHora } from "@/lib/format";
@@ -42,6 +43,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
         destino: i.destino,
         justificativa: i.justificativa,
+        ajustes: resumirAjustes(i.ajustesBom),
         status: i.status,
         quantidadeAtendida: i.quantidadeAtendida,
         observacaoLogistica: i.observacaoLogistica,

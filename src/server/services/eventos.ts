@@ -738,8 +738,19 @@ export async function opcoesReferencias() {
       .leftJoin(projetoItens, eq(projetoItens.versaoId, projetoVersoes.id))
       .groupBy(projetoVersoes.projetoId, projetoVersoes.numero),
   ]);
+  // Lista de peças da versão atual de cada projeto: o solicitante pode ajustar unidades por peça.
+  const linhasBom = await db
+    .select({ projetoId: projetoVersoes.projetoId, numero: projetoVersoes.numero, pecaId: pecas.id, codigo: pecas.codigo, nome: pecas.nome, unidade: pecas.unidade, quantidade: projetoItens.quantidade })
+    .from(projetoItens)
+    .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+    .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
+    .orderBy(asc(pecas.codigo));
   return {
-    projetos: proj.map((p) => ({ ...p, totalPecas: Number(versoes.find((v) => v.projetoId === p.id && v.numero === p.versaoAtual)?.total ?? 0) })),
+    projetos: proj.map((p) => ({
+      ...p,
+      totalPecas: Number(versoes.find((v) => v.projetoId === p.id && v.numero === p.versaoAtual)?.total ?? 0),
+      bom: linhasBom.filter((l) => l.projetoId === p.id && l.numero === p.versaoAtual).map(({ pecaId, codigo, nome, unidade, quantidade }) => ({ pecaId, codigo, nome, unidade, quantidade })),
+    })),
     pecas: pcs,
   };
 }

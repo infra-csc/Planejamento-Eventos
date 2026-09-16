@@ -1,12 +1,12 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, osVersoes, type OsConteudo, type OsGatilho } from "@/server/db/schema";
+import { eventoItens, osVersoes, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
 import { calcularOS, osIguais, resumoVersaoOs, type LinhaAta } from "@/domain/os";
 import type { Executor } from "./support";
 
 type RegistroLinha = typeof eventoItens.$inferSelect & {
   projeto: { id: string; codigo: string; nome: string; versaoAtual: number } | null;
-  peca: { id: string; codigo: string; nome: string; setor: "ESTRUTURA" | "TENDA" | "MARCENARIA"; unidade: string } | null;
+  peca: { id: string; codigo: string; nome: string; setor: Setor; unidade: string } | null;
   area: { id: string; nome: string } | null;
   projetoVersao: { numero: number } | null;
 };

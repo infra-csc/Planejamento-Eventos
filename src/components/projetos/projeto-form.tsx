@@ -1,5 +1,6 @@
 "use client";
 
+import { SETORES } from "@/domain/constantes";
 import { ActionForm } from "@/components/ui/action-form";
 import { useActionState, useMemo, useState } from "react";
 import { salvarProjetoAction } from "@/app/(app)/projetos/actions";
@@ -104,7 +105,7 @@ export function ProjetoForm({
           <Field label="Adicionar peça" htmlFor="novaPeca" className="min-w-64 flex-1">
             <Select id="novaPeca" value={novaPeca} onChange={(e) => setNovaPeca(e.target.value)}>
               <option value="">Selecione uma peça</option>
-              {(["ESTRUTURA", "TENDA", "MARCENARIA"] as const).map((s) => (
+              {SETORES.map((s) => (
                 <optgroup key={s} label={SETOR_LABEL[s]}>
                   {disponiveis
                     .filter((p) => p.setor === s)
