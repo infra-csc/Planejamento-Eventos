@@ -6,6 +6,7 @@ import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { Aviso, Section } from "@/components/ui/layout";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { OsVisoes, visaoDe } from "@/components/eventos/os-visoes";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
@@ -55,6 +56,16 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         <Aviso tom="warning" titulo="Prévia — a OS ainda não foi gerada">
           Esta é a leitura atual da ata em construção. A OS v1 é gerada no fechamento da ata; até lá, tudo aqui pode mudar conforme a reunião corrige as linhas.
         </Aviso>
+        {temAlgo && (
+          <div className="flex flex-wrap gap-2">
+            <a href={`/api/os/${id}/excel`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+              Excel da prévia (.xlsx)
+            </a>
+            <ButtonLink href={`/impressao/os/${id}`} target="_blank" variant="secondary" size="sm" className="no-underline">
+              Imprimir prévia
+            </ButtonLink>
+          </div>
+        )}
         {temAlgo ? (
           <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
         ) : (
@@ -146,6 +157,10 @@ export default async function OsPage({ params, searchParams }: { params: Promise
       <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">
         <Section titulo="Exportar">
           <div className="px-[18px] py-3.5">
+            <a href={`/api/os/${id}/excel${qsExport}`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
+              Excel completo (.xlsx)
+            </a>
+            <p className="mb-2.5 mt-1.5 text-[11.5px] leading-[1.45] text-muted">Abas: resumo, totais por peça, por projeto, peças soltas e itens avulsos, com coluna de separação.</p>
             <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
               Imprimir / PDF
             </ButtonLink>

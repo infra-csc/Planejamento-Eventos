@@ -94,8 +94,10 @@ export function AcoesEvento({
     );
   }
   if (podeSolicitar && (evento.status === "PREPARACAO" || evento.status === "ABERTO")) {
+    // Uma tela tem um primário: se já há ação de logística em destaque (admin vê as duas), solicitar vira secundário.
+    const jaTemPrimario = botoes.some((b) => (b as React.ReactElement<{ variant?: string }>).props.variant === "primary");
     botoes.push(
-      <ButtonLink key="solicitar" href={`/solicitacoes/nova?evento=${evento.id}`} variant="primary" size="lg" className="no-underline">
+      <ButtonLink key="solicitar" href={`/solicitacoes/nova?evento=${evento.id}`} variant={jaTemPrimario ? "secondary" : "primary"} size="lg" className="no-underline">
         {evento.status === "PREPARACAO" ? "Enviar necessidades" : "Solicitar alteração"}
       </ButtonLink>,
     );

@@ -48,6 +48,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         </div>
       </header>
 
+      <h2 className="mb-3 text-lg font-semibold">Totais por peça</h2>
       {os.setores.map((s) => (
         <section key={s.setor} className="mb-8 break-inside-avoid">
           <h2 className="mb-2 text-base font-semibold">{SETOR_LABEL[s.setor]}</h2>
@@ -77,6 +78,80 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           </table>
         </section>
       ))}
+
+      {os.projetos && os.projetos.length > 0 && (
+        <section className="mb-8 break-before-page">
+          <h2 className="mb-1 text-lg font-semibold">Por projeto</h2>
+          <p className="mb-4 text-[11px] text-neutral-600">O que cada projeto padrão leva, já com os ajustes pedidos pela área. As mesmas peças estão somadas nos totais acima.</p>
+          {os.projetos.map((p, i) => (
+            <div key={`${p.codigo}-${i}`} className="mb-6 break-inside-avoid">
+              <h3 className="mb-0.5 text-[14px] font-semibold">
+                {p.nome} <span className="font-mono text-[11px] font-normal text-neutral-600">{p.codigo} · v{p.versao}</span> <span className="ml-1 rounded bg-black px-1.5 py-px font-mono text-[11px] text-white">× {p.quantidade}</span>
+              </h3>
+              <p className="mb-2 text-[11px] text-neutral-600">{[p.destino ? `Destino: ${p.destino}` : null, p.area, `${p.pecas.length} tipos de peça · ${p.pecas.reduce((a, x) => a + x.total, 0)} unidades`].filter(Boolean).join(" · ")}</p>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-black text-left text-[11px] uppercase tracking-wide">
+                    <th className="py-1 pr-3">Código</th>
+                    <th className="py-1 pr-3">Peça</th>
+                    <th className="py-1 pr-3">Setor</th>
+                    <th className="py-1 pr-3 text-right">Por un.</th>
+                    <th className="py-1 pr-3 text-right">Total</th>
+                    <th className="py-1 pr-3">Un.</th>
+                    <th className="py-1 w-16 text-center">Sep.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.pecas.map((x) => (
+                    <tr key={x.codigo} className="border-b border-neutral-300">
+                      <td className="py-1.5 pr-3 font-medium">{x.codigo}</td>
+                      <td className="py-1.5 pr-3">{x.nome}</td>
+                      <td className="py-1.5 pr-3 text-[11px] text-neutral-600">{SETOR_LABEL[x.setor]}</td>
+                      <td className="py-1.5 pr-3 text-right font-mono">{x.porUnidade}</td>
+                      <td className="py-1.5 pr-3 text-right font-mono font-semibold">{x.total}</td>
+                      <td className="py-1.5 pr-3">{x.unidade}</td>
+                      <td className="py-1.5 text-center">☐</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {os.individuais && os.individuais.length > 0 && (
+        <section className="mb-8 break-inside-avoid">
+          <h2 className="mb-1 text-base font-semibold">Peças pedidas soltas</h2>
+          <p className="mb-2 text-[11px] text-neutral-600">Fora de projeto padrão. Também somadas nos totais.</p>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-black text-left text-[11px] uppercase tracking-wide">
+                <th className="py-1 pr-3">Código</th>
+                <th className="py-1 pr-3">Peça</th>
+                <th className="py-1 pr-3">Setor</th>
+                <th className="py-1 pr-3 text-right">Qtd.</th>
+                <th className="py-1 pr-3">Un.</th>
+                <th className="py-1 pr-3">Destino · área</th>
+                <th className="py-1 w-16 text-center">Sep.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {os.individuais.map((x, i) => (
+                <tr key={`${x.codigo}-${i}`} className="border-b border-neutral-300">
+                  <td className="py-1.5 pr-3 font-medium">{x.codigo}</td>
+                  <td className="py-1.5 pr-3">{x.nome}</td>
+                  <td className="py-1.5 pr-3 text-[11px] text-neutral-600">{SETOR_LABEL[x.setor]}</td>
+                  <td className="py-1.5 pr-3 text-right font-mono font-semibold">{x.quantidade}</td>
+                  <td className="py-1.5 pr-3">{x.unidade}</td>
+                  <td className="py-1.5 pr-3 text-[11px] text-neutral-600">{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
+                  <td className="py-1.5 text-center">☐</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       {os.semSetor.length > 0 && (
         <section className="mb-8 break-inside-avoid">

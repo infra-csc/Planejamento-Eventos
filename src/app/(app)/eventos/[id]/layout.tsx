@@ -54,17 +54,19 @@ export default async function EventoLayout({ children, params }: { children: Rea
     },
     {
       titulo: "Aberto a alterações",
-      quando: ev.ataFechadaEm ? `desde ${diaMes(ev.ataFechadaEm)}` : "—",
+      quando: ev.ataFechadaEm ? `desde ${diaMes(ev.ataFechadaEm)}` : "depois da reunião",
       detalhe:
         ev.status === "ABERTO"
           ? (plural(alteracoesAbertas, "alteração em aberto", "alterações em aberto") ?? "nenhuma alteração em aberto")
           : ev.ataFechadaEm
             ? "encerrado para novas"
-            : "—",
+            : ev.janelaAlteracoesAte
+              ? `janela até ${diaMesISO(ev.janelaAlteracoesAte)}`
+              : "abre com o fechamento da ata",
     },
     {
       titulo: "Encerrado",
-      quando: ev.encerradoEm ? diaMes(ev.encerradoEm) : ev.dataCarga ? `carga em ${diaMesISO(ev.dataCarga)}` : "—",
+      quando: ev.encerradoEm ? diaMes(ev.encerradoEm) : ev.dataCarga ? `carga em ${diaMesISO(ev.dataCarga)}` : "carga sem data",
       detalhe: ev.encerradoEm ? `OS final v${versaoOs}` : "nada entra depois disso",
     },
   ];
@@ -89,20 +91,21 @@ export default async function EventoLayout({ children, params }: { children: Rea
             {ev.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {ev.reabertoVezes}× pela gestão</span>}
           </div>
           <h1 className="mb-0 mt-1 text-[24px] font-semibold leading-[1.2] tracking-[-0.025em]">{ev.nome}</h1>
-          <div className="mt-2 flex flex-wrap gap-[18px] text-[13px] text-ink-2">
-            <span>
-              <span className="text-muted">Cliente</span> {ev.cliente || "—"}
-            </span>
-            <span>
-              <span className="text-muted">Local</span> {ev.local || "—"}
-            </span>
-            <span>
-              <span className="text-muted">Evento</span> <span className="font-mono">{periodoCurto(ev.dataInicio, ev.dataFim)}</span>
-            </span>
-            <span>
-              <span className="text-muted">Logística</span> {ev.responsavel.nome}
-            </span>
-          </div>
+          <dl className="mt-2 flex flex-wrap gap-x-[26px] gap-y-1 text-[13px] text-ink">
+            {(
+              [
+                ["Cliente", ev.cliente || "—", false],
+                ["Local", ev.local || "—", false],
+                ["Evento", periodoCurto(ev.dataInicio, ev.dataFim), true],
+                ["Logística", ev.responsavel.nome, false],
+              ] as const
+            ).map(([rotulo, valor, mono]) => (
+              <div key={rotulo} className="flex items-baseline gap-[5px]">
+                <dt className="text-[12.5px] text-muted">{rotulo}</dt>
+                <dd className={mono ? "m-0 font-mono" : "m-0"}>{valor}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <AcoesEvento

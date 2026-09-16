@@ -30,7 +30,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
               <div key={a.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b border-line-row px-[18px] py-3 last:border-b-0">
                 <span className="shrink-0 basis-[108px] text-[13.5px] text-ink">{a.nome}</span>
                 <span className="min-w-0 flex-1" role="img" aria-label={a.itens ? `${pct}% respondido` : "sem envio"}>
-                  <BarraProgresso pct={a.itens ? Math.max(4, pct) : 0} cor={pct === 100 ? "var(--color-success)" : "var(--color-accent)"} />
+                  <BarraProgresso pct={pct === 0 ? 0 : Math.max(4, pct)} cor={pct === 100 ? "var(--color-success)" : "var(--color-accent)"} />
                 </span>
                 <span className="basis-full text-[12.5px] text-ink-3 sm:basis-[200px] sm:text-right">
                   {a.itens === 0 ? "não enviou nada" : `${a.respondidos}/${a.itens} itens respondidos · ${a.solicitacoes} ${a.solicitacoes === 1 ? "solicitação" : "solicitações"}`}
