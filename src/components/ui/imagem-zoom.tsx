@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 
+/** Anexos do app ganham a miniatura webp (320 px) na lista; o lightbox continua abrindo o original. */
+function miniaturaDe(src: string) {
+  return src.startsWith("/api/anexos/") && !src.includes("?") ? `${src}?w=320` : src;
+}
+
 /**
  * Miniatura que abre a imagem em tamanho grande por cima da tela (Esc ou clique fora fecha),
  * sem sair da página — usada nos projetos padrão (renders e modulações).
@@ -26,7 +31,7 @@ export function ImagemZoom({ src, alt, className, legenda }: { src: string; alt:
     <>
       <button type="button" onClick={(e) => { e.stopPropagation(); setAberta(true); }} className={cn("block cursor-zoom-in border-0 bg-transparent p-0", className)} aria-label={`Ampliar ${alt}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="block h-full w-full rounded-[inherit] bg-white object-contain" loading="lazy" />
+        <img src={miniaturaDe(src)} alt={alt} className="block h-full w-full rounded-[inherit] bg-white object-contain" loading="lazy" decoding="async" />
       </button>
       {aberta &&
         createPortal(
