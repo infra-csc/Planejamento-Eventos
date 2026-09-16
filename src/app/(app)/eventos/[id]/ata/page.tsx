@@ -1,5 +1,5 @@
 import { requireUsuario } from "@/server/auth/session";
-import { listarAtaVersoes, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { listarAtaVersoes, obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
@@ -13,7 +13,7 @@ import { paraView } from "@/components/eventos/ata-view";
 export default async function AtaPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
-  const [ev, linhas, versoes, opcoes, areas] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), listarAtaVersoes(id), opcoesReferencias(), listarAreas()]);
+  const [ev, linhas, versoes, opcoes, areas] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), listarAtaVersoes(id), opcoesReferenciasResumidas(), listarAreas()]);
   const editavel = pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO" || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   const congelada = versoes[0];
   // Cabeçalho da ata (campos da planilha): da versão congelada quando existe, senão do evento em andamento.

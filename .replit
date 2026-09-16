@@ -1,5 +1,6 @@
 modules = ["nodejs-24", "postgresql-16"]
-run = "npm run setup && npm run dev -- -H 0.0.0.0 -p 3000"
+# Produção também no workspace: o modo dev compila cada tela na primeira visita e fica 10-20x mais lento.
+run = "npm run setup && npm run build && npm run start"
 
 [nix]
 channel = "stable-24_11"
@@ -39,7 +40,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run setup && npm run dev -- -H 0.0.0.0 -p 3000"
+args = "npm run setup && npm run build && npm run start"
 waitForPort = 3000
 
 [workflows.workflow.metadata]

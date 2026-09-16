@@ -20,8 +20,12 @@ export function LinhaLink({ href, rotulo, className, children }: { href: string;
   // Em dev a rota pode levar segundos para compilar: a linha mostra que está abrindo.
   const [abrindo, iniciar] = useTransition();
   const abrir = () => iniciar(() => router.push(href));
+  // Linhas não são <a>: o Next não as pré-carrega sozinho. Ao passar o mouse ou focar, a rota já começa a vir.
+  const prefetch = () => router.prefetch(href);
   return (
     <tr
+      onPointerEnter={prefetch}
+      onFocus={prefetch}
       role="link"
       tabIndex={0}
       aria-label={rotulo}

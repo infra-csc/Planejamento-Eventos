@@ -829,6 +829,16 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
 /* Consultas auxiliares para formulários                                */
 /* ------------------------------------------------------------------ */
 
+/** Só o que o formulário "Incluir linha na ata" usa: nome/código de projetos e peças, sem listas de peças nem imagens. */
+export async function opcoesReferenciasResumidas() {
+  const db = await getDb();
+  const [proj, pcs] = await Promise.all([
+    db.select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual }).from(projetos).where(eq(projetos.ativo, true)).orderBy(asc(projetos.nome)),
+    db.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade }).from(pecas).where(eq(pecas.ativo, true)).orderBy(asc(pecas.codigo)),
+  ]);
+  return { projetos: proj, pecas: pcs };
+}
+
 export async function opcoesReferencias() {
   const db = await getDb();
   const [proj, pcs, versoes] = await Promise.all([

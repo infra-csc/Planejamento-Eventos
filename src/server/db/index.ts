@@ -17,7 +17,17 @@ export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 type Conn = { db: Db; kind: "pglite" | "postgres"; close: () => Promise<void> };
 
-const globalForDb = globalThis as unknown as { __npeDb?: Promise<Conn> };
+const globalForDb = globalThis as unknown as { __npeDb?: Promise<Conn>; __npeQueries?: number };
+
+/** Contador de consultas (diagnóstico): DB_LOG=1 imprime cada SQL; o total fica em globalThis.__npeQueries. */
+const logger = process.env.DB_LOG
+  ? {
+      logQuery(query: string) {
+        globalForDb.__npeQueries = (globalForDb.__npeQueries ?? 0) + 1;
+        if (process.env.DB_LOG === "2") console.log(`[sql #${globalForDb.__npeQueries}] ${query.slice(0, 160)}`);
+      },
+    }
+  : undefined;
 
 export function getDataDir() {
   return process.env.PGLITE_DATA_DIR ?? path.join(process.cwd(), ".data", "pglite");
@@ -30,7 +40,7 @@ async function connect(): Promise<Conn> {
     const { Pool } = await import("pg");
     // Pool pequeno: o deployment Autoscale sobe várias instâncias e cada uma abre o seu.
     const pool = new Pool({ connectionString: url, max: Number(process.env.DB_POOL_MAX) || 5, idleTimeoutMillis: 30_000 });
-    const db = drizzle(pool, { schema }) as unknown as Db;
+    const db = drizzle(pool, { schema, logger }) as unknown as Db;
     return { db, kind: "postgres", close: () => pool.end() };
   }
   const { PGlite } = await import("@electric-sql/pglite");
@@ -40,7 +50,7 @@ async function connect(): Promise<Conn> {
   if (!dir.startsWith("memory://")) fs.mkdirSync(dir, { recursive: true });
   const client = new PGlite(dir);
   await client.waitReady;
-  const db = drizzle(client, { schema }) as unknown as Db;
+  const db = drizzle(client, { schema, logger }) as unknown as Db;
   return { db, kind: "pglite", close: () => client.close() };
 }
 

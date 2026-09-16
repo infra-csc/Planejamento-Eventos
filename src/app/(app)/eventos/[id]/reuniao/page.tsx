@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { descricaoItem, listarSolicitacoes, obterSolicitacoes } from "@/server/services/solicitacoes";
 import { resumirAjustes } from "@/domain/os";
@@ -25,7 +25,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
   const ev = await obterEventoCache(usuario, id);
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(`/eventos/${id}/ata`);
 
-  const [lista, linhas, opcoes, areas] = await Promise.all([listarSolicitacoes(usuario, { eventoId: id }), obterLinhasAta(id), opcoesReferencias(), listarAreas()]);
+  const [lista, linhas, opcoes, areas] = await Promise.all([listarSolicitacoes(usuario, { eventoId: id }), obterLinhasAta(id), opcoesReferenciasResumidas(), listarAreas()]);
   const pre = lista.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA" && s.status !== "DEVOLVIDA").sort((a, b) => a.codigo.localeCompare(b.codigo));
   const detalhes = await obterSolicitacoes(
     usuario,
