@@ -136,13 +136,27 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
           !menuAberto && "max-lg:-translate-x-full",
         )}
       >
-        <Link href="/" title="Planejamento · Norte Mkt" className={cn("flex items-center gap-[9px] pb-[18px] pt-5 no-underline", recolhido ? "lg:justify-center lg:px-0" : "px-[18px]")}>
-          <span aria-hidden className="block size-5 shrink-0 rounded-[5px] bg-accent-light" />
-          <span className={cn(recolhido && "lg:sr-only")}>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-on-dark-3">Norte Mkt</span>
-            <span className="block text-[13.5px] font-semibold tracking-[-0.01em] text-white">Planejamento</span>
-          </span>
-        </Link>
+        <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-[18px] pr-3")}>
+          <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
+            <span aria-hidden className="block size-5 shrink-0 rounded-[5px] bg-accent-light" />
+            <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-on-dark-3">Norte Mkt</span>
+              <span className="block text-[13.5px] font-semibold tracking-[-0.01em] text-white">Planejamento</span>
+            </span>
+          </Link>
+          {/* Recolher/expandir: só no desktop (abaixo de lg a sidebar é gaveta). */}
+          <button
+            type="button"
+            onClick={alternarRecolhido}
+            aria-pressed={recolhido}
+            title={recolhido ? "Expandir menu" : "Recolher menu"}
+            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-[6px] border border-dark-3 bg-transparent text-on-dark-2 hover:bg-white/[0.06] hover:text-white lg:grid"
+          >
+            <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", recolhido && "rotate-180")}>
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+        </div>
 
         <button
           type="button"
@@ -192,17 +206,6 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
               )}
             </button>
           </form>
-          <button
-            type="button"
-            onClick={alternarRecolhido}
-            aria-pressed={recolhido}
-            title={recolhido ? "Expandir menu" : "Recolher menu"}
-            className="hidden size-7 cursor-pointer place-items-center rounded-[6px] border border-dark-3 bg-transparent text-on-dark-2 hover:bg-white/[0.06] hover:text-white lg:grid"
-          >
-            <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", recolhido && "rotate-180")}>
-              <path d="M15 6l-6 6 6 6" />
-            </svg>
-          </button>
         </div>
       </aside>
 

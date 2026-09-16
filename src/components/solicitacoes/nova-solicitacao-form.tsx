@@ -11,6 +11,7 @@ import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/action
 import type { ItemOperacao } from "@/server/db/schema";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -93,14 +94,6 @@ export function NovaSolicitacaoForm({
   const [pendente, iniciar] = useTransition();
 
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
-  const [buscaEvento, setBuscaEvento] = useState("");
-  const eventosVisiveis = useMemo(() => {
-    const t = buscaEvento.trim().toLowerCase();
-    const lista = t ? eventos.filter((e) => `${e.nome} ${e.codigo} ${e.cliente}`.toLowerCase().includes(t)) : eventos;
-    // O evento escolhido nunca some da lista, mesmo fora do filtro.
-    const escolhido = evento && !lista.some((e) => e.id === evento.id) ? [evento] : [];
-    return [...escolhido, ...lista];
-  }, [eventos, buscaEvento, evento]);
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
 
@@ -385,45 +378,38 @@ export function NovaSolicitacaoForm({
             </p>
           </div>
         ) : (
-          <div className="p-3.5">
-            {/* Com muitos eventos: busca por nome, código ou cliente; o escolhido fica sempre no topo. */}
-            {eventos.length > 4 && (
-              <input
-                aria-label="Buscar evento"
-                value={buscaEvento}
-                onChange={(e) => setBuscaEvento(e.target.value)}
-                placeholder="Buscar evento por nome, código ou cliente"
-                className={cn(campo, "mb-2.5")}
-              />
+          <div className="flex flex-col gap-3 p-[18px]">
+            <ComboBox
+              id="evento"
+              value={eventoId}
+              disabled={Boolean(rascunho)}
+              invalid={tentouEnviar && !evento}
+              placeholder="Buscar evento por nome, código ou cliente"
+              onChange={(id) => {
+                const e = eventos.find((x) => x.id === id);
+                if (e) escolherEvento(e);
+              }}
+              opcoes={eventos.map((e) => ({
+                value: e.id,
+                label: e.nome,
+                descricao: `${e.codigo} · ${e.cliente} · ${e.periodo} · ${e.marco}`,
+                selo: e.tipo === "PRE_REUNIAO" ? "até a reunião" : "alterações",
+                seloTom: e.tipo === "PRE_REUNIAO" ? "accent" : "warning",
+                disabled: !e.aceita && e.id !== eventoId,
+              }))}
+            />
+            {evento && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[9px] border border-accent-border bg-selected px-3.5 py-2.5 text-[12.5px]">
+                <span className="font-medium text-ink">{evento.nome}</span>
+                <span className="text-muted">
+                  <span className="font-mono">{evento.codigo}</span> · {evento.cliente} · <span className="font-mono">{evento.periodo}</span> · {evento.marco}
+                </span>
+                <span className={cn("rounded-[5px] px-2 py-0.5 text-[11px] font-medium", ehAlteracao ? "bg-warning-bg text-warning" : "bg-accent-bg text-accent")}>
+                  {ehAlteracao ? "ata fechada · aceita alterações" : "aceita pedidos até a reunião"}
+                </span>
+                {rascunho && <span className="text-meta">para trocar de evento, exclua este rascunho e crie outro</span>}
+              </div>
             )}
-            <div role="radiogroup" aria-label="Evento" className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-0.5">
-            {eventosVisiveis.length === 0 && <p className="m-0 py-4 text-center text-[12.5px] text-muted">Nenhum evento encontrado para “{buscaEvento}”.</p>}
-            {eventosVisiveis.map((e) => {
-              const sel = e.id === eventoId;
-              return (
-                <button
-                  key={e.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={sel}
-                  disabled={!e.aceita && !sel}
-                  onClick={() => escolherEvento(e)}
-                  className={cn("flex w-full cursor-pointer items-center gap-3 rounded-[9px] border px-3.5 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60", sel ? "border-accent-border bg-selected" : "border-line bg-surface hover:bg-subtle")}
-                >
-                  <span aria-hidden className={cn("block size-4 shrink-0 rounded-full", sel ? "border-4 border-accent" : "border border-line-strong")} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] font-medium text-ink">{e.nome}</span>
-                    <span className="block text-[12px] text-muted">
-                      <span className="font-mono">{e.codigo}</span> · {e.cliente} · <span className="font-mono">{e.periodo}</span> · {e.marco}
-                    </span>
-                    <span className={cn("mt-1.5 inline-block rounded-[5px] px-2 py-0.5 text-[11px] font-medium", e.tipo === "PRE_REUNIAO" ? "bg-accent-bg text-accent" : "bg-warning-bg text-warning")}>
-                      {e.tipo === "PRE_REUNIAO" ? "aceita pedidos até a reunião" : "ata fechada · aceita alterações"}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            </div>
           </div>
         )}
       </Passo>
