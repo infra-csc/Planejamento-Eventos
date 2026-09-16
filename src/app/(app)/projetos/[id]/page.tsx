@@ -86,6 +86,10 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <div className="flex flex-col gap-5">
+          <Section titulo="Fotos e desenhos" sub="Render, modulação e PDF técnico do projeto. Até 8 MB por arquivo.">
+            <AnexosManager projetoId={p.id} anexos={p.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))} podeGerenciar={gerencia} />
+          </Section>
+
           <Section titulo={`Lista de peças · v${p.versaoAtual}`} sub={`${itens.length} ${itens.length === 1 ? "tipo de peça" : "tipos de peça"} · ${total} ${total === 1 ? "unidade" : "unidades"} por projeto`}>
             <table className="w-full border-collapse">
               <CaptionOculta>Lista de peças</CaptionOculta>
@@ -120,10 +124,6 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
                 )}
               </tbody>
             </table>
-          </Section>
-
-          <Section titulo="Imagens e anexo técnico" sub="Imagens de referência e PDF do projeto. Até 8 MB por arquivo.">
-            <AnexosManager projetoId={p.id} anexos={p.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))} podeGerenciar={gerencia} />
           </Section>
         </div>
 

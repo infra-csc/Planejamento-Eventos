@@ -108,7 +108,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="min-w-0 truncate text-[14px] font-medium text-ink">{p.nome}</span>
+                        <span className="min-w-0 text-[14px] font-medium leading-[1.25] text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.nome}</span>
                         <span className="rounded-[5px] bg-control px-1.5 font-mono text-[11px] text-ink-3">v{p.versaoAtual}</span>
                       </span>
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted">
