@@ -40,29 +40,53 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
   const [otimista, setOtimista] = useState<boolean | null>(null);
   const marcada = otimista ?? Boolean(l.conferidoEm);
   return (
-    <label className={cn("inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-1.5 py-1 text-[12px]", marcada ? "text-success" : "text-ink-3 hover:bg-subtle")} title={marcada && l.conferidoPor ? `Conferido por ${l.conferidoPor}` : "Marcar como conferido na reunião"}>
-      <input
-        type="checkbox"
-        className="size-4 cursor-pointer accent-[var(--color-success)]"
-        checked={marcada}
-        disabled={pendente}
-        aria-label={`${l.nome}: conferido na reunião`}
-        onChange={(e) => {
-          const v = e.target.checked;
-          setOtimista(v);
-          iniciar(async () => {
-            const r = await conferirLinhaAction(eventoId, l.id, v);
-            if (!r.ok) {
-              setOtimista(null);
-              toastErro(r.erro);
-            } else if (r.dados && r.dados.conferidas === r.dados.total) {
-              toast("Todas as linhas conferidas — a ata pode ser fechada");
-            }
-          });
-        }}
-      />
-      <span className="hidden sm:inline">{marcada ? "conferido" : "conferir"}</span>
-    </label>
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={marcada}
+      aria-label={`${l.nome}: conferido na reunião`}
+      title={marcada ? `Conferido${l.conferidoPor ? ` por ${l.conferidoPor}` : ""} — clique para desfazer` : "Marcar como conferido na reunião"}
+      disabled={pendente}
+      onClick={() => {
+        const v = !marcada;
+        setOtimista(v);
+        iniciar(async () => {
+          const r = await conferirLinhaAction(eventoId, l.id, v);
+          if (!r.ok) {
+            setOtimista(null);
+            toastErro(r.erro);
+          } else if (r.dados && r.dados.conferidas === r.dados.total) {
+            toast("Todas as linhas conferidas — a ata pode ser fechada");
+          }
+        });
+      }}
+      className={cn(
+        "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors disabled:opacity-60",
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-transparent hover:border-success hover:text-success/50",
+      )}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
+/** Canetinha: ajustar a quantidade da linha (fica no histórico quem mudou, de quanto para quanto e a justificativa). */
+function BotaoAjustar({ nome, onClick }: { nome: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Ajustar ${nome}`}
+      title="Ajustar quantidade (registrado no histórico)"
+      className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent text-ink-3 hover:border-line hover:bg-subtle hover:text-accent"
+    >
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M11.3 2.3a1.5 1.5 0 0 1 2.1 2.1L5.5 12.3 2.5 13l.7-3L11.3 2.3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M10 3.6l2.4 2.4" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </button>
   );
 }
 
@@ -153,8 +177,11 @@ export function AtaLista({
                 {!compacta && <Th largura={130}>Destino</Th>}
                 {!compacta && <Th largura={120}>Área</Th>}
                 <Th largura={compacta ? 120 : 170}>Origem</Th>
-                {conferivel && <Th largura={compacta ? 44 : 110}>{compacta ? <span className="sr-only">Conferido</span> : "Conferido"}</Th>}
-                {editavel && !compacta && <Th largura={70}></Th>}
+                {(conferivel || editavel) && (
+                  <Th largura={conferivel && editavel ? 76 : 44}>
+                    <span className="sr-only">Conferir e ajustar</span>
+                  </Th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -183,16 +210,12 @@ export function AtaLista({
                       l.origemLabel
                     )}
                   </td>
-                  {conferivel && (
-                    <td className="border-b border-line-row px-1.5 py-[7px]">
-                      <CheckConferida l={l} eventoId={eventoId} />
-                    </td>
-                  )}
-                  {editavel && !compacta && (
-                    <td className="border-b border-line-row py-[11px] pr-[18px] text-right">
-                      <button type="button" onClick={() => setAjustar(l)} className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-accent hover:underline" aria-label={`Ajustar ${l.nome}`}>
-                        Ajustar
-                      </button>
+                  {(conferivel || editavel) && (
+                    <td className={cn("border-b border-line-row py-[7px] pl-1.5", compacta ? "pr-2.5" : "pr-[14px]")}>
+                      <span className="flex items-center justify-end gap-1">
+                        {conferivel && <CheckConferida l={l} eventoId={eventoId} />}
+                        {editavel && <BotaoAjustar nome={l.nome} onClick={() => setAjustar(l)} />}
+                      </span>
                     </td>
                   )}
                 </tr>

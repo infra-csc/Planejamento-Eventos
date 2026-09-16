@@ -6,6 +6,7 @@ import { pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
 import { ListaDados, Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 
@@ -51,6 +52,18 @@ export default async function AtaPage({ params }: { params: Promise<{ id: string
       </Section>
 
       <div className="flex flex-col gap-5">
+        <Section titulo="Exportar ata" sub={congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
+          <div className="flex flex-col gap-2 px-[18px] py-3.5">
+            <a href={`/api/eventos/${id}/ata/excel`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
+              Excel da ata (.xlsx)
+            </a>
+            <ButtonLink href={`/impressao/ata/${id}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
+              Imprimir / PDF
+            </ButtonLink>
+            <p className="mb-0 mt-1 text-[12px] leading-[1.5] text-muted">Cabeçalho da reunião, presentes, linhas conferidas, observações e o que cada área pediu.</p>
+          </div>
+        </Section>
+
         <Section titulo="Reunião de OS" sub={congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
           <ListaDados itens={dadosReuniao} />
           <div className="border-t border-line-faint px-[18px] py-3">
