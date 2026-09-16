@@ -124,7 +124,7 @@ export function ProjetoForm({
             Adicionar
           </Button>
         </div>
-        {c?.itens && <p className="px-4 pb-3 text-xs text-danger">{c.itens}</p>}
+        {c?.itens && <p className="px-[18px] pb-3 text-[12px] text-danger">{c.itens}</p>}
       </Panel>
 
       {valores.id && bomMudou && (

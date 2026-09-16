@@ -19,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!usuario) return {};
   const { id } = await params;
   const ev = await obterEventoCache(usuario, id).catch(() => null);
-  return { title: ev ? `${ev.codigo} ${ev.nome}` : "Evento" };
+  // `template`: páginas com título próprio (Editar evento) ganham o código do evento e o sufixo do app.
+  return ev ? { title: { default: `${ev.codigo} ${ev.nome}`, template: `%s · ${ev.codigo} · Norte Mkt` } } : { title: "Evento" };
 }
 
 const plural = (n: number, s: string, p: string) => (n === 0 ? null : `${n} ${n === 1 ? s : p}`);
@@ -87,7 +88,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
             <EventoStatusBadge status={st} />
             {ev.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {ev.reabertoVezes}× pela gestão</span>}
           </div>
-          <h1 className="mb-0 mt-1 text-[25px] font-semibold leading-[1.2] tracking-[-0.025em]">{ev.nome}</h1>
+          <h1 className="mb-0 mt-1 text-[24px] font-semibold leading-[1.2] tracking-[-0.025em]">{ev.nome}</h1>
           <div className="mt-2 flex flex-wrap gap-[18px] text-[13px] text-ink-2">
             <span>
               <span className="text-muted">Cliente</span> {ev.cliente || "—"}

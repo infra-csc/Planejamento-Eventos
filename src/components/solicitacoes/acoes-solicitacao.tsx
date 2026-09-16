@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast, toastErro } from "@/components/ui/toast";
@@ -36,6 +36,8 @@ export function AcoesSolicitacao({
   const router = useRouter();
   const [dialogo, setDialogo] = useState<"devolver" | "cancelar" | "excluir" | null>(null);
   const [pendente, iniciar] = useTransition();
+  // Dois cliques no mesmo tick chegam antes do re-render com `pendente`; o ref segura o segundo.
+  const emVoo = useRef(false);
 
   return (
     <>
@@ -59,17 +61,23 @@ export function AcoesSolicitacao({
           variant="primary"
           size="lg"
           loading={pendente}
-          onClick={() =>
+          onClick={() => {
+            if (emVoo.current) return;
+            emVoo.current = true;
             iniciar(async () => {
-              const r = await atenderTudoAction(id);
-              if (!r.ok) {
-                toastErro(r.erro);
-                return;
+              try {
+                const r = await atenderTudoAction(id);
+                if (!r.ok) {
+                  toastErro(r.erro);
+                  return;
+                }
+                toast(`${codigo} respondida — ${pendentes} ${pendentes === 1 ? "item atendido" : "itens atendidos"}, ${sufixo}`);
+                if (proximaHref) router.push(proximaHref);
+              } finally {
+                emVoo.current = false;
               }
-              toast(`${codigo} respondida — ${pendentes} ${pendentes === 1 ? "item atendido" : "itens atendidos"}, ${sufixo}`);
-              if (proximaHref) router.push(proximaHref);
-            })
-          }
+            });
+          }}
         >
           Atender tudo
         </Button>

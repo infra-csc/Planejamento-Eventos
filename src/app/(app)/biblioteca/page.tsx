@@ -5,7 +5,8 @@ import { contarUsoProjetos, listarProjetos, obterProjeto } from "@/server/servic
 import { contarPecasEmBom, listarPecas } from "@/server/services/catalogo";
 import { pode } from "@/domain/permissions";
 import { SETOR_LABEL } from "@/domain/os";
-import { SETORES, type Setor } from "@/server/db/schema";
+import { SETORES } from "@/domain/constantes";
+import type { Setor } from "@/server/db/schema";
 import { cn } from "@/lib/cn";
 import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";

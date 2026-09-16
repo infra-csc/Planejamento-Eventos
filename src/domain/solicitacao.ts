@@ -220,4 +220,7 @@ export function validarItem(item: ItemRascunho) {
   if (item.operacao !== "REMOVER" && (!Number.isInteger(item.quantidadeSolicitada) || item.quantidadeSolicitada <= 0)) {
     throw new ValidacaoError("Quantidade deve ser um inteiro maior que zero.", { quantidadeSolicitada: "Informe um valor maior que zero." });
   }
+  if (item.quantidadeSolicitada > 1_000_000) {
+    throw new ValidacaoError("Quantidade acima do limite.", { quantidadeSolicitada: "Máximo de 1.000.000." });
+  }
 }

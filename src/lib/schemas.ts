@@ -1,17 +1,24 @@
 import { z } from "zod";
-import { ITEM_OPERACOES, ITEM_STATUS, PERFIS, SETORES } from "@/server/db/schema";
+import { ITEM_OPERACOES, ITEM_STATUS, PERFIS, SETORES } from "@/domain/constantes";
 
-const texto = (max: number, msg = "Campo obrigatório") => z.string().trim().min(1, msg).max(max, `Máximo de ${max} caracteres`);
+// Postgres rejeita NUL em texto; nada legítimo contém esse caractere.
+const semNul = (s: string) => s.replace(/\0/g, "");
+const texto = (max: number, msg = "Campo obrigatório") => z.string().transform(semNul).pipe(z.string().trim().min(1, msg).max(max, `Máximo de ${max} caracteres`));
 const textoOpcional = (max: number) =>
   z
     .string()
-    .trim()
-    .max(max, `Máximo de ${max} caracteres`)
+    .transform(semNul)
+    .pipe(z.string().trim().max(max, `Máximo de ${max} caracteres`))
     // `formData.get()` de um campo ausente devolve null, não undefined.
     .nullish()
     .transform((v) => (v ? v : null));
-const inteiroPositivo = z.coerce.number().int("Use um número inteiro").positive("Informe um valor maior que zero");
-const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida");
+const QTD_MAX = 1_000_000;
+const inteiroPositivo = z.coerce.number().int("Use um número inteiro").positive("Informe um valor maior que zero").max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`);
+const dataISO = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+  // "2026-02-30" passa no formato mas não existe no calendário.
+  .refine((d) => new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d, "Data inválida");
 const bool = z
   .union([z.literal("on"), z.literal("true"), z.literal("false"), z.boolean()])
   .optional()
@@ -87,7 +94,7 @@ export const ataLinhaSchema = z
   });
 
 export const ataAlterarQuantidadeSchema = z.object({
-  quantidade: z.coerce.number().int().min(0),
+  quantidade: z.coerce.number().int().min(0).max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`),
   justificativa: textoOpcional(500),
 });
 
@@ -151,7 +158,7 @@ export const solicitacaoCompletaSchema = z.object({
         pecaId: idOpcional,
         eventoItemId: idOpcional,
         descricaoLivre: textoLivre(160),
-        quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0),
+        quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0).max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`),
         destino: textoLivre(60),
         justificativa: textoLivre(500),
       }),

@@ -12,18 +12,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const usuario = await requireUsuario();
   // Depois da resposta: nenhum usuário espera prazos e lembretes serem verificados.
   after(executarVerificacoesSeNecessario);
-  const naoLidas = await contarNaoLidas(usuario);
-
   // Contador de solicitações aguardando resposta (logística e gestão) — derivado, nunca persistido.
-  let abertas: number | null = null;
-  if (usuario.perfil === "LOGISTICA" || usuario.perfil === "GESTAO" || usuario.perfil === "ADMIN") {
+  const contarAbertas = async () => {
+    if (usuario.perfil !== "LOGISTICA" && usuario.perfil !== "GESTAO" && usuario.perfil !== "ADMIN") return null;
     const db = await getDb();
     const [r] = await db
       .select({ n: count() })
       .from(solicitacoes)
       .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])));
-    abertas = Number(r.n);
-  }
+    return Number(r.n);
+  };
+  const [naoLidas, abertas] = await Promise.all([contarNaoLidas(usuario), contarAbertas()]);
 
   const nav: NavItem[] = [
     { href: "/", label: "Painel", exato: true },

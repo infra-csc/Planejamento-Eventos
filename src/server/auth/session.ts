@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { sessoes, usuarios } from "@/server/db/schema";
+import { areas, sessoes, usuarios } from "@/server/db/schema";
 import { gerarToken, hashSenha, hashToken, verificarSenha } from "./password";
 import { pode, type Acao } from "@/domain/permissions";
 import { exigir, type UsuarioAtual } from "./autorizacao";
@@ -106,13 +106,16 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
   const token = store.get(COOKIE_SESSAO)?.value;
   if (!token) return null;
   const db = await getDb();
-  const [s] = await db
-    .select({ usuarioId: sessoes.usuarioId })
+  // Sessão + usuário + área em uma consulta: roda em toda página e action.
+  const [u] = await db
+    .select({ id: usuarios.id, nome: usuarios.nome, email: usuarios.email, perfil: usuarios.perfil, areaId: usuarios.areaId, areaNome: areas.nome, ativo: usuarios.ativo })
     .from(sessoes)
+    .innerJoin(usuarios, eq(sessoes.usuarioId, usuarios.id))
+    .leftJoin(areas, eq(usuarios.areaId, areas.id))
     .where(and(eq(sessoes.tokenHash, hashToken(token)), gt(sessoes.expiraEm, new Date())))
     .limit(1);
-  if (!s) return null;
-  return carregarUsuario(s.usuarioId);
+  if (!u || !u.ativo) return null;
+  return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null };
 });
 
 export async function requireUsuario(): Promise<UsuarioAtual> {

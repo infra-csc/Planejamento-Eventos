@@ -75,7 +75,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
       {modoFila && (
         <div className="mb-[18px] flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[10px] bg-dark px-[18px] py-3">
-          <span className="text-[13.5px] font-semibold text-white">Modo fila</span>
+          <span className="text-[13.5px] font-semibold text-white">Respondendo em sequência</span>
           <span className="font-mono text-[12.5px] text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span>
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-on-dark-3">ordenada por prazo · atalhos A, P e N no item selecionado</span>
           {anterior ? (

@@ -68,7 +68,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     <div className="max-w-[880px]">
       <PageHeader
         title={rascunho ? `Editar ${rascunho.codigo}` : "Nova solicitação"}
-        description="O tipo é definido pela fase do evento. Você não precisa escolher."
+        description="Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."
         breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho ? rascunho.codigo : "Nova" }]}
       />
       <NovaSolicitacaoForm

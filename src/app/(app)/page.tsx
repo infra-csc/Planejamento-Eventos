@@ -45,7 +45,7 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
         <span className="block font-mono text-[12.5px] font-medium" style={{ color: cor }}>
           {pi.label === "vencido" ? "vencido" : pi.label}
         </span>
-        <span className="block text-[11.5px] text-meta">{pi.sub}</span>
+        <span className="block text-[11.5px] text-meta">{pi.sub && !pi.vencido && (f.status === "ENVIADA" || f.status === "EM_ANALISE") ? `resposta até ${pi.sub}` : pi.sub}</span>
       </div>
     </div>
   );
@@ -152,11 +152,11 @@ export default async function PainelPage() {
           {d.tipo === "operacao" && (
             <Section
               titulo="Fila de resposta"
-              sub="Ordenada por prazo. O que tem um item só pode ser resolvido aqui."
+              sub="Ordenada por prazo. Solicitações de um item só podem ser respondidas aqui mesmo."
               acoes={
                 responde && d.fila.length > 0 ? (
                   <ButtonLink href={`/solicitacoes/${d.fila[0].id}?fila=1`} variant="primary" size="sm" className="no-underline">
-                    Modo fila
+                    Responder em sequência
                   </ButtonLink>
                 ) : undefined
               }
@@ -239,8 +239,8 @@ export default async function PainelPage() {
                     <span className="relative block h-[5px] flex-1 overflow-hidden rounded-[3px] bg-line-soft" role="img" aria-label={`Estoque cobre ${Math.round((r.estoque / r.pico) * 100)}% do pico`}>
                       <span className="absolute left-0 top-0 block h-[5px] bg-dark" style={{ width: `${Math.min(100, Math.round((r.estoque / r.pico) * 100))}%` }} />
                     </span>
-                    <span className="font-mono text-[11.5px] text-muted">
-                      {r.pico}/{r.estoque}
+                    <span className="text-[11.5px] text-muted">
+                      <span className="font-mono">{r.pico}</span> necessárias · <span className="font-mono">{r.estoque}</span> em estoque
                     </span>
                   </div>
                 </div>

@@ -66,11 +66,14 @@ export async function solicitarRecuperacao(email: string): Promise<void> {
 
 export async function redefinirSenha(token: string, novaSenha: string) {
   const db = await getDb();
-  const t = await db.query.tokensRecuperacao.findFirst({
-    where: and(eq(tokensRecuperacao.tokenHash, hashToken(token)), isNull(tokensRecuperacao.usadoEm), gt(tokensRecuperacao.expiraEm, new Date())),
-  });
-  if (!t) throw new DomainError("Link inválido ou expirado. Peça um novo link ao administrador.");
   await db.transaction(async (tx) => {
+    // Marca o token como usado no mesmo comando que o encontra: duas requisições em paralelo não passam as duas.
+    const [t] = await tx
+      .update(tokensRecuperacao)
+      .set({ usadoEm: new Date() })
+      .where(and(eq(tokensRecuperacao.tokenHash, hashToken(token)), isNull(tokensRecuperacao.usadoEm), gt(tokensRecuperacao.expiraEm, new Date())))
+      .returning({ usuarioId: tokensRecuperacao.usuarioId });
+    if (!t) throw new DomainError("Link inválido ou expirado. Peça um novo link ao administrador.");
     await tx.update(usuarios).set({ senhaHash: await hashSenha(novaSenha) }).where(eq(usuarios.id, t.usuarioId));
     await invalidarLinksPendentes(tx, t.usuarioId);
     await tx.delete(sessoes).where(eq(sessoes.usuarioId, t.usuarioId));

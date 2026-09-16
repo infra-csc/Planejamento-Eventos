@@ -65,7 +65,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
           <>
             {primeiraFila && (
               <ButtonLink href={`/solicitacoes/${primeiraFila}?fila=1`} variant="secondary" size="lg" className="no-underline">
-                Responder em fila
+                Responder em sequência
               </ButtonLink>
             )}
             {podeCriar && (

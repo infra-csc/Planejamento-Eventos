@@ -4,7 +4,8 @@ import { pode } from "@/domain/permissions";
 import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
-import { SETORES, type Setor } from "@/server/db/schema";
+import { SETORES } from "@/domain/constantes";
+import type { Setor } from "@/server/db/schema";
 import { SETOR_LABEL } from "@/domain/os";
 
 /**

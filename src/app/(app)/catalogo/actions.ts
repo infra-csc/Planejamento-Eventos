@@ -18,6 +18,7 @@ export async function salvarPecaAction(_prev: ActionResult, formData: FormData):
     return tratarErro(e);
   }
   revalidatePath("/catalogo");
+  revalidatePath("/biblioteca");
   redirect("/catalogo");
 }
 
@@ -27,5 +28,6 @@ export async function alterarAtivoPecaAction(_prev: ActionResult, formData: Form
   const ativo = String(formData.get("ativo")) === "true";
   const r = await executar(() => alterarAtivoPeca(usuario, id, ativo), ativo ? "Peça reativada." : "Peça inativada.");
   revalidatePath("/catalogo");
+  revalidatePath("/biblioteca");
   return r;
 }

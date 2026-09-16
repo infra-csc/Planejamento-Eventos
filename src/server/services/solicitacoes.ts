@@ -111,7 +111,8 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
 
   const total = contagens[opcoes.filtro];
   const paginas = Math.max(1, Math.ceil(total / opcoes.porPagina));
-  const pagina = Math.min(Math.max(1, Number(opcoes.pagina) || 1), paginas);
+  // `pagina` vem da URL: pode ser fracionária ou lixo. Inteiro dentro do intervalo, sempre.
+  const pagina = Math.min(Math.max(1, Math.trunc(Number(opcoes.pagina)) || 1), paginas);
   const de = (pagina - 1) * opcoes.porPagina;
 
   const desc_ = opcoes.dir === "desc";
@@ -124,7 +125,8 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     status: [direcao(sql`case ${solicitacoes.status} when 'DEVOLVIDA' then 0 when 'RASCUNHO' then 1 when 'ENVIADA' then 2 when 'EM_ANALISE' then 3 when 'RESPONDIDA' then 4 else 5 end`)],
     prazo: [prazo],
   };
-  const ordem = (opcoes.ordem && ordens[opcoes.ordem]) || [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
+  // `hasOwn`: a chave também vem da URL ("__proto__" acharia Object.prototype).
+  const ordem = (opcoes.ordem && Object.hasOwn(ordens, opcoes.ordem) && ordens[opcoes.ordem]) || [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
   const ids = (
     await db
       .select({ id: solicitacoes.id })

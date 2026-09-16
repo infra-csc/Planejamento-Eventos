@@ -83,9 +83,8 @@ export async function salvarObservacoesAction(eventoId: string, texto: string) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof texto !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   if (texto.length > 10_000) return { ok: false, erro: "As observações passam do limite de 10.000 caracteres." } as const;
-  const r = await executar(() => salvarObservacoesReuniao(usuario, eventoId, texto.trim() || null));
-  if (r.ok) revalidatePath(`/eventos/${eventoId}`, "layout");
-  return r;
+  // Sem revalidatePath: o texto vive no estado do cliente e nada mais na tela depende dele.
+  return executar(() => salvarObservacoesReuniao(usuario, eventoId, texto.trim() || null));
 }
 
 export async function incluirLinhaAtaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

@@ -71,7 +71,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                   </span>
                   <span className="w-[108px] shrink-0 text-right">
                     <span className={falta ? "inline-block rounded-[5px] bg-danger-bg px-2 py-0.5 font-mono text-[12px] font-medium text-danger" : "inline-block rounded-[5px] bg-success-bg px-2 py-0.5 font-mono text-[12px] font-medium text-success"}>
-                      {falta ? `faltam ${-p.saldo}` : `+${p.saldo}`}
+                      {falta ? `faltam ${-p.saldo}` : `sobram ${p.saldo}`}
                     </span>
                     <span className="mt-1 block font-mono text-[11px] text-meta">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
                   </span>

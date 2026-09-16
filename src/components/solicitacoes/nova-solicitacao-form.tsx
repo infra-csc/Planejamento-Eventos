@@ -321,7 +321,7 @@ export function NovaSolicitacaoForm({
     });
   };
 
-  const abas: Array<[Modo, string]> = [["projeto", "Projeto padrão"], ["peca", "Peça do catálogo"], ["avulso", "Item avulso"], ...(ehAlteracao ? ([["ata", "Alterar linha da ata"]] as Array<[Modo, string]>) : [])];
+  const abas: Array<[Modo, string]> = [["projeto", "Projeto padrão"], ["peca", "Peça do catálogo"], ["avulso", "Outro item (descrever)"], ...(ehAlteracao ? ([["ata", "Alterar linha da ata"]] as Array<[Modo, string]>) : [])];
   const faltaTudo = tentouEnviar && (itens.length === 0 || !titulo.trim());
 
   return (
@@ -384,7 +384,7 @@ export function NovaSolicitacaoForm({
                     </span>
                   </span>
                   <span className={cn("shrink-0 rounded-[5px] px-2 py-0.5 text-[11px] font-medium", e.tipo === "PRE_REUNIAO" ? "bg-accent-bg text-accent" : "bg-warning-bg text-warning")}>
-                    {e.tipo === "PRE_REUNIAO" ? "necessidade pré-reunião" : "alteração pós-ata"}
+                    {e.tipo === "PRE_REUNIAO" ? "aceita pedidos até a reunião" : "ata fechada · aceita alterações"}
                   </span>
                 </button>
               );
@@ -393,7 +393,7 @@ export function NovaSolicitacaoForm({
         )}
       </Passo>
 
-      <Passo n={2} titulo="Itens" sub={ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou itens avulsos."}>
+      <Passo n={2} titulo="Itens" sub={!evento ? "Escolha o evento acima para liberar a lista." : ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}>
         {itens.length === 0 ? (
           <div className={cn("mx-3.5 mt-3.5 rounded-[9px] border border-dashed px-4 py-6 text-center", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
             <p className="m-0 text-[13px] font-medium text-ink">Nenhum item ainda</p>
@@ -411,7 +411,7 @@ export function NovaSolicitacaoForm({
                   aria-label={`Destino de ${i.rotulo}`}
                   value={i.destino}
                   onChange={(e) => mudar(i.chave, { destino: e.target.value })}
-                  placeholder="Destino"
+                  placeholder="Onde vai ficar"
                   maxLength={60}
                   className="h-8 w-[130px] rounded-[7px] border border-line-control bg-surface px-2.5 text-[12.5px] focus:border-accent focus:outline-none"
                 />
@@ -484,7 +484,7 @@ export function NovaSolicitacaoForm({
                 </Button>
               </div>
               {erroAvulso && <p className="mb-0 mt-1.5 text-[12px] text-danger">{erroAvulso}</p>}
-              <p className="mb-0 mt-2 text-[12px] text-muted">Item avulso não soma peças na OS; a logística separa manualmente.</p>
+              <p className="mb-0 mt-2 text-[12px] text-muted">Um item descrito à mão não soma peças na OS automaticamente; a logística separa manualmente.</p>
             </div>
           ) : (
             <>
@@ -522,7 +522,6 @@ export function NovaSolicitacaoForm({
                   <p className="m-0 py-4 text-center text-[12.5px] text-muted">{modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas." : `Nada encontrado${busca ? ` para “${busca}”` : ""}.`}</p>
                 )}
               </div>
-              {!evento && <p className="mb-0 mt-2 text-[12px] text-muted">Escolha o evento para adicionar itens.</p>}
             </>
           )}
         </div>
@@ -563,7 +562,11 @@ export function NovaSolicitacaoForm({
         </div>
       </Passo>
 
-      {faltaTudo && <Aviso tom="warning">Falta preencher antes de enviar — ao menos um item e o título.</Aviso>}
+      {faltaTudo && (
+        <Aviso tom="warning">
+          {itens.length === 0 && !titulo.trim() ? "Para enviar, adicione ao menos um item e dê um título." : itens.length === 0 ? "Para enviar, adicione ao menos um item." : "Para enviar, dê um título à solicitação."}
+        </Aviso>
+      )}
       {erroGeral && <Aviso tom="danger">{erroGeral}</Aviso>}
 
       <div className="flex items-center gap-2.5">

@@ -1,5 +1,5 @@
 import type { BomSnapshotLinha, OsConteudo, OsLinha, OsSetor, Setor } from "@/server/db/schema";
-import { SETORES } from "@/server/db/schema";
+import { SETORES } from "@/domain/constantes";
 
 /**
  * RN-01: OS de um setor = Σ (BOM × quantidade do projeto no evento) + peças avulsas do setor.

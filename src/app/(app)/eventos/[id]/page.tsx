@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, progressoAreas } from "@/server/services/eventos";
-import { calcularOsAtual, listarOsResumo } from "@/server/services/os";
+import { listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { obterEventoCache } from "@/server/cache";
-import { getDb } from "@/server/db";
 import { pode } from "@/domain/permissions";
 import { totalPecas } from "@/domain/os";
 import { classificarHistorico, COR_HISTORICO } from "@/domain/historico";
@@ -15,14 +14,10 @@ import { BarraProgresso, ListaDados, Section } from "@/components/ui/layout";
 export default async function EventoVisaoGeralPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
-  const [ev, areas, historico, versoes, os] = await Promise.all([
-    obterEventoCache(usuario, id),
-    progressoAreas(id),
-    obterHistoricoEvento(usuario, id, 6),
-    listarOsResumo(id),
-    calcularOsAtual(await getDb(), id),
-  ]);
-  const total = totalPecas(os);
+  const [ev, areas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), progressoAreas(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
+  // O total só aparece quando existe OS; a última versão já traz o conteúdo (evita recalcular a ata inteira).
+  const ultimaOs = versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
+  const total = ultimaOs ? totalPecas(ultimaOs) : 0;
   const osResumo = versoes.length === 0 ? "gerada ao fechar a ata" : `${versoes.length} ${versoes.length === 1 ? "versão · gerada em" : "versões · última em"} ${diaMes(versoes[0].geradaEm)}`;
 
   return (
@@ -93,9 +88,13 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
               <span className="text-[12.5px] text-muted">peças no total</span>
             </div>
             {pode(usuario, "os.ver") ? (
-              <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="md" className="w-full no-underline">
-                Abrir OS
-              </ButtonLink>
+              versoes.length ? (
+                <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="md" className="w-full no-underline">
+                  Abrir OS
+                </ButtonLink>
+              ) : (
+                <p className="m-0 text-[12px] text-muted">Aparece aqui assim que a ata for fechada.</p>
+              )
             ) : (
               <p className="m-0 text-[12px] text-muted">A OS é consultada pela logística e pela cenografia.</p>
             )}

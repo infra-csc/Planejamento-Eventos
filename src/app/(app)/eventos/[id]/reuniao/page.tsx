@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { obterEvento, obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { obterLinhasAta, opcoesReferencias } from "@/server/services/eventos";
+import { obterEventoCache } from "@/server/cache";
 import { descricaoItem, listarSolicitacoes, obterSolicitacoes } from "@/server/services/solicitacoes";
 import { listarAreas } from "@/server/services/admin";
 import { podeCorrigirResposta, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
@@ -15,12 +15,12 @@ import { ObservacoesAutosave } from "@/components/eventos/observacoes-autosave";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { paraView } from "@/components/eventos/ata-view";
 
-export const metadata: Metadata = { title: "Consolidar ata" };
+
 
 export default async function ReuniaoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requirePermissao("ata.consolidar");
   const { id } = await params;
-  const ev = await obterEvento(usuario, id);
+  const ev = await obterEventoCache(usuario, id);
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(`/eventos/${id}/ata`);
 
   const [lista, linhas, opcoes, areas] = await Promise.all([listarSolicitacoes(usuario, { eventoId: id }), obterLinhasAta(id), opcoesReferencias(), listarAreas()]);

@@ -32,6 +32,7 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
     return tratarErro(e);
   }
   revalidatePath("/projetos");
+  revalidatePath("/biblioteca");
   redirect(destino);
 }
 
@@ -41,6 +42,7 @@ export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: F
   const ativo = String(formData.get("ativo")) === "true";
   const r = await executar(() => alterarAtivoProjeto(usuario, id, ativo), ativo ? "Projeto reativado." : "Projeto inativado.");
   revalidatePath("/projetos");
+  revalidatePath("/biblioteca");
   revalidatePath(`/projetos/${id}`);
   return r;
 }
@@ -61,5 +63,6 @@ export async function removerAnexoAction(_prev: ActionResult, formData: FormData
   const r = await executar(() => removerAnexo(usuario, anexoId), "Anexo removido.");
   if (r.ok && r.dados) revalidatePath(`/projetos/${r.dados}`);
   revalidatePath("/projetos");
+  revalidatePath("/biblioteca");
   return r;
 }

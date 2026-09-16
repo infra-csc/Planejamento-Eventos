@@ -9,7 +9,8 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast, toastErro } from "@/components/ui/toast";
 import { alternarAtivoUsuarioAction, gerarLinkAcessoAction, salvarUsuarioAction } from "@/app/(app)/admin/actions";
 import { PERFIL_DESCRICAO, PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
-import { PERFIS, type Perfil } from "@/server/db/schema";
+import { PERFIS } from "@/domain/constantes";
+import type { Perfil } from "@/server/db/schema";
 
 type U = { id: string; nome: string; email: string; perfil: Perfil; areaId: string | null; areaNome: string | null; ativo: boolean; ultimoAcesso: string };
 type Form = { nome: string; email: string; perfil: Perfil; areaId: string };

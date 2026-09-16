@@ -104,7 +104,8 @@ export async function salvarSolicitacaoCompletaAction(payload: unknown) {
   try {
     const d = solicitacaoCompletaSchema.parse(payload);
     const r = await salvarSolicitacaoCompleta(usuario, d);
-    revalidarTudo();
+    // O autosave chama isto a cada pausa de digitação; só vale re-renderizar quando muda algo fora do formulário.
+    if (d.enviar || !d.id) revalidarTudo();
     return { ok: true, dados: r } as ActionResult<typeof r>;
   } catch (e) {
     return tratarErro(e);

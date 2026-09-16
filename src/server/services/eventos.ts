@@ -41,8 +41,10 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
     const b = `%${filtro.busca.trim()}%`;
     conds.push(or(ilike(eventos.nome, b), ilike(eventos.codigo, b), ilike(eventos.cliente, b), ilike(eventos.local, b)));
   }
-  if (filtro.deData) conds.push(sql`${eventos.dataFim} >= ${filtro.deData}`);
-  if (filtro.ateData) conds.push(sql`${eventos.dataInicio} <= ${filtro.ateData}`);
+  // Datas fora do calendário são ignoradas em vez de derrubar a consulta.
+  const dataValida = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
+  if (filtro.deData && dataValida(filtro.deData)) conds.push(sql`${eventos.dataFim} >= ${filtro.deData}`);
+  if (filtro.ateData && dataValida(filtro.ateData)) conds.push(sql`${eventos.dataInicio} <= ${filtro.ateData}`);
 
   const [rows, abertas, versoes] = await Promise.all([
     db.query.eventos.findMany({
@@ -256,8 +258,15 @@ export type DadosEvento = {
   responsavelId: string;
 };
 
+function validarOrdemDatas(dados: DadosEvento) {
+  if (dados.dataInicio < dados.dataMontagem || dados.dataFim < dados.dataInicio || dados.dataDesmontagem < dados.dataFim) {
+    throw new ValidacaoError("As datas precisam seguir a ordem: montagem, início, fim e desmontagem.");
+  }
+}
+
 export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
   exigir(usuario, "evento.criar");
+  validarOrdemDatas(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const codigo = await proximoCodigo(tx, "evento");
@@ -287,9 +296,7 @@ export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
 
 export async function editarEvento(usuario: UsuarioAtual, id: string, dados: DadosEvento) {
   exigir(usuario, "evento.editar");
-  if (dados.dataInicio < dados.dataMontagem || dados.dataFim < dados.dataInicio || dados.dataDesmontagem < dados.dataFim) {
-    throw new ValidacaoError("As datas precisam seguir a ordem: montagem, início, fim e desmontagem.");
-  }
+  validarOrdemDatas(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
     await bloquearEvento(tx, id);
@@ -338,7 +345,6 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
 export async function solicitacoesPendentes(ex: Executor, eventoId: string) {
   return ex.query.solicitacoes.findMany({
     where: and(eq(solicitacoes.eventoId, eventoId), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false)),
-    with: { area: true },
     columns: { id: true, codigo: true, tipo: true, status: true, titulo: true },
   });
 }
@@ -457,10 +463,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       patch.canceladoEm = agora;
       patch.canceladoPorId = usuario.id;
       patch.canceladoMotivo = just;
-      await tx
-        .update(solicitacoes)
-        .set({ status: "CANCELADA", canceladaEm: agora, canceladaMotivo: "Evento cancelado" })
-        .where(and(eq(solicitacoes.eventoId, id), inArray(solicitacoes.status, ["RASCUNHO", "ENVIADA", "EM_ANALISE", "DEVOLVIDA"])));
+      await cancelarOrfas(["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"], "Evento cancelado");
     }
 
     await tx.update(eventos).set(patch).where(eq(eventos.id, id));
@@ -486,7 +489,7 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const destinatarios = [...(await usuariosRequisitantes(tx)), ...(acao === "REABRIR" ? await usuariosLogistica(tx) : [])];
     const mensagens: Record<AcaoEvento, [string, string]> = {
       INICIAR_REUNIAO: [`Reunião de OS iniciada: ${ev.nome}`, "Envios de necessidades pausados enquanto a logística consolida a ata."],
-      VOLTAR_PREPARACAO: [`Reunião adiada: ${ev.nome}`, `${just}. As áreas voltam a poder enviar necessidades.`],
+      VOLTAR_PREPARACAO: [`Reunião adiada: ${ev.nome}`, `${just?.replace(/[.!]+$/, "")}. As áreas voltam a poder enviar necessidades.`],
       FECHAR_ATA: [`Ata fechada: ${ev.nome}`, `OS v${osNumero} gerada. Alterações agora entram como solicitações respondidas por item.`],
       ENCERRAR: [`Evento encerrado para alterações: ${ev.nome}`, "Nenhuma solicitação nova é aceita a partir de agora."],
       REABRIR: [`Evento reaberto em exceção: ${ev.nome}`, `Gestão reabriu o evento: ${just}`],
@@ -571,6 +574,9 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     if (!ev) throw new NaoEncontradoError("Evento");
     const geraOs = exigirEstadoAjuste(ev.status, dados.justificativa);
     if (geraOs) exigir(usuario, "ata.ajustar");
+    if (!Number.isInteger(dados.quantidade) || dados.quantidade <= 0 || dados.quantidade > 1_000_000) {
+      throw new ValidacaoError("Quantidade deve ser um inteiro entre 1 e 1.000.000.", { quantidade: "Informe um valor maior que zero." });
+    }
 
     let valores: typeof eventoItens.$inferInsert;
     const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id };
@@ -624,6 +630,9 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
     if (!ev) throw new NaoEncontradoError("Evento");
     const geraOs = exigirEstadoAjuste(ev.status, justificativa);
     if (geraOs) exigir(usuario, "ata.ajustar");
+    if (!Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) {
+      throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.", { quantidade: "Use um número inteiro." });
+    }
     const [linha] = await montarLinhasAta(tx, eventoId, { linhaId });
     if (!linha) throw new NaoEncontradoError("Linha da ata");
     const desc = descricaoLinha(linha);

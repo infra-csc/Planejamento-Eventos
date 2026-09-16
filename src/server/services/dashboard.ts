@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, ne, or } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventos, solicitacaoItens, solicitacoes, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
@@ -106,9 +106,18 @@ export async function dadosPainel(usuario: UsuarioAtual) {
 
 
   if (req) {
+    // Só o que o painel mostra: abertas/rascunhos (fila) e respondidas dos últimos 7 dias.
+    // Sem isso o histórico inteiro da área viria a cada visita.
     const minhas = usuario.areaId
       ? await db.query.solicitacoes.findMany({
-          where: and(eq(solicitacoes.excluida, false), eq(solicitacoes.areaId, usuario.areaId)),
+          where: and(
+            eq(solicitacoes.excluida, false),
+            eq(solicitacoes.areaId, usuario.areaId),
+            or(
+              inArray(solicitacoes.status, ["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"]),
+              and(eq(solicitacoes.status, "RESPONDIDA"), gt(solicitacoes.respondidaEm, new Date(agora.getTime() - 7 * 86_400_000))),
+            ),
+          ),
           with: {
             evento: { columns: { id: true, nome: true } },
             area: true,

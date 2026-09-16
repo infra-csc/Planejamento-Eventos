@@ -374,11 +374,12 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
 export function DicaAtalhos() {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="text-[11.5px] text-meta">selecione um item e use</span>
-      {["A", "P", "N"].map((k) => (
-        <kbd key={k} className="rounded-[4px] bg-control px-1.5 py-px font-mono text-[11px] text-ink-2">
-          {k}
-        </kbd>
+      <span className="text-[11.5px] text-meta">atalhos com um item selecionado:</span>
+      {([["A", "atender"], ["P", "parcial"], ["N", "não atender"]] as const).map(([k, o]) => (
+        <span key={k} className="flex items-center gap-1 text-[11.5px] text-meta">
+          <kbd className="rounded-[4px] bg-control px-1.5 py-px font-mono text-[11px] text-ink-2">{k}</kbd>
+          {o}
+        </span>
       ))}
     </span>
   );

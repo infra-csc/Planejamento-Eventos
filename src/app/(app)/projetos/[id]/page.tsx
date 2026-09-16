@@ -5,7 +5,7 @@ import { historicoProjeto, obterProjeto } from "@/server/services/projetos";
 import { pode } from "@/domain/permissions";
 import { SETOR_LABEL } from "@/domain/os";
 import { NaoEncontradoError } from "@/domain/errors";
-import { SETORES } from "@/server/db/schema";
+import { SETORES } from "@/domain/constantes";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, PageHeader, Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";

@@ -69,10 +69,12 @@ export async function listarUsuariosPorPerfil(perfis: Perfil[]) {
   });
 }
 
-function validarPerfilArea(dados: DadosUsuario) {
-  if (perfilUsaArea(dados.perfil) && !dados.areaId) {
-    throw new ValidacaoError(`Perfil ${PERFIL_LABEL[dados.perfil]} exige uma área.`, { areaId: "Escolha a área." });
-  }
+async function validarPerfilArea(dados: DadosUsuario) {
+  if (!perfilUsaArea(dados.perfil)) return;
+  if (!dados.areaId) throw new ValidacaoError(`Perfil ${PERFIL_LABEL[dados.perfil]} exige uma área.`, { areaId: "Escolha a área." });
+  const db = await getDb();
+  const area = await db.query.areas.findFirst({ where: and(eq(areas.id, dados.areaId), eq(areas.ativo, true)), columns: { id: true } });
+  if (!area) throw new ValidacaoError("Escolha uma área ativa.", { areaId: "Área inexistente ou inativa." });
 }
 
 /**
@@ -81,15 +83,16 @@ function validarPerfilArea(dados: DadosUsuario) {
  */
 export async function criarUsuario(usuario: UsuarioAtual, dados: DadosUsuario) {
   exigir(usuario, "admin.usuarios");
-  validarPerfilArea(dados);
+  await validarPerfilArea(dados);
   if (dados.senha && dados.senha.length < 8) throw new ValidacaoError("A senha inicial deve ter pelo menos 8 caracteres.", { senha: "Mínimo de 8 caracteres." });
   const db = await getDb();
-  const [dup] = await db.select({ id: usuarios.id }).from(usuarios).where(sql`lower(${usuarios.email}) = ${dados.email.toLowerCase()}`);
+  const email = dados.email.trim();
+  const [dup] = await db.select({ id: usuarios.id }).from(usuarios).where(sql`lower(${usuarios.email}) = ${email.toLowerCase()}`);
   if (dup) throw new ValidacaoError("Já existe um usuário com este e-mail.", { email: "Já existe um usuário com este e-mail." });
   const senha = dados.senha ?? randomBytes(24).toString("base64url");
   const [u] = await db
     .insert(usuarios)
-    .values({ nome: dados.nome, email: dados.email, perfil: dados.perfil, areaId: perfilUsaArea(dados.perfil) ? dados.areaId : null, ativo: dados.ativo, senhaHash: await hashSenha(senha) })
+    .values({ nome: dados.nome, email, perfil: dados.perfil, areaId: perfilUsaArea(dados.perfil) ? dados.areaId : null, ativo: dados.ativo, senhaHash: await hashSenha(senha) })
     .returning();
   await registrarHistorico(db, { entidade: "usuario", entidadeId: u.id, acao: "CRIADO", descricao: `Usuário ${u.nome} criado — ${PERFIL_LABEL[u.perfil]}`, usuarioId: usuario.id });
   const linkAcesso = dados.senha ? null : await gerarLinkAcesso(u.id, VALIDADE_CONVITE_MS);

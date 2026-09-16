@@ -8,7 +8,8 @@ import { ButtonLink, SubmitButton } from "@/components/ui/button";
 import { Notice, Panel } from "@/components/ui/layout";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
-import { SETORES, type Setor } from "@/server/db/schema";
+import { SETORES } from "@/domain/constantes";
+import type { Setor } from "@/server/db/schema";
 
 export function PecaForm({
   valores,
