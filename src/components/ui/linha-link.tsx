@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { cn } from "@/lib/cn";
 
 function deveIgnorar(alvo: EventTarget | null) {
@@ -16,16 +17,20 @@ const novaAba = (href: string) => window.open(href, "_blank", "noopener,noreferr
  */
 export function LinhaLink({ href, rotulo, className, children }: { href: string; rotulo: string; className?: string; children: React.ReactNode }) {
   const router = useRouter();
+  // Em dev a rota pode levar segundos para compilar: a linha mostra que está abrindo.
+  const [abrindo, iniciar] = useTransition();
+  const abrir = () => iniciar(() => router.push(href));
   return (
     <tr
       role="link"
       tabIndex={0}
       aria-label={rotulo}
-      className={cn("cursor-pointer hover:bg-subtle", className)}
+      aria-busy={abrindo || undefined}
+      className={cn("cursor-pointer hover:bg-subtle", abrindo && "cursor-progress bg-selected opacity-70", className)}
       onClick={(e) => {
         if (deveIgnorar(e.target)) return;
         if (e.metaKey || e.ctrlKey) novaAba(href);
-        else router.push(href);
+        else abrir();
       }}
       onAuxClick={(e) => {
         if (e.button !== 1 || deveIgnorar(e.target)) return;
@@ -37,7 +42,7 @@ export function LinhaLink({ href, rotulo, className, children }: { href: string;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           if (e.metaKey || e.ctrlKey) novaAba(href);
-          else router.push(href);
+          else abrir();
         }
       }}
     >

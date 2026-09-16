@@ -43,8 +43,10 @@ export function ComboBox({
   const visiveis = useMemo(() => {
     const base = ordenarAlfabetico ? [...opcoes].sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" })) : opcoes;
     const t = busca.trim().toLowerCase();
-    return t ? base.filter((o) => `${o.label} ${o.descricao ?? ""}`.toLowerCase().includes(t)) : base;
-  }, [opcoes, busca, ordenarAlfabetico]);
+    // Com o rótulo do escolhido ainda no campo (logo após focar), mostra a lista inteira.
+    if (!t || t === selecionada?.label.toLowerCase()) return base;
+    return base.filter((o) => `${o.label} ${o.descricao ?? ""}`.toLowerCase().includes(t));
+  }, [opcoes, busca, ordenarAlfabetico, selecionada]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -83,9 +85,12 @@ export function ComboBox({
           disabled={disabled}
           value={aberto ? busca : (selecionada?.label ?? "")}
           placeholder={placeholder}
-          onFocus={() => {
+          onFocus={(e) => {
+            // Ao focar com algo escolhido, o texto fica selecionado: digitar substitui, em vez de emendar.
+            setBusca(selecionada?.label ?? "");
             setAberto(true);
             setIndice(Math.max(0, visiveis.findIndex((o) => o.value === value)));
+            requestAnimationFrame(() => e.target.select());
           }}
           onChange={(e) => {
             setBusca(e.target.value);
