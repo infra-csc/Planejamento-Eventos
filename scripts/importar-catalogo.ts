@@ -34,7 +34,8 @@ async function main() {
     const existente = await db.query.pecas.findFirst({ where: eq(pecas.codigo, p.codigo) });
     const base = { nome: p.nome, setor: p.setor, familia: p.familia, unidade: p.unidade ?? "un", permiteEmProjeto: p.permiteEmProjeto ?? true, descricao: p.descricao ?? null };
     if (existente) {
-      await db.update(pecas).set({ ...base, ativo: true }).where(eq(pecas.id, existente.id));
+      // Por enquanto o estoque não é controlado no app: a importação zera o que veio do seed de demonstração.
+      await db.update(pecas).set({ ...base, ativo: true, estoqueProprio: p.estoque ?? 0 }).where(eq(pecas.id, existente.id));
       atualizadas++;
     } else {
       await db.insert(pecas).values({ ...base, codigo: p.codigo, estoqueProprio: p.estoque ?? 0, criadoPorId: usuario.id });
@@ -42,6 +43,25 @@ async function main() {
     }
   }
   console.log(`Peças: ${criadas} criadas, ${atualizadas} atualizadas.`);
+
+  // Sobras do seed de demonstração antigo (peças e projetos fictícios): saem de cena, sem apagar histórico.
+  const DEMO_PROJETOS = ["pórtico boca 6,60m", "pórtico boca 4m", "torre de som 4m", "palco 8×6 m com cobertura", "tenda 10×10 m", "balcão de credenciamento 2 m", "camarim 3×3 m"];
+  const DEMO_PECAS = ["CONTRAPESO", "TALHA", "TND-CANT", "TND-TRAV", "TND-PE", "TND-MASTRO", "TND-CABO", "TND-CALHA", "TND-LONA10", "TND-LONA5", "TND-FECH", "MDF-15", "MDF-9", "SARRAFO", "PISO-MOD", "PERNA-60", "TAMPO-BAL", "RODAPE", "TINTA-PRETA"];
+  let projetosDesativados = 0;
+  for (const pr of await db.query.projetos.findMany({ where: eq(projetos.ativo, true), columns: { id: true, nome: true } })) {
+    if (DEMO_PROJETOS.includes(pr.nome.toLowerCase())) {
+      await db.update(projetos).set({ ativo: false }).where(eq(projetos.id, pr.id));
+      projetosDesativados++;
+    }
+  }
+  let pecasDesativadas = 0;
+  for (const pc of await db.query.pecas.findMany({ where: eq(pecas.ativo, true), columns: { id: true, codigo: true } })) {
+    if (DEMO_PECAS.includes(pc.codigo)) {
+      await db.update(pecas).set({ ativo: false, estoqueProprio: 0 }).where(eq(pecas.id, pc.id));
+      pecasDesativadas++;
+    }
+  }
+  if (projetosDesativados || pecasDesativadas) console.log(`Demonstração antiga desativada: ${projetosDesativados} projetos, ${pecasDesativadas} peças.`);
 
   const todas = await db.query.pecas.findMany({ columns: { id: true, codigo: true } });
   const idPorCodigo = new Map(todas.map((p) => [p.codigo, p.id]));
