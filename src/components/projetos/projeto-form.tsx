@@ -11,17 +11,23 @@ import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
 import type { Setor } from "@/server/db/schema";
 
-type PecaOpcao = { id: string; codigo: string; nome: string; setor: Setor; unidade: string; permiteEmProjeto: boolean };
+export type PecaOpcao = { id: string; codigo: string; nome: string; setor: Setor; unidade: string; permiteEmProjeto: boolean };
 type Linha = { pecaId: string; quantidade: number };
 
 export function ProjetoForm({
   valores,
   pecas,
   cancelarHref,
+  onCancelar,
+  voltarPara,
 }: {
   valores: { id?: string; nome?: string; categoria?: string; descricao?: string | null; itens: Linha[]; versaoAtual?: number };
   pecas: PecaOpcao[];
   cancelarHref: string;
+  /** Dentro de um modal: cancelar fecha em vez de navegar. */
+  onCancelar?: () => void;
+  /** Para onde ir depois de salvar (padrão: página do projeto). */
+  voltarPara?: string;
 }) {
   const [state, action] = useActionState(salvarProjetoAction, ESTADO_INICIAL);
   const [itens, setItens] = useState<Linha[]>(valores.itens);
@@ -45,6 +51,7 @@ export function ProjetoForm({
   return (
     <ActionForm action={action} noValidate className="space-y-4">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
+      {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
       <input type="hidden" name="itens" value={JSON.stringify(itens)} />
       <Panel title="Identificação">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -140,9 +147,15 @@ export function ProjetoForm({
       <FormError message={!state.ok ? state.erro : null} />
       <div className="flex flex-wrap items-center gap-2">
         <SubmitButton>{valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}</SubmitButton>
-        <ButtonLink href={cancelarHref} variant="ghost">
-          Cancelar
-        </ButtonLink>
+        {onCancelar ? (
+          <Button variant="ghost" onClick={onCancelar}>
+            Cancelar
+          </Button>
+        ) : (
+          <ButtonLink href={cancelarHref} variant="ghost">
+            Cancelar
+          </ButtonLink>
+        )}
       </div>
     </ActionForm>
   );

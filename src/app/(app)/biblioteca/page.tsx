@@ -16,6 +16,7 @@ import { BuscaUrl } from "@/components/ui/busca-url";
 import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
+import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -127,9 +128,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   acoes={
                     <span className="flex items-center gap-3">
                       {pode(usuario, "projeto.gerenciar") && (
-                        <Link href={`/projetos/${detalhe.id}/editar`} className="link text-[12.5px]">
-                          Editar
-                        </Link>
+                        <EditarProjetoModal
+                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, versaoAtual: detalhe.versaoAtual, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
+                          anexos={detalhe.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))}
+                          pecas={pecasTodas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, permiteEmProjeto: p.permiteEmProjeto }))}
+                        />
                       )}
                       <Link href={`/projetos/${detalhe.id}`} className="link text-[12.5px]">
                         Abrir

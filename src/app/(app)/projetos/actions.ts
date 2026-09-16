@@ -33,7 +33,9 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
   }
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
-  redirect(destino);
+  // Formulário dentro de um modal (Biblioteca) pede para voltar ao mesmo lugar.
+  const voltarPara = String(formData.get("voltarPara") ?? "");
+  redirect(voltarPara.startsWith("/") ? voltarPara : destino);
 }
 
 export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -54,6 +56,7 @@ export async function anexarArquivoAction(_prev: ActionResult, formData: FormDat
   if (!(file instanceof File)) return { ok: false, erro: "Selecione um arquivo." };
   const r = await executar(() => anexarArquivo(usuario, projetoId, file), "Anexo adicionado.");
   revalidatePath(`/projetos/${projetoId}`);
+  revalidatePath("/biblioteca");
   return r;
 }
 
