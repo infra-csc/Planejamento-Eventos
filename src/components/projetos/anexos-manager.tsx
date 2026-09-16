@@ -31,12 +31,12 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
     <div>
       {anexos.length === 0 && <p className="px-[18px] py-6 text-center text-[12.5px] text-muted">Nenhum anexo. {podeGerenciar ? "Adicione imagens (PNG/JPG/WEBP) ou o PDF técnico." : ""}</p>}
       {imagens.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 p-[18px] sm:grid-cols-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 p-[18px] sm:grid-cols-2">
           {imagens.map((a) => (
             <figure key={a.id} className="group relative m-0">
               <a href={`/api/anexos/${a.id}`} target="_blank" rel="noopener">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-square w-full rounded-controle border border-line object-cover" />
+                <img src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full rounded-controle border border-line bg-white object-contain" />
               </a>
               <figcaption className="mt-1 truncate text-[11.5px] text-muted">{a.nomeArquivo}</figcaption>
               {podeGerenciar && (
