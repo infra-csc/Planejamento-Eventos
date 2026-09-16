@@ -28,7 +28,7 @@ export type ItemNovo = {
   meta: string;
 };
 export type LinhaBom = { pecaId: string; codigo: string; nome: string; unidade: string; quantidade: number };
-type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?: LinhaBom[] };
+type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?: LinhaBom[]; capaId?: string | null };
 type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 type Modo = "projeto" | "peca" | "avulso" | "ata";
 
@@ -566,6 +566,13 @@ export function NovaSolicitacaoForm({
                 {modo !== "ata" &&
                   resultados.map((r) => (
                     <div key={r.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
+                      {modo === "projeto" &&
+                        (r.capaId ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={`/api/anexos/${r.capaId}`} alt="" className="h-9 w-12 shrink-0 rounded-[5px] border border-line object-cover" loading="lazy" />
+                        ) : (
+                          <span aria-hidden className="h-9 w-12 shrink-0 rounded-[5px] border border-dashed border-line-strong" />
+                        ))}
                       <span className="w-[92px] shrink-0 font-mono text-[12px] text-ink-2">{r.codigo}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] text-ink">{r.nome}</span>

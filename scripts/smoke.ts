@@ -73,7 +73,7 @@ async function main() {
   ok(painelReq.tipo === "requisitante" && painelReq.fila.every((f) => f.areaNome === "Produção"), "painel do requisitante só mostra a própria área");
   const hoje = new Date().toISOString().slice(0, 10);
   const cons = await calcularConsolidacao({ inicio: hoje, fim: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10) });
-  ok(cons.pecas.some((p) => p.codigo === "BOX-3000" && p.saldo < 0), "consolidação aponta déficit de BOX-3000 com estoque de demonstração");
+  ok(cons.pecas.some((p) => p.pico > 0), "consolidação calcula a demanda das peças no período");
   const e2p = await ev("EVT-0002");
   const consProj = await calcularConsolidacao({ inicio: e2p.dataMontagem, fim: e2p.dataDesmontagem });
   ok(consProj.pecas.some((p) => p.temProjecao && p.eventosNoPico.some((x) => x.codigo === "EVT-0002" && x.projetado)), "consolidação inclui demanda projetada de evento sem ata");

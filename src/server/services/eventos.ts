@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
+  anexos,
   areas,
   ataVersoes,
   eventoItens,
@@ -21,7 +22,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain/evento";
 import { pode } from "@/domain/permissions";
-import { descricaoLinha } from "@/domain/os";
+import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
 import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
@@ -700,7 +701,9 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
     if (!linha || linha.tipo !== "PROJETO" || !linha.projetoId) throw new NaoEncontradoError("Linha de projeto");
     const snap = await snapshotBom(tx, linha.projetoId);
     if (snap.versaoId === linha.projetoVersaoId) return;
-    await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom }).where(eq(eventoItens.id, linhaId));
+    // A linha veio de uma solicitação com peças ajustadas? Os ajustes valem também na versão nova.
+    const origem = linha.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.solicitacaoItemId), columns: { ajustesBom: true } }) : null;
+    await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, origem?.ajustesBom) }).where(eq(eventoItens.id, linhaId));
     await registrarHistorico(tx, {
       eventoId,
       entidade: "evento_item",
@@ -745,9 +748,14 @@ export async function opcoesReferencias() {
     .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
     .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
     .orderBy(asc(pecas.codigo));
+  // Primeira imagem de cada projeto (miniatura na escolha do requisitante).
+  const capas = await db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(eq(anexos.tipo, "IMAGEM")).orderBy(asc(anexos.criadoEm));
+  const capaDe = new Map<string, string>();
+  for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
   return {
     projetos: proj.map((p) => ({
       ...p,
+      capaId: capaDe.get(p.id) ?? null,
       totalPecas: Number(versoes.find((v) => v.projetoId === p.id && v.numero === p.versaoAtual)?.total ?? 0),
       bom: linhasBom.filter((l) => l.projetoId === p.id && l.numero === p.versaoAtual).map(({ pecaId, codigo, nome, unidade, quantidade }) => ({ pecaId, codigo, nome, unidade, quantidade })),
     })),

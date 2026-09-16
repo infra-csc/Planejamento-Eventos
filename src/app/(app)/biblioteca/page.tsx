@@ -98,6 +98,14 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     aria-current={sel ? "true" : undefined}
                     className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 no-underline last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
                   >
+                    {p.capa ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/anexos/${p.capa.id}`} alt="" className="h-10 w-14 shrink-0 rounded-[6px] border border-line object-cover" loading="lazy" />
+                    ) : (
+                      <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-[6px] border border-dashed border-line-strong text-[10px] text-meta">
+                        sem foto
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="min-w-0 truncate text-[14px] font-medium text-ink">{p.nome}</span>

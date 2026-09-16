@@ -9,7 +9,8 @@
  */
 import { eq, sql } from "drizzle-orm";
 import { getConnection } from "../src/server/db";
-import { areas, pecas, projetos, solicitacoes, usuarios, type Perfil, type Setor } from "../src/server/db/schema";
+import { areas, pecas, projetos, solicitacoes, usuarios, type Perfil } from "../src/server/db/schema";
+import { PECAS, PROJETOS } from "./dados/catalogo";
 import { hashSenha } from "../src/server/auth/password";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
 import { criarProjeto, editarProjeto } from "../src/server/services/projetos";
@@ -94,42 +95,11 @@ async function main() {
   const lucia = U("lucia.barros@nortemkt.com.br");
 
   /* ---------------------------------------------------------------- */
-  /* Catálogo de peças                                                  */
+  /* Catálogo de peças (real — scripts/dados/catalogo.ts)              */
   /* ---------------------------------------------------------------- */
-  const cat: Array<[string, string, Setor, string, number, boolean?, string?]> = [
-    // código, nome, setor, família, estoque, permiteEmProjeto, unidade
-    ["BOX-400", "Box truss 400 mm — trecho 1 m", "ESTRUTURA", "Box truss", 40],
-    ["BOX-600", "Box truss 600 mm — trecho 1,5 m", "ESTRUTURA", "Box truss", 120],
-    ["BOX-700", "Box truss 700 mm — trecho 2 m", "ESTRUTURA", "Box truss", 60],
-    ["BOX-3000", "Box truss — trecho 3 m", "ESTRUTURA", "Box truss", 40],
-    ["BOX-3500", "Box truss — trecho 3,5 m", "ESTRUTURA", "Box truss", 30],
-    ["CUBO", "Cubo de conexão 4 faces", "ESTRUTURA", "Conexão", 34],
-    ["GRAPPLE", "Grapple (esticador de cabo)", "ESTRUTURA", "Conexão", 24],
-    ["PARAF", "Parafuso M12 com porca e arruela", "ESTRUTURA", "Fixação", 600],
-    ["SAPATA", "Sapata de base 40×40", "ESTRUTURA", "Base", 36],
-    ["CONTRAPESO", "Contrapeso 25 kg", "ESTRUTURA", "Base", 60],
-    ["TALHA", "Talha manual 1 t", "ESTRUTURA", "Içamento", 2],
-    ["TND-CANT", "Cantoneira de tenda", "TENDA", "Tenda", 96],
-    ["TND-TRAV", "Travessa de tenda 5 m", "TENDA", "Tenda", 64],
-    ["TND-PE", "Pé de tenda 3 m", "TENDA", "Tenda", 72],
-    ["TND-MASTRO", "Mastro central", "TENDA", "Tenda", 20],
-    ["TND-CABO", "Cabo de aço 6 mm — 10 m", "TENDA", "Tenda", 80],
-    ["TND-CALHA", "Calha de união 5 m", "TENDA", "Tenda", 40],
-    ["TND-LONA10", "Lona de cobertura 10×10", "TENDA", "Tenda", 8],
-    ["TND-LONA5", "Lona de cobertura 5×5", "TENDA", "Tenda", 14],
-    ["TND-FECH", "Fechamento lateral de tenda 5 m", "TENDA", "Tenda", 30, false],
-    ["MDF-15", "Chapa MDF 15 mm 2,75×1,85", "MARCENARIA", "Chapa", 60],
-    ["MDF-9", "Chapa MDF 9 mm 2,75×1,85", "MARCENARIA", "Chapa", 45],
-    ["SARRAFO", "Sarrafo de pinus 3 m", "MARCENARIA", "Madeira", 200],
-    ["PISO-MOD", "Módulo de piso 1×1 m (praticável)", "MARCENARIA", "Piso", 150],
-    ["PERNA-60", "Perna de praticável 60 cm", "MARCENARIA", "Piso", 300],
-    ["TAMPO-BAL", "Tampo de balcão 2 m", "MARCENARIA", "Balcão", 12],
-    ["RODAPE", "Rodapé de palco 30 cm (m)", "MARCENARIA", "Acabamento", 120, true, "m"],
-    ["TINTA-PRETA", "Tinta PVA preta fosca (lata 18 l)", "MARCENARIA", "Acabamento", 10, true, "lata"],
-  ];
   const pecasRows = await db
     .insert(pecas)
-    .values(cat.map(([codigo, nome, setor, familia, estoqueProprio, permite, unidade]) => ({ codigo, nome, setor, familia, estoqueProprio, permiteEmProjeto: permite ?? true, unidade: unidade ?? "un", criadoPorId: marina.id })))
+    .values(PECAS.map((p) => ({ codigo: p.codigo, nome: p.nome, setor: p.setor, familia: p.familia, estoqueProprio: p.estoque ?? 0, permiteEmProjeto: p.permiteEmProjeto ?? true, unidade: p.unidade ?? "un", descricao: p.descricao ?? null, criadoPorId: marina.id })))
     .returning();
   const P = (codigo: string) => pecasRows.find((p) => p.codigo === codigo)!.id;
 
@@ -137,26 +107,20 @@ async function main() {
   /* Projetos padrão                                                    */
   /* ---------------------------------------------------------------- */
   const bom = (l: Array<[string, number]>) => l.map(([c, q]) => ({ pecaId: P(c), quantidade: q }));
-  const portico660 = await criarProjeto(bruno, {
-    nome: "Pórtico boca 6,60m",
-    categoria: "Pórtico",
-    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura.",
-    observacaoVersao: "Versão inicial",
-    itens: bom([["BOX-400", 1], ["BOX-600", 5], ["BOX-700", 1], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["GRAPPLE", 1], ["PARAF", 132]]),
-  });
-  const portico4 = await criarProjeto(bruno, { nome: "Pórtico boca 4m", categoria: "Pórtico", descricao: "Pórtico compacto para acessos secundários.", observacaoVersao: null, itens: bom([["BOX-600", 4], ["BOX-3000", 4], ["CUBO", 4], ["SAPATA", 2], ["PARAF", 64]]) });
-  const torreSom = await criarProjeto(bruno, { nome: "Torre de som 4m", categoria: "Torre", descricao: "Torre para line array pequeno, com contrapeso.", observacaoVersao: null, itens: bom([["BOX-3000", 2], ["BOX-600", 2], ["CUBO", 2], ["SAPATA", 1], ["CONTRAPESO", 4], ["TALHA", 1], ["PARAF", 40]]) });
-  const palco86 = await criarProjeto(bruno, {
-    nome: "Palco 8×6 m com cobertura",
-    categoria: "Palco",
-    descricao: "Praticáveis 1×1 a 60 cm, rodapé e cobertura em box truss.",
-    observacaoVersao: null,
-    itens: bom([["PISO-MOD", 48], ["PERNA-60", 96], ["RODAPE", 28], ["BOX-3000", 16], ["BOX-3500", 4], ["CUBO", 8], ["SAPATA", 4], ["PARAF", 260], ["TINTA-PRETA", 1]]),
-  });
-  const tenda10 = await criarProjeto(bruno, { nome: "Tenda 10×10 m", categoria: "Tenda", descricao: "Estrutura da tenda. Fechamentos laterais são sempre itens avulsos.", observacaoVersao: null, itens: bom([["TND-CANT", 8], ["TND-TRAV", 8], ["TND-PE", 8], ["TND-MASTRO", 1], ["TND-CABO", 8], ["TND-CALHA", 4], ["TND-LONA10", 1]]) });
-  const tenda5 = await criarProjeto(bruno, { nome: "Tenda 5×5 m", categoria: "Tenda", descricao: null, observacaoVersao: null, itens: bom([["TND-CANT", 4], ["TND-TRAV", 4], ["TND-PE", 4], ["TND-MASTRO", 1], ["TND-CABO", 4], ["TND-LONA5", 1]]) });
-  const balcao = await criarProjeto(bruno, { nome: "Balcão de credenciamento 2 m", categoria: "Balcão", descricao: "Balcão em MDF pintado, tampo de 2 m.", observacaoVersao: null, itens: bom([["MDF-15", 3], ["SARRAFO", 6], ["TAMPO-BAL", 1], ["TINTA-PRETA", 1]]) });
-  const camarim = await criarProjeto(bruno, { nome: "Camarim 3×3 m", categoria: "Camarim", descricao: "Painéis em MDF 9 mm sobre estrutura de sarrafo, piso praticável.", observacaoVersao: null, itens: bom([["MDF-9", 8], ["SARRAFO", 24], ["PISO-MOD", 9], ["PERNA-60", 18]]) });
+  const criados: Array<{ id: string; nome: string }> = [];
+  for (const pr of PROJETOS) {
+    const p = await criarProjeto(bruno, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: null, itens: bom(pr.itens) });
+    criados.push({ id: p.id, nome: pr.nome });
+  }
+  const proj = (nome: string) => criados.find((p) => p.nome === nome)!;
+  // Apelidos usados no cenário de demonstração abaixo.
+  const portico660 = proj("Pórtico boca de 6 m com orelha");
+  const portico4 = proj("Pórtico boca de 4 m com orelha");
+  const quadroFoto = proj("Quadro de fotos 4×3 m");
+  const palco84 = proj("Palco 8×4 m com escada e rampa");
+  const estande = proj("Estande 9×6 m");
+  const tenda5 = proj("Tenda 5×5 m");
+  const tenda3 = proj("Tenda 3×3 m");
 
   /* ---------------------------------------------------------------- */
   /* Helpers de fluxo                                                   */
@@ -195,19 +159,19 @@ async function main() {
   const e1 = await ev({ nome: "Festival Praia Sonora 2026", cliente: "Prefeitura de Marítima", local: "Orla Norte — Arena de Areia", dataMontagem: d(9), dataInicio: d(12), dataFim: d(14), dataDesmontagem: d(15), dataReuniao: dt(-6, 14), dataCarga: d(8), responsavelId: marina.id });
   const s1a = await solicitar(paulo, e1.id, "Estruturas principais", [
     { projetoId: portico660.id, qtd: 2, destino: "Entrada norte e sul" },
-    { projetoId: tenda10.id, qtd: 1, destino: "Área VIP" },
+    { projetoId: estande.id, qtd: 1, destino: "Área VIP" },
     { livre: "Fechamento de tenda", qtd: 4, destino: "GV", just: "Fechar a tenda VIP nos 4 lados" },
   ]);
   const s1b = await solicitar(julia, e1.id, "Ativação — palco e som", [
-    { projetoId: torreSom.id, qtd: 4, destino: "PA principal (2) e delay (2)" },
-    { projetoId: palco86.id, qtd: 1, destino: "Palco principal" },
+    { projetoId: quadroFoto.id, qtd: 4, destino: "Área de fotos" },
+    { projetoId: palco84.id, qtd: 1, destino: "Palco principal" },
   ]);
-  const s1c = await solicitar(bruno, e1.id, "Balcões de credenciamento", [{ projetoId: balcao.id, qtd: 2, destino: "Credenciamento" }]);
+  const s1c = await solicitar(bruno, e1.id, "Balcões de credenciamento", [{ pecaCodigo: "BALCAO-120", qtd: 2, destino: "Credenciamento" }]);
   await transicionarEvento(marina, e1.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s1a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "PARCIAL", qtd: 3, obs: "Só 3 fechamentos disponíveis na data; o 4º depende de locação.", pendencia: true }]);
-  await responderTodos(marina, s1b, [{ status: "PARCIAL", qtd: 3, obs: "Uma torre está comprometida com o Lançamento SUV Aurora no mesmo fim de semana.", pendencia: true }, { status: "ATENDIDO" }]);
+  await responderTodos(marina, s1b, [{ status: "PARCIAL", qtd: 3, obs: "Um quadro está comprometido com o Lançamento SUV Aurora no mesmo fim de semana.", pendencia: true }, { status: "ATENDIDO" }]);
   await responderTodos(rafael, s1c, [{ status: "ATENDIDO" }]);
-  await incluirLinhaAta(marina, e1.id, { referenciaTipo: "PROJETO", projetoId: camarim.id, pecaId: null, descricaoLivre: null, quantidade: 2, destino: "Backstage", areaId: area("Atendimento").id, justificativa: null });
+  await incluirLinhaAta(marina, e1.id, { referenciaTipo: "PROJETO", projetoId: tenda3.id, pecaId: null, descricaoLivre: null, quantidade: 2, destino: "Backstage", areaId: area("Atendimento").id, justificativa: null });
   await salvarObservacoesReuniao(marina, e1.id, "Participaram: Produção (Paulo), Ativação (Júlia), Cenografia (Bruno), Atendimento (Lúcia), Logística (Marina, Rafael).\nDecisões: pórtico sul pode ser substituído por 4 m se faltar box 3,5 m. Carga sai 1 dia antes da montagem.");
   await transicionarEvento(marina, e1.id, "FECHAR_ATA");
   // Alterações pós-ata
@@ -215,13 +179,13 @@ async function main() {
   await responderTodos(rafael, s1d, [{ status: "ATENDIDO" }]);
   const s1e = await solicitar(diego, e1.id, "Backdrops", [{ livre: "Painel backdrop 3×2 m em MDF", qtd: 2, destino: "Área de imprensa", just: "Fotos oficiais com patrocinadores." }], true, "Fotos oficiais com patrocinadores; material chega dia 24.");
   const linhasE1 = await obterLinhasAta(e1.id);
-  const linhaCamarim = linhasE1.find((l) => l.projeto?.nome === "Camarim 3×3 m")!;
-  const s1f = await solicitar(lucia, e1.id, "Camarim adicional", [{ operacao: "ALTERAR_QUANTIDADE", eventoItemId: linhaCamarim.id, qtd: 3, just: "Artista principal pediu camarim exclusivo." }]);
-  await devolverSolicitacao(marina, s1f, "Confirme com a produção se o terceiro camarim cabe no backstage antes de reenviar");
+  const linhaCamarim = linhasE1.find((l) => l.projeto?.nome === "Tenda 3×3 m")!;
+  const s1f = await solicitar(lucia, e1.id, "Tenda adicional", [{ operacao: "ALTERAR_QUANTIDADE", eventoItemId: linhaCamarim.id, qtd: 3, just: "Artista principal pediu tenda exclusiva." }]);
+  await devolverSolicitacao(marina, s1f, "Confirme com a produção se a terceira tenda cabe no backstage antes de reenviar");
   const linhaFech = linhasE1.find((l) => l.descricaoLivre === "Fechamento de tenda")!;
   await solicitar(ana, e1.id, "Revisão dos fechamentos", [{ operacao: "REMOVER", eventoItemId: linhaFech.id, qtd: 0, just: "Cliente desistiu do fechamento lateral." }], false);
-  const linhaTenda = linhasE1.find((l) => l.projeto?.nome === "Tenda 10×10 m")!;
-  await alterarQuantidadeLinha(marina, e1.id, linhaTenda.id, 2, "Cliente aprovou segunda tenda VIP por telefone; produção confirmará por solicitação formal.");
+  const linhaTenda = linhasE1.find((l) => l.projeto?.nome === "Estande 9×6 m")!;
+  await alterarQuantidadeLinha(marina, e1.id, linhaTenda.id, 2, "Cliente aprovou segundo estande VIP por telefone; produção confirmará por solicitação formal.");
   // Deixa a solicitação da Gráfica atrasada
   await db.update(solicitacoes).set({ enviadaEm: dt(-3, 9), prazoRespostaEm: dt(-1, 9) }).where(eq(solicitacoes.id, s1e));
 
@@ -229,16 +193,16 @@ async function main() {
   /* EVT-0002 — Convenção TechNorte (PREPARACAO, reunião em 2 dias)     */
   /* ---------------------------------------------------------------- */
   const e2 = await ev({ nome: "Convenção Anual TechNorte", cliente: "TechNorte S.A.", local: "Centro de Convenções — Pavilhão B", dataMontagem: d(18), dataInicio: d(20), dataFim: d(21), dataDesmontagem: d(22), dataReuniao: dt(2, 14), dataCarga: null, responsavelId: rafael.id });
-  await solicitar(paulo, e2.id, "Acessos e credenciamento", [{ projetoId: portico4.id, qtd: 1, destino: "Entrada principal" }, { projetoId: balcao.id, qtd: 3, destino: "Credenciamento" }], true, "Credenciamento abre às 7h; balcões precisam estar prontos na véspera.");
-  await solicitar(lucia, e2.id, "Sala de palestrantes", [{ projetoId: camarim.id, qtd: 1, destino: "Sala de palestrantes" }]);
+  await solicitar(paulo, e2.id, "Acessos e credenciamento", [{ projetoId: portico4.id, qtd: 1, destino: "Entrada principal" }, { pecaCodigo: "BALCAO-120", qtd: 3, destino: "Credenciamento" }], true, "Credenciamento abre às 7h; balcões precisam estar prontos na véspera.");
+  await solicitar(lucia, e2.id, "Sala de palestrantes", [{ projetoId: tenda3.id, qtd: 1, destino: "Sala de palestrantes" }]);
   await solicitar(julia, e2.id, "Ativações no foyer", [{ projetoId: tenda5.id, qtd: 2, destino: "Foyer" }], false);
 
   /* ---------------------------------------------------------------- */
   /* EVT-0003 — Lançamento SUV Aurora (EM_REUNIAO, reunião hoje)        */
   /* ---------------------------------------------------------------- */
   const e3 = await ev({ nome: "Lançamento SUV Aurora", cliente: "Aurora Motors", local: "Autódromo — Boxes", dataMontagem: d(11), dataInicio: d(13), dataFim: d(13), dataDesmontagem: d(14), dataReuniao: dt(0, 9), dataCarga: d(10), responsavelId: marina.id });
-  const s3a = await solicitar(paulo, e3.id, "Palco de revelação", [{ projetoId: palco86.id, qtd: 1, destino: "Box 1" }, { projetoId: torreSom.id, qtd: 2, destino: "Laterais do palco" }]);
-  const s3b = await solicitar(julia, e3.id, "Test-drive", [{ projetoId: tenda10.id, qtd: 1, destino: "Pit lane" }, { livre: "Fechamento de tenda", qtd: 2, destino: "Pit lane — lado da pista" }]);
+  const s3a = await solicitar(paulo, e3.id, "Palco de revelação", [{ projetoId: palco84.id, qtd: 1, destino: "Box 1" }, { projetoId: quadroFoto.id, qtd: 2, destino: "Laterais do palco" }]);
+  const s3b = await solicitar(julia, e3.id, "Test-drive", [{ projetoId: estande.id, qtd: 1, destino: "Pit lane" }, { livre: "Fechamento de tenda", qtd: 2, destino: "Pit lane — lado da pista" }]);
   await transicionarEvento(marina, e3.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s3a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }]);
   const s3bObj = await obterSolicitacao(marina, s3b);
@@ -248,10 +212,10 @@ async function main() {
   /* EVT-0004 — Feira Gastronômica (ENCERRADO, futuro)                  */
   /* ---------------------------------------------------------------- */
   const e4 = await ev({ nome: "Feira Gastronômica Sabores do Norte", cliente: "Associação Comercial", local: "Praça Central", dataMontagem: d(5), dataInicio: d(6), dataFim: d(7), dataDesmontagem: d(8), dataReuniao: dt(-9, 14), dataCarga: d(4), responsavelId: rafael.id });
-  const s4a = await solicitar(paulo, e4.id, "Tendas dos expositores", [{ projetoId: tenda5.id, qtd: 6, destino: "Alas A e B" }, { projetoId: tenda10.id, qtd: 1, destino: "Praça de alimentação" }]);
-  const s4b = await solicitar(bruno, e4.id, "Balcões dos expositores", [{ projetoId: balcao.id, qtd: 4, destino: "Expositores" }]);
+  const s4a = await solicitar(paulo, e4.id, "Tendas dos expositores", [{ projetoId: tenda5.id, qtd: 6, destino: "Alas A e B" }, { projetoId: estande.id, qtd: 1, destino: "Praça de alimentação (estande)" }]);
+  const s4b = await solicitar(bruno, e4.id, "Balcões dos expositores", [{ pecaCodigo: "BALCAO-120", qtd: 4, destino: "Expositores" }]);
   await transicionarEvento(rafael, e4.id, "INICIAR_REUNIAO");
-  await responderTodos(rafael, s4a, [{ status: "ATENDIDO" }, { status: "NAO_ATENDIDO", obs: "Lona 10×10 comprometida com o Festival Praia Sonora. Use duas 5×5 unidas.", pendencia: false }]);
+  await responderTodos(rafael, s4a, [{ status: "ATENDIDO" }, { status: "NAO_ATENDIDO", obs: "Estande comprometido com o Festival Praia Sonora. Use duas tendas 5×5 unidas.", pendencia: false }]);
   await responderTodos(rafael, s4b, [{ status: "ATENDIDO" }]);
   await transicionarEvento(rafael, e4.id, "FECHAR_ATA");
   const s4c = await solicitar(paulo, e4.id, "Mais duas tendas", [{ projetoId: tenda5.id, qtd: 2, destino: "Ala C" }]);
@@ -262,7 +226,7 @@ async function main() {
   /* EVT-0005 — Corrida Noturna Lumen (reaberto em exceção)             */
   /* ---------------------------------------------------------------- */
   const e5 = await ev({ nome: "Corrida Noturna Lumen", cliente: "Lumen Esportes", local: "Parque das Águas", dataMontagem: d(3), dataInicio: d(4), dataFim: d(4), dataDesmontagem: d(5), dataReuniao: dt(-12, 14), dataCarga: d(2), responsavelId: marina.id });
-  const s5a = await solicitar(julia, e5.id, "Largada e chegada", [{ projetoId: portico660.id, qtd: 1, destino: "Largada" }, { projetoId: portico4.id, qtd: 1, destino: "Chegada" }, { projetoId: torreSom.id, qtd: 2, destino: "Largada" }]);
+  const s5a = await solicitar(julia, e5.id, "Largada e chegada", [{ projetoId: portico660.id, qtd: 1, destino: "Largada" }, { projetoId: portico4.id, qtd: 1, destino: "Chegada" }, { projetoId: quadroFoto.id, qtd: 2, destino: "Largada" }]);
   await transicionarEvento(marina, e5.id, "INICIAR_REUNIAO");
   await responderTodos(marina, s5a, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "ATENDIDO" }]);
   await transicionarEvento(marina, e5.id, "FECHAR_ATA");
@@ -285,7 +249,7 @@ async function main() {
     ["Arena Games Weekend", "PlayNorte", "Ginásio Municipal", -34, "Arena principal"],
   ] as const) {
     const e = await ev({ nome, cliente, local, dataMontagem: d(ini - 1), dataInicio: d(ini), dataFim: d(ini + 1), dataDesmontagem: d(ini + 2), dataReuniao: dt(ini - 8, 14), dataCarga: d(ini - 2), responsavelId: marina.id });
-    const s = await solicitar(paulo, e.id, titulo, [{ projetoId: palco86.id, qtd: 1, destino: "Palco" }, { projetoId: balcao.id, qtd: 2, destino: "Recepção" }, { projetoId: torreSom.id, qtd: 2 }]);
+    const s = await solicitar(paulo, e.id, titulo, [{ projetoId: palco84.id, qtd: 1, destino: "Palco" }, { pecaCodigo: "BALCAO-120", qtd: 2, destino: "Recepção" }, { projetoId: quadroFoto.id, qtd: 2 }]);
     await transicionarEvento(marina, e.id, "INICIAR_REUNIAO");
     await responderTodos(marina, s, [{ status: "ATENDIDO" }, { status: "ATENDIDO" }, { status: "ATENDIDO" }]);
     await transicionarEvento(marina, e.id, "FECHAR_ATA");
@@ -301,11 +265,11 @@ async function main() {
   /* Nova versão de projeto após uso (atas antigas ficam na v1)         */
   /* ---------------------------------------------------------------- */
   await editarProjeto(bruno, portico660.id, {
-    nome: "Pórtico boca 6,60m",
+    nome: "Pórtico boca de 6 m com orelha",
     categoria: "Pórtico",
-    descricao: "Pórtico de entrada em box truss, vão livre de 6,60 m e 4 m de altura.",
-    observacaoVersao: "Incluídas 2 sapatas e 4 contrapesos após revisão de segurança.",
-    itens: bom([["BOX-400", 1], ["BOX-600", 5], ["BOX-700", 1], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["GRAPPLE", 1], ["PARAF", 132], ["SAPATA", 2], ["CONTRAPESO", 4]]),
+    descricao: "Pórtico Q30 de largada/chegada, vão de 6 m, 4,9 m de altura total (testeira 1,6 m).",
+    observacaoVersao: "Incluídas 2 sapatas e 4 malotes de contrapeso após revisão de segurança.",
+    itens: bom([["BOX-400", 2], ["BOX-600", 4], ["BOX-1000", 2], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["PARAF", 120], ["SAPATA", 2], ["MALOTE", 4]]),
   });
 
   /* ---------------------------------------------------------------- */

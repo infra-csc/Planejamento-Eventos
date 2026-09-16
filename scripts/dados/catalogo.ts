@@ -26,6 +26,8 @@ export type ProjetoCatalogo = {
   descricao: string | null;
   /** [código da peça, quantidade por projeto] */
   itens: Array<[string, number]>;
+  /** Arquivos em scripts/dados/imagens (renders e modulações TTK), anexados ao projeto na importação. */
+  imagens?: string[];
 };
 
 const E = "ESTRUTURA" as const;
@@ -165,30 +167,35 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Pórticos (modulação Q30 conforme detalhamento TTK / OS de estrutura) ------------------
   {
     nome: "Pórtico boca de 6 m com orelha",
+    imagens: ["portico-boca-6m-com-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 de largada/chegada, vão de 6 m, 4,9 m de altura total (testeira 1,6 m).",
     itens: [["BOX-400", 2], ["BOX-600", 4], ["BOX-1000", 2], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["PARAF", 120]],
   },
   {
     nome: "Pórtico boca de 4 m com orelha",
+    imagens: ["portico-boca-4m-com-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 de largada/chegada com orelhas laterais para lonas.",
     itens: [["BOX-600", 4], ["BOX-1000", 2], ["BOX-2500", 1], ["BOX-3000", 9], ["BOX-4000", 1], ["CUBO", 11], ["PARAF", 120]],
   },
   {
     nome: "Pórtico boca de 4 m sem orelha",
+    imagens: ["portico-boca-4m-sem-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 simples (bem-vindos / até logo).",
     itens: [["BOX-1000", 2], ["BOX-3000", 6], ["BOX-4000", 2], ["CUBO", 6], ["PARAF", 64]],
   },
   {
     nome: "Pórtico boca de 3 m sem orelha",
+    imagens: ["portico-boca-3m-sem-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 simples, vão de 3 m.",
     itens: [["BOX-1000", 2], ["BOX-3000", 8], ["CUBO", 6], ["PARAF", 64]],
   },
   {
     nome: "Pórtico boca de 2 m sem orelha",
+    imagens: ["portico-boca-2m-sem-orelha.jpg"],
     categoria: "Pórtico",
     descricao: "Pórtico Q30 compacto (espaço kids, pórtico desafio).",
     itens: [["BOX-600", 2], ["BOX-2000", 6], ["BOX-3000", 2], ["CUBO", 6], ["PARAF", 64]],
@@ -196,6 +203,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Palcos ---------------------------------------------------------------------------------
   {
     nome: "Palco 8×4 m com escada e rampa",
+    imagens: ["palco-8x4-escada-rampa.jpg", "palco-8x4-detalhamento.jpg"],
     categoria: "Palco",
     descricao: "Palco em praticável 2×1 a 1 m, rampa em praticável com patamar, fundo em box truss Q30 para backdrop.",
     itens: [
@@ -212,6 +220,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Palco show grande 9×6 m com LED",
+    imagens: ["palco-show-grande-9x6-modulacao.jpg"],
     categoria: "Palco",
     descricao: "Palco show (Night Run): praticável 2×1 a 1 m, torre Q30 com painel de LED 36 placas.",
     itens: [
@@ -221,6 +230,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Fundo de palco 8×4 m (moldura)",
+    imagens: ["fundo-palco-8x4-moldura.jpg"],
     categoria: "Palco",
     descricao: "Estrutura Q30 de fundo com molduras para lona (Bravus).",
     itens: [["BOX-400", 3], ["BOX-700", 2], ["BOX-3000", 3], ["BOX-4000", 3], ["BOX-5000", 2], ["CUBO", 6], ["GRAPPLE", 2], ["PARAF", 92]],
@@ -228,6 +238,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Estandes -------------------------------------------------------------------------------
   {
     nome: "Estande 9×6 m",
+    imagens: ["estande-9x6-modulacao.jpg", "estande-9x6-detalhamento.jpg"],
     categoria: "Estande",
     descricao: "Estande Q30 9×6 com lona de cobertura, colunas e testeira de marcenaria.",
     itens: [
@@ -237,6 +248,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Estande 11×6 m",
+    imagens: ["estande-11x6.jpg"],
     categoria: "Estande",
     descricao: "Estande Q30 11×6 (versão ampliada).",
     itens: [["BOX-600", 1], ["BOX-2500", 2], ["BOX-3000", 6], ["BOX-4000", 3], ["BOX-5000", 5], ["ANG-15", 6], ["CUBO", 8], ["GRAPPLE", 2], ["PARAF", 128]],
@@ -244,12 +256,14 @@ export const PROJETOS: ProjetoCatalogo[] = [
   // ---- Quadros --------------------------------------------------------------------------------
   {
     nome: "Quadro de fotos 4×3 m",
+    imagens: ["quadro-fotos-4x3-modulacao.jpg"],
     categoria: "Quadro",
     descricao: "Quadro Q30 para lona 3,95×2,95 com ilhós.",
     itens: [["BOX-400", 4], ["BOX-2000", 2], ["BOX-2500", 2], ["BOX-3000", 2], ["CUBO", 4], ["PARAF", 56]],
   },
   {
     nome: "Quadro 6×3 m",
+    imagens: ["quadro-6x3-detalhamento.jpg", "quadro-6x3-modulacao.jpg"],
     categoria: "Quadro",
     descricao: "Quadro Q30 para lona 5,95×2,95 (assinatura).",
     itens: [["BOX-400", 2], ["BOX-2000", 2], ["BOX-2500", 2], ["BOX-5000", 2], ["CUBO", 4], ["PARAF", 56]],
@@ -262,6 +276,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Quadro 2,6×2,6 m",
+    imagens: ["quadro-2-6x2-6.jpg"],
     categoria: "Quadro",
     descricao: "Quadro Q30 para lona 2,55×2,55.",
     itens: [["BOX-300", 4], ["BOX-2000", 6], ["PARAF", 32]],
@@ -274,6 +289,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Quadro 3×2 m para video wall",
+    imagens: ["quadro-3x2-video-wall.jpg"],
     categoria: "Quadro",
     descricao: "Quadro Q30 com 12 placas de LED, contrapeso em tina 500 l.",
     itens: [["BOX-2000", 2], ["BOX-3000", 4], ["CUBO", 4], ["GRAPPLE", 2], ["TINA-500", 1], ["PALLET-PL", 1], ["PLACA-LED", 12]],
@@ -287,36 +303,42 @@ export const PROJETOS: ProjetoCatalogo[] = [
   },
   {
     nome: "Ícone backlight 2,6 m",
+    imagens: ["icone-backlight-render.jpg", "icone-backlight-modulacao.jpg"],
     categoria: "Ativação",
     descricao: "Ícone recortado (Fever) sobre base Q30, lona backlight e compensado.",
     itens: [["BOX-400", 1], ["BOX-1000", 3], ["BOX-2000", 2], ["CUBO", 2], ["GRAPPLE", 2], ["PARAF", 32], ["COMP-VIROL-6", 2], ["COMP-FLEX", 1], ["SARRAFO-70", 20]],
   },
   {
     nome: "Ícone logo 3,95 m",
+    imagens: ["icone-logo-render.jpg", "icone-logo-modulacao.jpg"],
     categoria: "Ativação",
     descricao: "Logo recortado (Bravus) sobre base Q30 4,52 m.",
     itens: [["BOX-500", 4], ["BOX-600", 6], ["BOX-1000", 4], ["BOX-2500", 2], ["BOX-3000", 2], ["CUBO", 9], ["GRAPPLE", 12], ["PARAF", 80]],
   },
   {
     nome: "Ativação microfone",
+    imagens: ["ativacao-microfone.jpg"],
     categoria: "Ativação",
     descricao: "Base em cruz Q30 com cubo de 5 faces para painel pentagonal.",
     itens: [["BOX-700", 5], ["CUBO-5F", 1], ["PARAF", 20]],
   },
   {
     nome: "Ativação globos",
+    imagens: ["ativacao-globos.jpg"],
     categoria: "Ativação",
     descricao: "Pórtico em arco Q30 com 3 globos espelhados de 1 m.",
     itens: [["BOX-1000", 4], ["BOX-2000", 4], ["BOX-3000", 4], ["CUBO", 1], ["ANG-45", 8], ["SAPATA", 4], ["PARAF", 96], ["GLOBO-1M", 3]],
   },
   {
     nome: "Ativação fone (marcenaria)",
+    imagens: ["ativacao-fone.jpg"],
     categoria: "Ativação",
     descricao: "Ícone fone/celular em compensado virolinha sobre base Q30.",
     itens: [["BOX-500", 1], ["BOX-1000", 2], ["BOX-2000", 2], ["CUBO", 2], ["PARAF", 24], ["COMP-VIROL-10", 5], ["COMP-FLEX", 2], ["SARRAFO-70", 77], ["METALON-50X30", 9]],
   },
   {
     nome: "Obstáculo Hércules / Pull up (Q30)",
+    imagens: ["obstaculo-hercules.jpg", "obstaculo-pull-up.jpg"],
     categoria: "Ativação",
     descricao: "Pórtico Q30 de obstáculo (desafio) para lona 3,05×1,15.",
     itens: [["BOX-1000", 2], ["BOX-3000", 6], ["BOX-4000", 2], ["CUBO", 6], ["PARAF", 64]],

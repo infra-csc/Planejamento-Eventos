@@ -9,11 +9,13 @@
  *
  * Uso: `npm run importar:catalogo` (local, PGlite) ou com DATABASE_URL apontando para o Postgres.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { getConnection } from "../src/server/db";
 import { pecas, projetos, usuarios } from "../src/server/db/schema";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
-import { criarProjeto } from "../src/server/services/projetos";
+import { anexarArquivo, criarProjeto } from "../src/server/services/projetos";
 import { PECAS, PROJETOS } from "./dados/catalogo";
 
 async function main() {
@@ -61,6 +63,32 @@ async function main() {
     projetosCriados++;
   }
   console.log(`Projetos padrão: ${projetosCriados} criados, ${projetosMantidos} já existiam.`);
+
+  // Imagens (renders e modulações TTK): anexa o que ainda não está no projeto, pelo nome do arquivo.
+  const pastaImagens = path.join(process.cwd(), "scripts", "dados", "imagens");
+  let anexadas = 0;
+  for (const pr of PROJETOS) {
+    if (!pr.imagens?.length) continue;
+    const projeto = await db.query.projetos.findFirst({
+      where: and(sql`lower(${projetos.nome}) = ${pr.nome.toLowerCase()}`, eq(projetos.ativo, true)),
+      columns: { id: true },
+      with: { anexos: { columns: { nomeArquivo: true } } },
+    });
+    if (!projeto) continue;
+    const existentes = new Set(projeto.anexos.map((a) => a.nomeArquivo));
+    for (const nome of pr.imagens) {
+      if (existentes.has(nome)) continue;
+      const caminho = path.join(pastaImagens, nome);
+      if (!fs.existsSync(caminho)) {
+        console.warn(`  aviso: imagem não encontrada: ${nome}`);
+        continue;
+      }
+      const conteudo = fs.readFileSync(caminho);
+      await anexarArquivo(usuario, projeto.id, new File([new Uint8Array(conteudo)], nome, { type: nome.endsWith(".png") ? "image/png" : "image/jpeg" }));
+      anexadas++;
+    }
+  }
+  console.log(`Imagens de projeto: ${anexadas} anexadas.`);
   await close();
 }
 
