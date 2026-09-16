@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, osVersoes, type OsConteudo, type OsGatilho } from "@/server/db/schema";
-import { calcularOS, resumoVersaoOs, type LinhaAta } from "@/domain/os";
+import { calcularOS, osIguais, resumoVersaoOs, type LinhaAta } from "@/domain/os";
 import type { Executor } from "./support";
 
 type RegistroLinha = typeof eventoItens.$inferSelect & {
@@ -64,10 +64,14 @@ export async function gerarOsVersao(ex: Executor, eventoId: string, gatilho: OsG
     .where(eq(osVersoes.eventoId, eventoId))
     .orderBy(desc(osVersoes.numero))
     .limit(1);
+  // Resposta "não atendido", correção que só muda a observação, 10 → 10: a OS não mudou, não vale
+  // uma versão nova. Marcos (ata fechada, encerramento, reabertura) sempre geram versão.
+  const marco = gatilho === "ATA_FECHADA" || gatilho === "ENCERRAMENTO" || gatilho === "REABERTURA";
+  if (ultima && !marco && osIguais(ultima.conteudo, conteudo)) return { ...ultima, nova: false as const };
   const numero = (ultima?.numero ?? 0) + 1;
   const resumo = resumoVersaoOs(ultima?.conteudo ?? null, conteudo);
   const [v] = await ex.insert(osVersoes).values({ eventoId, numero, gatilho, descricao, resumo, conteudo, geradaPorId: usuarioId }).returning();
-  return v;
+  return { ...v, nova: true as const };
 }
 
 /** Todas as versões com o conteúdo completo (JSON). Prefira `listarOsResumo` quando só precisa da lista. */

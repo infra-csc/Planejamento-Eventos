@@ -445,7 +445,28 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
           throw new DomainError(`Existem ${pend.length} solicitação(ões) sem resposta (${pend.map((p) => p.codigo).join(", ")}). Responda ou devolva todas antes de encerrar.`);
         }
       } else {
-        await cancelarOrfas(["ENVIADA", "EM_ANALISE"], "Evento encerrado para alterações antes da resposta desta solicitação.");
+        // Sem nenhuma resposta: cancela. Já com item atendido na OS: os itens restantes viram "não atendido",
+        // para a área não ver "cancelada" numa solicitação que entrou parcialmente na OS final.
+        await cancelarOrfas(["ENVIADA"], "Evento encerrado para alterações antes da resposta desta solicitação.");
+        const parciais = await tx.query.solicitacoes.findMany({
+          where: and(eq(solicitacoes.eventoId, id), eq(solicitacoes.status, "EM_ANALISE"), eq(solicitacoes.excluida, false)),
+          columns: { id: true, codigo: true, areaId: true, criadoPorId: true },
+        });
+        for (const s of parciais) {
+          await tx
+            .update(solicitacaoItens)
+            .set({ status: "NAO_ATENDIDO", quantidadeAtendida: 0, observacaoLogistica: "Evento encerrado para alterações antes da resposta.", respondidoPorId: usuario.id, respondidoEm: agora })
+            .where(and(eq(solicitacaoItens.solicitacaoId, s.id), eq(solicitacaoItens.status, "EM_ANALISE")));
+          await tx.update(solicitacoes).set({ status: "RESPONDIDA", respondidaEm: agora, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, s.id));
+          await registrarHistorico(tx, { eventoId: id, entidade: "solicitacao", entidadeId: s.id, acao: "RESPONDIDO", descricao: `${s.codigo}: itens pendentes marcados como não atendidos no encerramento do evento`, usuarioId: usuario.id });
+          await notificar(tx, {
+            usuarioIds: [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))],
+            tipo: "SOLICITACAO_RESPONDIDA",
+            titulo: `${s.codigo}: itens pendentes não atendidos`,
+            mensagem: "O evento foi encerrado para alterações; o que ainda estava em análise ficou como não atendido.",
+            link: `/solicitacoes/${s.id}`,
+          });
+        }
       }
       osNumero = (await gerarOsVersao(tx, id, "ENCERRAMENTO", usuario.id, "OS final — evento encerrado para alterações")).numero;
       patch.encerradoEm = agora;
