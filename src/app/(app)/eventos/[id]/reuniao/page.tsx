@@ -39,7 +39,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         descricao: descricaoItem(i),
         operacao: i.operacao,
         quantidadeSolicitada: i.quantidadeSolicitada,
-        quantidadeAtual: i.eventoItem?.quantidade ?? null,
+        quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
         destino: i.destino,
         justificativa: i.justificativa,
         status: i.status,
@@ -60,7 +60,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
     <>
       <BannerReuniao eventoId={id} nome={ev.nome} codigo={ev.codigo} status={ev.status} respondidos={respondidos} total={todos.length} />
 
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,400px)] items-start gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start">
         <RespostaProvider itens={todos} sufixoToast="ata atualizada">
           <div className="flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
@@ -103,7 +103,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
           </div>
         </RespostaProvider>
 
-        <div className="sticky top-[76px] flex flex-col gap-3.5">
+        <div className="lg:sticky lg:top-[76px] flex flex-col gap-3.5">
           <Section titulo="Ata em construção" sub="Atualiza a cada resposta.">
             <AtaLista
               eventoId={id}

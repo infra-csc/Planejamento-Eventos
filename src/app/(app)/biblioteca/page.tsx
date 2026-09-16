@@ -84,7 +84,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             <p className="mt-1 text-[13px] text-muted">A cenografia cadastra os projetos com sua lista de peças.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[minmax(0,1fr)_330px] items-start gap-5">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
               {projetos.map((p) => {
                 const sel = p.id === selecionado?.id;
@@ -117,7 +117,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             </div>
 
             {detalhe && atual && (
-              <div className="sticky top-[76px]">
+              <div className="lg:sticky lg:top-[76px]">
                 <Section
                   titulo={detalhe.nome}
                   sub={`Lista de peças · v${detalhe.versaoAtual} · ${bom.reduce((a, i) => a + i.quantidade, 0)} unidades por projeto`}

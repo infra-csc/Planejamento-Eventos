@@ -176,8 +176,9 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   const dow = new Date(`${hoje}T12:00:00Z`).getUTCDay();
   const segunda = addDiasISO(hoje, -((dow + 6) % 7));
   const domingo = addDiasISO(segunda, 6);
+  // Só reuniões que ainda vão acontecer: com a ata fechada, o horário deixa de ser compromisso.
   const semana = evs
-    .filter((e) => e.status !== "CANCELADO" && isoSP(e.dataReuniao) >= segunda && isoSP(e.dataReuniao) <= domingo)
+    .filter((e) => (e.status === "PREPARACAO" || e.status === "EM_REUNIAO") && isoSP(e.dataReuniao) >= segunda && isoSP(e.dataReuniao) <= domingo)
     .sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
 
   const cons = await calcularConsolidacao({ inicio: hoje, fim: addDiasISO(hoje, 30) });

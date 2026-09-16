@@ -25,7 +25,7 @@ export function PageHeader({
   return (
     <>
       {breadcrumbs && <DefinirTrilha itens={breadcrumbs} />}
-      <div className={cn("mb-[18px] flex items-end justify-between gap-5", className)}>
+      <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", className)}>
         <div className="min-w-0">
           <h1 className="m-0 text-[24px] font-semibold leading-[1.2] tracking-[-0.025em]">{title}</h1>
           {description && <p className="mt-[5px] max-w-[680px] text-[14px] text-ink-2">{description}</p>}
@@ -111,7 +111,7 @@ export function TableWrap({ children, className }: { children: React.ReactNode; 
 /* ------------------------------------------------------------------ */
 
 export function MetricStrip({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("mb-5 grid grid-cols-4 gap-px overflow-hidden rounded-[10px] border border-line bg-line", className)}>{children}</div>;
+  return <div className={cn("mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-line bg-line lg:grid-cols-4", className)}>{children}</div>;
 }
 
 export function Metric({ label, valor, hint, cor, href, tamanho = 26 }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; cor?: string; href?: string; tamanho?: number }) {

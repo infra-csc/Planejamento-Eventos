@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { salvarConfigAction } from "@/app/(app)/admin/actions";
 
 type Valores = Record<string, string>;
@@ -25,7 +25,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
       const r = await salvarConfigAction({ ...Object.fromEntries(LINHAS.map((l) => [l.chave, Number(v[l.chave])])), bloquear_encerramento_com_pendentes: v.bloquear_encerramento_com_pendentes === "true" });
       if (!r.ok) {
         setErros(r.campos ?? {});
-        toast(r.erro);
+        toastErro(r.erro);
         return;
       }
       setErros({});

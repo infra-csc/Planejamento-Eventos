@@ -26,18 +26,18 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   const osResumo = versoes.length === 0 ? "gerada ao fechar a ata" : `${versoes.length} ${versoes.length === 1 ? "versão · gerada em" : "versões · última em"} ${diaMes(versoes[0].geradaEm)}`;
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] items-start gap-5">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
       <div className="flex flex-col gap-5">
         <Section titulo="Onde está cada área" sub="O que cada área enviou e o que já foi respondido neste evento.">
           {areas.map((a) => {
             const pct = a.itens ? Math.round((a.respondidos / a.itens) * 100) : 0;
             return (
-              <div key={a.id} className="flex items-center gap-3.5 border-b border-line-row px-[18px] py-3 last:border-b-0">
+              <div key={a.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b border-line-row px-[18px] py-3 last:border-b-0">
                 <span className="shrink-0 basis-[108px] text-[13.5px] text-ink">{a.nome}</span>
                 <span className="min-w-0 flex-1" role="img" aria-label={a.itens ? `${pct}% respondido` : "sem envio"}>
                   <BarraProgresso pct={a.itens ? Math.max(4, pct) : 0} cor={pct === 100 ? "var(--color-success)" : "var(--color-accent)"} />
                 </span>
-                <span className="shrink-0 basis-[200px] text-right text-[12.5px] text-ink-3">
+                <span className="basis-full text-[12.5px] text-ink-3 sm:basis-[200px] sm:text-right">
                   {a.itens === 0 ? "não enviou nada" : `${a.respondidos}/${a.itens} itens respondidos · ${a.solicitacoes} ${a.solicitacoes === 1 ? "solicitação" : "solicitações"}`}
                 </span>
               </div>

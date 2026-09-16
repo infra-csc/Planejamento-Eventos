@@ -80,7 +80,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
   return (
     <>
       <DefinirTrilha itens={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}` }]} />
-      <div className="mb-[18px] flex items-start justify-between gap-6">
+      <div className="mb-[18px] flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-[12.5px] text-muted">{ev.codigo}</span>

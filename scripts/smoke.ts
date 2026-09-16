@@ -12,6 +12,7 @@ import { DomainError } from "../src/domain/errors";
 import { obterLinhasAta, transicionarEvento } from "../src/server/services/eventos";
 import {
   atenderTudo,
+  atualizarCabecalho,
   criarRascunho,
   desfazerResposta,
   devolverSolicitacao,
@@ -109,6 +110,8 @@ async function main() {
   const r4 = await criarRascunho(paulo, e4.id);
   const tenda5 = (await db.query.projetos.findFirst({ where: eq(projetos.codigo, "PRJ-0006") }))!;
   await salvarItem(paulo, r4.id, null, { operacao: "ADICIONAR", projetoId: tenda5.id, quantidadeSolicitada: 1, destino: "Ala D" });
+  await deveFalhar(() => enviarSolicitacao(paulo, r4.id), "enviar sem título é rejeitado", "título");
+  await atualizarCabecalho(paulo, r4.id, { titulo: "Tenda extra na ala D", observacao: null });
   await enviarSolicitacao(paulo, r4.id);
   await deveFalhar(() => transicionarEvento(marina, e4.id, "ENCERRAR"), "encerrar com solicitação pendente é bloqueado", "sem resposta");
   const s4 = await obterSolicitacao(marina, r4.id);

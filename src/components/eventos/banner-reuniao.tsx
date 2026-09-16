@@ -20,7 +20,7 @@ export function BannerReuniao({ eventoId, nome, codigo, status, respondidos, tot
     ? "As áreas ainda podem enviar. Você já pode responder o que chegou; inicie a reunião para bloquear novos envios."
     : completo
       ? "Todos os itens foram respondidos. Revise a ata à direita e feche para gerar a OS."
-      : `Faltam ${total - respondidos} ${total - respondidos === 1 ? "item" : "itens"} para fechar a ata. Atendido entra com a quantidade pedida, parcial com a atendida.`;
+      : `${total - respondidos === 1 ? "Falta 1 item" : `Faltam ${total - respondidos} itens`} para fechar a ata. Atendido entra com a quantidade pedida, parcial com a atendida.`;
 
   return (
     <section className="mb-[18px] flex items-center gap-6 rounded-[10px] bg-dark px-[22px] py-[18px]" aria-label="Andamento da reunião">

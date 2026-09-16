@@ -84,9 +84,9 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         </Aviso>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <div className="flex flex-col gap-5">
-          <Section titulo={`Lista de peças · v${p.versaoAtual}`} sub={`${itens.length} tipos de peça · ${total} unidades por projeto`}>
+          <Section titulo={`Lista de peças · v${p.versaoAtual}`} sub={`${itens.length} ${itens.length === 1 ? "tipo de peça" : "tipos de peça"} · ${total} ${total === 1 ? "unidade" : "unidades"} por projeto`}>
             <table className="w-full border-collapse">
               <CaptionOculta>Lista de peças</CaptionOculta>
               <thead>

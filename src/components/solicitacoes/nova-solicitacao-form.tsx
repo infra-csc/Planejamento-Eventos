@@ -402,7 +402,7 @@ export function NovaSolicitacaoForm({
         ) : (
           <div className="border-b border-line-soft">
             {itens.map((i) => (
-              <div key={i.chave} className="flex items-center gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
+              <div key={i.chave} className="flex flex-wrap items-center gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] text-ink">{i.rotulo}</span>
                   <span className="block text-[11.5px] text-muted">{i.meta}</span>

@@ -64,11 +64,11 @@ export function PecaForm({
         </Notice>
       )}
       <FormError message={!state.ok ? state.erro : null} />
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton>{valores.id ? "Salvar" : "Cadastrar peça"}</SubmitButton>
         <ButtonLink href={cancelarHref} variant="ghost">
           Cancelar
         </ButtonLink>
-        <SubmitButton>{valores.id ? "Salvar" : "Cadastrar peça"}</SubmitButton>
       </div>
     </ActionForm>
   );

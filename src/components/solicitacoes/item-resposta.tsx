@@ -278,7 +278,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   );
 }
 
-export function ItemResposta({ item }: { item: ItemParaResposta }) {
+export function ItemResposta({ item, semStatus = false }: { item: ItemParaResposta; semStatus?: boolean }) {
   const { foco, setFoco, edicao, setEdicao, enviar, pendente, compacto } = useResposta();
   const selecionado = foco === item.id;
   const editando = edicao?.id === item.id ? edicao : null;
@@ -305,7 +305,7 @@ export function ItemResposta({ item }: { item: ItemParaResposta }) {
           </p>
           <p className="mt-0.5 text-[12px] text-muted">{contexto}</p>
         </div>
-        <ItemStatusBadge status={item.status} className="shrink-0" />
+        {!semStatus && <ItemStatusBadge status={item.status} className="shrink-0" />}
       </div>
 
       {emAnalise && item.respondivel && !editando && (

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { atenderTudoAction, cancelarSolicitacaoAction, devolverSolicitacaoAction, enviarRascunhoAction, excluirRascunhoAction } from "@/app/(app)/solicitacoes/actions";
 
 /** Botões do cabeçalho da solicitação (handoff §5.10). */
@@ -63,7 +63,7 @@ export function AcoesSolicitacao({
             iniciar(async () => {
               const r = await atenderTudoAction(id);
               if (!r.ok) {
-                toast(r.erro);
+                toastErro(r.erro);
                 return;
               }
               toast(`${codigo} respondida — ${pendentes} ${pendentes === 1 ? "item atendido" : "itens atendidos"}, ${sufixo}`);
@@ -87,7 +87,8 @@ export function AcoesSolicitacao({
           onClick={() =>
             iniciar(async () => {
               const r = await enviarRascunhoAction(id);
-              toast(r.ok ? `${codigo} enviada para a logística` : r.erro);
+              if (r.ok) toast(`${codigo} enviada para a logística`);
+              else toastErro(r.erro);
             })
           }
         >

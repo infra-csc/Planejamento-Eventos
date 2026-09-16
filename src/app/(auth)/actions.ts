@@ -39,6 +39,9 @@ export async function redefinirSenhaAction(_prev: ActionResult, formData: FormDa
   try {
     const dados = parseForm(redefinirSenhaSchema, formData);
     await redefinirSenha(dados.token, dados.senha);
+    // Quem abriu o link pode estar logado em outra conta (ex.: o admin testando): sai dela
+    // para entrar com a senha recém-definida, em vez de ser mandado de volta ao painel.
+    await encerrarSessao();
   } catch (e) {
     return tratarErro(e);
   }

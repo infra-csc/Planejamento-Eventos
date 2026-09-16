@@ -7,7 +7,8 @@ const textoOpcional = (max: number) =>
     .string()
     .trim()
     .max(max, `Máximo de ${max} caracteres`)
-    .optional()
+    // `formData.get()` de um campo ausente devolve null, não undefined.
+    .nullish()
     .transform((v) => (v ? v : null));
 const inteiroPositivo = z.coerce.number().int("Use um número inteiro").positive("Informe um valor maior que zero");
 const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida");

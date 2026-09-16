@@ -56,7 +56,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     descricao: descricaoItem(i),
     operacao: i.operacao,
     quantidadeSolicitada: i.quantidadeSolicitada,
-    quantidadeAtual: i.eventoItem?.quantidade ?? null,
+    quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
     destino: i.destino,
     justificativa: i.justificativa,
     status: i.status,
@@ -66,13 +66,15 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     respondivel,
     corrigivel: corrigivel && i.status !== "EM_ANALISE",
   }));
+  // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
+  const semStatus = s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
 
   return (
     <div className="max-w-[1080px]">
       <DefinirTrilha itens={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]} />
 
       {modoFila && (
-        <div className="mb-[18px] flex items-center gap-3.5 rounded-[10px] bg-dark px-[18px] py-3">
+        <div className="mb-[18px] flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[10px] bg-dark px-[18px] py-3">
           <span className="text-[13.5px] font-semibold text-white">Modo fila</span>
           <span className="font-mono text-[12.5px] text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span>
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-on-dark-3">ordenada por prazo · atalhos A, P e N no item selecionado</span>
@@ -100,7 +102,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </div>
       )}
 
-      <div className="mb-[18px] flex items-start justify-between gap-6">
+      <div className="mb-[18px] flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-[15px] font-medium">{s.codigo}</span>
@@ -124,7 +126,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             podeAtenderTudo={respondivel && pendentes > 0}
             pendentes={pendentes}
             podeEditar={editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO"}
-            podeEnviar={editavel && s.itens.length > 0 && aceitaSolicitacao(s.evento.status, s.tipo)}
+            podeEnviar={editavel && s.itens.length > 0 && Boolean(s.titulo?.trim()) && aceitaSolicitacao(s.evento.status, s.tipo)}
             podeCancelar={dono && podeCancelar(s.status, algumRespondido) && s.status !== "RASCUNHO"}
             podeExcluir={dono && s.status === "RASCUNHO"}
             proximaHref={proximaHref}
@@ -143,6 +145,15 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           {s.canceladaMotivo || "Sem motivo registrado."}
         </Aviso>
       )}
+      {editavel && aceitaSolicitacao(s.evento.status, s.tipo) && (s.itens.length === 0 || !s.titulo?.trim()) && (
+        <Aviso className="mb-[18px]" titulo="Falta preencher antes de enviar">
+          {s.itens.length === 0 ? "Adicione ao menos um item" : "Dê um título para a logística identificar a solicitação na fila"} em{" "}
+          <Link href={`/solicitacoes/nova?rascunho=${s.id}`} className="link">
+            Editar itens
+          </Link>
+          .
+        </Aviso>
+      )}
       {editavel && !aceitaSolicitacao(s.evento.status, s.tipo) && (
         <Aviso tom="warning" titulo="O evento não aceita este envio agora" className="mb-[18px]">
           O rascunho continua salvo. {s.tipo === "PRE_REUNIAO" ? "Necessidades só entram com o evento em preparação." : "Alterações só entram com o evento aberto."}
@@ -158,7 +169,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </Aviso>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)_280px] items-start gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="flex flex-col gap-5">
           {s.observacao && (
             <Section titulo="Observação do solicitante">
@@ -167,7 +178,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           )}
           <RespostaProvider itens={itens} sufixoToast={sufixo}>
             <Section titulo={`Itens · ${s.itens.length}`} sub={respondivel ? "Cada item recebe resposta própria. Parcial e não atendido exigem motivo." : undefined} acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}>
-              {itens.length === 0 ? <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhum item adicionado.</p> : itens.map((i) => <ItemResposta key={i.id} item={i} />)}
+              {itens.length === 0 ? <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhum item adicionado.</p> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
             </Section>
           </RespostaProvider>
         </div>

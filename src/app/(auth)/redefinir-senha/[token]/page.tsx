@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { tokenValido } from "@/server/services/recuperacao";
+
+export const metadata: Metadata = { title: "Definir senha" };
 import { Aviso } from "@/components/ui/layout";
 import { RedefinirForm } from "./form";
 

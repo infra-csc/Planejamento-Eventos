@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { desfazerRespostaAction, responderItemAction } from "@/app/(app)/solicitacoes/actions";
 
 /** Faixa de ação rápida da fila (handoff §5.2): solicitação com um único item pendente. */
@@ -21,13 +21,14 @@ export function AtenderRapido({ itemId, codigo, rotulo, href, sufixo }: { itemId
           iniciar(async () => {
             const r = await responderItemAction(itemId, { status: "ATENDIDO" });
             if (!r.ok) {
-              toast(r.erro);
+              toastErro(r.erro);
               return;
             }
             toast(`${codigo} respondida — item atendido, ${sufixo}`, {
               desfazer: async () => {
                 const u = await desfazerRespostaAction(itemId);
-                toast(u.ok ? "Resposta desfeita" : u.erro);
+                if (u.ok) toast("Resposta desfeita");
+                else toastErro(u.erro);
               },
             });
           })

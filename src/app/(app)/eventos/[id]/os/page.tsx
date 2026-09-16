@@ -106,7 +106,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   });
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="flex flex-col gap-5">
         <section className="rounded-[10px] bg-dark px-5 py-4" aria-label="Diferenças da OS">
           <div className="flex items-start gap-4">
@@ -189,7 +189,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         )}
       </div>
 
-      <div className="sticky top-[76px] flex flex-col gap-5">
+      <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">
         <Section titulo="Exportar">
           <div className="px-[18px] py-3.5">
             <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">

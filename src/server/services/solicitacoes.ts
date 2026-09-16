@@ -428,6 +428,7 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     await bloquearEvento(tx, previa.eventoId);
     const s = await carregarEditavel(tx, usuario, id);
     if (s.itens.length === 0) throw new DomainError("Adicione ao menos um item antes de enviar.");
+    if (!s.titulo?.trim()) throw new ValidacaoError(MSG_TITULO_OBRIGATORIO, { titulo: MSG_TITULO_OBRIGATORIO });
     if (!aceitaSolicitacao(s.evento.status, s.tipo)) {
       const motivo =
         s.evento.status === "ENCERRADO"

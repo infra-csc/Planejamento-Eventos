@@ -8,7 +8,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { Tag } from "@/components/ui/badge";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
-import { toast } from "@/components/ui/toast";
+import { toast, toastErro } from "@/components/ui/toast";
 import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import type { EventoStatus } from "@/server/db/schema";
@@ -43,7 +43,8 @@ function BadgeVersao({ l, eventoId, podeAtualizar }: { l: LinhaAtaView; eventoId
       onClick={() =>
         iniciar(async () => {
           const r = await atualizarVersaoLinhaAction(eventoId, l.id);
-          toast(r.ok ? `${l.nome} atualizado para v${l.versaoAtual}` : r.erro);
+          if (r.ok) toast(`${l.nome} atualizado para v${l.versaoAtual}`);
+          else toastErro(r.erro);
         })
       }
     >

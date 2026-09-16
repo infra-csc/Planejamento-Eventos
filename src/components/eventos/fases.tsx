@@ -27,13 +27,13 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
   const idx = indiceFase(status);
   return (
     <section aria-label="Fases do evento" className="mb-[18px] rounded-[10px] border border-line bg-surface px-[18px] py-4">
-      <ol className="m-0 flex list-none items-stretch p-0">
+      <ol className="m-0 grid list-none grid-cols-2 gap-y-4 p-0 sm:flex sm:items-stretch">
         {passos.map((p, i) => {
           const feito = i < idx;
           const atual = i === idx;
           const cor = feito ? "var(--color-accent)" : atual ? "var(--color-dark)" : "var(--color-line-strong)";
           return (
-            <li key={p.titulo} className="min-w-0 flex-1 pr-4" aria-current={atual ? "step" : undefined}>
+            <li key={p.titulo} className="min-w-0 pr-4 sm:flex-1" aria-current={atual ? "step" : undefined}>
               <div className="mb-2 flex items-center gap-2">
                 <span
                   aria-hidden

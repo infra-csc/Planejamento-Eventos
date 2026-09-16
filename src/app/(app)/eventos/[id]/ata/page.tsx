@@ -15,7 +15,7 @@ export default async function AtaPage({ params }: { params: Promise<{ id: string
   const congelada = versoes[0];
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-5">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <Section
         titulo={ev.ataFechadaEm ? "Ata atual" : "Ata em construção"}
         sub={ev.ataFechadaEm ? "Ata fechada mais o que foi atendido em alterações e ajustes da logística. Cada linha vira peças na OS." : "Monta-se na reunião de OS a partir das respostas. Cada linha vira peças na OS."}

@@ -137,11 +137,11 @@ export function ProjetoForm({
       {valores.id && !bomMudou && <Notice tone="info">Sem mudança na lista de peças: os dados serão atualizados sem criar nova versão.</Notice>}
 
       <FormError message={!state.ok ? state.erro : null} />
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton>{valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}</SubmitButton>
         <ButtonLink href={cancelarHref} variant="ghost">
           Cancelar
         </ButtonLink>
-        <SubmitButton>{valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}</SubmitButton>
       </div>
     </ActionForm>
   );
