@@ -34,13 +34,7 @@ export function PecaForm({
             <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required placeholder="Ex.: Box truss 600 mm (trecho 3 m)" />
           </Field>
           <Field label="Setor de execução" htmlFor="setor" error={c?.setor} hint="Define em qual OS a peça aparece.">
-            <Select id="setor" name="setor" defaultValue={valores.setor ?? "ESTRUTURA"}>
-              {SETORES.map((s) => (
-                <option key={s} value={s}>
-                  {SETOR_LABEL[s]}
-                </option>
-              ))}
-            </Select>
+            <Select id="setor" name="setor" defaultValue={valores.setor ?? "ESTRUTURA"} ordenarAlfabetico={false} opcoes={SETORES.map((s) => ({ value: s, label: SETOR_LABEL[s] }))} />
           </Field>
           <Field label="Família" htmlFor="familia" optional hint="Box truss, Conexão, Fixação, Tenda, Chapa…">
             <Input id="familia" name="familia" defaultValue={valores.familia ?? ""} maxLength={60} />

@@ -66,7 +66,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : null);
 
   return (
-    <div className="max-w-[880px]">
+    <div>
       <PageHeader
         title={rascunho ? `Editar ${rascunho.codigo}` : "Nova solicitação"}
         description="Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."

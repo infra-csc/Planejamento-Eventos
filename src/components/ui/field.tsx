@@ -1,4 +1,4 @@
-import { Children, cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { Children, cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 /* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). */
@@ -13,9 +13,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   return <textarea ref={ref} className={cn(base, "min-h-[76px] resize-y py-2.5 leading-[1.5]", className)} {...rest} />;
 });
 
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...rest }, ref) {
-  return <select ref={ref} className={cn(base, "h-[34px] px-2.5", className)} {...rest} />;
-});
+// Lista suspensa estilizada (Radix) — mesma API em todo o app.
+export { Select } from "./select";
 
 export function Label({ htmlFor, children, className, optional, obrigatorio }: { htmlFor?: string; children: React.ReactNode; className?: string; optional?: boolean; obrigatorio?: boolean }) {
   return (

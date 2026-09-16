@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { PerfilBadge } from "@/components/ui/badge";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
+import { Select } from "@/components/ui/select";
 import { toast, toastErro } from "@/components/ui/toast";
 import { alternarAtivoUsuarioAction, gerarLinkAcessoAction, salvarUsuarioAction } from "@/app/(app)/admin/actions";
 import { PERFIL_DESCRICAO, PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
@@ -171,13 +172,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
             <label htmlFor="u-perfil" className="mb-1.5 block text-[13px] font-medium text-ink-2">
               Perfil
             </label>
-            <select id="u-perfil" value={f.perfil} onChange={(e) => setF({ ...f, perfil: e.target.value as Perfil })} disabled={usuario?.id === meuId} className={campo}>
-              {PERFIS.map((p) => (
-                <option key={p} value={p}>
-                  {PERFIL_LABEL[p]}
-                </option>
-              ))}
-            </select>
+            <Select id="u-perfil" value={f.perfil} onValueChange={(v) => setF({ ...f, perfil: v as Perfil })} disabled={usuario?.id === meuId} ordenarAlfabetico={false} opcoes={PERFIS.map((p) => ({ value: p, label: PERFIL_LABEL[p], descricao: PERFIL_DESCRICAO[p] }))} />
             <p className="mb-0 mt-[5px] text-[12px] leading-[1.45] text-muted">{PERFIL_DESCRICAO[f.perfil]}</p>
           </div>
           {usaArea && (
@@ -185,14 +180,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
               <label htmlFor="u-area" className="mb-1.5 block text-[13px] font-medium text-ink-2">
                 Área
               </label>
-              <select id="u-area" value={f.areaId} onChange={(e) => setF({ ...f, areaId: e.target.value })} aria-invalid={Boolean(erros.areaId)} aria-describedby={erros.areaId ? "u-area-erro" : undefined} className={campo}>
-                <option value="">Selecione</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nome}
-                  </option>
-                ))}
-              </select>
+              <Select id="u-area" value={f.areaId} onValueChange={(v) => setF({ ...f, areaId: v })} invalid={Boolean(erros.areaId)} aria-describedby={erros.areaId ? "u-area-erro" : undefined} placeholder="Selecione a área" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
               {erros.areaId && (
                 <p id="u-area-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
                   {erros.areaId}

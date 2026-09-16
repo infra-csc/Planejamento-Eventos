@@ -10,6 +10,7 @@ import { hora } from "@/lib/format";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import type { ItemOperacao } from "@/server/db/schema";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
+import { Select } from "@/components/ui/select";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -92,6 +93,14 @@ export function NovaSolicitacaoForm({
   const [pendente, iniciar] = useTransition();
 
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
+  const [buscaEvento, setBuscaEvento] = useState("");
+  const eventosVisiveis = useMemo(() => {
+    const t = buscaEvento.trim().toLowerCase();
+    const lista = t ? eventos.filter((e) => `${e.nome} ${e.codigo} ${e.cliente}`.toLowerCase().includes(t)) : eventos;
+    // O evento escolhido nunca some da lista, mesmo fora do filtro.
+    const escolhido = evento && !lista.some((e) => e.id === evento.id) ? [evento] : [];
+    return [...escolhido, ...lista];
+  }, [eventos, buscaEvento, evento]);
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
 
@@ -207,11 +216,16 @@ export function NovaSolicitacaoForm({
     if (e.tipo === "PRE_REUNIAO" && modo === "ata") setModo("projeto");
   };
 
-  const adicionarRef = (tipo: "projeto" | "peca", r: Referencia) => {
+  // Quantidade escolhida na própria lista de busca, antes de "Adicionar" (padrão 1).
+  const [qtdNova, setQtdNova] = useState<Record<string, number>>({});
+  const mudarQtdNova = (id: string, v: number) => setQtdNova((m) => ({ ...m, [id]: Math.max(1, Math.floor(v)) }));
+  const adicionarRef = (tipo: "projeto" | "peca", r: Referencia, qtd = 1) => {
+    toast(`${r.nome} × ${qtd} adicionado à solicitação`);
+    setQtdNova((m) => ({ ...m, [r.id]: 1 }));
     setItens((l) => {
       const chaveRef = tipo === "projeto" ? "projetoId" : "pecaId";
       const existente = l.find((i) => i.operacao === "ADICIONAR" && i[chaveRef] === r.id);
-      if (existente) return l.map((i) => (i === existente ? { ...i, quantidade: i.quantidade + 1 } : i));
+      if (existente) return l.map((i) => (i === existente ? { ...i, quantidade: i.quantidade + qtd } : i));
       return [
         ...l,
         {
@@ -221,7 +235,7 @@ export function NovaSolicitacaoForm({
           pecaId: tipo === "peca" ? r.id : null,
           eventoItemId: null,
           descricaoLivre: null,
-          quantidade: 1,
+          quantidade: qtd,
           quantidadeAtual: null,
           destino: "",
           justificativa: "",
@@ -352,27 +366,15 @@ export function NovaSolicitacaoForm({
         </Aviso>
       )}
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-4">
       <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
         {areas && (
           <div className="border-b border-line-soft px-[18px] py-3.5">
             <label htmlFor="area-solicitante" className="mb-1.5 block text-[13px] font-medium text-ink-2">
               Área solicitante <span className="font-normal text-muted">você está pedindo como administrador</span>
             </label>
-            <select
-              id="area-solicitante"
-              value={areaId ?? ""}
-              disabled={Boolean(rascunho)}
-              onChange={(e) => setAreaId(e.target.value || null)}
-              aria-invalid={tentouEnviar && !areaId}
-              className={cn(campo, "max-w-[320px] aria-[invalid=true]:border-danger-input disabled:bg-subtle disabled:text-ink-3")}
-            >
-              <option value="">Selecione a área</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nome}
-                </option>
-              ))}
-            </select>
+            <Select id="area-solicitante" value={areaId ?? ""} disabled={Boolean(rascunho)} onValueChange={(v) => setAreaId(v || null)} invalid={tentouEnviar && !areaId} placeholder="Selecione a área" className="max-w-[320px]" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
           </div>
         )}
         {eventos.length === 0 ? (
@@ -383,8 +385,20 @@ export function NovaSolicitacaoForm({
             </p>
           </div>
         ) : (
-          <div role="radiogroup" aria-label="Evento" className="flex flex-col gap-2 p-3.5">
-            {eventos.map((e) => {
+          <div className="p-3.5">
+            {/* Com muitos eventos: busca por nome, código ou cliente; o escolhido fica sempre no topo. */}
+            {eventos.length > 4 && (
+              <input
+                aria-label="Buscar evento"
+                value={buscaEvento}
+                onChange={(e) => setBuscaEvento(e.target.value)}
+                placeholder="Buscar evento por nome, código ou cliente"
+                className={cn(campo, "mb-2.5")}
+              />
+            )}
+            <div role="radiogroup" aria-label="Evento" className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-0.5">
+            {eventosVisiveis.length === 0 && <p className="m-0 py-4 text-center text-[12.5px] text-muted">Nenhum evento encontrado para “{buscaEvento}”.</p>}
+            {eventosVisiveis.map((e) => {
               const sel = e.id === eventoId;
               return (
                 <button
@@ -402,13 +416,14 @@ export function NovaSolicitacaoForm({
                     <span className="block text-[12px] text-muted">
                       <span className="font-mono">{e.codigo}</span> · {e.cliente} · <span className="font-mono">{e.periodo}</span> · {e.marco}
                     </span>
-                  </span>
-                  <span className={cn("shrink-0 rounded-[5px] px-2 py-0.5 text-[11px] font-medium", e.tipo === "PRE_REUNIAO" ? "bg-accent-bg text-accent" : "bg-warning-bg text-warning")}>
-                    {e.tipo === "PRE_REUNIAO" ? "aceita pedidos até a reunião" : "ata fechada · aceita alterações"}
+                    <span className={cn("mt-1.5 inline-block rounded-[5px] px-2 py-0.5 text-[11px] font-medium", e.tipo === "PRE_REUNIAO" ? "bg-accent-bg text-accent" : "bg-warning-bg text-warning")}>
+                      {e.tipo === "PRE_REUNIAO" ? "aceita pedidos até a reunião" : "ata fechada · aceita alterações"}
+                    </span>
                   </span>
                 </button>
               );
             })}
+            </div>
           </div>
         )}
       </Passo>
@@ -584,7 +599,28 @@ export function NovaSolicitacaoForm({
                         <span className="block truncate text-[13px] text-ink">{r.nome}</span>
                         <span className="block text-[11.5px] text-muted">{r.meta}</span>
                       </span>
-                      <Button variant="secondary" size="xs" disabled={!evento} onClick={() => adicionarRef(modo as "projeto" | "peca", r)}>
+                      <span className="flex items-center" aria-label={`Quantidade de ${r.nome}`}>
+                        <button type="button" aria-label="Menos" onClick={() => mudarQtdNova(r.id, (qtdNova[r.id] ?? 1) - 1)} className="h-7 w-7 cursor-pointer rounded-l-[6px] border border-line-strong bg-subtle text-[13px] text-ink-2 hover:bg-control">
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          value={qtdNova[r.id] ?? 1}
+                          onChange={(e) => mudarQtdNova(r.id, Number(e.target.value) || 1)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && evento) {
+                              e.preventDefault();
+                              adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
+                            }
+                          }}
+                          className="h-7 w-11 border-y border-line-control bg-surface text-center font-mono text-[12.5px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button type="button" aria-label="Mais" onClick={() => mudarQtdNova(r.id, (qtdNova[r.id] ?? 1) + 1)} className="h-7 w-7 cursor-pointer rounded-r-[6px] border border-line-strong bg-subtle text-[13px] text-ink-2 hover:bg-control">
+                          +
+                        </button>
+                      </span>
+                      <Button variant="secondary" size="xs" disabled={!evento} title={!evento ? "Escolha o evento primeiro" : undefined} onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)}>
                         Adicionar
                       </Button>
                     </div>
@@ -612,8 +648,21 @@ export function NovaSolicitacaoForm({
           )}
         </div>
       </Passo>
+      </div>
 
-      <Passo n={3} titulo="Contexto">
+      {/* Coluna de envio: acompanha a rolagem, resume o pedido e fecha com título + botões. */}
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-[76px]">
+      <Passo n={3} titulo="Resumo e envio" sub={evento ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} para ${evento.nome}` : "Escolha o evento e adicione itens."}>
+        {itens.length > 0 && (
+          <ul className="m-0 max-h-[220px] list-none overflow-y-auto border-b border-line-soft p-0">
+            {itens.map((i) => (
+              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-[18px] py-2 text-[12.5px] last:border-b-0">
+                <span className="min-w-0 flex-1 truncate text-ink">{i.rotulo}</span>
+                <span className="shrink-0 font-mono text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex flex-col gap-3.5 p-[18px]">
           <div>
             <label htmlFor="titulo" className="mb-1.5 block text-[13px] font-medium text-ink-2">
@@ -655,15 +704,15 @@ export function NovaSolicitacaoForm({
       )}
       {erroGeral && <Aviso tom="danger">{erroGeral}</Aviso>}
 
-      <div className="flex items-center gap-2.5">
-        <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={!evento?.aceita}>
+      <div className="flex flex-col gap-2.5">
+        <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={!evento?.aceita} className="w-full">
           Enviar solicitação
         </Button>
-        <Button variant="secondary" size="lg" disabled={pendente || !evento} onClick={() => salvar(false)}>
+        <Button variant="secondary" size="lg" disabled={pendente || !evento} onClick={() => salvar(false)} className="w-full">
           Salvar rascunho
         </Button>
         <span className="text-[12.5px] text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
-        <span className={cn("ml-auto text-right text-[12px]", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
+        <span className={cn("text-[12px]", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
           {estadoSalvo.tipo === "salvando"
             ? "salvando rascunho…"
             : estadoSalvo.tipo === "salvo"
@@ -674,6 +723,8 @@ export function NovaSolicitacaoForm({
                   ? "O rascunho é salvo automaticamente enquanto você preenche."
                   : ""}
         </span>
+      </div>
+      </aside>
       </div>
     </div>
   );

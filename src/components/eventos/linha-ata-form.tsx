@@ -47,37 +47,19 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
 
       {tipo === "PROJETO" && (
         <Field label="Projeto padrão" htmlFor="projetoId" error={campos?.projetoId} hint="A OS soma a lista de peças do projeto × quantidade.">
-          <Select id="projetoId" name="projetoId" defaultValue="" required>
-            <option value="" disabled>
-              Selecione
-            </option>
-            {opcoes.projetos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} · {p.codigo}
-                {p.versaoAtual ? ` · v${p.versaoAtual}` : ""}
-              </option>
-            ))}
-          </Select>
+          <Select id="projetoId" name="projetoId" defaultValue="" placeholder="Selecione o projeto" invalid={Boolean(campos?.projetoId)} opcoes={opcoes.projetos.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo}${p.versaoAtual ? ` · v${p.versaoAtual}` : ""}` }))} />
         </Field>
       )}
       {tipo === "PECA" && (
         <Field label="Peça" htmlFor="pecaId" error={campos?.pecaId}>
-          <Select id="pecaId" name="pecaId" defaultValue="" required>
-            <option value="" disabled>
-              Selecione
-            </option>
-            {SETORES.map((s) => (
-              <optgroup key={s} label={SETOR_LABEL[s]}>
-                {opcoes.pecas
-                  .filter((p) => p.setor === s)
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.codigo} · {p.nome}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </Select>
+          <Select
+            id="pecaId"
+            name="pecaId"
+            defaultValue=""
+            placeholder="Selecione a peça"
+            invalid={Boolean(campos?.pecaId)}
+            grupos={SETORES.map((s) => ({ label: SETOR_LABEL[s], opcoes: opcoes.pecas.filter((p) => p.setor === s).map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo })) }))}
+          />
         </Field>
       )}
       {tipo === "AVULSO" && (
@@ -95,14 +77,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         </Field>
       </div>
       <Field label="Área" htmlFor="areaId" optional>
-        <Select id="areaId" name="areaId" defaultValue="">
-          <option value="">Logística (sem área)</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nome}
-            </option>
-          ))}
-        </Select>
+        <Select id="areaId" name="areaId" defaultValue="" opcoes={[{ value: "", label: "Logística (sem área)" }, ...areas.map((a) => ({ value: a.id, label: a.nome }))]} />
       </Field>
       {exigeJustificativa && (
         <Field label="Justificativa" htmlFor="justificativa" error={campos?.justificativa}>

@@ -110,20 +110,13 @@ export function ProjetoForm({
         )}
         <div className="flex flex-wrap items-end gap-2 border-t border-line px-4 py-3">
           <Field label="Adicionar peça" htmlFor="novaPeca" className="min-w-64 flex-1">
-            <Select id="novaPeca" value={novaPeca} onChange={(e) => setNovaPeca(e.target.value)}>
-              <option value="">Selecione uma peça</option>
-              {SETORES.map((s) => (
-                <optgroup key={s} label={SETOR_LABEL[s]}>
-                  {disponiveis
-                    .filter((p) => p.setor === s)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.codigo} · {p.nome}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </Select>
+            <Select
+              id="novaPeca"
+              value={novaPeca}
+              onValueChange={setNovaPeca}
+              placeholder="Selecione uma peça"
+              grupos={SETORES.map((s) => ({ label: SETOR_LABEL[s], opcoes: disponiveis.filter((p) => p.setor === s).map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo })) }))}
+            />
           </Field>
           <Field label="Qtd." htmlFor="novaQtd" className="w-24">
             <Input id="novaQtd" type="number" min={1} value={novaQtd} onChange={(e) => setNovaQtd(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionar(); } }} />

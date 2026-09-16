@@ -40,16 +40,7 @@ export function EventoForm({ valores, responsaveis, cancelarHref }: { valores: E
             <Input id="local" name="local" defaultValue={valores.local ?? ""} placeholder="Ex.: Parque da Cidade — Arena Sul" />
           </Field>
           <Field label="Responsável na logística" htmlFor="responsavelId" error={c?.responsavelId}>
-            <Select id="responsavelId" name="responsavelId" defaultValue={valores.responsavelId ?? ""} required>
-              <option value="" disabled>
-                Selecione
-              </option>
-              {responsaveis.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nome}
-                </option>
-              ))}
-            </Select>
+            <Select id="responsavelId" name="responsavelId" defaultValue={valores.responsavelId ?? ""} placeholder="Selecione quem responde pelo evento" invalid={Boolean(c?.responsavelId)} opcoes={responsaveis.map((r) => ({ value: r.id, label: r.nome }))} />
           </Field>
         </div>
       </Panel>
