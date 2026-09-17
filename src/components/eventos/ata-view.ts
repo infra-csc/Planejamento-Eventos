@@ -18,5 +18,6 @@ export function paraView(l: LinhaAtaDetalhe): LinhaAtaView {
     capaId: l.capaId ?? null,
     conferidoEm: l.conferidoEm ? l.conferidoEm.toISOString() : null,
     conferidoPor: l.conferidoPor ?? null,
+    posAta: l.posAta,
   };
 }

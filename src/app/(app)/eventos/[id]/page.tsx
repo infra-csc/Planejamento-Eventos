@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { obterHistoricoEvento, progressoAreas } from "@/server/services/eventos";
+import { obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
+import { Tag } from "@/components/ui/badge";
 import { listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { obterEventoCache } from "@/server/cache";
 import { pode } from "@/domain/permissions";
@@ -9,12 +10,23 @@ import { classificarHistorico, COR_HISTORICO } from "@/domain/historico";
 import { diaMes, diaMesHora, diaMesISO, periodoCurto } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
-import { BarraProgresso, ListaDados, Section } from "@/components/ui/layout";
+import { ListaDados, Metric, MetricStrip, Section } from "@/components/ui/layout";
 
 export default async function EventoVisaoGeralPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
-  const [ev, areas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), progressoAreas(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
+  const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
+  // Resumo do que vai para o evento, visível para todo mundo (inclusive quem só pediu uma parte).
+  const projetos = linhas.filter((l) => l.tipo === "PROJETO");
+  const pecasSoltas = linhas.filter((l) => l.tipo === "PECA");
+  const foraCatalogo = linhas.filter((l) => l.tipo === "AVULSO");
+  const posAta = linhas.filter((l) => l.posAta);
+  const conferidas = linhas.filter((l) => l.conferidoEm).length;
+  const minhaArea = usuario.areaId;
+  const deOutraArea = (l: (typeof linhas)[number]) => Boolean(minhaArea) && l.registro.areaId !== minhaArea;
+  // Ajustes que mudam o que vai no caminhão, depois de a ata existir (para quem pediu enxergar mudanças).
+  const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
+  const ajustes = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
   // O total só aparece quando existe OS; a última versão já traz o conteúdo (evita recalcular a ata inteira).
   const ultimaOs = versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
   const total = ultimaOs ? totalPecas(ultimaOs) : 0;
@@ -23,21 +35,60 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
       <div className="flex flex-col gap-5">
-        <Section titulo="Onde está cada área" sub="O que cada área enviou e o que já foi respondido neste evento.">
-          {areas.map((a) => {
-            const pct = a.itens ? Math.round((a.respondidos / a.itens) * 100) : 0;
-            return (
-              <div key={a.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-1 border-b border-line-row px-[18px] py-3 last:border-b-0">
-                <span className="shrink-0 basis-[108px] text-[13.5px] text-ink">{a.nome}</span>
-                <span className="min-w-0 flex-1" role="img" aria-label={a.itens ? `${pct}% respondido` : "sem envio"}>
-                  <BarraProgresso pct={pct === 0 ? 0 : Math.max(4, pct)} cor={pct === 100 ? "var(--color-success)" : "var(--color-accent)"} />
+        <Section
+          titulo={ev.ataFechadaEm ? "O que vai para o evento" : "O que já está na ata"}
+          sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Cada item abre com quem pediu, ajustes e histórico." : "As necessidades das áreas entram aqui automaticamente e são conferidas na reunião."}
+          acoes={
+            <Link href={ev.ataFechadaEm ? `/eventos/${id}/os?visao=composicao` : `/eventos/${id}/ata`} className="link text-[12.5px]">
+              Ver todos os itens
+            </Link>
+          }
+        >
+          <MetricStrip className="mb-0 rounded-none border-0 border-b border-line-soft">
+            <Metric label="Projetos padrão" valor={projetos.length} hint={`${projetos.reduce((a, l) => a + l.quantidade, 0)} unidades`} tamanho={22} />
+            <Metric label="Peças soltas" valor={pecasSoltas.length} hint={`${pecasSoltas.reduce((a, l) => a + l.quantidade, 0)} unidades`} tamanho={22} />
+            <Metric label="Fora do catálogo" valor={foraCatalogo.length} hint={foraCatalogo.length ? "aguardam vínculo" : "tudo no catálogo"} cor={foraCatalogo.length ? "#7a5f00" : undefined} tamanho={22} />
+            {ev.ataFechadaEm ? (
+              <Metric label="Depois da ata" valor={posAta.length} hint={posAta.length ? "alterações e ajustes" : "nada entrou depois"} cor={posAta.length ? "#8e2740" : undefined} tamanho={22} />
+            ) : (
+              <Metric label="Conferidas" valor={`${conferidas}/${linhas.length}`} hint="na reunião de OS" cor={linhas.length && conferidas === linhas.length ? "#136c41" : undefined} tamanho={22} />
+            )}
+          </MetricStrip>
+
+          {ev.ataFechadaEm && posAta.length > 0 && (
+            <div className="border-b border-line-soft">
+              <p className="m-0 px-[18px] pb-1 pt-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-accent">Entrou depois da ata</p>
+              {posAta.slice(0, 8).map((l) => (
+                <Link key={l.id} href={`/eventos/${id}/itens/${l.id}`} className="flex items-center gap-3 border-t border-line-row px-[18px] py-2 text-[13px] no-underline hover:bg-subtle">
+                  <span className="min-w-0 flex-1 truncate text-ink">
+                    {l.nome}
+                    {deOutraArea(l) && <Tag className="ml-2" tom="muted">{l.areaNome ?? "Logística"}</Tag>}
+                  </span>
+                  <span className="shrink-0 text-[12px] text-ink-3">{l.origemLabel}</span>
+                  <span className="shrink-0 font-mono text-[13px] font-medium text-ink">{l.quantidade}</span>
+                </Link>
+              ))}
+              {posAta.length > 8 && (
+                <Link href={`/eventos/${id}/os?visao=composicao`} className="link block px-[18px] py-2 text-[12.5px]">
+                  Mais {posAta.length - 8} itens
+                </Link>
+              )}
+            </div>
+          )}
+
+          <div>
+            <p className="m-0 px-[18px] pb-1 pt-3 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-muted">{ajustes.length ? "Ajustes recentes" : "Sem ajustes até agora"}</p>
+            {ajustes.length === 0 && <p className="m-0 px-[18px] pb-3 text-[12.5px] text-muted">Mudanças de quantidade, peças de projeto, retiradas e vínculos aparecem aqui com quem fez.</p>}
+            {ajustes.slice(0, 5).map((h) => (
+              <Link key={h.id} href={`/eventos/${id}/itens/${h.entidadeId}`} className="flex gap-3 border-t border-line-row px-[18px] py-2 no-underline hover:bg-subtle">
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-2" title={h.descricao}>
+                  {h.descricao}
                 </span>
-                <span className="basis-full text-[12.5px] text-ink-3 sm:basis-[200px] sm:text-right">
-                  {a.itens === 0 ? "não enviou nada" : `${a.respondidos}/${a.itens} itens respondidos · ${a.solicitacoes} ${a.solicitacoes === 1 ? "solicitação" : "solicitações"}`}
-                </span>
-              </div>
-            );
-          })}
+                <span className="shrink-0 text-[11.5px] text-muted">{h.usuario?.nome ?? "Sistema"}</span>
+                <span className="shrink-0 font-mono text-[11.5px] text-meta">{diaMesHora(h.criadoEm)}</span>
+              </Link>
+            ))}
+          </div>
         </Section>
 
         <Section

@@ -4,11 +4,10 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { combinaBusca } from "@/lib/busca";
-import { diaMesHora } from "@/lib/format";
+
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tag } from "@/components/ui/badge";
-import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { toast, toastErro } from "@/components/ui/toast";
 import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
@@ -62,7 +61,7 @@ function Check({ l, eventoId, onMudou }: { l: LinhaConferencia; eventoId: string
         });
       }}
       className={cn(
-        "mt-0.5 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors disabled:opacity-60",
+        "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors disabled:opacity-60",
         marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-transparent hover:border-success hover:text-success/60",
       )}
     >
@@ -170,6 +169,9 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
   );
 }
 
+/** Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações. */
+const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_92px] items-center gap-x-3";
+
 function Linha({
   l,
   eventoId,
@@ -189,90 +191,78 @@ function Linha({
 }) {
   const conferida = Boolean(l.conferidoEm);
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
+  const dicas = [l.origem?.observacao ? `Obs.: ${l.origem.observacao}` : null, l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join("\n");
   return (
-    <li className={cn("flex gap-3.5 border-b border-line-row px-[18px] py-3.5 last:border-b-0", !conferida && "bg-[color-mix(in_srgb,var(--color-warning-bg)_45%,transparent)]")}>
-      {editavel ? (
-        <Check l={l} eventoId={eventoId} onMudou={onMudou} />
-      ) : (
-        <span className={cn("mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2", conferida ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
-          <IconeCheck />
-        </span>
-      )}
-
-      {l.capaId ? (
-        <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="hidden h-[52px] w-[70px] shrink-0 overflow-hidden rounded-[7px] border border-line sm:block" />
-      ) : null}
-
-      <div className="min-w-0 flex-1">
-        <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[14px] font-medium text-ink">{l.nome}</span>
-          {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
-          {l.codigo && (
-            <span className="font-mono text-[11.5px] text-muted">
-              {l.codigo}
-              {l.versao ? ` · v${l.versao}` : ""}
-            </span>
-          )}
-        </p>
-
-        <p className="mb-0 mt-1 text-[12.5px] leading-[1.5] text-ink-3">
-          {l.origem ? (
-            <>
-              Pedido por <span className="text-ink-2">{l.origem.solicitante}</span> ·{" "}
-              <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
-                {l.origem.codigo}
-              </Link>
-              {l.origem.enviadaEm ? ` · ${diaMesHora(l.origem.enviadaEm)}` : ""}
-              {l.origem.titulo ? ` · ${l.origem.titulo}` : ""}
-            </>
-          ) : (
-            <>Incluída na reunião{l.incluidaPor ? ` por ${l.incluidaPor}` : ""}</>
-          )}
-          {l.destino ? <> · Destino: <span className="text-ink-2">{l.destino}</span></> : null}
-        </p>
-
-        {(l.origem?.observacao || l.origem?.ajustes) && (
-          <p className="mb-0 mt-1 text-[12.5px] leading-[1.5] text-ink-2">
-            {l.origem.ajustes ? <span className="mr-2 rounded-[4px] bg-control px-1.5 py-px text-[11.5px]">peças ajustadas: {l.origem.ajustes}</span> : null}
-            {l.origem.observacao ? <span className="italic">“{l.origem.observacao}”</span> : null}
-          </p>
+    <li className={cn(COLUNAS, "min-h-[44px] border-b border-line-row px-[18px] py-1.5 last:border-b-0 hover:bg-subtle", !conferida && "bg-[color-mix(in_srgb,var(--color-warning-bg)_35%,transparent)]")}>
+      <span className="flex justify-center">
+        {editavel ? (
+          <Check l={l} eventoId={eventoId} onMudou={onMudou} />
+        ) : (
+          <span className={cn("inline-flex size-6 items-center justify-center rounded-full border-2", conferida ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
+            <IconeCheck />
+          </span>
         )}
+      </span>
 
-        {l.ultimoAjuste && (
-          <p className="mb-0 mt-1.5 flex items-start gap-1.5 text-[12px] leading-[1.45] text-warning">
-            <span className="mt-px">
-              <IconeCaneta />
-            </span>
-            <span>
-              Ajustado por {l.ultimoAjuste.por} · {diaMesHora(l.ultimoAjuste.em)}: {l.ultimoAjuste.descricao}
-            </span>
-          </p>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-[13.5px] font-medium text-ink no-underline hover:text-accent hover:underline" title={`Ver detalhes de ${l.nome}`}>
+          {l.nome}
+        </Link>
+        {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
+        {l.codigo && <span className="hidden shrink-0 font-mono text-[11px] text-muted xl:inline">{l.codigo}</span>}
+        {dicas && (
+          <span title={dicas} aria-label={dicas} className={cn("shrink-0 text-[12px]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+            {l.ultimoAjuste ? <IconeCaneta /> : "ⓘ"}
+          </span>
         )}
+      </span>
 
-        {conferida && (
-          <p className="mb-0 mt-1 text-[11.5px] text-success">
-            Conferido{l.conferidoPor ? ` por ${l.conferidoPor}` : ""} · {diaMesHora(l.conferidoEm)}
-          </p>
+      <span className="truncate text-[12.5px] text-ink-3" title={l.origem ? `${l.origem.solicitante} · ${l.origem.codigo}${l.origem.titulo ? ` · ${l.origem.titulo}` : ""}` : undefined}>
+        {l.origem ? (
+          <>
+            <span className="text-ink-2">{l.origem.solicitante}</span> ·{" "}
+            <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="font-mono text-ink-3 no-underline hover:underline">
+              {l.origem.codigo}
+            </Link>
+          </>
+        ) : (
+          <>incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>
         )}
-      </div>
+      </span>
 
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <span className="font-mono text-[20px] font-medium leading-none tracking-[-0.02em] text-ink">{l.quantidade}</span>
-        {pedidoDiferente && <span className="font-mono text-[11px] text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
+      <span className="truncate text-[12.5px] text-ink-3" title={l.destino ?? undefined}>
+        {l.destino ?? "—"}
+      </span>
+
+      <span className="text-right">
+        <span className="font-mono text-[14px] font-medium text-ink">{l.quantidade}</span>
+        {pedidoDiferente && <span className="block font-mono text-[10.5px] leading-none text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
+      </span>
+
+      <span className="flex items-center justify-end gap-1">
         {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
-        {editavel && (
+        {editavel && l.tipo !== "AVULSO" && (
           <button
             type="button"
             onClick={() => onAjustar(l)}
-            aria-label={`Ajustar ${l.nome}`}
-            title="Ajustar quantidade (registrado no histórico)"
-            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[7px] border border-line bg-surface px-2.5 text-[12px] text-ink-2 hover:border-accent hover:text-accent"
+            aria-label={`Ajustar quantidade de ${l.nome}`}
+            title="Ajustar quantidade (com motivo)"
+            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent text-ink-3 hover:border-line hover:bg-surface hover:text-accent"
           >
             <IconeCaneta />
-            Ajustar
           </button>
         )}
-      </div>
+        <Link
+          href={`/eventos/${eventoId}/itens/${l.id}`}
+          aria-label={`Detalhes de ${l.nome}`}
+          title={l.tipo === "PROJETO" ? "Detalhes, peças do projeto e histórico" : "Detalhes e histórico"}
+          className="inline-flex size-7 items-center justify-center rounded-full text-ink-3 no-underline hover:bg-surface hover:text-accent"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+      </span>
     </li>
   );
 }
@@ -395,12 +385,21 @@ export function ConferenciaAta({
       ) : visiveis.length === 0 ? (
         <p className="m-0 px-[18px] py-10 text-center text-[13px] text-muted">{filtro === "pendentes" ? "Nada a conferir. Tudo certo por aqui." : "Nenhuma linha com esse filtro."}</p>
       ) : (
-        grupos.map(([area, ls]) => {
+        <>
+        <div className={cn(COLUNAS, "border-b border-line-soft px-[18px] py-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted")} aria-hidden>
+          <span />
+          <span>Item</span>
+          <span>Pedido por</span>
+          <span>Destino</span>
+          <span className="text-right">Qtd.</span>
+          <span />
+        </div>
+        {grupos.map(([area, ls]) => {
           const ok = ls.filter((l) => l.conferidoEm).length;
           return (
             <div key={area}>
-              <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-[18px] py-2">
-                <span className="text-[12.5px] font-semibold uppercase tracking-[0.04em] text-ink-2">{area}</span>
+              <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-[18px] py-1.5">
+                <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-2">{area}</span>
                 <span className={cn("font-mono text-[12px]", ok === ls.length ? "text-success" : "text-ink-3")}>
                   {ok}/{ls.length} conferidas
                 </span>
@@ -412,7 +411,8 @@ export function ConferenciaAta({
               </ul>
             </div>
           );
-        })
+        })}
+        </>
       )}
 
       <div className="flex items-center justify-between gap-3 rounded-b-[10px] border-t border-line-soft bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">

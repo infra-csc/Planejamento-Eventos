@@ -65,6 +65,8 @@ function rotular(acao: string, dadosDepois: unknown, perfil: Perfil | null): { t
       return { titulo: "Quantidade ajustada pela logística", tom: "atencao" };
     case "ATA_REMOCAO":
       return { titulo: "Retirado da ata/OS", tom: "perigo" };
+    case "PECA_PROJETO_AJUSTADA":
+      return { titulo: "Peça do projeto ajustada", tom: "atencao" };
     case "ITEM_VINCULADO":
       return { titulo: "Vinculado ao catálogo", tom: "info" };
     case "ATUALIZACAO_VERSAO":
@@ -180,7 +182,9 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     conferidoEm: linha.conferidoEm ? linha.conferidoEm.toISOString() : null,
     conferidoPor: linha.conferidoPor ?? null,
     descricaoOriginal: linha.registro.descricaoLivre,
-    pecasDoProjeto: linha.tipo === "PROJETO" ? (linha.projeto?.bom ?? []).map((b) => ({ codigo: b.codigo, nome: b.nome, quantidade: b.quantidade, total: b.quantidade * linha.quantidade })) : [],
+    pecasDoProjeto: linha.tipo === "PROJETO" ? (linha.projeto?.bom ?? []).map((b) => ({ pecaId: b.pecaId, codigo: b.codigo, nome: b.nome, unidade: b.unidade, porUnidade: b.quantidade, total: b.quantidade * linha.quantidade })) : [],
+    posAta: linha.posAta,
+    areaId: linha.registro.areaId,
     origem: origem
       ? {
           solicitacaoId: origem.solicitacaoId,

@@ -33,6 +33,8 @@ export type LinhaAtaView = {
   /** Conferida na reunião de OS (ISO) e por quem. */
   conferidoEm?: string | null;
   conferidoPor?: string | null;
+  /** Entrou depois do fechamento da ata (alteração atendida ou ajuste da logística). */
+  posAta?: boolean;
 };
 
 /** Caixa de conferência da linha: a logística marca item a item na reunião; a ata só fecha com todas marcadas. */
@@ -196,10 +198,17 @@ export function AtaLista({
                 <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
                   <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
                     {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-[5px] border border-line" />}
-                    <span className="text-[13.5px] text-ink">{l.nome}</span>
+                    <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-[13.5px] text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
+                      {l.nome}
+                    </Link>
                     {!compacta && (
                       <Tag className="ml-2" tom="muted">
                         {TAG_TIPO[l.tipo]}
+                      </Tag>
+                    )}
+                    {l.posAta && (
+                      <Tag className="ml-2" tom="accent">
+                        depois da ata
                       </Tag>
                     )}
                     {l.versaoDefasada && <BadgeVersao l={l} eventoId={eventoId} podeAtualizar={editavel} />}

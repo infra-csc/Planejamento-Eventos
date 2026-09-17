@@ -1,13 +1,13 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, historico, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
+import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { descricaoLinha, resumirAjustes } from "@/domain/os";
 import { obterLinhasAta } from "./eventos";
-import { montarLinhasAta } from "./os";
+import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
-import { bloquearEvento, registrarHistorico } from "./support";
+import { bloquearEvento, notificar, registrarHistorico, usuariosDaArea } from "./support";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -172,5 +172,70 @@ export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId:
       dadosDepois: { quantidade, motivo: razao },
     });
     return { removida: quantidade === 0 };
+  });
+}
+
+/**
+ * Edita uma peça dentro de um projeto já na ata/OS (por unidade do projeto): muda a quantidade,
+ * tira a peça (0) ou inclui uma peça do catálogo que o projeto não tinha. Sempre com motivo e log.
+ * Antes do fechamento é ajuste da reunião; com a ata fechada gera nova versão da OS e avisa a área.
+ */
+export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: string, linhaId: string, pecaId: string, quantidadePorUnidade: number, motivo: string) {
+  exigir(usuario, "ata.consolidar");
+  const razao = motivo?.trim();
+  if (!razao) throw new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Fica registrado no histórico." });
+  if (!Number.isInteger(quantidadePorUnidade) || quantidadePorUnidade < 0 || quantidadePorUnidade > 100_000) {
+    throw new ValidacaoError("Quantidade por unidade deve ser um inteiro entre 0 e 100.000.", { quantidade: "Use um número inteiro." });
+  }
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    const aberto = ev.status === "ABERTO";
+    if (!aberto && ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("O evento não aceita ajustes neste estado.");
+    if (aberto) exigir(usuario, "ata.ajustar");
+
+    const linha = await tx.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaId), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)), with: { projeto: { columns: { nome: true, codigo: true } } } });
+    if (!linha || linha.tipo !== "PROJETO") throw new NaoEncontradoError("Projeto na ata");
+    const bom = [...(linha.bomSnapshot ?? [])];
+    const idx = bom.findIndex((b) => b.pecaId === pecaId);
+    const antes = idx >= 0 ? bom[idx].quantidade : 0;
+    if (antes === quantidadePorUnidade) throw new ValidacaoError("A quantidade informada é a mesma do projeto.", { quantidade: "Informe outro valor." });
+
+    let peca: { codigo: string; nome: string };
+    if (idx >= 0) {
+      peca = bom[idx];
+      if (quantidadePorUnidade === 0) bom.splice(idx, 1);
+      else bom[idx] = { ...bom[idx], quantidade: quantidadePorUnidade };
+    } else {
+      const p = await tx.query.pecas.findFirst({ where: and(eq(pecas.id, pecaId), eq(pecas.ativo, true)) });
+      if (!p) throw new NaoEncontradoError("Peça");
+      if (quantidadePorUnidade === 0) throw new ValidacaoError("Para incluir uma peça, informe a quantidade por unidade.", { quantidade: "Maior que zero." });
+      peca = p;
+      bom.push({ pecaId: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, quantidade: quantidadePorUnidade });
+    }
+    await tx.update(eventoItens).set({ bomSnapshot: bom }).where(eq(eventoItens.id, linhaId));
+
+    const projeto = linha.projeto?.nome ?? "Projeto";
+    const acaoTexto = antes === 0 ? `incluída com ${quantidadePorUnidade} por unidade` : quantidadePorUnidade === 0 ? `retirada (eram ${antes} por unidade)` : `${antes} → ${quantidadePorUnidade} por unidade`;
+    const texto = `${projeto}: ${peca.codigo} · ${peca.nome} ${acaoTexto} (× ${linha.quantidade} = ${quantidadePorUnidade * linha.quantidade}) — ${razao}`;
+    await registrarHistorico(tx, {
+      eventoId,
+      entidade: "evento_item",
+      entidadeId: linhaId,
+      acao: "PECA_PROJETO_AJUSTADA",
+      descricao: texto,
+      usuarioId: usuario.id,
+      dadosAntes: { pecaId, quantidade: antes },
+      dadosDepois: { pecaId, quantidade: quantidadePorUnidade, motivo: razao },
+    });
+    if (aberto) {
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, texto);
+      if (linha.areaId) {
+        await notificar(tx, { usuarioIds: await usuariosDaArea(tx, linha.areaId), tipo: "ATA_AJUSTE", titulo: `Ajuste na OS: ${ev.nome}`, mensagem: texto, link: `/eventos/${eventoId}/itens/${linhaId}` });
+      }
+    }
+    return { texto };
   });
 }

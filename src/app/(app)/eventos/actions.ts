@@ -20,7 +20,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { ajustarLinhaNaConferencia } from "@/server/services/conferencia";
+import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { pecaSchema } from "@/lib/schemas";
 
@@ -187,4 +187,12 @@ export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
   const res = await executar(() => vincularAoCatalogo(usuario, referencia, destino));
   revalidatePath("/", "layout");
   return res;
+}
+
+export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: string, pecaId: string, quantidade: number, motivo: string) {
+  const usuario = await requireUsuario();
+  if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  return r;
 }

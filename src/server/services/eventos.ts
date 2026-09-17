@@ -135,6 +135,8 @@ export async function obterLinhasAta(eventoId: string) {
       versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,
       capaId: l.registro.projetoId ? (capaDe.get(l.registro.projetoId) ?? null) : null,
       conferidoEm: l.registro.conferidoEm,
+      /** Entrou depois do fechamento da ata (alteração atendida ou ajuste da logística). */
+      posAta: Boolean(ev?.ataFechadaEm && l.registro.criadoEm > ev.ataFechadaEm),
       conferidoPor: l.registro.conferidoPorId ? (nomesConferiu.get(l.registro.conferidoPorId) ?? null) : null,
     };
   });
