@@ -13,7 +13,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
-    "setup": "npm run db:migrate && npm run db:seed && npm run importar:catalogo",
+    "setup": "npm run db:migrate && npm run db:seed && npm run importar:catalogo && npm run db:dados",
+    "db:dados": "tsx scripts/registrar-pre-reuniao.ts",
     "test:smoke": "tsx scripts/smoke.ts",
     "importar:catalogo": "tsx scripts/importar-catalogo.ts",
     "admin:senha": "tsx scripts/admin-senha.ts"

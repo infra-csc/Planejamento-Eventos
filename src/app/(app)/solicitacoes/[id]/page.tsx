@@ -173,9 +173,9 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       )}
       {respondivel && s.tipo === "PRE_REUNIAO" && (
         <Aviso className="mb-[18px]">
-          Você pode responder agora ou durante a reunião, na aba{" "}
+          Estes itens já estão na ata. A logística confere e ajusta na{" "}
           <Link href={`/eventos/${s.eventoId}/reuniao`} className="link">
-            Consolidar ata
+            conferência da ata
           </Link>{" "}
           do evento.
         </Aviso>

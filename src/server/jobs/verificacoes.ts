@@ -35,7 +35,7 @@ export async function executarVerificacoesSeNecessario() {
 async function verificarSlaVencido() {
   const db = await getDb();
   const vencidas = await db.query.solicitacoes.findMany({
-    where: and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false), lt(solicitacoes.prazoRespostaEm, new Date())),
+    where: and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO"), eq(solicitacoes.excluida, false), lt(solicitacoes.prazoRespostaEm, new Date())),
     with: { evento: { columns: { nome: true } }, area: true },
   });
   if (!vencidas.length) return;
@@ -62,6 +62,7 @@ async function avisoPrazoProximo() {
   const proximas = await db.query.solicitacoes.findMany({
     where: and(
       inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+      eq(solicitacoes.tipo, "ALTERACAO"),
       eq(solicitacoes.excluida, false),
       gt(solicitacoes.prazoRespostaEm, agora),
       lt(solicitacoes.prazoRespostaEm, new Date(agora.getTime() + horas * 3_600_000)),

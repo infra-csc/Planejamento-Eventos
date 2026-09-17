@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const [r] = await db
       .select({ n: count() })
       .from(solicitacoes)
-      .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])));
+      .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")));
     return Number(r.n);
   };
   const [naoLidas, abertas] = await Promise.all([contarNaoLidas(usuario), contarAbertas()]);

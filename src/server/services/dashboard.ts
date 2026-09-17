@@ -173,7 +173,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
 
   // Logística, Gestão e Administrador (acesso total: vê a operação; usuários ficam em /admin)
   const abertas = await db.query.solicitacoes.findMany({
-    where: and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])),
+    where: and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")),
     with: {
             evento: { columns: { id: true, nome: true } },
             area: true,

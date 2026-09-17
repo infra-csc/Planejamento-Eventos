@@ -8,7 +8,7 @@ channel = "stable-24_11"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]
-run = ["sh", "-c", "npm run db:migrate && npm run start"]
+run = ["sh", "-c", "npm run db:migrate && npm run db:dados && npm run start"]
 
 # Uma porta só: o app escuta na 3000 e o Replit publica na porta padrão (sem ":porta" na URL).
 [[ports]]

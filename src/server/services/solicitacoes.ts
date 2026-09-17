@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type AjusteBom, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, usuarios, type AjusteBom, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { aceitaSolicitacao, janelaPreReuniaoAberta, tipoSolicitacaoParaStatus } from "@/domain/evento";
@@ -49,10 +49,10 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
   }
   if (filtro.eventoId) conds.push(eq(solicitacoes.eventoId, filtro.eventoId));
   if (filtro.areaId) conds.push(eq(solicitacoes.areaId, filtro.areaId));
-  if (filtro.status === "ABERTAS") conds.push(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]));
+  if (filtro.status === "ABERTAS") conds.push(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO"));
   else if (filtro.status && filtro.status !== "TODAS") conds.push(eq(solicitacoes.status, filtro.status));
   if (filtro.atrasadas) {
-    conds.push(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]));
+    conds.push(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO"));
     conds.push(lt(solicitacoes.prazoRespostaEm, new Date()));
   }
   const rows = await db.query.solicitacoes.findMany({
@@ -90,7 +90,8 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     if (!usuario.areaId) return vazio;
     base.push(eq(solicitacoes.areaId, usuario.areaId));
   }
-  const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE')`;
+  // Aguardando resposta = alterações; necessidade pré-reunião não passa por avaliação (já está na ata).
+  const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE') and ${solicitacoes.tipo} = 'ALTERACAO'`;
   const condicoes: Record<FiltroLista, SQL> = {
     ABERTAS: abertas,
     ATRASADAS: sql`${abertas} and ${solicitacoes.prazoRespostaEm} < ${agora}`,
@@ -162,7 +163,7 @@ export async function primeiraDaFila(usuario: UsuarioAtual) {
   const [r] = await db
     .select({ id: solicitacoes.id })
     .from(solicitacoes)
-    .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"])))
+    .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")))
     .orderBy(sql`${solicitacoes.prazoRespostaEm} asc nulls last`)
     .limit(1);
   return r?.id ?? null;
@@ -434,6 +435,60 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
 /* Enviar / cancelar / devolver                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Necessidade pré-reunião não passa por avaliação: cada item ainda em análise entra na ata como pedido,
+ * e a logística confere e ajusta na reunião de OS. Usado no envio e na correção de dados antigos.
+ * Retorna quantos itens entraram.
+ */
+export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string) {
+  const pendentes = await tx
+    .select({ id: solicitacaoItens.id })
+    .from(solicitacaoItens)
+    .where(and(eq(solicitacaoItens.solicitacaoId, solicitacaoId), eq(solicitacaoItens.status, "EM_ANALISE")))
+    .orderBy(asc(solicitacaoItens.ordem));
+  for (const item of pendentes) {
+    await responderNaTransacao(tx, usuario, item.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
+  }
+  if (pendentes.length) {
+    await tx
+      .update(solicitacaoItens)
+      .set({ respondidoPorId: null, observacaoLogistica: "Registrado na ata automaticamente; conferido pela logística na reunião de OS." })
+      .where(inArray(solicitacaoItens.id, pendentes.map((p) => p.id)));
+  }
+  return pendentes.length;
+}
+
+/**
+ * Correção de dados de antes da regra atual: pré-reuniões ainda "aguardando resposta" em eventos com a
+ * ata aberta entram na ata do mesmo jeito que um envio novo. Idempotente (só pega itens em análise).
+ */
+export async function registrarPreReunioesPendentes() {
+  const db = await getDb();
+  const pendentes = await db
+    .select({ id: solicitacoes.id, eventoId: solicitacoes.eventoId, responsavelId: eventos.responsavelId })
+    .from(solicitacoes)
+    .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
+    .where(
+      and(
+        eq(solicitacoes.excluida, false),
+        eq(solicitacoes.tipo, "PRE_REUNIAO"),
+        inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+        inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]),
+      ),
+    );
+  let itens = 0;
+  for (const p of pendentes) {
+    const resp = await db.query.usuarios.findFirst({ where: eq(usuarios.id, p.responsavelId), with: { area: true } });
+    if (!resp) continue;
+    const usuario: UsuarioAtual = { id: resp.id, nome: resp.nome, email: resp.email, perfil: resp.perfil, areaId: resp.areaId, areaNome: resp.area?.nome ?? null };
+    itens += await db.transaction(async (tx) => {
+      await bloquearEvento(tx, p.eventoId);
+      return registrarPreReuniaoNaAta(tx, usuario, p.id);
+    });
+  }
+  return { solicitacoes: pendentes.length, itens };
+}
+
 export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -481,13 +536,7 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
 
     // Antes da reunião não há avaliação: tudo entra na ata e a logística confere (e corrige) na reunião de OS.
     if (s.tipo === "PRE_REUNIAO") {
-      for (const item of s.itens) {
-        await responderNaTransacao(tx, usuario, item.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
-      }
-      await tx
-        .update(solicitacaoItens)
-        .set({ respondidoPorId: null, observacaoLogistica: "Registrado na ata automaticamente; conferido pela logística na reunião de OS." })
-        .where(eq(solicitacaoItens.solicitacaoId, id));
+      await registrarPreReuniaoNaAta(tx, usuario, id);
       await notificar(tx, {
         usuarioIds: await usuariosLogistica(tx),
         tipo: "SOLICITACAO_ENVIADA",

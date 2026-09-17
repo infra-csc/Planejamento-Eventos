@@ -6,7 +6,7 @@
  */
 import { eq } from "drizzle-orm";
 import { getConnection } from "../src/server/db";
-import { areas, eventoItens, eventos, projetos, usuarios } from "../src/server/db/schema";
+import { areas, eventoItens, eventos, projetos, solicitacoes, usuarios } from "../src/server/db/schema";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
 import { DomainError } from "../src/domain/errors";
 import { conferirLinha, conferirTodasLinhas, listarAtaVersoes, obterLinhasAta, salvarDadosReuniao, transicionarEvento } from "../src/server/services/eventos";
@@ -20,6 +20,7 @@ import {
   obterSolicitacao,
   responderItem,
   salvarItem,
+  registrarPreReunioesPendentes,
   salvarSolicitacaoCompleta,
 } from "../src/server/services/solicitacoes";
 import { listarOsVersoes } from "../src/server/services/os";
@@ -244,8 +245,21 @@ async function main() {
   const resDiego = await buscar(diego, "SOL-");
   ok(resDiego.filter((x) => x.tag === "solic.").length > 0 && resDiego.filter((x) => x.tag === "solic.").every((x) => x.sub.startsWith("Gráfica")), "busca respeita a área do requisitante");
   const resMarina = await buscar(marina, "");
-  ok(resMarina.some((x) => x.titulo === "Consolidar ata da reunião de hoje") === false || resMarina.length <= 8, "busca sem termo devolve no máximo 8 resultados");
-  ok(!(await buscar(paulo, "")).some((x) => x.titulo.startsWith("Consolidar")), "requisitante não vê ação de consolidar ata");
+  ok(resMarina.some((x) => x.titulo === "Abrir conferência da ata de hoje") === false || resMarina.length <= 8, "busca sem termo devolve no máximo 8 resultados");
+  ok(!(await buscar(paulo, "")).some((x) => x.titulo.startsWith("Abrir conferência")), "requisitante não vê ação de consolidar ata");
+
+  console.log("\n8. Pré-reunião antiga (de antes da regra) entra na ata e sai da fila de resposta");
+  const legado = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Pedido antigo", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem antigo", quantidadeSolicitada: 3 }] });
+  // Simula o estado antigo: enviada e aguardando avaliação, sem linha na ata.
+  await db.update(solicitacoes).set({ status: "ENVIADA", enviadaEm: new Date(), prazoRespostaEm: new Date(Date.now() - 3_600_000) }).where(eq(solicitacoes.id, legado.id));
+  const filaAntes = await listarSolicitacoes(marina, { status: "ABERTAS" });
+  ok(!filaAntes.some((s) => s.id === legado.id), "pré-reunião não aparece em “aguardando resposta” da logística");
+  const corrigidas = await registrarPreReunioesPendentes();
+  ok(corrigidas.solicitacoes >= 1 && corrigidas.itens >= 1, "correção de dados registra pré-reuniões antigas na ata");
+  const legadoDepois = await obterSolicitacao(marina, legado.id);
+  ok(legadoDepois.status === "RESPONDIDA" && legadoDepois.itens.every((i) => i.status === "ATENDIDO"), "pedido antigo fica na ata (sem avaliação)");
+  ok((await obterLinhasAta(e2b.id)).some((l) => l.registro.solicitacaoItemId === legadoDepois.itens[0].id), "pedido antigo virou linha da ata");
+  ok((await registrarPreReunioesPendentes()).solicitacoes === 0, "correção de dados é idempotente");
 
   console.log(`\n${falhas === 0 ? "Todos os cenários passaram." : `${falhas} cenário(s) falharam.`}`);
   await conn.close();
