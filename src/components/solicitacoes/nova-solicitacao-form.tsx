@@ -302,12 +302,21 @@ export function NovaSolicitacaoForm({
 
   const salvar = (enviar: boolean) => {
     setErroGeral(null);
+    const irPara = (id: string) => {
+      const el = document.getElementById(id);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => el?.focus(), 350);
+    };
     if (areas && !areaId) {
-      setErroGeral("Escolha a área que está pedindo.");
+      setTentouEnviar(true);
+      setErroGeral("Escolha a área que está pedindo (passo 1).");
+      irPara("area-solicitante");
       return;
     }
     if (!eventoId) {
-      setErroGeral("Escolha o evento.");
+      setTentouEnviar(true);
+      setErroGeral("Escolha o evento no passo 1. Os itens já adicionados continuam na lista.");
+      irPara("evento");
       return;
     }
     if (enviar) {
@@ -415,7 +424,7 @@ export function NovaSolicitacaoForm({
         )}
       </Passo>
 
-      <Passo n={2} titulo="Itens" sub={!evento ? "Escolha o evento acima para liberar a lista." : ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}>
+      <Passo n={2} titulo="Itens" sub={!evento ? "Já pode montar a lista. Antes de enviar, escolha o evento no passo 1." : ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}>
         {itens.length === 0 ? (
           <div className={cn("mx-3.5 mt-3.5 rounded-[9px] border border-dashed px-4 py-6 text-center", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
             <p className="m-0 text-[13px] font-medium text-ink">Nenhum item ainda</p>
@@ -561,7 +570,7 @@ export function NovaSolicitacaoForm({
                   aria-invalid={Boolean(erroAvulso)}
                   className={cn(campo, "aria-[invalid=true]:border-danger-input")}
                 />
-                <Button variant="secondary" size="md" onClick={adicionarAvulso} disabled={!evento}>
+                <Button variant="secondary" size="md" onClick={adicionarAvulso}>
                   Adicionar
                 </Button>
               </div>
@@ -613,7 +622,7 @@ export function NovaSolicitacaoForm({
                           +
                         </button>
                       </span>
-                      <Button variant="secondary" size="xs" disabled={!evento} title={!evento ? "Escolha o evento primeiro" : undefined} onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)}>
+                      <Button variant="secondary" size="xs" onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)}>
                         Adicionar
                       </Button>
                     </div>
@@ -645,7 +654,7 @@ export function NovaSolicitacaoForm({
 
       {/* Coluna de envio: acompanha a rolagem, resume o pedido e fecha com título + botões. */}
       <aside className="flex flex-col gap-4 lg:sticky lg:top-[76px]">
-      <Passo n={3} titulo="Resumo e envio" sub={evento ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} para ${evento.nome}` : "Escolha o evento e adicione itens."}>
+      <Passo n={3} titulo="Resumo e envio" sub={evento ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} para ${evento.nome}` : itens.length ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} · falta escolher o evento` : "Escolha o evento e adicione itens."}>
         {itens.length > 0 && (
           <ul className="m-0 max-h-[220px] list-none overflow-y-auto border-b border-line-soft p-0">
             {itens.map((i) => (
@@ -698,10 +707,10 @@ export function NovaSolicitacaoForm({
       {erroGeral && <Aviso tom="danger">{erroGeral}</Aviso>}
 
       <div className="flex flex-col gap-2.5">
-        <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={!evento?.aceita} className="w-full">
+        <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={Boolean(evento) && !evento?.aceita} className="w-full">
           Enviar solicitação
         </Button>
-        <Button variant="secondary" size="lg" disabled={pendente || !evento} onClick={() => salvar(false)} className="w-full">
+        <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
           Salvar rascunho
         </Button>
         <span className="text-[12.5px] text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
