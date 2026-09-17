@@ -534,6 +534,18 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
       usuarioId: usuario.id,
     });
 
+    // "Outro item (descrever)": a logística precisa cadastrar a peça ou vincular a algo do catálogo.
+    const foraCatalogo = s.itens.filter((i) => i.operacao === "ADICIONAR" && !i.projetoId && !i.pecaId && i.descricaoLivre);
+    if (foraCatalogo.length) {
+      await notificar(tx, {
+        usuarioIds: await usuariosLogistica(tx),
+        tipo: "ITEM_FORA_CATALOGO",
+        titulo: `Fora do catálogo: ${s.codigo} · ${s.area.nome}`,
+        mensagem: `${foraCatalogo.map((i) => `“${i.descricaoLivre}” × ${i.quantidadeSolicitada}`).join(", ")}. Cadastre a peça ou vincule a um item que já existe (quem pediu pode não ter achado).`,
+        link: `/solicitacoes/${id}`,
+      });
+    }
+
     // Antes da reunião não há avaliação: tudo entra na ata e a logística confere (e corrige) na reunião de OS.
     if (s.tipo === "PRE_REUNIAO") {
       await registrarPreReuniaoNaAta(tx, usuario, id);

@@ -12,6 +12,7 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast, toastErro } from "@/components/ui/toast";
 import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
+import { VincularCatalogo } from "./vincular-catalogo";
 import type { EventoStatus } from "@/server/db/schema";
 
 export type LinhaAtaView = {
@@ -130,6 +131,7 @@ export function AtaLista({
   dataReuniao,
   conferivel = false,
   contexto = "ata",
+  podeCadastrar = false,
 }: {
   eventoId: string;
   status: EventoStatus;
@@ -143,6 +145,8 @@ export function AtaLista({
   conferivel?: boolean;
   /** "os": a mesma lista usada para ajustar os itens da OS depois da ata fechada. */
   contexto?: "ata" | "os";
+  /** Pode cadastrar peça nova ao vincular um item fora do catálogo. */
+  podeCadastrar?: boolean;
 }) {
   const [incluir, setIncluir] = useState(false);
   const [conferindoTodas, iniciarTodas] = useTransition();
@@ -199,6 +203,11 @@ export function AtaLista({
                       </Tag>
                     )}
                     {l.versaoDefasada && <BadgeVersao l={l} eventoId={eventoId} podeAtualizar={editavel} />}
+                    {l.tipo === "AVULSO" && editavel && (
+                      <span className="ml-2 inline-block align-middle">
+                        <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                      </span>
+                    )}
                     {l.codigo && <span className="mt-px block font-mono text-[11.5px] text-muted">{l.codigo}</span>}
                   </th>
                   <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-[13px] font-medium">{l.quantidade}</td>

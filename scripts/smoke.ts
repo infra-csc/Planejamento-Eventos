@@ -25,6 +25,7 @@ import {
 } from "../src/server/services/solicitacoes";
 import { listarOsVersoes } from "../src/server/services/os";
 import { ajustarLinhaNaConferencia, obterConferencia } from "../src/server/services/conferencia";
+import { vincularAoCatalogo } from "../src/server/services/fora-catalogo";
 import { anexarArquivo, obterAnexo, removerAnexo } from "../src/server/services/projetos";
 import { alterarAtivoPeca, listarPecas } from "../src/server/services/catalogo";
 import { alterarAtivoUsuario, criarUsuario, editarUsuario } from "../src/server/services/admin";
@@ -260,6 +261,20 @@ async function main() {
   ok(legadoDepois.status === "RESPONDIDA" && legadoDepois.itens.every((i) => i.status === "ATENDIDO"), "pedido antigo fica na ata (sem avaliação)");
   ok((await obterLinhasAta(e2b.id)).some((l) => l.registro.solicitacaoItemId === legadoDepois.itens[0].id), "pedido antigo virou linha da ata");
   ok((await registrarPreReunioesPendentes()).solicitacoes === 0, "correção de dados é idempotente");
+
+  console.log("\n9. Item fora do catálogo: logística vincula a peça existente ou cadastra");
+  const pecaExistente = (await listarPecas(marina))[0];
+  const avulsoItem = legadoDepois.itens[0];
+  await deveFalhar(() => vincularAoCatalogo(paulo, { solicitacaoItemId: avulsoItem.id }, { tipo: "PECA", pecaId: pecaExistente.id }), "requisitante não vincula ao catálogo", "permissão");
+  await vincularAoCatalogo(marina, { solicitacaoItemId: avulsoItem.id }, { tipo: "PECA", pecaId: pecaExistente.id });
+  const linhaVinculada = (await obterLinhasAta(e2b.id)).find((l) => l.registro.solicitacaoItemId === avulsoItem.id);
+  ok(linhaVinculada?.tipo === "PECA" && linhaVinculada.registro.pecaId === pecaExistente.id && linhaVinculada.registro.descricaoLivre === "Totem antigo", "linha da ata vira peça e guarda o texto original");
+  ok((await obterSolicitacao(paulo, legado.id)).itens[0].pecaId === pecaExistente.id, "pedido da área também aponta para a peça");
+  await deveFalhar(() => vincularAoCatalogo(marina, { solicitacaoItemId: avulsoItem.id }, { tipo: "PECA", pecaId: pecaExistente.id }), "vincular de novo é bloqueado", "já está vinculado");
+  const outroAvulso = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Totem novo", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem de LED 2 m", quantidadeSolicitada: 2 }] });
+  const itemNovo = (await obterSolicitacao(marina, outroAvulso.id)).itens[0];
+  await vincularAoCatalogo(marina, { solicitacaoItemId: itemNovo.id }, { tipo: "NOVA_PECA", peca: { codigo: "TOTEM-LED-SMOKE", nome: "Totem de LED 2 m", setor: "MARCENARIA", familia: "", unidade: "un", descricao: null, estoqueProprio: 0, permiteEmProjeto: true } });
+  ok((await listarPecas(marina)).some((p) => p.codigo === "TOTEM-LED-SMOKE") && (await obterLinhasAta(e2b.id)).some((l) => l.registro.solicitacaoItemId === itemNovo.id && l.tipo === "PECA"), "cadastrar peça nova e vincular na mesma ação");
 
   console.log(`\n${falhas === 0 ? "Todos os cenários passaram." : `${falhas} cenário(s) falharam.`}`);
   await conn.close();

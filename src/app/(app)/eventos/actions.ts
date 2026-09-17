@@ -21,6 +21,8 @@ import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
 import { ajustarLinhaNaConferencia } from "@/server/services/conferencia";
+import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
+import { pecaSchema } from "@/lib/schemas";
 
 function revalidarTudo() {
   revalidatePath("/", "layout");
@@ -164,4 +166,25 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
+}
+
+export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
+  const usuario = await requireUsuario();
+  if (!ref || typeof ref !== "object" || !alvo || typeof alvo !== "object") return { ok: false, erro: "Dados inválidos." } as const;
+  const referencia: RefVinculo = { linhaId: typeof ref.linhaId === "string" ? ref.linhaId : null, solicitacaoItemId: typeof ref.solicitacaoItemId === "string" ? ref.solicitacaoItemId : null };
+  const a = alvo as Record<string, unknown>;
+  let destino: AlvoVinculo;
+  if (a.tipo === "PROJETO" && typeof a.projetoId === "string" && a.projetoId) destino = { tipo: "PROJETO", projetoId: a.projetoId };
+  else if (a.tipo === "PECA" && typeof a.pecaId === "string" && a.pecaId) destino = { tipo: "PECA", pecaId: a.pecaId };
+  else if (a.tipo === "NOVA_PECA") {
+    const r = pecaSchema.safeParse({ ...(a.peca as object), estoqueProprio: 0, permiteEmProjeto: "on" });
+    if (!r.success) {
+      const campos = Object.fromEntries(r.error.issues.map((i) => [String(i.path[0]), i.message]));
+      return { ok: false, erro: "Revise os dados da peça.", campos } as const;
+    }
+    destino = { tipo: "NOVA_PECA", peca: r.data };
+  } else return { ok: false, erro: "Escolha a peça ou o projeto." } as const;
+  const res = await executar(() => vincularAoCatalogo(usuario, referencia, destino));
+  revalidatePath("/", "layout");
+  return res;
 }

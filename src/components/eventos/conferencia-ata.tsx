@@ -12,6 +12,7 @@ import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { toast, toastErro } from "@/components/ui/toast";
 import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
+import { VincularCatalogo } from "./vincular-catalogo";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 
 type Filtro = "todas" | "pendentes" | "conferidas";
@@ -169,7 +170,23 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
   );
 }
 
-function Linha({ l, eventoId, editavel, onMudou, onAjustar }: { l: LinhaConferencia; eventoId: string; editavel: boolean; onMudou: (id: string, v: boolean) => void; onAjustar: (l: LinhaConferencia) => void }) {
+function Linha({
+  l,
+  eventoId,
+  editavel,
+  onMudou,
+  onAjustar,
+  opcoes,
+  podeCadastrar,
+}: {
+  l: LinhaConferencia;
+  eventoId: string;
+  editavel: boolean;
+  onMudou: (id: string, v: boolean) => void;
+  onAjustar: (l: LinhaConferencia) => void;
+  opcoes: OpcoesReferencia;
+  podeCadastrar: boolean;
+}) {
   const conferida = Boolean(l.conferidoEm);
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
   return (
@@ -189,7 +206,7 @@ function Linha({ l, eventoId, editavel, onMudou, onAjustar }: { l: LinhaConferen
       <div className="min-w-0 flex-1">
         <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-[14px] font-medium text-ink">{l.nome}</span>
-          <Tag tom="muted">{TIPO[l.tipo]}</Tag>
+          {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
           {l.codigo && (
             <span className="font-mono text-[11.5px] text-muted">
               {l.codigo}
@@ -242,6 +259,7 @@ function Linha({ l, eventoId, editavel, onMudou, onAjustar }: { l: LinhaConferen
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <span className="font-mono text-[20px] font-medium leading-none tracking-[-0.02em] text-ink">{l.quantidade}</span>
         {pedidoDiferente && <span className="font-mono text-[11px] text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
+        {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
         {editavel && (
           <button
             type="button"
@@ -270,12 +288,14 @@ export function ConferenciaAta({
   editavel,
   opcoes,
   areas,
+  podeCadastrar = false,
 }: {
   eventoId: string;
   linhas: LinhaConferencia[];
   editavel: boolean;
   opcoes: OpcoesReferencia;
   areas: Array<{ id: string; nome: string }>;
+  podeCadastrar?: boolean;
 }) {
   // Estado local só para a resposta imediata do check; a revalidação do servidor substitui a lista.
   const [override, setOverride] = useState<Record<string, boolean>>({});
@@ -387,7 +407,7 @@ export function ConferenciaAta({
               </div>
               <ul className="m-0 list-none p-0">
                 {ls.map((l) => (
-                  <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} />
+                  <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                 ))}
               </ul>
             </div>

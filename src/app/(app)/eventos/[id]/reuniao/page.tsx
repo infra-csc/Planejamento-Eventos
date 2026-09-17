@@ -7,6 +7,7 @@ import { listarSolicitacoes } from "@/server/services/solicitacoes";
 import { obterConferencia } from "@/server/services/conferencia";
 import { listarAreas } from "@/server/services/admin";
 import { diaMesHora } from "@/lib/format";
+import { pode } from "@/domain/permissions";
 import { Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { BannerReuniao } from "@/components/eventos/banner-reuniao";
@@ -45,7 +46,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
         <div className="flex min-w-0 flex-col gap-3.5">
-          <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} />
+          <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
           {semEnvio.length > 0 && (
             <div className="rounded-[10px] border border-dashed border-line-strong px-[18px] py-3 text-[12.5px] text-ink-3">
               Sem necessidades enviadas: <span className="text-ink-2">{semEnvio.map((a) => a.nome).join(", ")}</span>. Se algo dessas áreas foi decidido na reunião, use “Incluir linha”.

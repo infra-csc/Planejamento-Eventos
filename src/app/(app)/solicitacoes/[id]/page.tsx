@@ -14,6 +14,8 @@ import { ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
 import { DefinirTrilha } from "@/components/shell/trilha";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
+import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
+import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -70,6 +72,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     corrigivel: corrigivel && i.status !== "EM_ANALISE",
     aguardandoReuniao: naAta,
   }));
+  // "Outro item (descrever)": fora do catálogo até a logística cadastrar ou vincular.
+  const foraCatalogo = s.itens.filter((i) => i.operacao === "ADICIONAR" && !i.projetoId && !i.pecaId && i.descricaoLivre);
+  const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
+  const eventoAtivo = s.evento.status !== "ENCERRADO" && s.evento.status !== "CANCELADO";
+  const logisticaVincula = pode(usuario, "ata.consolidar") && enviada && eventoAtivo && foraCatalogo.length > 0;
+  const opcoesVinculo = logisticaVincula ? await opcoesReferenciasResumidas() : null;
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
   const semStatus = s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
 
@@ -178,6 +186,33 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             conferência da ata
           </Link>{" "}
           do evento.
+        </Aviso>
+      )}
+
+      {logisticaVincula && opcoesVinculo && (
+        <section className="mb-[18px] rounded-[10px] border border-warning-border bg-warning-bg" aria-label="Itens fora do catálogo">
+          <div className="px-[18px] pb-2 pt-3.5">
+            <h2 className="m-0 text-[14px] font-semibold text-warning">
+              {foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`}
+            </h2>
+            <p className="mb-0 mt-0.5 text-[12.5px] text-ink-2">A área descreveu à mão. Vincule a uma peça ou projeto que já existe (talvez não tenha achado) ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS.</p>
+          </div>
+          <ul className="m-0 list-none p-0">
+            {foraCatalogo.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-warning-border px-[18px] py-2.5">
+                <span className="min-w-0 text-[13.5px] text-ink">
+                  “{i.descricaoLivre}” <span className="font-mono text-ink-3">× {i.quantidadeSolicitada}</span>
+                  {i.destino ? <span className="text-[12px] text-muted"> · {i.destino}</span> : null}
+                </span>
+                <VincularCatalogo linha={{ solicitacaoItemId: i.id, descricao: i.descricaoLivre ?? "", quantidade: i.quantidadeSolicitada }} opcoes={opcoesVinculo} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {!pode(usuario, "ata.consolidar") && enviada && foraCatalogo.length > 0 && (
+        <Aviso className="mb-[18px]">
+          {foraCatalogo.length === 1 ? "Um item foi descrito à mão" : `${foraCatalogo.length} itens foram descritos à mão`}. A logística vai vincular ao catálogo ou cadastrar a peça, e você será avisado.
         </Aviso>
       )}
 
