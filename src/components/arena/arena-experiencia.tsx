@@ -906,17 +906,17 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
               </dl>
             </div>
           )}
-          <div className="pointer-events-auto flex gap-1.5">
+          <div className="pointer-events-auto flex flex-col items-end gap-1">
             {podeEditar && (
-              <button type="button" aria-pressed={editando} onClick={alternarEdicao} className={cn(botaoTexto, editando ? "border-accent bg-accent text-white" : "border-line bg-surface/95 text-accent hover:border-accent")}>
-                {editando ? "Concluir edição" : "Editar posições"}
+              <button type="button" aria-pressed={editando} onClick={alternarEdicao} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", editando ? "border-accent bg-accent text-white" : "border-line bg-surface/95 text-accent hover:border-accent")}>
+                {editando ? "Concluir edição" : "Editar"}
               </button>
             )}
-            <button type="button" aria-expanded={fontesAbertas} onClick={() => setFontesAbertas((v) => !v)} className={cn(botaoTexto, ativoTexto(fontesAbertas))}>
-              Fontes
+            <button type="button" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", ativoTexto(painelDireito === "sem-posicao"))}>
+              Sem posição · {foraDoMapa}
             </button>
-            <button type="button" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao} className={cn(botaoTexto, ativoTexto(painelDireito === "sem-posicao"))}>
-              Sem posição ({foraDoMapa})
+            <button type="button" aria-expanded={fontesAbertas} onClick={() => setFontesAbertas((v) => !v)} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", ativoTexto(fontesAbertas))}>
+              Fontes
             </button>
           </div>
           {usar3D && estado === "pronto" && (

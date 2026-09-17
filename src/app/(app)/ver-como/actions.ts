@@ -8,7 +8,8 @@ import type { Perfil } from "@/server/db/schema";
 
 /**
  * "Ver como": o administrador enxerga o app com outro perfil (e área) para conferir o que cada um vê.
- * Só muda a leitura; a sessão continua sendo do administrador e a troca fica só neste navegador.
+ * Permissões e área passam a ser as do perfil visto (inclusive para agir); o histórico registra o
+ * administrador. A escolha fica só neste navegador.
  */
 export async function verComoAction(perfil: string, areaId: string | null) {
   const real = await getUsuarioReal();

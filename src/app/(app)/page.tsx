@@ -93,7 +93,7 @@ export default async function PainelPage() {
       usuario.perfil === "GESTAO"
         ? { label: "Ver atrasos", href: "/solicitacoes?filtro=ATRASADAS" }
         : d.reuniaoHoje
-          ? { label: "Abrir conferência da ata de hoje", href: `/eventos/${d.reuniaoHoje.id}/reuniao` }
+          ? { label: "Abrir conferência da ata de hoje", href: `/conferencia/${d.reuniaoHoje.id}` }
           : { label: "Novo evento", href: "/eventos/novo" };
   } else {
     subtitulo = `Área ${usuario.areaNome ?? ""}: o que você enviou, o que voltou para ajuste e onde ainda dá para pedir alteração.`;

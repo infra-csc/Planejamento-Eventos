@@ -154,7 +154,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
         {podeConferir && (
           <Section titulo="Conferência da reunião" sub={`${conferidas} de ${totalLinhas} linhas conferidas`}>
             <div className="px-[18px] py-3.5">
-              <ButtonLink href={`/eventos/${id}/reuniao`} variant="primary" size="md" className="w-full no-underline">
+              <ButtonLink href={`/conferencia/${id}`} variant="primary" size="md" className="w-full no-underline">
                 Abrir conferência da ata
               </ButtonLink>
               <p className="mb-0 mt-2 text-[12px] leading-[1.5] text-muted">A ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>

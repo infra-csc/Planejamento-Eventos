@@ -158,7 +158,8 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     : undefined;
 
   // Quem não vê todas as áreas enxerga o detalhe completo só das linhas da própria área.
-  const veTudo = pode(usuario, "solicitacao.ver_todas") || (origem ? origem.areaId === usuario.areaId : linha.registro.areaId === usuario.areaId);
+  const areaDaLinha = origem ? origem.areaId : linha.registro.areaId;
+  const veTudo = pode(usuario, "solicitacao.ver_todas") || areaDaLinha == null || areaDaLinha === usuario.areaId;
   const respondidoPor = origem?.respondidoPorId ? (await db.select({ nome: usuarios.nome }).from(usuarios).where(eq(usuarios.id, origem.respondidoPorId)))[0]?.nome ?? null : null;
 
   const conds: SQL[] = [and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId))!];

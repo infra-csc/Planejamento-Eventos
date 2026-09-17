@@ -9,7 +9,7 @@ export type UsuarioAtual = {
   perfil: Perfil;
   areaId: string | null;
   areaNome: string | null;
-  /** Administrador vendo o app como outro perfil (só leitura de tela; a sessão continua sendo dele). */
+  /** Administrador vendo o app como outro perfil: permissões e área seguem o perfil visto; o id (e o histórico) continuam sendo do administrador. */
   verComo?: { perfilReal: Perfil } | null;
 };
 

@@ -34,7 +34,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
   const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   const opcoes = editavel ? await opcoesReferenciasResumidas() : null;
-  const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/eventos/${id}/reuniao`, rotulo: "Conferência da ata" } : pode(usuario, "os.ver") && !antesDaAta ? { href: `/eventos/${id}/os?visao=composicao`, rotulo: "Itens da OS" } : { href: `/eventos/${id}/ata`, rotulo: "Ata" };
+  const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : pode(usuario, "os.ver") && !antesDaAta ? { href: `/eventos/${id}/os?visao=composicao`, rotulo: "Itens da OS" } : { href: `/eventos/${id}/ata`, rotulo: "Ata" };
   const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
 
   return (
@@ -85,7 +85,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
           <Section
             titulo="Quem pediu"
             acoes={
-              d.origem ? (
+              d.origem && !d.restrito ? (
                 <Link href={`/solicitacoes/${d.origem.solicitacaoId}`} className="link text-[12.5px]">
                   Abrir {d.origem.codigo}
                 </Link>

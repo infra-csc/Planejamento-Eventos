@@ -95,8 +95,9 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
   }
   if (!pecaId && !projetoId) throw new ValidacaoError("Escolha a peça ou o projeto.");
   const eventoId = previa.eventoId;
+  const pecaNovaId = alvo.tipo === "NOVA_PECA" ? pecaId : null;
 
-  return db.transaction(async (tx) => {
+  const vincular = () => db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
     const { linha, item, sol, linhaPendente, itemPendente } = await resolverVinculo(tx, ref);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
@@ -146,6 +147,14 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
     }
     return { rotulo };
   });
+
+  try {
+    return await vincular();
+  } catch (e) {
+    // A peça foi criada fora da transação: se o vínculo falhou, ela não pode ficar solta no catálogo.
+    if (pecaNovaId) await db.update(pecas).set({ ativo: false }).where(eq(pecas.id, pecaNovaId)).catch(() => undefined);
+    throw e;
+  }
 }
 
 /** Contagem para o menu/painel: quantos itens aguardam cadastro ou vínculo. */

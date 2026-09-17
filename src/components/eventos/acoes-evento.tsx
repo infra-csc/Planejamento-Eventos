@@ -43,7 +43,7 @@ export function AcoesEvento({
     }
     if (evento.status === "EM_REUNIAO") {
       botoes.push(
-        <ButtonLink key="consolidar" href={`${base}/reuniao`} variant="primary" size="lg" className="no-underline">
+        <ButtonLink key="consolidar" href={`/conferencia/${evento.id}`} variant="primary" size="lg" className="no-underline">
           Abrir conferência da ata
         </ButtonLink>,
       );

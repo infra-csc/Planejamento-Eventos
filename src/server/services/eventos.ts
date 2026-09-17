@@ -288,12 +288,15 @@ function validarOrdemDatas(d: { dataMontagem: string; dataInicio: string; dataFi
 /** Período interno do evento: usa o informado; senão preserva o atual se ainda couber na nova data; senão, o próprio dia do evento. */
 function periodoEvento(dados: DadosEvento, atual?: { dataMontagem: string; dataFim: string; dataDesmontagem: string; dataCarga: string | null }) {
   const ini = dados.dataInicio;
-  const cabe = atual && atual.dataMontagem <= ini && ini <= atual.dataFim && atual.dataFim <= atual.dataDesmontagem;
+  // Mantém o que ainda faz sentido com o novo início: fim/desmontagem só caem para o próprio dia se ficaram antes dele.
+  const fim = dados.dataFim ?? (atual && atual.dataFim >= ini ? atual.dataFim : ini);
+  const desmontagem = dados.dataDesmontagem ?? (atual && atual.dataDesmontagem >= fim ? atual.dataDesmontagem : fim);
+  const montagem = dados.dataMontagem ?? (atual && atual.dataMontagem <= ini ? atual.dataMontagem : ini);
   const p = {
-    dataMontagem: dados.dataMontagem ?? (cabe ? atual.dataMontagem : ini),
+    dataMontagem: montagem,
     dataInicio: ini,
-    dataFim: dados.dataFim ?? (cabe ? atual.dataFim : ini),
-    dataDesmontagem: dados.dataDesmontagem ?? (cabe ? atual.dataDesmontagem : ini),
+    dataFim: fim,
+    dataDesmontagem: desmontagem,
     dataCarga: dados.dataCarga !== undefined ? dados.dataCarga : (atual?.dataCarga ?? null),
   };
   validarOrdemDatas(p);
@@ -702,14 +705,17 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
   if (!ev) throw new NaoEncontradoError("Evento");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
-  const marcadas = await db
-    .update(eventoItens)
-    .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
-    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`))
-    .returning({ id: eventoItens.id });
-  for (const m of marcadas) {
-    await registrarHistorico(db, { eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id });
-  }
+  await db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const marcadas = await tx
+      .update(eventoItens)
+      .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`))
+      .returning({ id: eventoItens.id });
+    for (const m of marcadas) {
+      await registrarHistorico(tx, { eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id });
+    }
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -866,6 +872,13 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
     if (!linha || linha.tipo !== "PROJETO" || !linha.projetoId) throw new NaoEncontradoError("Linha de projeto");
     const snap = await snapshotBom(tx, linha.projetoId);
     if (snap.versaoId === linha.projetoVersaoId) return;
+    // Peças editadas uma a uma nesta linha seriam perdidas: quem atualiza precisa refazer os ajustes de propósito.
+    const [ajustePeca] = await tx
+      .select({ id: historico.id })
+      .from(historico)
+      .where(and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId), eq(historico.acao, "PECA_PROJETO_AJUSTADA")))
+      .limit(1);
+    if (ajustePeca) throw new DomainError("Este projeto teve peças ajustadas uma a uma neste evento. Atualizar a versão apagaria esses ajustes; se quiser mesmo, ajuste as peças de novo depois de incluir a nova versão.");
     // A linha veio de uma solicitação com peças ajustadas? Os ajustes valem também na versão nova.
     const origem = linha.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.solicitacaoItemId), columns: { ajustesBom: true } }) : null;
     await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, origem?.ajustesBom) }).where(eq(eventoItens.id, linhaId));

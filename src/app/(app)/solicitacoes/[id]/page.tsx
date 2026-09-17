@@ -194,10 +194,10 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           O rascunho continua salvo. {s.tipo === "PRE_REUNIAO" ? "Necessidades só entram com o evento em preparação." : "Alterações só entram com o evento aberto."}
         </Aviso>
       )}
-      {respondivel && s.tipo === "PRE_REUNIAO" && (
+      {ehLogistica && naAta && (
         <Aviso className="mb-[18px]">
           Estes itens já estão na ata. A logística confere e ajusta na{" "}
-          <Link href={`/eventos/${s.eventoId}/reuniao`} className="link">
+          <Link href={`/conferencia/${s.eventoId}`} className="link">
             conferência da ata
           </Link>{" "}
           do evento.

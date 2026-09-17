@@ -107,7 +107,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
           rotulo="Vai ser montado"
           valor={`${projetos.length + pecasSoltas.length + foraCatalogo.length} itens`}
           sub={`${projetos.length} ${projetos.length === 1 ? "projeto" : "projetos"} · ${unidades} unidades · ${areasEnvolvidas.length} ${areasEnvolvidas.length === 1 ? "área" : "áreas"}`}
-          href={ev.ataFechadaEm ? `/eventos/${id}/os?visao=composicao` : `/eventos/${id}/ata`}
+          href="#itens"
         />
         <Cartao
           rotulo="Ordem de serviço"
@@ -121,8 +121,8 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
         titulo="O que vai ser montado"
         sub={ev.ataFechadaEm ? "Projetos e peças que estão na OS. Clique para ver detalhes, quem pediu e o histórico." : "Projetos e peças já na ata em construção. Clique para ver detalhes e quem pediu."}
         acoes={
-          <Link href={ev.ataFechadaEm ? `/eventos/${id}/os?visao=projetos` : `/eventos/${id}/ata`} className="link text-[12.5px]">
-            Ver tudo
+          <Link href="#itens" className="link text-[12.5px]">
+            Ver a lista completa
           </Link>
         }
       >
@@ -174,6 +174,38 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
         )}
       </Section>
 
+      {/* Lista completa: é a informação principal para quem pediu, inclusive o que entrou ou mudou depois da ata. */}
+      <div id="itens" className="scroll-mt-20">
+        <Section
+          titulo={ev.ataFechadaEm ? "Todos os itens que vão para o evento" : "Todos os itens já na ata"}
+          sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Itens marcados “depois da ata” ou “ajustado” mudaram após a reunião." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}
+        >
+          {linhas.length === 0 ? (
+            <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nada na ata ainda.</p>
+          ) : (
+            <ul className="m-0 list-none p-0">
+              {[...linhas]
+                .sort((a, b) => (a.areaNome ?? "Logística").localeCompare(b.areaNome ?? "Logística", "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"))
+                .map((l) => (
+                  <li key={l.id}>
+                    <Link href={`/eventos/${id}/itens/${l.id}`} className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3 border-b border-line-row px-[18px] py-2 text-[13px] no-underline last:border-b-0 hover:bg-subtle">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-ink">{l.nome}</span>
+                        {l.posAta && <Tag tom="accent">depois da ata</Tag>}
+                        {!l.posAta && l.registro.justificativaAjuste && <Tag tom="warning">ajustado</Tag>}
+                        {l.tipo === "AVULSO" && <Tag tom="warning">fora do catálogo</Tag>}
+                      </span>
+                      <span className="truncate text-[12.5px] text-ink-3">{l.areaNome ?? "Logística"}{l.destino ? ` · ${l.destino}` : ""}</span>
+                      <span className="truncate text-[12px] text-ink-3">{l.origemLabel}</span>
+                      <span className="text-right font-mono text-[13px] font-medium text-ink">{l.quantidade}</span>
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </Section>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex flex-col gap-5">
           {ev.ataFechadaEm && (
@@ -193,7 +225,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
                 </Link>
               ))}
               {posAta.length > 8 && (
-                <Link href={`/eventos/${id}/os?visao=composicao`} className="link block px-[18px] py-2.5 text-[12.5px]">
+                <Link href="#itens" className="link block px-[18px] py-2.5 text-[12.5px]">
                   Mais {posAta.length - 8} itens
                 </Link>
               )}

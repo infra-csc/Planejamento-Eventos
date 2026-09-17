@@ -77,7 +77,7 @@ export async function buscar(usuario: UsuarioAtual, termoBruto: string): Promise
     acoes.push({ grupo: "Ações", tag: "ação", titulo: "Nova solicitação", sub: "Abrir rascunho para um evento", href: "/solicitacoes/nova", atalho: "N" });
   }
   const deHoje = reunioes.find((e) => isoSP(e.dataReuniao) === hojeISO());
-  if (deHoje) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Abrir conferência da ata de hoje", sub: `${deHoje.nome} · ${hora(deHoje.dataReuniao)}`, href: `/eventos/${deHoje.id}/reuniao` });
+  if (deHoje) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Abrir conferência da ata de hoje", sub: `${deHoje.nome} · ${hora(deHoje.dataReuniao)}`, href: `/conferencia/${deHoje.id}` });
   if (atrasadas) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Ver solicitações atrasadas", sub: `${Number(atrasadas[0]?.n ?? 0)} em atraso`, href: "/solicitacoes?filtro=ATRASADAS" });
   const acoesFiltradas = t ? acoes.filter((a) => combinaBusca(`${a.titulo} ${a.sub}`, t)) : acoes;
 

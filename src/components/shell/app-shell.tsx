@@ -282,7 +282,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         {vendoComo && (
           <div role="status" className="no-print flex items-center justify-between gap-3 border-b border-warning-border bg-warning-bg px-4 py-1.5 text-[12.5px] text-warning sm:px-5 xl:px-7">
             <span>
-              Você está vendo o app como <span className="font-semibold">{perfilTexto}</span>. Tudo o que fizer vale como administrador.
+              Você está vendo o app como <span className="font-semibold">{perfilTexto}</span>. O que fizer aqui vale como esse perfil e fica registrado no seu nome.
             </span>
             <button type="button" onClick={() => void sairVerComoAction().then(() => router.refresh())} className="shrink-0 cursor-pointer rounded-[6px] border border-warning-border bg-surface px-2.5 py-1 text-[12px] font-medium text-warning hover:brightness-95">
               Voltar a administrador

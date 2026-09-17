@@ -241,7 +241,7 @@ function Linha({
 
       <span className="flex items-center justify-end gap-1">
         {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
-        {editavel && l.tipo !== "AVULSO" && (
+        {editavel && (
           <button
             type="button"
             onClick={() => onAjustar(l)}

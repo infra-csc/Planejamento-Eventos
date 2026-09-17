@@ -20,6 +20,7 @@ export type DadosReuniaoValores = {
 /**
  * Campos da ata que a logística preenche na reunião (os mesmos da planilha de ata):
  * presentes, público esperado e a logística de carga/descarga. Congelam no fechamento.
+ * Só "presentes" é obrigatório; os demais ficam alinhados em duas colunas com rótulo curto.
  */
 export function DadosReuniaoForm({ eventoId, valores, editavel }: { eventoId: string; valores: DadosReuniaoValores; editavel: boolean }) {
   const [state, action] = useActionState(salvarDadosReuniaoAction, ESTADO_INICIAL);
@@ -28,8 +29,8 @@ export function DadosReuniaoForm({ eventoId, valores, editavel }: { eventoId: st
     if (state.ok && state !== ESTADO_INICIAL) toast("Dados da reunião salvos");
   }, [state]);
 
-  const campo = (nome: keyof DadosReuniaoValores, label: string, placeholder: string, hint?: string) => (
-    <Field label={label} htmlFor={nome} error={c?.[nome]} hint={hint} optional>
+  const campo = (nome: keyof DadosReuniaoValores, label: string, placeholder: string) => (
+    <Field label={label} htmlFor={nome} error={c?.[nome]}>
       <Input id={nome} name={nome} defaultValue={valores[nome] ?? ""} placeholder={placeholder} disabled={!editavel} />
     </Field>
   );
@@ -47,10 +48,9 @@ export function DadosReuniaoForm({ eventoId, valores, editavel }: { eventoId: st
           className="min-h-[72px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle"
         />
       </Field>
-      <Field label="Público esperado" htmlFor="publicoEsperado" error={c?.publicoEsperado} optional>
-        <Input id="publicoEsperado" name="publicoEsperado" inputMode="numeric" defaultValue={valores.publicoEsperado ?? ""} placeholder="Ex.: 11000" disabled={!editavel} className="w-[160px] font-mono" />
-      </Field>
-      <div className="grid gap-3.5 sm:grid-cols-2">
+      <p className="m-0 text-[11.5px] font-medium uppercase tracking-[0.06em] text-muted">Carga e público · opcionais</p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
+        {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
         {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
         {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 6h")}
         {campo("arenaDescarrega", "Arena descarrega", "Ex.: 09/06 às 22h")}

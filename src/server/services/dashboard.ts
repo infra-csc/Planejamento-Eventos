@@ -90,7 +90,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
         titulo: `Reunião de OS · ${e.nome}`,
         sub: e.cliente || "—",
         tipo: "reuniao",
-        href: pode(usuario, "ata.consolidar") ? `/eventos/${e.id}/reuniao` : `/eventos/${e.id}`,
+        href: pode(usuario, "ata.consolidar") ? `/conferencia/${e.id}` : `/eventos/${e.id}`,
       });
     }
     if (e.dataCarga && e.dataCarga >= hoje && e.dataCarga <= limite14) {

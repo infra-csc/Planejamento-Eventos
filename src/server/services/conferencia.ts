@@ -153,12 +153,13 @@ export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId:
     if (item && item.operacao === "ADICIONAR" && quantidade <= item.quantidadeSolicitada) {
       const status = quantidade === 0 ? "NAO_ATENDIDO" : quantidade < item.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO";
       await responderNaTransacao(tx, usuario, item.id, { status, quantidadeAtendida: quantidade, observacaoLogistica: razao }, razao, { gerarOs: false, notificar: true });
-    } else {
-      await tx
-        .update(eventoItens)
-        .set(quantidade === 0 ? { ativo: false, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao } : { quantidade, justificativaAjuste: razao })
-        .where(eq(eventoItens.id, linhaId));
     }
+    // A resposta aplica só a diferença em relação à resposta anterior; a canetinha define o valor
+    // absoluto da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
+    await tx
+      .update(eventoItens)
+      .set(quantidade === 0 ? { ativo: false, quantidade: 0, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao } : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao })
+      .where(eq(eventoItens.id, linhaId));
     if (quantidade > 0) await tx.update(eventoItens).set({ conferidoEm: agora, conferidoPorId: usuario.id }).where(and(eq(eventoItens.id, linhaId), eq(eventoItens.ativo, true)));
 
     await registrarHistorico(tx, {

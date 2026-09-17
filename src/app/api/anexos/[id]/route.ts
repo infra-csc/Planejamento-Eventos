@@ -35,7 +35,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // O navegador já tem o arquivo: responde sem ler o conteúdo do banco.
     if (req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": CACHE } });
     const a = await obterAnexo(usuario, id);
-    const nome = encodeURIComponent(a.nomeArquivo);
+    const nome = encodeURIComponent(largura && a.mime.startsWith("image/") && a.mime !== "image/svg+xml" ? a.nomeArquivo.replace(/\.[^.]+$/, "") + ".webp" : a.nomeArquivo);
     // Miniatura só para imagem: listas com dezenas de fotos deixam de baixar os originais.
     const ehImagem = a.mime.startsWith("image/") && a.mime !== "image/svg+xml";
     const corpo = largura && ehImagem ? await miniatura(a.id, new Uint8Array(a.conteudo), largura) : new Uint8Array(a.conteudo);

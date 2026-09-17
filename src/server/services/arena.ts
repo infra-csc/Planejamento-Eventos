@@ -6,6 +6,7 @@ import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { CATEGORIAS } from "@/domain/arena/categorias";
 import type { PosicaoEditada } from "@/domain/arena/posicoes";
 import { registrarHistorico } from "./support";
+import { obterArenaPorSlug } from "@/domain/arena/eco-run-sp-2026";
 
 export async function listarPosicoesArena(slug: string): Promise<PosicaoEditada[]> {
   const db = await getDb();
@@ -47,6 +48,7 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
   if (![dados.x, dados.z].every((n) => Number.isFinite(n) && Math.abs(n) <= LIMITE)) throw new ValidacaoError("Posição fora da área do mapa.");
   if (dados.tipo === "NOVO" && !dados.nome?.trim()) throw new ValidacaoError("Informe o nome do item.");
   if (dados.categoria && !(dados.categoria in CATEGORIAS)) throw new ValidacaoError("Categoria inválida.");
+  if (!obterArenaPorSlug(slug)) throw new NaoEncontradoError("Arena");
   const db = await getDb();
   const valores = {
     arenaSlug: slug,

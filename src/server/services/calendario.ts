@@ -62,7 +62,7 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
         hora: hora(e.dataReuniao),
         titulo: `Reunião de OS · ${e.nome}`,
         detalhe: e.status === "EM_REUNIAO" ? "acontecendo agora" : aberta ? "áreas enviam necessidades até aqui" : "ata fechada",
-        href: conferir && aberta ? `/eventos/${e.id}/reuniao` : `/eventos/${e.id}/ata`,
+        href: conferir && aberta ? `/conferencia/${e.id}` : `/eventos/${e.id}/ata`,
         evento,
       });
     }

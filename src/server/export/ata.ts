@@ -1,5 +1,6 @@
 import "server-only";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
+import { NaoEncontradoError } from "@/domain/errors";
 import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services/eventos";
 import type { AtaConteudo, AtaReuniao } from "@/server/db/schema";
 
@@ -22,6 +23,7 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
   const [ev, versoes] = await Promise.all([obterEvento(usuario, eventoId), listarAtaVersoes(eventoId)]);
   const base = { codigo: ev.codigo, nome: ev.nome, cliente: ev.cliente, local: ev.local, dataMontagem: ev.dataMontagem, dataInicio: ev.dataInicio, dataFim: ev.dataFim, dataDesmontagem: ev.dataDesmontagem, dataCarga: ev.dataCarga, dataReuniao: ev.dataReuniao, responsavel: ev.responsavel.nome };
   const sel = versaoPedida ? versoes.find((v) => v.numero === versaoPedida) : versoes[0];
+  if (versaoPedida && !sel) throw new NaoEncontradoError("Versão da ata");
   if (sel) {
     const c = sel.conteudo;
     return {
