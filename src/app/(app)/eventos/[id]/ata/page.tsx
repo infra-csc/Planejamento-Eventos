@@ -1,28 +1,46 @@
+import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { listarAtaVersoes, obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
-import { ListaDados, Section } from "@/components/ui/layout";
+import { cn } from "@/lib/cn";
+import { Aviso, ListaDados, Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { Tag } from "@/components/ui/badge";
+import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 
-export default async function AtaPage({ params }: { params: Promise<{ id: string }> }) {
+const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
+const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída na reunião" } as const;
+
+/**
+ * Aba Ata. Fechada, é o registro do que aconteceu na reunião: congelada, só leitura.
+ * Mudanças depois disso (alterações e ajustes) entram na OS, não na ata.
+ * Antes do fechamento, mostra a ata em construção e leva para a conferência.
+ */
+export default async function AtaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
-  const [ev, linhas, versoes, opcoes, areas] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), listarAtaVersoes(id), opcoesReferenciasResumidas(), listarAreas()]);
-  const editavel = pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO" || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
-  const congelada = versoes[0];
-  // Cabeçalho da ata (campos da planilha): da versão congelada quando existe, senão do evento em andamento.
-  const reu = congelada?.conteudo.reuniao;
+  const sp = await searchParams;
+  const ev = await obterEventoCache(usuario, id);
+  const versoes = await listarAtaVersoes(id);
+  const fechada = versoes.length > 0;
+  const emConstrucao = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
+  const congelada = versoes.find((v) => String(v.numero) === sp.v) ?? versoes[0];
+  const [linhas, opcoes, areas] = emConstrucao || !fechada ? await Promise.all([obterLinhasAta(id), opcoesReferenciasResumidas(), listarAreas()]) : [[], null, []];
+  const podeConferir = pode(usuario, "ata.consolidar") && emConstrucao;
+  const podeAjustarOs = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
+
+  const reu = fechada && !emConstrucao ? congelada?.conteudo.reuniao : undefined;
   const dadosReuniao = [
     { label: "Reunião marcada", valor: formatarDataHora(ev.dataReuniao) },
     { label: "Iniciada", valor: reu ? (reu.iniciadaEm ? formatarDataHora(reu.iniciadaEm) : "—") : ev.reuniaoIniciadaEm ? formatarDataHora(ev.reuniaoIniciadaEm) : "ainda não" },
-    { label: "Ata fechada", valor: reu ? formatarDataHora(reu.fechadaEm) : ev.ataFechadaEm ? formatarDataHora(ev.ataFechadaEm) : "ainda não", forte: true },
-    { label: "Fechada por", valor: reu?.fechadaPor ?? congelada?.fechadaPor?.nome ?? "—" },
+    { label: "Ata fechada", valor: reu ? formatarDataHora(reu.fechadaEm) : congelada && !emConstrucao ? formatarDataHora(congelada.fechadaEm) : "ainda não", forte: true },
+    { label: "Fechada por", valor: reu?.fechadaPor ?? (!emConstrucao ? congelada?.fechadaPor?.nome : null) ?? "—" },
     { label: "Conduzida por", valor: reu?.conduzidaPor || ev.responsavel.nome },
     { label: "Público esperado", valor: (reu ? reu.publicoEsperado : ev.publicoEsperado)?.toLocaleString("pt-BR") ?? "—" },
     { label: "Caminhão carrega", valor: (reu ? reu.caminhaoCarrega : ev.caminhaoCarrega) || "—" },
@@ -31,89 +49,144 @@ export default async function AtaPage({ params }: { params: Promise<{ id: string
     { label: "Kit descarrega", valor: (reu ? reu.kitDescarrega : ev.kitDescarrega) || "—" },
   ];
   const presentes = reu ? reu.presentes : ev.reuniaoPresentes;
-  const conferidasNaAta = congelada ? congelada.conteudo.linhas.filter((l) => l.conferidoPor).length : linhas.filter((l) => l.conferidoEm).length;
+  const observacoes = !emConstrucao && congelada ? congelada.conteudo.observacoes : ev.observacoesReuniao;
+  const linhasCongeladas = !emConstrucao && congelada ? congelada.conteudo.linhas : [];
+  const totalLinhas = emConstrucao || !fechada ? linhas.length : linhasCongeladas.length;
+  const conferidas = emConstrucao || !fechada ? linhas.filter((l) => l.conferidoEm).length : linhasCongeladas.filter((l) => l.conferidoPor).length;
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
-      <Section
-        titulo={ev.ataFechadaEm ? "Ata atual" : "Ata em construção"}
-        sub={ev.ataFechadaEm ? "Ata fechada mais o que foi atendido em alterações e ajustes da logística. Cada linha vira peças na OS." : "Monta-se na reunião de OS a partir das respostas. Cada linha vira peças na OS."}
-      >
-        <AtaLista
-          eventoId={id}
-          status={ev.status}
-          editavel={editavel}
-          opcoes={opcoes}
-          areas={areas.map((a) => ({ id: a.id, nome: a.nome }))}
-          linhas={linhas.map(paraView)}
-          dataReuniao={diaMesHora(ev.dataReuniao)}
-        />
-      </Section>
+      <div className="flex min-w-0 flex-col gap-3.5">
+        {!emConstrucao && fechada && versoes.length > 1 && (
+          <nav aria-label="Fechamentos da ata" className="flex flex-wrap items-center gap-1 rounded-[10px] border border-line bg-surface p-1">
+            <span className="px-2 text-[12px] text-muted">Evento reaberto · fechamentos:</span>
+            {[...versoes].reverse().map((v) => (
+              <Link
+                key={v.id}
+                href={v.numero === versoes[0].numero ? `/eventos/${id}/ata` : `/eventos/${id}/ata?v=${v.numero}`}
+                scroll={false}
+                aria-current={v.id === congelada?.id ? "page" : undefined}
+                className={cn("rounded-[7px] px-3 py-1.5 text-[13px] no-underline", v.id === congelada?.id ? "bg-dark font-medium text-white" : "text-ink-2 hover:bg-subtle")}
+              >
+                v{v.numero} · {diaMesHora(v.fechadaEm)}
+              </Link>
+            ))}
+          </nav>
+        )}
 
-      <div className="flex flex-col gap-5">
-        {editavel && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") && (
-          <Section titulo="Conferência da reunião" sub={`${conferidasNaAta} de ${linhas.length} linhas conferidas`}>
-            <div className="px-[18px] py-3.5">
-              <ButtonLink href={`/eventos/${id}/reuniao`} variant="primary" size="md" className="w-full no-underline">
-                Abrir conferência da ata
-              </ButtonLink>
-              <p className="mb-0 mt-2 text-[12px] leading-[1.5] text-muted">Tela com a ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>
+        {emConstrucao || !fechada ? (
+          <Section titulo="Ata em construção" sub="As necessidades das áreas entram aqui automaticamente. A conferência e os ajustes acontecem na reunião.">
+            <AtaLista eventoId={id} status={ev.status} editavel={false} opcoes={opcoes ?? { projetos: [], pecas: [] }} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhas.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
+          </Section>
+        ) : (
+          <Section
+            titulo={`Ata da reunião${congelada ? ` · v${congelada.numero}` : ""}`}
+            sub={`Registro do que foi decidido na reunião, fechado em ${congelada ? formatarDataHora(congelada.fechadaEm) : "—"}. Não muda: alterações e ajustes posteriores entram na OS.`}
+          >
+            {linhasCongeladas.length === 0 ? (
+              <p className="m-0 px-[18px] py-10 text-center text-[13px] text-muted">A ata foi fechada sem linhas.</p>
+            ) : (
+              <table className="w-full border-collapse">
+                <CaptionOculta>Linhas da ata congelada</CaptionOculta>
+                <thead>
+                  <tr className="bg-subtle">
+                    <Th>Item</Th>
+                    <Th largura={70} alinhar="right">
+                      Qtd.
+                    </Th>
+                    <Th largura={140}>Destino</Th>
+                    <Th largura={120}>Área</Th>
+                    <Th largura={150}>Origem</Th>
+                    <Th largura={140}>Conferido por</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhasCongeladas.map((l) => (
+                    <tr key={l.id}>
+                      <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
+                        <span className="text-[13.5px] text-ink">{l.descricao.replace(/\s*\(v\d+\)$/, "")}</span>
+                        <Tag className="ml-2" tom="muted">
+                          {TIPO[l.tipo]}
+                        </Tag>
+                        {l.codigo && (
+                          <span className="mt-px block font-mono text-[11.5px] text-muted">
+                            {l.codigo}
+                            {l.versao ? ` · v${l.versao}` : ""}
+                          </span>
+                        )}
+                      </th>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-[13px] font-medium">{l.quantidade}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.area ?? "Logística"}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12px] text-ink-3">{ORIGEM[l.origem]}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12px] text-success">{l.conferidoPor ? `✓ ${l.conferidoPor}` : <span className="text-meta">—</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="flex items-center justify-between gap-3 rounded-b-[10px] bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
+              <span>
+                {linhasCongeladas.length} {linhasCongeladas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhasCongeladas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
+              </span>
+              <span>somente leitura</span>
             </div>
           </Section>
         )}
 
-        <Section titulo="Exportar ata" sub={congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
+        {!emConstrucao && fechada && (
+          <Aviso tom="neutro" titulo="Precisa mudar algo depois da reunião?">
+            A ata não é editada. Alterações das áreas entram como solicitação{podeAjustarOs ? ", e a logística ajusta direto na OS com justificativa" : ""}. Cada mudança gera uma nova versão da OS.
+            {podeAjustarOs && (
+              <>
+                {" "}
+                <Link href={`/eventos/${id}/os?visao=composicao`} className="link">
+                  Ajustar itens da OS
+                </Link>
+                .
+              </>
+            )}
+          </Aviso>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-5">
+        {podeConferir && (
+          <Section titulo="Conferência da reunião" sub={`${conferidas} de ${totalLinhas} linhas conferidas`}>
+            <div className="px-[18px] py-3.5">
+              <ButtonLink href={`/eventos/${id}/reuniao`} variant="primary" size="md" className="w-full no-underline">
+                Abrir conferência da ata
+              </ButtonLink>
+              <p className="mb-0 mt-2 text-[12px] leading-[1.5] text-muted">A ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>
+            </div>
+          </Section>
+        )}
+
+        <Section titulo="Exportar ata" sub={!emConstrucao && congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
           <div className="flex flex-col gap-2 px-[18px] py-3.5">
-            <a href={`/api/eventos/${id}/ata/excel`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
+            <a href={`/api/eventos/${id}/ata/excel${sp.v ? `?v=${sp.v}` : ""}`} className={buttonClasses({ variant: podeConferir ? "secondary" : "primary", size: "md", className: "w-full no-underline" })}>
               Excel da ata (.xlsx)
             </a>
-            <ButtonLink href={`/impressao/ata/${id}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
+            <ButtonLink href={`/impressao/ata/${id}${sp.v ? `?v=${sp.v}` : ""}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
               Imprimir / PDF
             </ButtonLink>
-            <p className="mb-0 mt-1 text-[12px] leading-[1.5] text-muted">Cabeçalho da reunião, presentes, linhas conferidas, observações e o que cada área pediu.</p>
           </div>
         </Section>
 
-        <Section titulo="Reunião de OS" sub={congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
+        <Section titulo="Reunião de OS" sub={!emConstrucao && congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
           <ListaDados itens={dadosReuniao} />
           <div className="border-t border-line-faint px-[18px] py-3">
             <p className="m-0 text-[12px] text-muted">Pessoas presentes</p>
             <p className="mb-0 mt-1 whitespace-pre-wrap text-[13px] leading-[1.5] text-ink-2">{presentes?.trim() || <span className="text-meta">ainda não registrado</span>}</p>
           </div>
           <div className="border-t border-line-faint px-[18px] py-3 text-[12.5px] text-ink-3">
-            <span className="font-mono text-ink-2">{conferidasNaAta}</span>/{congelada ? congelada.conteudo.linhas.length : linhas.length} linhas conferidas na reunião
+            <span className="font-mono text-ink-2">{conferidas}</span>/{totalLinhas} linhas conferidas na reunião
           </div>
         </Section>
 
         <Section titulo="Observações da reunião">
-          <div className="px-[18px] py-3.5">
-            {ev.observacoesReuniao ? <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.55] text-ink-2">{ev.observacoesReuniao}</p> : <p className="m-0 text-[12.5px] text-muted">Nenhuma observação registrada.</p>}
-          </div>
+          <div className="px-[18px] py-3.5">{observacoes ? <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.55] text-ink-2">{observacoes}</p> : <p className="m-0 text-[12.5px] text-muted">Nenhuma observação registrada.</p>}</div>
         </Section>
-
-        {!ev.ataFechadaEm && (
-          <Section titulo="Prévia da OS" sub="Confira antes de fechar">
-            <div className="px-[18px] py-3.5">
-              <p className="mb-2.5 mt-0 text-[12.5px] leading-[1.5] text-ink-3">Totais por peça, por projeto e peças soltas calculados desta ata. A OS v1 é gerada no fechamento.</p>
-              <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="sm" className="no-underline">
-                Ver prévia da OS
-              </ButtonLink>
-            </div>
-          </Section>
-        )}
-
-        {congelada && (
-          <Section titulo="Ata congelada" sub={`v${congelada.numero} · ${diaMesHora(congelada.fechadaEm)}`}>
-            <div className="px-[18px] py-3.5 text-[12.5px] leading-[1.5] text-ink-3">
-              <p className="m-0">
-                Fechada por {congelada.fechadaPor?.nome ?? "—"} com <span className="font-mono text-ink-2">{congelada.conteudo.linhas.length}</span> {congelada.conteudo.linhas.length === 1 ? "linha" : "linhas"} e{" "}
-                <span className="font-mono text-ink-2">{congelada.conteudo.solicitacoesPreReuniao.length}</span> {congelada.conteudo.solicitacoesPreReuniao.length === 1 ? "solicitação pré-reunião" : "solicitações pré-reunião"}.
-              </p>
-              <p className="mb-0 mt-2">O registro original não muda mais. O que veio depois está no histórico e nas versões da OS.</p>
-              {versoes.length > 1 && <p className="mb-0 mt-2 text-meta">Evento reaberto: {versoes.length} fechamentos de ata registrados.</p>}
-            </div>
-          </Section>
-        )}
       </div>
     </div>
   );

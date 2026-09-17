@@ -6,17 +6,32 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { Aviso, Section } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 
-export type VisaoOs = "totais" | "projetos" | "individuais";
+export type VisaoOs = "totais" | "projetos" | "individuais" | "composicao";
 
 export function visaoDe(v?: string): VisaoOs {
-  return v === "projetos" || v === "individuais" ? v : "totais";
+  return v === "projetos" || v === "individuais" || v === "composicao" ? v : "totais";
 }
 
 /**
  * Três leituras da mesma OS: total por peça (carregar o caminhão), por projeto (montar) e peças soltas.
  * Serve tanto para uma versão gravada quanto para a prévia calculada da ata em construção.
  */
-export function OsVisoes({ os, visao, hrefVisao, csvHref, titulo }: { os: OsConteudo; visao: VisaoOs; hrefVisao: (v: VisaoOs) => string; csvHref?: (setor: Setor) => string; titulo: string }) {
+export function OsVisoes({
+  os,
+  visao,
+  hrefVisao,
+  csvHref,
+  titulo,
+  composicao,
+}: {
+  os: OsConteudo;
+  visao: VisaoOs;
+  hrefVisao: (v: VisaoOs) => string;
+  csvHref?: (setor: Setor) => string;
+  titulo: string;
+  /** Quarta aba: os itens que compõem a OS (onde a logística ajusta depois da ata fechada). */
+  composicao?: { n: number; conteudo: React.ReactNode };
+}) {
   return (
     <>
       <nav aria-label="Visão da OS" className="flex flex-wrap gap-1 rounded-[10px] border border-line bg-surface p-1">
@@ -25,6 +40,7 @@ export function OsVisoes({ os, visao, hrefVisao, csvHref, titulo }: { os: OsCont
             ["totais", "Totais por peça", os.setores.reduce((a, s) => a + s.linhas.length, 0)],
             ["projetos", "Por projeto", os.projetos?.length ?? 0],
             ["individuais", "Peças e itens soltos", (os.individuais?.length ?? 0) + os.semSetor.length],
+            ...(composicao ? ([["composicao", "Itens da OS · ajustar", composicao.n]] as const) : []),
           ] as const
         ).map(([chave, rotulo, n]) => (
           <Link
@@ -35,7 +51,7 @@ export function OsVisoes({ os, visao, hrefVisao, csvHref, titulo }: { os: OsCont
             className={cn("flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] no-underline", visao === chave ? "bg-dark font-medium text-white" : "text-ink-2 hover:bg-subtle")}
           >
             {rotulo}
-            <span className={cn("rounded-[4px] px-1.5 font-mono text-[11px]", visao === chave ? "bg-dark-3 text-on-dark-2" : "bg-control text-ink-3")}>{n}</span>
+            {n >= 0 && <span className={cn("rounded-[4px] px-1.5 font-mono text-[11px]", visao === chave ? "bg-dark-3 text-on-dark-2" : "bg-control text-ink-3")}>{n}</span>}
           </Link>
         ))}
       </nav>
@@ -197,7 +213,9 @@ export function OsVisoes({ os, visao, hrefVisao, csvHref, titulo }: { os: OsCont
         </div>
       )}
 
-      {visao !== "projetos" && os.semSetor.length > 0 && (
+      {visao === "composicao" && composicao?.conteudo}
+
+      {(visao === "totais" || visao === "individuais") && os.semSetor.length > 0 && (
         <Section titulo="Itens avulsos" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
           {os.semSetor.map((a, i) => (
             <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">

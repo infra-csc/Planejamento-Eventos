@@ -129,6 +129,7 @@ export function AtaLista({
   compacta = false,
   dataReuniao,
   conferivel = false,
+  contexto = "ata",
 }: {
   eventoId: string;
   status: EventoStatus;
@@ -140,6 +141,8 @@ export function AtaLista({
   dataReuniao: string;
   /** Reunião em andamento: mostra a coluna de conferência item a item. */
   conferivel?: boolean;
+  /** "os": a mesma lista usada para ajustar os itens da OS depois da ata fechada. */
+  contexto?: "ata" | "os";
 }) {
   const [incluir, setIncluir] = useState(false);
   const [conferindoTodas, iniciarTodas] = useTransition();
@@ -150,7 +153,7 @@ export function AtaLista({
 
   const botaoIncluir = editavel && (
     <button type="button" onClick={() => setIncluir(true)} className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-medium text-accent hover:underline">
-      + Incluir linha {exigeJustificativa ? "com justificativa" : "decidida na reunião"}
+      + {contexto === "os" ? "Incluir item na OS com justificativa" : `Incluir linha ${exigeJustificativa ? "com justificativa" : "decidida na reunião"}`}
     </button>
   );
 
@@ -224,7 +227,7 @@ export function AtaLista({
           </table>
           <div className="flex items-center justify-between gap-3 bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
             <span>
-              {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} na ata · <span className="font-mono">{soma}</span> unidades
+              {linhas.length} {contexto === "os" ? (linhas.length === 1 ? "item na OS" : "itens na OS") : `${linhas.length === 1 ? "linha" : "linhas"} na ata`} · <span className="font-mono">{soma}</span> unidades
               {conferivel && (
                 <>
                   {" · "}

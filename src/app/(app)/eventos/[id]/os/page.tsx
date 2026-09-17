@@ -8,6 +8,11 @@ import { ButtonLink } from "@/components/ui/button";
 import { Aviso, Section } from "@/components/ui/layout";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { OsVisoes, visaoDe } from "@/components/eventos/os-visoes";
+import { AtaLista } from "@/components/eventos/ata-lista";
+import { paraView } from "@/components/eventos/ata-view";
+import { obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
+import { listarAreas } from "@/server/services/admin";
+import { pode } from "@/domain/permissions";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
 
@@ -111,6 +116,26 @@ export default async function OsPage({ params, searchParams }: { params: Promise
 
   const paramsAtuais = { v: sp.v, base: sp.base, visao: sp.visao };
   const visao = visaoDe(sp.visao);
+  // Itens que compõem a OS: é aqui, e não na ata, que a logística ajusta depois da reunião.
+  const podeAjustar = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
+  let composicao: { n: number; conteudo: React.ReactNode } | undefined;
+  if (visao === "composicao") {
+    const [linhasOs, opcoes, areas] = await Promise.all([obterLinhasAta(id), podeAjustar ? opcoesReferenciasResumidas() : Promise.resolve({ projetos: [], pecas: [] }), podeAjustar ? listarAreas() : Promise.resolve([])]);
+    composicao = {
+      n: linhasOs.length,
+      conteudo: (
+        <Section
+          titulo="Itens que compõem a OS"
+          sub={podeAjustar ? "Ata da reunião + alterações atendidas + ajustes. Ajustar ou incluir exige justificativa, avisa a área e gera nova versão da OS. A ata não muda." : "Ata da reunião + alterações atendidas + ajustes da logística."}
+        >
+          <AtaLista eventoId={id} status={ev.status} editavel={podeAjustar} contexto="os" opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhasOs.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
+        </Section>
+      ),
+    };
+  } else {
+    // Fora desta aba não carrega a lista: a contagem aparece só quando a aba está aberta.
+    composicao = { n: -1, conteudo: null };
+  }
   const qsExport = exibida.numero !== atual.numero ? `?v=${exibida.numero}` : "";
 
   const lista: VersaoOsView[] = versoes.map((ver) => {
@@ -151,7 +176,14 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           </div>
         </section>
 
-        <OsVisoes os={os} visao={visao} titulo={`OS v${exibida.numero}`} hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, paramsAtuais, { visao: v === "totais" ? null : v })} csvHref={(setor) => `/api/os/${id}/${setor}${qsExport}`} />
+        <OsVisoes
+          os={os}
+          visao={visao}
+          titulo={`OS v${exibida.numero}`}
+          hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, paramsAtuais, { visao: v === "totais" ? null : v })}
+          csvHref={(setor) => `/api/os/${id}/${setor}${qsExport}`}
+          composicao={composicao}
+        />
       </div>
 
       <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">
