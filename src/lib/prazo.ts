@@ -4,10 +4,10 @@ import { diaMesHora, hora, isoSP } from "./format";
 export type TomPrazo = "danger" | "warning" | "neutral" | "muted";
 
 export const COR_TOM: Record<TomPrazo, string> = {
-  danger: "#a8400f",
-  warning: "#7a5f00",
-  neutral: "#4f4849",
-  muted: "#6b6263",
+  danger: "var(--color-danger)",
+  warning: "var(--color-warning)",
+  neutral: "var(--color-ink-2)",
+  muted: "var(--color-muted)",
 };
 
 export type InfoPrazo = { label: string; sub: string; tom: TomPrazo; vencido: boolean };

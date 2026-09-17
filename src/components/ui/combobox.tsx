@@ -128,7 +128,7 @@ export function ComboBox({
           ref={listaRef}
           id={`${uid}-lista`}
           role="listbox"
-          className="absolute left-0 right-0 z-30 m-0 mt-1 max-h-[320px] list-none overflow-y-auto rounded-[10px] border border-line-strong bg-surface p-1.5 shadow-[0_12px_32px_rgba(42,20,24,0.16)] animate-fade-up-rapido"
+          className="absolute left-0 right-0 z-30 m-0 mt-1 max-h-[320px] list-none overflow-y-auto rounded-cartao border border-line-strong bg-surface p-1.5 shadow-popover animate-fade-up-rapido"
         >
           {visiveis.length === 0 && <li className="px-2.5 py-3 text-center text-[12.5px] text-muted">Nada encontrado para “{busca}”.</li>}
           {visiveis.map((o, i) => (

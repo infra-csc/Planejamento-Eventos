@@ -62,11 +62,16 @@ const TOM_ITEM: Record<ItemStatus, Tom> = {
 };
 
 export const COR_ITEM: Record<ItemStatus, string> = {
-  EM_ANALISE: "#d7d2d2",
-  ATENDIDO: "#136c41",
-  PARCIAL: "#7a5f00",
-  NAO_ATENDIDO: "#a8400f",
+  EM_ANALISE: "var(--color-line-strong)",
+  ATENDIDO: "var(--color-success)",
+  PARCIAL: "var(--color-warning)",
+  NAO_ATENDIDO: "var(--color-danger)",
 };
+
+/** Contador ou versão em mono (v3, × 4, 12): um só formato para todo número pequeno em chip. */
+export function ChipMono({ children, tom = "neutral", className }: { children: React.ReactNode; tom?: Tom | "control"; className?: string }) {
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px font-mono text-rotulo leading-[1.5]", tom === "control" ? "bg-control text-ink-3" : TONS[tom], className)}>{children}</span>;
+}
 
 export function ItemStatusBadge({ status, className, naAta = false }: { status: ItemStatus; className?: string; naAta?: boolean }) {
   if (naAta && status === "ATENDIDO")

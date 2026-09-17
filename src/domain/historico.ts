@@ -5,10 +5,10 @@
 export type TipoHistorico = "marco" | "resposta" | "solicitacao" | "ajuste";
 
 export const COR_HISTORICO: Record<TipoHistorico, string> = {
-  marco: "#2a1418",
-  resposta: "#136c41",
-  solicitacao: "#8e2740",
-  ajuste: "#7a5f00",
+  marco: "var(--color-dark)",
+  resposta: "var(--color-success)",
+  solicitacao: "var(--color-accent)",
+  ajuste: "var(--color-warning)",
 };
 
 export function classificarHistorico(h: { entidade: string; acao: string; descricao: string }): { tipo: TipoHistorico; titulo: string; detalhe: string } {

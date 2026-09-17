@@ -63,22 +63,29 @@
 
   --color-accent-muted: #c9a3ad;
   --color-success-light: #7fd0a8;
+  /* Informativo (ex.: carga do caminhão no calendário) */
+  --color-info: #2f6680;
+  --color-info-bg: #e6eef2;
 
   /*
    * Papéis de tipografia, raios e sombras do handoff. Use estes nomes em código novo
    * (text-corpo, rounded-cartao, shadow-modal) em vez de valores arbitrários.
    */
+  --text-micro: 10.5px;
   --text-rotulo: 11.5px;
   --text-pequeno: 12.5px;
   --text-corpo: 13.5px;
   --text-destaque: 14.5px;
   --text-secao: 14px;
+  --text-titulo: 18px;
   --text-pagina: 24px;
+  --text-metrica: 26px;
   --radius-chip: 5px;
   --radius-controle: 8px;
   --radius-cartao: 10px;
   --radius-modal: 12px;
   --shadow-pill: 0 1px 2px rgba(42, 20, 24, 0.08);
+  --shadow-popover: 0 12px 32px rgba(42, 20, 24, 0.16);
   --shadow-modal: 0 24px 60px rgba(42, 20, 24, 0.22);
   --shadow-toast: 0 12px 32px rgba(42, 20, 24, 0.28);
 

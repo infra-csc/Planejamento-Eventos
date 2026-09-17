@@ -126,7 +126,7 @@ export default async function PainelPage() {
           <Metric
             label="Prazo vencido"
             valor={d.metricas.atrasadas}
-            cor={d.metricas.atrasadas > 0 ? "#a8400f" : "#136c41"}
+            tom={d.metricas.atrasadas > 0 ? "danger" : "success"}
             hint={d.metricas.piorAtraso ? `${d.metricas.piorAtraso.codigo} ${prazoInfo(d.metricas.piorAtraso).sub}` : "nenhuma pendência vencida"}
             href="/solicitacoes?filtro=ATRASADAS"
           />
@@ -137,7 +137,7 @@ export default async function PainelPage() {
       {d.tipo === "requisitante" && (
         <MetricStrip>
           <Metric label="Aguardando resposta" valor={d.metricas.aguardando} hint="da sua área" href="/solicitacoes?filtro=ABERTAS" />
-          <Metric label="Rascunhos e devolvidas" valor={d.metricas.rascunhos} cor={d.metricas.temDevolvida ? "#a8400f" : undefined} hint="precisam de você" href="/solicitacoes?filtro=RASCUNHO" />
+          <Metric label="Rascunhos e devolvidas" valor={d.metricas.rascunhos} tom={d.metricas.temDevolvida ? "danger" : "neutro"} hint="precisam de você" href="/solicitacoes?filtro=RASCUNHO" />
           <Metric
             label="Respondidas em 7 dias"
             valor={d.metricas.respondidas7}
