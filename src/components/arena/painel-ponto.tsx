@@ -5,7 +5,10 @@ import type { Arena, ItemAta, PontoArena } from "@/domain/arena/tipos";
 import { CATEGORIAS } from "@/domain/arena/categorias";
 import { itensNaoPosicionados } from "@/domain/arena/geometria";
 import { cn } from "@/lib/cn";
-import { IconeFechar } from "./icones";
+import { Badge, type Tom } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconeFechar } from "@/components/ui/icons";
 
 const DIRECOES = ["norte", "nordeste", "leste", "sudeste", "sul", "sudoeste", "oeste", "noroeste"];
 
@@ -21,25 +24,25 @@ function referencia(arena: Arena, p: PontoArena) {
   return `a ${Math.round(d / 5) * 5} m a ${dir} do ${arena.marco.nome}`;
 }
 
-const TOM_STATUS = {
-  ok: "bg-success-bg text-success",
-  atencao: "bg-warning-bg text-warning",
-  neutro: "bg-neutral-bg text-ink-2",
+const TOM_STATUS: Record<"ok" | "atencao" | "neutro", Tom> = {
+  ok: "success",
+  atencao: "warning",
+  neutro: "neutral",
 };
 
 const chaveAta = (i: ItemAta) => `${i.secao}|${i.item}`;
 
 function gaveta(estreito: boolean) {
   return cn(
-    "pointer-events-auto absolute z-20 flex flex-col overflow-hidden border border-line bg-surface shadow-[0_12px_32px_rgba(42,20,24,.14)] animate-fade-up-rapido",
-    estreito ? "inset-x-0 bottom-0 max-h-[62%] rounded-t-[14px]" : "bottom-3 right-3 top-[60px] w-[360px] rounded-modal",
+    "pointer-events-auto absolute z-20 flex flex-col overflow-hidden border border-line bg-surface shadow-popover animate-fade-up-rapido",
+    estreito ? "inset-x-0 bottom-0 max-h-[62%] rounded-t-modal" : "bottom-3 right-3 top-[60px] w-[360px] rounded-modal",
   );
 }
 
 function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-line-soft px-4 py-3">
-      <h3 className="m-0 mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{titulo}</h3>
+      <h3 className="m-0 mb-2 text-rotulo font-medium uppercase tracking-[0.08em] text-muted">{titulo}</h3>
       {children}
     </section>
   );
@@ -47,9 +50,9 @@ function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode
 
 function BotaoFechar({ rotulo, onClick }: { rotulo: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-label={rotulo} className="-mr-1 grid size-8 shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-ink-3 hover:bg-subtle hover:text-ink">
+    <IconButton label={rotulo} onClick={onClick} className="-mr-1">
       <IconeFechar />
-    </button>
+    </IconButton>
   );
 }
 
@@ -85,23 +88,27 @@ export function PainelPonto({
       <header className="flex items-start gap-3 px-4 pb-3 pt-3.5">
         <span aria-hidden className="mt-1 block size-3 shrink-0 rounded-full ring-4 ring-white" style={{ background: cat.cor, boxShadow: `0 0 0 1px ${cat.cor}33` }} />
         <div className="min-w-0 flex-1">
-          <p className="m-0 flex flex-wrap items-center gap-x-2 text-[12px] text-muted">
+          <p className="m-0 flex flex-wrap items-center gap-x-2 text-pequeno text-muted">
             {ponto.legenda && <span className="font-mono text-ink-2">nº {ponto.legenda}</span>}
             <span>{ponto.tipo}</span>
           </p>
-          <h2 id="ficha-titulo" className="m-0 mt-0.5 text-[18px] font-semibold leading-[1.25] tracking-[-0.015em] text-ink">
+          <h2 id="ficha-titulo" className="m-0 mt-0.5 text-titulo font-semibold leading-[1.25] tracking-[-0.015em] text-ink">
             {ponto.nome}
           </h2>
-          {ponto.status && <span className={cn("mt-2 inline-block rounded-chip px-2 py-0.5 text-[11.5px] font-medium", TOM_STATUS[ponto.status.tom])}>{ponto.status.rotulo}</span>}
+          {ponto.status && (
+            <Badge tom={TOM_STATUS[ponto.status.tom]} className="mt-2">
+              {ponto.status.rotulo}
+            </Badge>
+          )}
         </div>
         <BotaoFechar rotulo="Fechar informações" onClick={onFechar} />
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <p className="m-0 px-4 pb-3 text-[13.5px] leading-[1.55] text-ink-2">{ponto.resumo}</p>
+        <p className="m-0 px-4 pb-3 text-corpo leading-[1.55] text-ink-2">{ponto.resumo}</p>
 
         <Bloco titulo="Localização">
-          <dl className="m-0 grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+          <dl className="m-0 grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-corpo">
             <dt className="text-muted">Área</dt>
             <dd className="m-0 text-ink">{zona?.nome ?? "Entorno da arena"}</dd>
             {ref && (
@@ -117,16 +124,16 @@ export function PainelPonto({
 
         <Bloco titulo="Itens da ata">
           {ponto.itensAta.length === 0 ? (
-            <p className="m-0 text-[12.5px] text-muted">Nenhuma linha da ata corresponde a este ponto.</p>
+            <p className="m-0 text-pequeno text-muted">Nenhuma linha da ata corresponde a este ponto.</p>
           ) : (
-            <table className="w-full border-collapse text-[12.5px]">
+            <table className="w-full border-collapse text-pequeno">
               <caption className="sr-only">Itens da ata de reunião de OS</caption>
               <tbody>
                 {ponto.itensAta.map((i, k) => (
                   <tr key={k} className="align-top">
                     <th scope="row" className="border-b border-line-row py-1.5 pr-2 text-left font-normal text-ink">
                       {i.item}
-                      {(i.detalhe || i.obs) && <span className="block text-[11.5px] text-muted">{[i.detalhe, i.obs].filter(Boolean).join(" · ")}</span>}
+                      {(i.detalhe || i.obs) && <span className="block text-rotulo text-muted">{[i.detalhe, i.obs].filter(Boolean).join(" · ")}</span>}
                     </th>
                     <td className="w-14 border-b border-line-row py-1.5 text-right font-mono tabular-nums text-ink">{i.quantidade ?? "—"}</td>
                   </tr>
@@ -137,14 +144,14 @@ export function PainelPonto({
         </Bloco>
 
         <Bloco titulo="Responsável">
-          <p className="m-0 text-[13px] text-ink">{ponto.responsavel ?? <span className="text-muted">Não informado na planta nem na ata</span>}</p>
+          <p className="m-0 text-corpo text-ink">{ponto.responsavel ?? <span className="text-muted">Não informado na planta nem na ata</span>}</p>
         </Bloco>
 
         {ponto.observacoes.length > 0 && (
           <Bloco titulo="Observações">
             <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
               {ponto.observacoes.map((o, k) => (
-                <li key={k} className="relative pl-3 text-[12.5px] leading-[1.5] text-ink-2 before:absolute before:left-0 before:top-[0.6em] before:size-1 before:rounded-full before:bg-line-strong">
+                <li key={k} className="relative pl-3 text-pequeno leading-[1.5] text-ink-2 before:absolute before:left-0 before:top-[0.6em] before:size-1 before:rounded-full before:bg-line-strong">
                   {o}
                 </li>
               ))}
@@ -155,18 +162,18 @@ export function PainelPonto({
 
       <footer className="flex flex-wrap items-center gap-2 border-t border-line-soft bg-subtle px-4 py-2.5">
         {onAproximar && (
-          <button type="button" onClick={onAproximar} className="h-8 cursor-pointer whitespace-nowrap rounded-[7px] border-0 bg-accent px-3 text-[12.5px] font-medium text-white hover:bg-accent-hover">
+          <Button variant="primary" size="sm" onClick={onAproximar}>
             Aproximar
-          </button>
+          </Button>
         )}
         {divergente && (
-          <button type="button" onClick={onConferir} className="h-8 cursor-pointer whitespace-nowrap rounded-[7px] border border-warning-border bg-warning-bg px-3 text-[12.5px] font-medium text-warning hover:brightness-[0.98]">
+          <Button variant="parcial" size="sm" onClick={onConferir}>
             Conferir com a ata
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={onAbrirAta} className="h-8 cursor-pointer whitespace-nowrap rounded-[7px] border border-line-control bg-surface px-3 text-[12.5px] text-ink-2 hover:bg-subtle">
+        <Button variant="secondary" size="sm" onClick={onAbrirAta}>
           Abrir a ata
-        </button>
+        </Button>
       </footer>
     </aside>
   );
@@ -191,21 +198,21 @@ export function PainelAta({ arena, ponto, estreito, onFechar }: { arena: Arena; 
     <aside aria-labelledby="ata-titulo" className={gaveta(estreito)}>
       <header className="flex items-start gap-3 border-b border-line-soft px-4 pb-3 pt-3.5">
         <div className="min-w-0 flex-1">
-          <h2 id="ata-titulo" className="m-0 text-[16px] font-semibold text-ink">
+          <h2 id="ata-titulo" className="m-0 text-titulo font-semibold text-ink">
             Ata da reunião de OS
           </h2>
-          <p className="m-0 mt-0.5 text-[12.5px] leading-[1.45] text-muted">
+          <p className="m-0 mt-0.5 text-pequeno leading-[1.45] text-muted">
             {arena.fonte.rotuloAta} · {arena.ata.length} linhas{ponto ? ` · linhas de ${ponto.nome} em destaque` : ""}
           </p>
         </div>
         <BotaoFechar rotulo="Fechar ata" onClick={onFechar} />
       </header>
       <div ref={rolagemRef} className="relative min-h-0 flex-1 overflow-y-auto">
-        {ponto && destaque.size === 0 && <p className="m-0 border-b border-line-soft bg-subtle px-4 py-2.5 text-[12.5px] text-muted">Nenhuma linha da ata corresponde a {ponto.nome}.</p>}
+        {ponto && destaque.size === 0 && <p className="m-0 border-b border-line-soft bg-subtle px-4 py-2.5 text-pequeno text-muted">Nenhuma linha da ata corresponde a {ponto.nome}.</p>}
         {secoes.map((secao) => (
           <section key={secao} className="px-4 pb-1 pt-3">
-            <h3 className="m-0 mb-1 font-mono text-[10.5px] tracking-[0.06em] text-meta">{secao}</h3>
-            <table className="w-full border-collapse text-[12.5px]">
+            <h3 className="m-0 mb-1 font-mono text-micro tracking-[0.06em] text-meta">{secao}</h3>
+            <table className="w-full border-collapse text-pequeno">
               <caption className="sr-only">Seção {secao} da ata</caption>
               <tbody>
                 {arena.ata
@@ -216,7 +223,7 @@ export function PainelAta({ arena, ponto, estreito, onFechar }: { arena: Arena; 
                       <tr key={chaveAta(i)} ref={i === primeira ? primeiraRef : undefined} className={cn("align-top", marcado && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")} aria-current={marcado ? "true" : undefined}>
                         <th scope="row" className={cn("border-b border-line-row py-1.5 pl-2 pr-2 text-left font-normal", marcado ? "font-medium text-ink" : "text-ink-2")}>
                           {i.item}
-                          {(i.detalhe || i.obs) && <span className="block text-[11px] font-normal text-muted">{[i.detalhe, i.obs].filter(Boolean).join(" · ")}</span>}
+                          {(i.detalhe || i.obs) && <span className="block text-rotulo font-normal text-muted">{[i.detalhe, i.obs].filter(Boolean).join(" · ")}</span>}
                         </th>
                         <td className="w-16 border-b border-line-row py-1.5 pr-2 text-right font-mono tabular-nums text-ink">{i.quantidade ?? "—"}</td>
                       </tr>
@@ -248,17 +255,15 @@ export function PainelSemPosicao({
 }) {
   const botaoPosicionar = (item: PosicionarItem) =>
     edicao ? (
-      <button
-        type="button"
+      <Button
+        size="xs"
+        variant="secondary"
         onClick={() => edicao.onPosicionar(item)}
         aria-pressed={edicao.colocando === item.chave}
-        className={cn(
-          "h-7 shrink-0 cursor-pointer rounded-[6px] border px-2 text-[11.5px] font-medium",
-          edicao.colocando === item.chave ? "border-accent bg-accent text-white" : "border-line bg-surface text-accent hover:border-accent",
-        )}
+        className="shrink-0 hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
       >
         {edicao.colocando === item.chave ? "Clique no mapa" : "Posicionar"}
-      </button>
+      </Button>
     ) : null;
   const fora = itensNaoPosicionados(arena);
   const porSecao = new Map<string, ItemAta[]>();
@@ -267,27 +272,27 @@ export function PainelSemPosicao({
     <aside aria-labelledby="sem-posicao-titulo" className={gaveta(estreito)}>
       <header className="flex items-start gap-3 border-b border-line-soft px-4 pb-3 pt-3.5">
         <div className="min-w-0 flex-1">
-          <h2 id="sem-posicao-titulo" className="m-0 text-[16px] font-semibold text-ink">
+          <h2 id="sem-posicao-titulo" className="m-0 text-titulo font-semibold text-ink">
             Sem posição no mapa
           </h2>
-          <p className="m-0 mt-[3px] text-[12.5px] leading-[1.45] text-muted">Citado na ata ou na legenda da planta, sem lugar desenhado. Nada some do sistema por não ter coordenada.</p>
+          <p className="m-0 mt-[3px] text-pequeno leading-[1.45] text-muted">Citado na ata ou na legenda da planta, sem lugar desenhado. Nada some do sistema por não ter coordenada.</p>
         </div>
         <BotaoFechar rotulo="Fechar" onClick={onFechar} />
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {(arena.semPosicaoNaPlanta.length > 0 || arena.contagensDaPlanta.length > 0) && (
           <section className="border-b border-line-soft px-4 py-3">
-            <h3 className="m-0 mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Na legenda da planta</h3>
+            <h3 className="m-0 mb-2 text-rotulo font-medium uppercase tracking-[0.08em] text-muted">Na legenda da planta</h3>
             {arena.semPosicaoNaPlanta.map((s) => (
               <div key={s.item} className="mb-2 flex items-start gap-2">
-                <p className="m-0 min-w-0 flex-1 text-[12.5px] leading-[1.5] text-ink-2">
+                <p className="m-0 min-w-0 flex-1 text-pequeno leading-[1.5] text-ink-2">
                   <span className="font-medium text-ink">{s.item}.</span> {s.motivo}
                 </p>
                 {botaoPosicionar({ chave: `novo:planta:${s.item}`, nome: s.item, itemAta: null })}
               </div>
             ))}
             {arena.contagensDaPlanta.map((c) => (
-              <p key={c.item} className="m-0 flex justify-between gap-3 border-b border-line-row py-[5px] text-[12.5px] text-ink-2">
+              <p key={c.item} className="m-0 flex justify-between gap-3 border-b border-line-row py-[5px] text-pequeno text-ink-2">
                 <span>{c.item}</span>
                 <span className="font-mono tabular-nums text-ink">{c.quantidade}</span>
               </p>
@@ -295,14 +300,14 @@ export function PainelSemPosicao({
           </section>
         )}
         <section className="px-4 py-3">
-          <h3 className="m-0 mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Linhas da ata sem ponto</h3>
-          <p className="m-0 mb-2.5 text-[12px] leading-[1.45] text-muted">
+          <h3 className="m-0 mb-1 text-rotulo font-medium uppercase tracking-[0.08em] text-muted">Linhas da ata sem ponto</h3>
+          <p className="m-0 mb-2.5 text-pequeno leading-[1.45] text-muted">
             {fora.length} de {arena.ata.length} linhas da ata não têm ponto correspondente. Material de consumo e itens distribuídos pelo percurso entram aqui.
           </p>
           {[...porSecao].map(([secao, itens]) => (
             <div key={secao} className="mb-2.5">
-              <p className="m-0 mb-[3px] font-mono text-[10.5px] tracking-[0.06em] text-meta">{secao}</p>
-              <table className="w-full border-collapse text-[12.5px]">
+              <p className="m-0 mb-[3px] font-mono text-micro tracking-[0.06em] text-meta">{secao}</p>
+              <table className="w-full border-collapse text-pequeno">
                 <caption className="sr-only">Linhas da seção {secao} sem ponto no mapa</caption>
                 <tbody>
                   {itens.map((i) => (

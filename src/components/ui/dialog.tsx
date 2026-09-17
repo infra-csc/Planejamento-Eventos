@@ -39,8 +39,8 @@ export function DialogContent({
         style={{ width: `min(${w}px, 94vw)` }}
       >
         <div className="border-b border-line-soft px-5 py-4">
-          <DialogPrimitive.Title className="m-0 text-[16px] font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
-          <DialogPrimitive.Description className={description ? "mt-[3px] text-[12.5px] text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
+          <DialogPrimitive.Title className="m-0 text-titulo font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Description className={description ? "mt-[3px] text-pequeno text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">{children}</div>
       </DialogPrimitive.Content>

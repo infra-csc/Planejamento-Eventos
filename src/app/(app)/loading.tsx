@@ -4,21 +4,21 @@ import { Skeleton } from "@/components/ui/layout";
 export default function Loading() {
   return (
     <div aria-busy="true" aria-label="Carregando">
-      <div className="mb-[22px]">
+      <div className="mb-[18px]">
         <Skeleton className="h-3.5 w-40" />
         <Skeleton className="mt-2.5 h-6 w-64" />
         <Skeleton className="mt-2.5 h-4 w-[420px]" />
       </div>
-      <div className="mb-5 grid grid-cols-4 overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-line bg-line lg:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="border-r border-line-soft px-[18px] py-4 last:border-r-0">
+          <div key={i} className="bg-surface px-[18px] py-4">
             <Skeleton className="h-3 w-28" />
             <Skeleton className="mt-3 h-7 w-12" />
             <Skeleton className="mt-2.5 h-3 w-24" />
           </div>
         ))}
       </div>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="border-b border-line-soft px-[18px] py-3.5">
           <Skeleton className="h-4 w-44" />
         </div>

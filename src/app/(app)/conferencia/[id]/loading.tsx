@@ -8,13 +8,13 @@ export default function Loading() {
         <Skeleton className="h-3.5 w-64" />
         <Skeleton className="mt-2.5 h-7 w-[420px]" />
       </div>
-      <div className="rounded-[10px] bg-dark px-[22px] py-[18px]">
+      <div className="rounded-cartao bg-dark px-[22px] py-[18px]">
         <Skeleton className="h-4 w-72 bg-dark-3" />
         <Skeleton className="mt-2.5 h-3.5 w-[460px] bg-dark-3" />
         <Skeleton className="mt-4 h-1.5 w-[360px] bg-dark-3" />
       </div>
       <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_380px] 2xl:items-start">
-        <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+        <div className="overflow-hidden rounded-cartao border border-line bg-surface">
           <div className="border-b border-line-soft px-[18px] py-3.5">
             <Skeleton className="h-4 w-56" />
             <Skeleton className="mt-2 h-3 w-80" />
@@ -29,7 +29,7 @@ export default function Loading() {
             </div>
           ))}
         </div>
-        <div className="rounded-[10px] border border-line bg-surface px-[18px] py-3.5">
+        <div className="rounded-cartao border border-line bg-surface px-[18px] py-3.5">
           <Skeleton className="h-3.5 w-40" />
           <Skeleton className="mt-3 h-[72px] w-full" />
           <div className="mt-3 grid grid-cols-2 gap-3">

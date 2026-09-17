@@ -8,7 +8,7 @@ import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { hrefCom, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/layout";
+import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -91,19 +91,19 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         />
       </div>
 
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         {pag.total === 0 ? (
-          <div className="px-[18px] py-14 text-center">
-            <p className="m-0 text-[14px] font-medium">{vazio[0]}</p>
-            <p className="mt-[5px] text-[13px] text-muted">{vazio[1]}</p>
-            {filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 && (
-              <p className="mb-0 mt-2 text-[13px]">
-                <Link href="/solicitacoes?filtro=RASCUNHO" className="link">
+          <EmptyState
+            title={vazio[0]}
+            description={vazio[1]}
+            action={
+              filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 ? (
+                <Link href="/solicitacoes?filtro=RASCUNHO" className="link text-corpo">
                   Você tem {pag.contagens.RASCUNHO} {pag.contagens.RASCUNHO === 1 ? "rascunho ou devolvida" : "rascunhos ou devolvidas"} esperando você
                 </Link>
-              </p>
-            )}
-          </div>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             <table className="w-full border-collapse">
@@ -122,29 +122,29 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                   const pi = prazoInfo(s, agora);
                   return (
                     <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                      <td className="border-b border-line-row px-[18px] py-3 font-mono text-[12.5px] font-medium text-ink">{s.codigo}</td>
+                      <td className="border-b border-line-row px-[18px] py-3 font-mono text-pequeno font-medium text-ink">{s.codigo}</td>
                       <th scope="row" className="border-b border-line-row px-2.5 py-3 text-left font-normal">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-[13.5px] text-ink">{s.titulo || "sem título"}</span>
+                          <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
                           <TipoSolicitacaoTag tipo={s.tipo} />
                           {s.foraDaJanela && <ForaJanelaTag />}
                         </span>
-                        <span className="mt-0.5 block text-[12px] text-muted">
+                        <span className="mt-0.5 block text-pequeno text-muted">
                           {s.area.nome} · {s.evento.nome} · {s.criadoPor.nome}
                         </span>
                       </th>
-                      <td className="border-b border-line-row px-2.5 py-3 font-mono text-[12.5px] text-ink-3">
+                      <td className="border-b border-line-row px-2.5 py-3 font-mono text-pequeno text-ink-3">
                         {s.itensRespondidos}/{s.totalItens}
                       </td>
                       <td className="border-b border-line-row px-2.5 py-3">
                         <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                       </td>
                       <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
-                        <span className="flex items-center justify-end gap-1.5 font-mono text-[12.5px] font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                        <span className="flex items-center justify-end gap-1.5 font-mono text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                           {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
                           {pi.label}
                         </span>
-                        <span className="block text-[11.5px] text-meta">{pi.sub}</span>
+                        <span className="block text-rotulo text-meta">{pi.sub}</span>
                       </td>
                     </LinhaLink>
                   );

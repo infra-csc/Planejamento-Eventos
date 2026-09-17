@@ -5,6 +5,10 @@ import { cn } from "@/lib/cn";
 import type { ItemOperacao, ItemStatus } from "@/server/db/schema";
 import { Button } from "@/components/ui/button";
 import { COR_ITEM, ItemStatusBadge } from "@/components/ui/badge";
+import { Pills } from "@/components/ui/pills";
+import { Stepper } from "@/components/ui/stepper";
+import { Checkbox, Input } from "@/components/ui/field";
+import { Kbd, Marcador } from "@/components/ui/layout";
 import { toast, toastErro } from "@/components/ui/toast";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
@@ -200,42 +204,19 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const opcoes: Array<[Exclude<ItemStatus, "EM_ANALISE">, string]> = item.operacao === "REMOVER" ? [["ATENDIDO", "Atendido"], ["NAO_ATENDIDO", "Não atendido"]] : [["ATENDIDO", "Atendido"], ["PARCIAL", "Parcial"], ["NAO_ATENDIDO", "Não atendido"]];
 
   return (
-    <div className="ml-[19px] mt-2.5 rounded-[9px] border border-line bg-subtle p-3" onClick={(e) => e.stopPropagation()}>
-      {corrigir && (
-        <div className="mb-2.5 flex w-fit gap-1 rounded-lg bg-control p-[3px]" role="radiogroup" aria-label="Nova resposta">
-          {opcoes.map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={status === v}
-              onClick={() => setStatus(v)}
-              className={cn("h-7 cursor-pointer rounded-[7px] border-0 px-2.5 text-[12.5px]", status === v ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(42,20,24,.08)]" : "bg-transparent text-ink-3")}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="ml-[19px] mt-2.5 rounded-cartao border border-line bg-subtle p-3" onClick={(e) => e.stopPropagation()}>
+      {corrigir && <Pills className="mb-2.5" rotulo="Nova resposta" itens={opcoes.map(([v, label]) => ({ label, ativo: status === v, onSelect: () => setStatus(v) }))} />}
       {status === "PARCIAL" && (
         <div className="mb-[9px] flex items-center gap-2.5">
-          <label htmlFor={`qtd-${item.id}`} className="text-[12.5px] text-ink-2">
+          <label htmlFor={`qtd-${item.id}`} className="text-pequeno text-ink-2">
             Quantidade atendida
           </label>
-          <input
-            id={`qtd-${item.id}`}
-            type="number"
-            min={1}
-            max={item.quantidadeSolicitada - 1}
-            value={qtd}
-            onChange={(e) => setQtd(Number(e.target.value))}
-            className="h-[30px] w-[76px] rounded-[7px] border border-line-control bg-surface px-[9px] font-mono text-[13px] focus:border-accent focus:outline-none"
-          />
-          <span className="text-[12.5px] text-muted">de {item.quantidadeSolicitada}</span>
+          <Stepper id={`qtd-${item.id}`} tamanho="sm" min={1} max={item.quantidadeSolicitada - 1} valor={qtd} onChange={setQtd} />
+          <span className="text-pequeno text-muted">de {item.quantidadeSolicitada}</span>
         </div>
       )}
       {status !== "ATENDIDO" || corrigir ? (
-        <input
+        <Input
           autoFocus
           value={obs}
           onChange={(e) => setObs(e.target.value)}
@@ -247,26 +228,17 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           }}
           aria-label="Motivo"
           placeholder={status === "ATENDIDO" ? "Observação (opcional)" : "Motivo — obrigatório em parcial e não atendido"}
-          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-control bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
+          className="mb-[9px]"
         />
       ) : null}
-      {corrigir && (
-        <input
-          value={justificativa}
-          onChange={(e) => setJustificativa(e.target.value)}
-          aria-label="Justificativa da correção"
-          placeholder="Por que a resposta está sendo corrigida — fica no histórico"
-          className="mb-[9px] h-8 w-full rounded-[7px] border border-line-control bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none"
-        />
-      )}
+      {corrigir && <Input value={justificativa} onChange={(e) => setJustificativa(e.target.value)} aria-label="Justificativa da correção" placeholder="Por que a resposta está sendo corrigida — fica no histórico" className="mb-[9px]" />}
       {status !== "ATENDIDO" && (
-        <label className="mb-2.5 flex items-center gap-2 text-[12.5px] text-ink-2">
-          <input type="checkbox" checked={pendencia} onChange={(e) => setPendencia(e.target.checked)} className="size-[15px] accent-accent" />
-          Gerar pendência de compra ou locação
-        </label>
+        <div className="mb-2.5">
+          <Checkbox id={`pendencia-${item.id}`} label="Gerar pendência de compra ou locação" checked={pendencia} onChange={setPendencia} />
+        </div>
       )}
       {erro && (
-        <p role="alert" className="mb-2.5 mt-0 text-[12px] text-danger">
+        <p role="alert" className="mb-2.5 mt-0 text-pequeno text-danger">
           {erro}
         </p>
       )}
@@ -302,15 +274,15 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
       onFocus={(e) => {
         if (e.target === e.currentTarget) setFoco(item.id);
       }}
-      className={cn("cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
+      className={cn("relative cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent")}
     >
       <div className="flex items-start gap-3">
-        <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: naAta ? "var(--color-accent)" : COR_ITEM[item.status] }} />
+        <Marcador cor={naAta ? "var(--color-accent)" : COR_ITEM[item.status]} />
         <div className="min-w-0 flex-1">
-          <p className="m-0 text-[13.5px] text-ink">
+          <p className="m-0 text-corpo text-ink">
             {item.descricao} <span className="text-muted">{textoQuantidade(item)}</span>
           </p>
-          <p className="mt-0.5 text-[12px] text-muted">{contexto}</p>
+          <p className="mt-0.5 text-pequeno text-muted">{contexto}</p>
         </div>
         {!semStatus && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
       </div>
@@ -356,21 +328,21 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
       {editando && <PainelEdicao key={`${editando.id}-${editando.modo}`} item={item} modo={editando.modo} />}
 
       {!emAnalise && !editando && (
-        <div className="ml-[19px] mt-2 flex items-baseline gap-2 text-[12.5px] text-ink-2">
+        <div className="ml-[19px] mt-2 flex items-baseline gap-2 text-pequeno text-ink-2">
           <span className="font-mono font-medium">{naAta ? `× ${item.quantidadeSolicitada} na ata` : resultado(item)}</span>
           <span className="min-w-0 flex-1 text-ink-3">{observacao}</span>
           {item.corrigivel && (
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="xs"
               onClick={(e) => {
                 e.stopPropagation();
                 setFoco(item.id);
                 setEdicao({ id: item.id, modo: "CORRIGIR" });
               }}
-              className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-accent hover:underline"
             >
               {naAta ? "Ajustar" : "Corrigir"}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -381,10 +353,10 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
 export function DicaAtalhos() {
   return (
     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-      <span className="text-[11.5px] text-meta">atalhos com um item selecionado:</span>
+      <span className="text-rotulo text-meta">atalhos com um item selecionado:</span>
       {([["A", "atender"], ["P", "parcial"], ["N", "não atender"]] as const).map(([k, o]) => (
-        <span key={k} className="flex items-center gap-1 text-[11.5px] text-meta">
-          <kbd className="rounded-[4px] bg-control px-1.5 py-px font-mono text-[11px] text-ink-2">{k}</kbd>
+        <span key={k} className="flex items-center gap-1 text-rotulo text-meta">
+          <Kbd>{k}</Kbd>
           {o}
         </span>
       ))}

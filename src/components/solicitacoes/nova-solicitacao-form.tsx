@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { Aviso } from "@/components/ui/layout";
+import { Aviso, EmptyState } from "@/components/ui/layout";
+import { Badge, Tag } from "@/components/ui/badge";
+import { TabsControladas } from "@/components/ui/tabs-nav";
+import { Stepper } from "@/components/ui/stepper";
+import { Field, Input, Label, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { hora } from "@/lib/format";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
@@ -36,18 +40,17 @@ type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?
 type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 type Modo = "projeto" | "peca" | "avulso" | "ata";
 
-const campo = "h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none";
 let seq = 0;
 const novaChave = () => `n${Date.now()}-${seq++}`;
 
 function Passo({ n, titulo, sub, children }: { n: number; titulo: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[10px] border border-line bg-surface">
-      <div className="flex items-start gap-3 rounded-t-[10px] border-b border-line-soft px-[18px] py-3.5">
-        <span className="flex size-[22px] shrink-0 items-center justify-center rounded-[6px] bg-dark font-mono text-[11.5px] text-accent-light">{n}</span>
+    <section className="rounded-cartao border border-line bg-surface">
+      <div className="flex items-start gap-3 rounded-t-cartao border-b border-line-soft px-[18px] py-3.5">
+        <span className="flex size-[22px] shrink-0 items-center justify-center rounded-controle bg-dark font-mono text-rotulo text-accent-light">{n}</span>
         <div>
-          <h2 className="m-0 text-[14px] font-semibold">{titulo}</h2>
-          {sub && <p className="mb-0 mt-0.5 text-[12.5px] text-muted">{sub}</p>}
+          <h2 className="m-0 text-secao font-semibold">{titulo}</h2>
+          {sub && <p className="mb-0 mt-0.5 text-pequeno text-muted">{sub}</p>}
         </div>
       </div>
       {children}
@@ -374,19 +377,14 @@ export function NovaSolicitacaoForm({
       <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
         {areas && (
           <div className="border-b border-line-soft px-[18px] py-3.5">
-            <label htmlFor="area-solicitante" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Área solicitante <span className="font-normal text-muted">você está pedindo como administrador</span>
-            </label>
+            <Label htmlFor="area-solicitante">
+              Área solicitante <span className="text-muted">você está pedindo como administrador</span>
+            </Label>
             <Select id="area-solicitante" value={areaId ?? ""} disabled={Boolean(rascunho)} onValueChange={(v) => setAreaId(v || null)} invalid={tentouEnviar && !areaId} placeholder="Selecione a área" className="max-w-[320px]" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
           </div>
         )}
         {eventos.length === 0 ? (
-          <div className="px-[18px] py-8 text-center">
-            <p className="m-0 text-[13px] font-medium text-ink">Nenhum evento aceitando solicitações agora.</p>
-            <p className="mb-0 mt-1 text-[12.5px] text-muted">
-              Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece.
-            </p>
-          </div>
+          <EmptyState compact title="Nenhum evento aceitando solicitações agora." description="Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece." />
         ) : (
           <div className="flex flex-col gap-3 p-[18px]">
             <ComboBox
@@ -409,14 +407,12 @@ export function NovaSolicitacaoForm({
               }))}
             />
             {evento && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[9px] border border-accent-border bg-selected px-3.5 py-2.5 text-[12.5px]">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-cartao border border-accent-border bg-selected px-3.5 py-2.5 text-pequeno">
                 <span className="font-medium text-ink">{evento.nome}</span>
                 <span className="text-muted">
                   <span className="font-mono">{evento.codigo}</span> · {evento.cliente} · <span className="font-mono">{evento.periodo}</span> · {evento.marco}
                 </span>
-                <span className={cn("rounded-[5px] px-2 py-0.5 text-[11px] font-medium", ehAlteracao ? "bg-warning-bg text-warning" : "bg-accent-bg text-accent")}>
-                  {ehAlteracao ? "ata fechada · aceita alterações" : "aceita pedidos até a reunião"}
-                </span>
+                <Badge tom={ehAlteracao ? "warning" : "accent"}>{ehAlteracao ? "ata fechada · aceita alterações" : "aceita pedidos até a reunião"}</Badge>
                 {rascunho && <span className="text-meta">para trocar de evento, exclua este rascunho e crie outro</span>}
               </div>
             )}
@@ -426,70 +422,48 @@ export function NovaSolicitacaoForm({
 
       <Passo n={2} titulo="Itens" sub={!evento ? "Já pode montar a lista. Antes de enviar, escolha o evento no passo 1." : ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}>
         {itens.length === 0 ? (
-          <div className={cn("mx-3.5 mt-3.5 rounded-[9px] border border-dashed px-4 py-6 text-center", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
-            <p className="m-0 text-[13px] font-medium text-ink">Nenhum item ainda</p>
-            <p className="mb-0 mt-1 text-[12.5px] text-muted">Busque abaixo e use “Adicionar”. Cada item recebe resposta separada da logística.</p>
+          <div className={cn("mx-3.5 mt-3.5 rounded-cartao border border-dashed", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
+            <EmptyState compact title="Nenhum item ainda" description="Busque abaixo e use “Adicionar”. Cada item recebe resposta separada da logística." />
           </div>
         ) : (
           <div className="border-b border-line-soft">
             {itens.map((i) => (
               <div key={i.chave} className="border-b border-line-row last:border-b-0">
               <div className="flex flex-wrap items-center gap-3 px-[18px] py-2.5">
-                {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-9 w-12 shrink-0 overflow-hidden rounded-[5px] border border-line" />}
+                {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-ink">{i.rotulo}</span>
-                  <span className="block text-[11.5px] text-muted">
-                    {i.meta}
-                    {resumoAjustes(i) && <span className="text-accent"> · {resumoAjustes(i)}</span>}
+                  <span className="block truncate text-corpo text-ink">{i.rotulo}</span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-rotulo text-muted">
+                    <Tag>{i.meta}</Tag>
+                    {resumoAjustes(i) && <span className="text-accent">{resumoAjustes(i)}</span>}
                   </span>
                 </span>
                 {i.projetoId && bomDe(i).length > 0 && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="xs"
                     onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))}
                     aria-expanded={ajustando === i.chave}
-                    className={cn("cursor-pointer rounded-[7px] border px-2.5 py-1 text-[12px]", ajustando === i.chave ? "border-accent bg-accent-bg text-accent" : "border-line-strong bg-surface text-ink-2 hover:bg-subtle")}
+                    className={cn(ajustando === i.chave && "border-accent bg-accent-bg text-accent")}
                   >
                     {ajustando === i.chave ? "Fechar peças" : "Ajustar peças"}
-                  </button>
+                  </Button>
                 )}
-                <input
-                  aria-label={`Destino de ${i.rotulo}`}
-                  value={i.destino}
-                  onChange={(e) => mudar(i.chave, { destino: e.target.value })}
-                  placeholder="Onde vai ficar"
-                  maxLength={60}
-                  className="h-8 w-[130px] rounded-[7px] border border-line-control bg-surface px-2.5 text-[12.5px] focus:border-accent focus:outline-none"
-                />
+                <Input aria-label={`Destino de ${i.rotulo}`} value={i.destino} onChange={(e) => mudar(i.chave, { destino: e.target.value })} placeholder="Onde vai ficar" maxLength={60} className="w-[130px]" />
                 {i.operacao === "REMOVER" ? (
-                  <span className="w-[112px] text-center text-[12px] font-medium text-danger">remover da ata</span>
+                  <span className="w-[112px] text-center text-pequeno font-medium text-danger">remover da ata</span>
                 ) : (
-                  <span className="flex w-[112px] items-center">
-                    <button type="button" aria-label="Diminuir" onClick={() => mudar(i.chave, { quantidade: Math.max(i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1, i.quantidade - 1) })} className="h-8 w-8 cursor-pointer rounded-l-[7px] border border-line-strong bg-subtle text-[14px] text-ink-2 hover:bg-control">
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      aria-label={`Quantidade de ${i.rotulo}`}
-                      min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1}
-                      value={i.quantidade}
-                      onChange={(e) => mudar(i.chave, { quantidade: Math.max(0, Number(e.target.value) || 0) })}
-                      className="h-8 w-12 border-y border-line-control bg-surface text-center font-mono text-[13px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button type="button" aria-label="Aumentar" onClick={() => mudar(i.chave, { quantidade: i.quantidade + 1 })} className="h-8 w-8 cursor-pointer rounded-r-[7px] border border-line-strong bg-subtle text-[14px] text-ink-2 hover:bg-control">
-                      +
-                    </button>
-                  </span>
+                  <Stepper tamanho="sm" valor={i.quantidade} min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1} onChange={(v) => mudar(i.chave, { quantidade: v })} label={`Quantidade de ${i.rotulo}`} />
                 )}
-                <button type="button" onClick={() => setItens((l) => l.filter((x) => x.chave !== i.chave))} className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-ink-3 hover:text-danger">
+                <Button variant="link" size="xs" onClick={() => setItens((l) => l.filter((x) => x.chave !== i.chave))}>
                   Remover
-                </button>
+                </Button>
               </div>
               {ajustando === i.chave && (
                 <div className="border-t border-line-faint bg-subtle/60 px-[18px] pb-3 pt-2.5">
                   <div className="mb-2 flex items-start gap-3">
-                    {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-[72px] w-24 shrink-0 overflow-hidden rounded-[7px] border border-line" />}
-                    <p className="m-0 text-[12px] text-muted">
+                    {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-[72px] w-24 shrink-0 overflow-hidden rounded-controle border border-line" />}
+                    <p className="m-0 text-pequeno text-muted">
                       Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
                       {capaDe(i) && <span className="block text-meta">Clique na imagem para ver o desenho em tamanho grande.</span>}
                     </p>
@@ -502,27 +476,12 @@ export function NovaSolicitacaoForm({
                       return (
                         <div key={b.pecaId} className="flex items-center gap-2 py-1">
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[12.5px] text-ink">{b.nome}</span>
-                            <span className="block font-mono text-[11px] text-meta">
+                            <span className="block truncate text-pequeno text-ink">{b.nome}</span>
+                            <span className="block font-mono text-rotulo text-meta">
                               {b.codigo} · padrão {b.quantidade} {b.unidade}
                             </span>
                           </span>
-                          <span className="flex items-center">
-                            <button type="button" aria-label={`Menos ${b.nome}`} onClick={() => definir(pedir - 1)} className="h-7 w-7 cursor-pointer rounded-l-[6px] border border-line-strong bg-surface text-[13px] text-ink-2 hover:bg-control">
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              aria-label={`Quantidade de ${b.nome}`}
-                              min={0}
-                              value={pedir}
-                              onChange={(e) => definir(Number(e.target.value) || 0)}
-                              className={cn("h-7 w-12 border-y border-line-control bg-surface text-center font-mono text-[12.5px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none", delta !== 0 && "text-accent")}
-                            />
-                            <button type="button" aria-label={`Mais ${b.nome}`} onClick={() => definir(pedir + 1)} className="h-7 w-7 cursor-pointer rounded-r-[6px] border border-line-strong bg-surface text-[13px] text-ink-2 hover:bg-control">
-                              +
-                            </button>
-                          </span>
+                          <Stepper tamanho="sm" valor={pedir} min={0} onChange={definir} label={`Quantidade de ${b.nome}`} className={cn(delta !== 0 && "border-accent")} />
                         </div>
                       );
                     })}
@@ -535,27 +494,21 @@ export function NovaSolicitacaoForm({
         )}
 
         <div className="p-3.5">
-          <div className="mb-2.5 flex flex-wrap gap-1 border-b border-line">
-            {abas.map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setModo(m);
-                  setBusca("");
-                }}
-                aria-pressed={modo === m}
-                className={cn("-mb-px cursor-pointer border-0 border-b-2 bg-transparent px-2.5 py-2 text-[13px]", modo === m ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink")}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <TabsControladas
+            compacta
+            rotulo="Tipo de item"
+            abas={abas.map(([chave, label]) => ({ chave, label }))}
+            valor={modo}
+            onChange={(m) => {
+              setModo(m);
+              setBusca("");
+            }}
+          />
 
           {modo === "avulso" ? (
             <div>
               <div className="flex gap-2">
-                <input
+                <Input
                   aria-label="Descrição do item fora do catálogo"
                   value={avulso}
                   onChange={(e) => setAvulso(e.target.value)}
@@ -568,20 +521,19 @@ export function NovaSolicitacaoForm({
                   placeholder="Ex.: Fechamento lateral de tenda 10×10"
                   maxLength={160}
                   aria-invalid={Boolean(erroAvulso)}
-                  className={cn(campo, "aria-[invalid=true]:border-danger-input")}
                 />
                 <Button variant="secondary" size="md" onClick={adicionarAvulso}>
                   Adicionar
                 </Button>
               </div>
-              {erroAvulso && <p className="mb-0 mt-1.5 text-[12px] text-danger">{erroAvulso}</p>}
-              <p className="mb-0 mt-2 text-[12px] text-muted">Um item descrito à mão não soma peças na OS automaticamente; a logística separa manualmente.</p>
+              {erroAvulso && <p className="mb-0 mt-1.5 text-pequeno text-danger">{erroAvulso}</p>}
+              <p className="mb-0 mt-2 text-pequeno text-muted">Um item descrito à mão não soma peças na OS automaticamente; a logística separa manualmente.</p>
             </div>
           ) : (
             <>
-              <input aria-label="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} className={campo} />
+              <Input aria-label="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} />
               {modo !== "ata" && (
-                <p className="mb-0 mt-2 text-[12px] text-muted">
+                <p className="mb-0 mt-2 text-pequeno text-muted">
                   {resultados.length} {modo === "projeto" ? (resultados.length === 1 ? "projeto" : "projetos") : resultados.length === 1 ? "peça" : "peças"}
                   {busca.trim() ? ` para “${busca.trim()}”` : " no catálogo"}
                 </p>
@@ -592,35 +544,25 @@ export function NovaSolicitacaoForm({
                     <div key={r.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
                       {modo === "projeto" &&
                         (r.capaId ? (
-                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-[5px] border border-line" />
+                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />
                         ) : (
-                          <span aria-hidden className="h-9 w-12 shrink-0 rounded-[5px] border border-dashed border-line-strong" />
+                          <span aria-hidden className="h-9 w-12 shrink-0 rounded-chip border border-dashed border-line-strong" />
                         ))}
-                      <span className="w-[92px] shrink-0 font-mono text-[12px] text-ink-2">{r.codigo}</span>
+                      <span className="w-[92px] shrink-0 font-mono text-pequeno text-ink-2">{r.codigo}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-ink">{r.nome}</span>
-                        <span className="block text-[11.5px] text-muted">{r.meta}</span>
+                        <span className="block truncate text-corpo text-ink">{r.nome}</span>
+                        <span className="block text-rotulo text-muted">{r.meta}</span>
                       </span>
-                      <span className="flex items-center" aria-label={`Quantidade de ${r.nome}`}>
-                        <button type="button" aria-label="Menos" onClick={() => mudarQtdNova(r.id, (qtdNova[r.id] ?? 1) - 1)} className="h-7 w-7 cursor-pointer rounded-l-[6px] border border-line-strong bg-subtle text-[13px] text-ink-2 hover:bg-control">
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min={1}
-                          value={qtdNova[r.id] ?? 1}
-                          onChange={(e) => mudarQtdNova(r.id, Number(e.target.value) || 1)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && evento) {
-                              e.preventDefault();
-                              adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
-                            }
-                          }}
-                          className="h-7 w-11 border-y border-line-control bg-surface text-center font-mono text-[12.5px] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button type="button" aria-label="Mais" onClick={() => mudarQtdNova(r.id, (qtdNova[r.id] ?? 1) + 1)} className="h-7 w-7 cursor-pointer rounded-r-[6px] border border-line-strong bg-subtle text-[13px] text-ink-2 hover:bg-control">
-                          +
-                        </button>
+                      <span
+                        className="flex items-center"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && evento && e.target instanceof HTMLInputElement) {
+                            e.preventDefault();
+                            adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
+                          }
+                        }}
+                      >
+                        <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
                       </span>
                       <Button variant="secondary" size="xs" onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)}>
                         Adicionar
@@ -631,8 +573,8 @@ export function NovaSolicitacaoForm({
                   linhasFiltradas.map((l) => (
                     <div key={l.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-ink">{l.nome}</span>
-                        <span className="block text-[11.5px] text-muted">{[`${l.quantidade} na ata`, l.destino, l.areaNome].filter(Boolean).join(" · ")}</span>
+                        <span className="block truncate text-corpo text-ink">{l.nome}</span>
+                        <span className="block text-rotulo text-muted">{[`${l.quantidade} na ata`, l.destino, l.areaNome].filter(Boolean).join(" · ")}</span>
                       </span>
                       <Button variant="secondary" size="xs" onClick={() => adicionarLinha(l, "ALTERAR_QUANTIDADE")}>
                         Alterar quantidade
@@ -643,7 +585,7 @@ export function NovaSolicitacaoForm({
                     </div>
                   ))}
                 {((modo !== "ata" && resultados.length === 0) || (modo === "ata" && linhasFiltradas.length === 0)) && (
-                  <p className="m-0 py-4 text-center text-[12.5px] text-muted">{modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas." : `Nada encontrado${busca ? ` para “${busca}”` : ""}.`}</p>
+                  <EmptyState compact title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas." : `Nada encontrado${busca ? ` para “${busca}”` : ""}.`} />
                 )}
               </div>
             </>
@@ -658,7 +600,7 @@ export function NovaSolicitacaoForm({
         {itens.length > 0 && (
           <ul className="m-0 max-h-[220px] list-none overflow-y-auto border-b border-line-soft p-0">
             {itens.map((i) => (
-              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-[18px] py-2 text-[12.5px] last:border-b-0">
+              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-[18px] py-2 text-pequeno last:border-b-0">
                 <span className="min-w-0 flex-1 truncate text-ink">{i.rotulo}</span>
                 <span className="shrink-0 font-mono text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
               </li>
@@ -666,11 +608,8 @@ export function NovaSolicitacaoForm({
           </ul>
         )}
         <div className="flex flex-col gap-3.5 p-[18px]">
-          <div>
-            <label htmlFor="titulo" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Título <span className="font-normal text-muted">obrigatório</span>
-            </label>
-            <input
+          <Field label="Título" htmlFor="titulo" obrigatorio error={erroTitulo}>
+            <Input
               id="titulo"
               value={titulo}
               maxLength={120}
@@ -680,22 +619,11 @@ export function NovaSolicitacaoForm({
               }}
               onBlur={(e) => validarTitulo(e.target.value)}
               placeholder="Ex.: Estrutura do palco principal"
-              aria-invalid={Boolean(erroTitulo)}
-              aria-describedby={erroTitulo ? "erro-titulo" : undefined}
-              className={cn(campo, "h-10 aria-[invalid=true]:border-danger-input")}
             />
-            {erroTitulo && (
-              <p id="erro-titulo" className="mb-0 mt-[5px] text-[12px] text-danger">
-                {erroTitulo}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="observacao" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Observação <span className="font-normal text-muted">opcional</span>
-            </label>
-            <textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[88px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] focus:border-accent focus:outline-none" />
-          </div>
+          </Field>
+          <Field label="Observação" htmlFor="observacao" optional>
+            <Textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." />
+          </Field>
         </div>
       </Passo>
 
@@ -713,8 +641,8 @@ export function NovaSolicitacaoForm({
         <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
           Salvar rascunho
         </Button>
-        <span className="text-[12.5px] text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
-        <span className={cn("text-[12px]", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
+        <span className="text-pequeno text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
+        <span className={cn("text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
           {estadoSalvo.tipo === "salvando"
             ? "salvando rascunho…"
             : estadoSalvo.tipo === "salvo"

@@ -32,12 +32,12 @@ const variantes: Record<ButtonVariant, string> = {
 };
 
 const tamanhos: Record<ButtonSize, string> = {
-  xs: "h-[27px] px-2.5 text-[12px] rounded-[7px]",
-  sm: "h-[30px] px-3 text-[12.5px] rounded-[7px]",
-  md: "h-[34px] px-[13px] text-[13px] rounded-lg",
-  lg: "h-9 px-[15px] text-[13.5px] rounded-lg",
-  xl: "h-[38px] px-[17px] text-[13.5px] rounded-lg",
-  full: "h-[42px] w-full px-4 text-[14.5px] rounded-lg",
+  xs: "h-[27px] px-2.5 text-pequeno rounded-controle",
+  sm: "h-[30px] px-3 text-pequeno rounded-controle",
+  md: "h-[34px] px-[13px] text-corpo rounded-lg",
+  lg: "h-9 px-[15px] text-corpo rounded-lg",
+  xl: "h-[38px] px-[17px] text-corpo rounded-lg",
+  full: "h-[42px] w-full px-4 text-destaque rounded-lg",
 };
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string }) {

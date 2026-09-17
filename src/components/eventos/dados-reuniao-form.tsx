@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Field, Input } from "@/components/ui/field";
+import { cn } from "@/lib/cn";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { RotuloGrupo } from "@/components/ui/layout";
 import { salvarDadosReuniaoAutoAction } from "@/app/(app)/eventos/actions";
 
 export type DadosReuniaoValores = {
@@ -84,18 +86,9 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
   return (
     <div className="space-y-3.5 px-[18px] py-3.5">
       <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={campos.reuniaoPresentes} hint="Obrigatório para fechar a ata. Nome e área, separados por vírgula." obrigatorio>
-        <textarea
-          id="reuniaoPresentes"
-          name="reuniaoPresentes"
-          value={t.reuniaoPresentes}
-          onChange={(e) => mudar("reuniaoPresentes", e.target.value)}
-          onBlur={aoSair}
-          disabled={!editavel}
-          placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)"
-          className="min-h-[72px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle"
-        />
+        <Textarea id="reuniaoPresentes" name="reuniaoPresentes" value={t.reuniaoPresentes} onChange={(e) => mudar("reuniaoPresentes", e.target.value)} onBlur={aoSair} disabled={!editavel} placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)" className="min-h-[72px]" />
       </Field>
-      <p className="m-0 text-[11.5px] font-medium uppercase tracking-[0.06em] text-muted">Carga e público · opcionais</p>
+      <RotuloGrupo className="!mb-0">Carga e público · opcionais</RotuloGrupo>
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
         {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
         {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
@@ -104,7 +97,7 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
         {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h", "Kit = material de consumo")}
       </div>
       {editavel && (
-        <p className={`mb-0 mt-1 text-[11.5px] ${estado === "erro" ? "text-danger" : "text-muted"}`} aria-live="polite">
+        <p className={cn("mb-0 mt-1 text-rotulo", estado === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
           {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo automaticamente" : "salvo automaticamente ao digitar"}
         </p>
       )}

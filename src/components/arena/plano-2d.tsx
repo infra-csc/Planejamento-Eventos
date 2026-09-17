@@ -5,6 +5,7 @@ import type { Arena } from "@/domain/arena/tipos";
 import { CATEGORIAS, COR_PERCURSO, type Camada } from "@/domain/arena/categorias";
 import { poligonoFaixa } from "@/domain/arena/geometria";
 import { cn } from "@/lib/cn";
+import { IconeMais, IconeMenos } from "./icones";
 
 const pts = (lista: Array<[number, number]>) => lista.map(([x, z]) => `${x},${z}`).join(" ");
 
@@ -201,14 +202,14 @@ export function Plano2D({
             })}
         </g>
       </svg>
-      <div className={cn("pointer-events-auto absolute bottom-3 flex flex-col overflow-hidden rounded-[9px] border border-line bg-surface shadow-sm", recuoDireita ? "right-[384px]" : "right-3")}>
-        <button type="button" aria-label="Aproximar" onClick={() => zoom(1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-[18px] text-ink-2 hover:bg-subtle">
-          +
+      <div className={cn("pointer-events-auto absolute bottom-3 flex flex-col overflow-hidden rounded-cartao border border-line bg-surface shadow-pill", recuoDireita ? "right-[384px]" : "right-3")}>
+        <button type="button" aria-label="Aproximar" title="Aproximar" onClick={() => zoom(1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-ink-2 hover:bg-subtle hover:text-ink">
+          <IconeMais />
         </button>
-        <button type="button" aria-label="Afastar" onClick={() => zoom(1 / 1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-[18px] text-ink-2 hover:bg-subtle">
-          −
+        <button type="button" aria-label="Afastar" title="Afastar" onClick={() => zoom(1 / 1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-ink-2 hover:bg-subtle hover:text-ink">
+          <IconeMenos />
         </button>
-        <button type="button" aria-label="Enquadrar a arena" onClick={() => setVista({ s: 1, x: 0, y: 0 })} className="grid h-9 cursor-pointer place-items-center border-0 bg-transparent px-2 text-[11px] font-medium text-ink-2 hover:bg-subtle">
+        <button type="button" aria-label="Enquadrar a arena" title="Enquadrar a arena" onClick={() => setVista({ s: 1, x: 0, y: 0 })} className="grid h-9 cursor-pointer place-items-center border-0 bg-transparent px-2 text-rotulo font-medium text-ink-2 hover:bg-subtle hover:text-ink">
           Tudo
         </button>
       </div>

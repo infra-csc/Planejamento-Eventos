@@ -19,7 +19,12 @@ export default async function ArenaPage({ params }: { params: Promise<{ slug: st
   const base = obterArenaPorSlug(slug);
   if (!base) notFound();
   // Planta importada + posições editadas pela logística (arrastadas ou itens que não tinham lugar).
-  const posicoes = await listarPosicoesArena(slug);
+  // Se a tabela de posições ainda não existir (migração pendente), a arena abre com a planta original
+  // e o erro fica no log, em vez de derrubar a página inteira.
+  const posicoes = await listarPosicoesArena(slug).catch((e: unknown) => {
+    console.error("Arena: não foi possível ler as posições editadas (rode `npm run db:migrate`).", e);
+    return [];
+  });
   const arena = aplicarPosicoes(base, posicoes);
   return <ArenaExperiencia arena={arena} podeEditar={pode(usuario, "ata.consolidar")} editadas={posicoes.map((p) => p.chave)} />;
 }

@@ -18,12 +18,12 @@ const TONS: Record<Tom, string> = {
 };
 
 export function Badge({ tom = "neutral", children, className }: { tom?: Tom; children: React.ReactNode; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-[5px] px-2 py-[2px] text-[11px] font-medium leading-[1.45]", TONS[tom], className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-2 py-[2px] text-rotulo font-medium leading-[1.45]", TONS[tom], className)}>{children}</span>;
 }
 
 /** Tag pequena usada em linhas (tipo de item, gatilho de versão). */
 export function Tag({ children, tom = "muted", className }: { children: React.ReactNode; tom?: Tom; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-[4px] px-1.5 py-px text-[10.5px] leading-[1.5]", TONS[tom], className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px text-micro leading-[1.5]", TONS[tom], className)}>{children}</span>;
 }
 
 const TOM_EVENTO: Record<EventoStatus | "REALIZADO", Tom> = {
@@ -69,8 +69,8 @@ export const COR_ITEM: Record<ItemStatus, string> = {
 };
 
 /** Contador ou versão em mono (v3, × 4, 12): um só formato para todo número pequeno em chip. */
-export function ChipMono({ children, tom = "neutral", className }: { children: React.ReactNode; tom?: Tom | "control"; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px font-mono text-rotulo leading-[1.5]", tom === "control" ? "bg-control text-ink-3" : TONS[tom], className)}>{children}</span>;
+export function ChipMono({ children, tom = "neutral", className, title }: { children: React.ReactNode; tom?: Tom | "control"; className?: string; title?: string }) {
+  return <span title={title} className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px font-mono text-rotulo leading-[1.5]", tom === "control" ? "bg-control text-ink-3" : TONS[tom], className)}>{children}</span>;
 }
 
 export function ItemStatusBadge({ status, className, naAta = false }: { status: ItemStatus; className?: string; naAta?: boolean }) {
@@ -101,12 +101,12 @@ export function PerfilBadge({ perfil }: { perfil: Perfil }) {
 
 /** Alteração enviada depois da janela definida pela logística: chama a atenção para a decisão. */
 export function ForaJanelaTag({ className }: { className?: string }) {
-  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] bg-danger-bg px-[7px] py-px text-[11px] font-semibold text-danger", className)}>fora da janela</span>;
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-chip bg-danger-bg px-[7px] py-px text-rotulo font-semibold text-danger", className)}>fora da janela</span>;
 }
 
 export function TipoSolicitacaoTag({ tipo }: { tipo: "PRE_REUNIAO" | "ALTERACAO" }) {
   return (
-    <span className={cn("inline-flex whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]", tipo === "PRE_REUNIAO" ? "bg-neutral-bg text-ink-2" : "bg-accent-bg text-accent")}>
+    <span className={cn("inline-flex whitespace-nowrap rounded-chip px-[7px] py-px text-rotulo", tipo === "PRE_REUNIAO" ? "bg-neutral-bg text-ink-2" : "bg-accent-bg text-accent")}>
       {tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"}
     </span>
   );

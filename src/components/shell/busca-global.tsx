@@ -4,6 +4,9 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
+import { ChipMono } from "@/components/ui/badge";
+import { IconeLupa } from "@/components/ui/icons";
+import { EmptyState, Kbd } from "@/components/ui/layout";
 import type { ResultadoBusca } from "@/server/services/busca";
 
 let aberto = false;
@@ -87,9 +90,9 @@ export function BuscaGlobal() {
   return (
     <DialogPrimitive.Root open={estaAberto} onOpenChange={(o) => (o ? definirAberto(true) : fechar())}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-[rgba(22,23,26,0.4)]" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-black/40" />
         <DialogPrimitive.Content
-          className="fixed left-1/2 top-[14vh] z-[calc(var(--z-busca)+1)] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_24px_60px_rgba(22,23,26,0.22)] focus:outline-none"
+          className="fixed left-1/2 top-[14vh] z-[calc(var(--z-busca)+1)] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-modal border border-line-strong bg-surface shadow-popover focus:outline-none"
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
@@ -106,9 +109,7 @@ export function BuscaGlobal() {
           <DialogPrimitive.Title className="sr-only">Buscar ou executar</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Busque eventos, solicitações, peças e projetos, ou execute uma ação.</DialogPrimitive.Description>
           <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5">
-            <span aria-hidden className="text-[14px] text-muted">
-              ⌕
-            </span>
+            <IconeLupa size={16} className="shrink-0 text-muted" />
             <input
               autoFocus
               value={termo}
@@ -119,11 +120,11 @@ export function BuscaGlobal() {
               placeholder="Buscar eventos, solicitações, peças, projetos — ou executar uma ação"
               aria-label="Buscar"
               aria-controls="busca-resultados"
-              className="flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-meta focus-visible:outline-none"
+              className="flex-1 border-0 bg-transparent text-destaque text-ink outline-none placeholder:text-meta focus-visible:outline-none"
             />
-            <kbd className="rounded-[4px] bg-page px-1.5 py-0.5 font-mono text-[11px] text-muted">esc</kbd>
+            <Kbd>esc</Kbd>
           </div>
-          <div className="flex gap-4 border-b border-line-row px-4 py-[7px] text-[11px] text-meta">
+          <div className="flex gap-4 border-b border-line-row px-4 py-[7px] text-rotulo text-meta">
             <span>
               <span className="font-mono">↑ ↓</span> navegar
             </span>
@@ -140,7 +141,7 @@ export function BuscaGlobal() {
               const ativo = i === indice;
               return (
                 <div key={`${r.href}-${i}`}>
-                  {novoGrupo && <span className="block px-2.5 pb-1 pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.1em] text-meta">{r.grupo}</span>}
+                  {novoGrupo && <span className="block px-2.5 pb-1 pt-[9px] text-micro font-semibold uppercase tracking-[0.1em] text-meta">{r.grupo}</span>}
                   <button
                     type="button"
                     role="option"
@@ -149,17 +150,19 @@ export function BuscaGlobal() {
                     onMouseEnter={() => setSel(i)}
                     className={cn("flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 px-2.5 py-[9px] text-left", ativo ? "bg-accent-bg" : "bg-transparent")}
                   >
-                    <span className={cn("shrink-0 rounded-[5px] px-1.5 py-[3px] font-mono text-[10px] uppercase tracking-[0.06em] text-ink", r.tag === "ação" ? "bg-accent-light" : "bg-line")}>{r.tag}</span>
+                    <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
+                      {r.tag}
+                    </ChipMono>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-medium text-ink">{r.titulo}</span>
-                      <span className="block truncate text-[12px] text-muted">{r.sub}</span>
+                      <span className="block truncate text-corpo font-medium text-ink">{r.titulo}</span>
+                      <span className="block truncate text-pequeno text-muted">{r.sub}</span>
                     </span>
-                    <span className="font-mono text-[11.5px] text-meta">{ativo ? "↵" : r.atalho ?? ""}</span>
+                    <span className="font-mono text-rotulo text-meta">{ativo ? "↵" : r.atalho ?? ""}</span>
                   </button>
                 </div>
               );
             })}
-            {carregado && termo.trim() && resultados.length === 0 && <p className="m-0 p-7 text-center text-[13.5px] text-muted">Nada encontrado para “{termo.trim()}”.</p>}
+            {carregado && termo.trim() && resultados.length === 0 && <EmptyState compact title={`Nada encontrado para “${termo.trim()}”.`} />}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

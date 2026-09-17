@@ -46,7 +46,7 @@ export function PageHeader({
       <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", className)}>
         <div className="min-w-0">
           {eyebrow && <div className="mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">{eyebrow}</div>}
-          <h1 className={cn("m-0 font-semibold leading-[1.2] tracking-[-0.025em]", tamanho === "sm" ? "text-[20px]" : "text-pagina")}>{title}</h1>
+          <h1 className={cn("m-0 font-semibold leading-[1.2] tracking-[-0.025em]", tamanho === "sm" ? "text-titulo" : "text-pagina")}>{title}</h1>
           {description && <p className="mt-[5px] max-w-[680px] text-secao text-ink-2">{description}</p>}
           {meta && <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-corpo text-ink-2">{meta}</div>}
         </div>
@@ -108,9 +108,9 @@ export function Panel({ title, description, actions, children, className, padded
 
 export function RotuloGrupo({ children, contagem, className }: { children: React.ReactNode; contagem?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("mb-[9px] flex items-baseline gap-[9px]", className)}>
-      <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted">{children}</h2>
-      {contagem != null && <span className="font-mono text-[11.5px] text-meta">{contagem}</span>}
+    <div className={cn(!/mb-/.test(className ?? "") && "mb-[9px]", "flex items-baseline gap-[9px]", className)}>
+      <h2 className="m-0 text-pequeno font-semibold uppercase tracking-[0.1em] text-muted">{children}</h2>
+      {contagem != null && <span className="font-mono text-rotulo text-meta">{contagem}</span>}
     </div>
   );
 }
@@ -158,7 +158,7 @@ export function TableWrap({ children, className }: { children: React.ReactNode; 
 /* ------------------------------------------------------------------ */
 
 export function MetricStrip({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-line bg-line lg:grid-cols-4", className)}>{children}</div>;
+  return <div className={cn("mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-cartao border border-line bg-line lg:grid-cols-4", className)}>{children}</div>;
 }
 
 export type TomSemantico = "neutro" | "danger" | "warning" | "success" | "accent";
@@ -194,8 +194,8 @@ export function ListaDados({ itens }: { itens: Array<{ label: string; valor: Rea
     <div className="px-[18px] pb-3.5 pt-1.5">
       {itens.map((k) => (
         <div key={k.label} className="flex justify-between gap-3 border-b border-line-faint py-2 last:border-b-0">
-          <span className="text-[12.5px] text-muted">{k.label}</span>
-          <span className={cn("text-right font-mono text-[12.5px]", k.alerta ? "font-medium text-danger" : k.forte ? "font-medium text-ink" : "text-ink-2")}>{k.valor}</span>
+          <span className="text-pequeno text-muted">{k.label}</span>
+          <span className={cn("text-right font-mono text-pequeno", k.alerta ? "font-medium text-danger" : k.forte ? "font-medium text-ink" : "text-ink-2")}>{k.valor}</span>
         </div>
       ))}
     </div>
@@ -210,9 +210,9 @@ export function Aviso({ tom = "neutro", titulo, children, className }: { tom?: "
     success: "border-success-border bg-success-bg text-success",
   };
   return (
-    <div className={cn("rounded-[9px] border px-4 py-3", tons[tom], className)}>
-      {titulo && <p className="m-0 text-[13px] font-medium">{titulo}</p>}
-      {children && <div className={cn("text-[12.5px] leading-[1.5]", titulo ? "mt-[3px]" : undefined)}>{children}</div>}
+    <div className={cn("rounded-controle border px-4 py-3", tons[tom], className)}>
+      {titulo && <p className="m-0 text-corpo font-medium">{titulo}</p>}
+      {children && <div className={cn("text-pequeno leading-[1.5]", titulo ? "mt-[3px]" : undefined)}>{children}</div>}
     </div>
   );
 }
@@ -227,7 +227,7 @@ export function Notice({ tone = "info", title, children, className }: { tone?: "
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-esqueleto rounded-[4px] bg-line", className)} />;
+  return <div className={cn("animate-esqueleto rounded-chip bg-line", className)} />;
 }
 
 /** Ponto de estado. `tom` semântico ou, para cores calculadas (histórico, prazo), `cor` com var(--color-*). */

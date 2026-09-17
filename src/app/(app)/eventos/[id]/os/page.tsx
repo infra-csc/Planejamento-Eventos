@@ -5,7 +5,8 @@ import { diffOS, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { Aviso, Section } from "@/components/ui/layout";
+import { ChipMono } from "@/components/ui/badge";
+import { Aviso, BannerEscuro, EmptyState, Section } from "@/components/ui/layout";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { OsVisoes, visaoDe } from "@/components/eventos/os-visoes";
 import { AtaLista } from "@/components/eventos/ata-lista";
@@ -29,8 +30,10 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
 function ChipDiff({ d }: { d: DiffLinha }) {
   const delta = d.depois - d.antes;
   return (
-    <span className="inline-flex items-baseline gap-1.5 rounded-[6px] bg-dark-3 px-2.5 py-1 font-mono text-[12px]" title={d.nome}>
-      <span className="text-on-dark-2">{d.codigo}</span>
+    <ChipMono tom="dark" className="gap-1.5 bg-dark-3 px-2.5 py-1">
+      <span className="text-on-dark-2" title={d.nome}>
+        {d.codigo}
+      </span>
       <span className="text-on-dark-4">{d.antes}</span>
       <span className="text-on-dark-4" aria-hidden>
         →
@@ -41,7 +44,7 @@ function ChipDiff({ d }: { d: DiffLinha }) {
         {delta > 0 ? "+" : "−"}
         {Math.abs(delta)}
       </span>
-    </span>
+    </ChipMono>
   );
 }
 
@@ -74,10 +77,9 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         {temAlgo ? (
           <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
         ) : (
-          <div className="rounded-[10px] border border-line bg-surface px-[18px] py-14 text-center">
-            <p className="m-0 text-[14px] font-medium">A ata ainda não tem linhas</p>
-            <p className="mx-auto mt-1 max-w-[440px] text-[13px] text-muted">As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS.</p>
-          </div>
+          <Section>
+            <EmptyState title="A ata ainda não tem linhas" description="As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS." />
+          </Section>
         )}
       </div>
     );
@@ -160,22 +162,23 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="flex flex-col gap-5">
-        <section className="rounded-[10px] bg-dark px-5 py-4" aria-label="Diferenças da OS">
-          <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <h2 className="m-0 text-[14.5px] font-semibold text-white">{tituloDiff}</h2>
-              <p className="mb-0 mt-0.5 text-[12.5px] text-on-dark-3">{subDiff}</p>
-            </div>
-            {base && (
+        <BannerEscuro
+          aria-label="Diferenças da OS"
+          className="items-start"
+          titulo={tituloDiff}
+          acoes={
+            base && (
               <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="onDark" size="sm" className="no-underline" scroll={false}>
                 Sair da comparação
               </ButtonLink>
-            )}
-          </div>
+            )
+          }
+        >
+          <p className="m-0 text-pequeno">{subDiff}</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {diff.length === 0 ? <span className="text-[12.5px] text-on-dark-4">{existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
+            {diff.length === 0 ? <span className="text-pequeno text-on-dark-4">{existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
           </div>
-        </section>
+        </BannerEscuro>
 
         <OsVisoes
           os={os}
@@ -193,11 +196,11 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             <a href={`/api/os/${id}/excel${qsExport}`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
               Excel completo (.xlsx)
             </a>
-            <p className="mb-2.5 mt-1.5 text-[11.5px] leading-[1.45] text-muted">Abas: resumo, totais por peça, por projeto, peças soltas e itens avulsos, com coluna de separação.</p>
+            <p className="mb-2.5 mt-1.5 text-rotulo leading-[1.45] text-muted">Abas: resumo, totais por peça, por projeto, peças soltas e itens avulsos, com coluna de separação.</p>
             <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
               Imprimir / PDF
             </ButtonLink>
-            <p className="mb-0 mt-2.5 text-[12px] leading-[1.5] text-muted">A OS nunca é editada à mão. Toda mudança vem de uma resposta a item ou de um ajuste registrado com justificativa.</p>
+            <p className="mb-0 mt-2.5 text-pequeno leading-[1.5] text-muted">A OS nunca é editada à mão. Toda mudança vem de uma resposta a item ou de um ajuste registrado com justificativa.</p>
           </div>
         </Section>
         <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · ${ev.codigo}`}>

@@ -32,7 +32,7 @@ export function ThOrdenavel({
         href={href}
         scroll={false}
         className={cn(
-          "flex w-full items-center gap-[5px] whitespace-nowrap px-3 py-[9px] text-[11.5px] no-underline",
+          "flex w-full items-center gap-[5px] whitespace-nowrap px-3 py-[9px] text-rotulo no-underline",
           ativo ? "text-ink" : "text-muted hover:text-ink",
           alinhar === "right" ? "justify-end" : "justify-start",
         )}
@@ -46,7 +46,7 @@ export function ThOrdenavel({
 
 export function Th({ children, largura, alinhar = "left", className }: { children?: React.ReactNode; largura?: number | string; alinhar?: "left" | "right"; className?: string }) {
   return (
-    <th scope="col" className={cn("border-b border-line-soft bg-subtle px-3 py-[9px] text-[11.5px] font-medium text-muted first:pl-[18px] last:pr-[18px]", className)} style={{ width: largura, textAlign: alinhar }}>
+    <th scope="col" className={cn("border-b border-line-soft bg-subtle px-3 py-[9px] text-rotulo font-medium text-muted first:pl-[18px] last:pr-[18px]", className)} style={{ width: largura, textAlign: alinhar }}>
       {children}
     </th>
   );
@@ -55,10 +55,10 @@ export function Th({ children, largura, alinhar = "left", className }: { childre
 /** Rodapé de paginação (#faf8f8): "1–8 de 10" + Anterior / Próxima. */
 export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }: { total: number; pagina: number; paginas: number; de: number; porPagina: number; hrefPagina: (p: number) => string }) {
   if (total <= porPagina) return null;
-  const btn = "flex h-7 items-center rounded-[7px] border border-line-strong bg-surface px-2.5 text-[12.5px] no-underline";
+  const btn = "flex h-7 items-center rounded-controle border border-line-strong bg-surface px-2.5 text-pequeno no-underline";
   return (
     <div className="flex items-center gap-2 bg-subtle px-[18px] py-[11px]">
-      <span className="flex-1 text-[12.5px] text-muted">
+      <span className="flex-1 text-pequeno text-muted">
         {de + 1}–{Math.min(de + porPagina, total)} de {total}
       </span>
       {pagina > 1 ? (

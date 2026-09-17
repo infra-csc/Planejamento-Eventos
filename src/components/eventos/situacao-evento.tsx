@@ -17,8 +17,8 @@ export function SituacaoEvento({ eventoId, codigo, status }: { eventoId: string;
         {status === "EM_REUNIAO" && (
           <div className="flex items-center gap-4">
             <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] text-ink">Adiar a reunião</span>
-              <span className="block text-[12px] text-muted">O evento volta para preparação e as áreas podem enviar de novo.</span>
+              <span className="block text-corpo text-ink">Adiar a reunião</span>
+              <span className="block text-pequeno text-muted">O evento volta para preparação e as áreas podem enviar de novo.</span>
             </span>
             <Button variant="secondary" size="md" onClick={() => setAberto("VOLTAR_PREPARACAO")}>
               Voltar para preparação
@@ -27,8 +27,8 @@ export function SituacaoEvento({ eventoId, codigo, status }: { eventoId: string;
         )}
         <div className="flex items-center gap-4">
           <span className="min-w-0 flex-1">
-            <span className="block text-[13.5px] text-ink">Cancelar evento</span>
-            <span className="block text-[12px] text-muted">Solicitações em aberto são canceladas. Não dá para desfazer.</span>
+            <span className="block text-corpo text-ink">Cancelar evento</span>
+            <span className="block text-pequeno text-muted">Solicitações em aberto são canceladas. Não dá para desfazer.</span>
           </span>
           <Button variant="dangerOutline" size="md" onClick={() => setAberto("CANCELAR")}>
             Cancelar evento

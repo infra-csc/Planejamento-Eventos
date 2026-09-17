@@ -1,9 +1,10 @@
 import type { EventoStatus } from "@/server/db/schema";
+import { cn } from "@/lib/cn";
 import { EVENTO_STATUS_LABEL, FASES_EVENTO, indiceFase } from "@/domain/evento";
 
 const NOMES = ["Preparação", "Reunião de OS", "Aberto a alterações", "Encerrado"];
 
-/** 4 barras de fase (handoff §5.3): concluída #8e2740, atual #2a1418, futura #e4dedd. */
+/** 4 barras de fase (handoff §5.3): concluída accent, atual dark, futura line. */
 export function BarrasFase({ status, rotuloStatus }: { status: EventoStatus; rotuloStatus?: string }) {
   const idx = indiceFase(status);
   return (
@@ -12,8 +13,7 @@ export function BarrasFase({ status, rotuloStatus }: { status: EventoStatus; rot
         <span
           key={f}
           title={NOMES[i]}
-          className="block h-1 flex-1 rounded-sm"
-          style={{ background: status === "CANCELADO" ? "var(--color-line)" : i < idx ? "var(--color-accent)" : i === idx ? "var(--color-dark)" : "var(--color-line)" }}
+          className={cn("block h-1 flex-1 rounded-sm", status === "CANCELADO" ? "bg-line" : i < idx ? "bg-accent" : i === idx ? "bg-dark" : "bg-line")}
         />
       ))}
     </span>
@@ -26,29 +26,20 @@ export type PassoLinhaTempo = { titulo: string; quando: string; detalhe: string 
 export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: PassoLinhaTempo[] }) {
   const idx = indiceFase(status);
   return (
-    <section aria-label="Fases do evento" className="mb-[18px] rounded-[10px] border border-line bg-surface px-[18px] py-4">
+    <section aria-label="Fases do evento" className="mb-[18px] rounded-cartao border border-line bg-surface px-[18px] py-4">
       <ol className="m-0 grid list-none grid-cols-2 gap-y-4 p-0 sm:flex sm:items-stretch">
         {passos.map((p, i) => {
           const feito = i < idx;
           const atual = i === idx;
-          const cor = feito ? "var(--color-accent)" : atual ? "var(--color-dark)" : "var(--color-line-strong)";
           return (
             <li key={p.titulo} className="min-w-0 pr-4 sm:flex-1" aria-current={atual ? "step" : undefined}>
               <div className="mb-2 flex items-center gap-2">
-                <span
-                  aria-hidden
-                  className="block shrink-0 rounded-full"
-                  style={{ width: atual ? 11 : 9, height: atual ? 11 : 9, background: cor, boxShadow: atual ? "0 0 0 4px #f6e6ea" : undefined }}
-                />
-                <span aria-hidden className="block h-0.5 flex-1" style={{ background: feito ? "var(--color-accent)" : "var(--color-line-soft)" }} />
+                <span aria-hidden className={cn("block shrink-0 rounded-full", atual ? "size-[11px] bg-dark ring-4 ring-accent-bg" : "size-[9px]", feito && "bg-accent", !feito && !atual && "bg-line-strong")} />
+                <span aria-hidden className={cn("block h-0.5 flex-1", feito ? "bg-accent" : "bg-line-soft")} />
               </div>
-              <p className="m-0 text-[13.5px]" style={{ fontWeight: atual ? 600 : 500, color: atual || feito ? "var(--color-dark)" : "#6f6366" }}>
-                {p.titulo}
-              </p>
-              <p className="mt-0.5 font-mono text-[12px] text-muted">{p.quando}</p>
-              <p className="mt-[5px] text-[12.5px] leading-[1.45]" style={{ color: atual ? "#4f4849" : "#6b6263" }}>
-                {p.detalhe}
-              </p>
+              <p className={cn("m-0 text-corpo", atual ? "font-semibold" : "font-medium", atual || feito ? "text-dark" : "text-muted")}>{p.titulo}</p>
+              <p className="mt-0.5 font-mono text-pequeno text-muted">{p.quando}</p>
+              <p className={cn("mt-[5px] text-pequeno leading-[1.45]", atual ? "text-ink-2" : "text-ink-3")}>{p.detalhe}</p>
             </li>
           );
         })}

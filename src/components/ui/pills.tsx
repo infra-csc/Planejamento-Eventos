@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-export type Pill = { label: string; n?: number | string; ativo: boolean } & ({ href: string; onSelect?: never } | { href?: never; onSelect: () => void });
+export type Pill = { label: string; n?: number | string; ativo: boolean; title?: string } & ({ href: string; onSelect?: never } | { href?: never; onSelect: () => void });
 
 const pillCls = (ativo: boolean) => cn("flex h-7 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-controle border-0 px-[11px] text-pequeno no-underline", ativo ? "bg-surface font-medium text-ink shadow-pill" : "bg-transparent text-ink-3 hover:text-ink");
 
@@ -14,7 +14,7 @@ const pillCls = (ativo: boolean) => cn("flex h-7 cursor-pointer items-center gap
 export function Pills({ itens, className, rotulo }: { itens: Pill[]; className?: string; rotulo?: string }) {
   const Wrapper = itens.some((p) => p.href) ? "nav" : "div";
   return (
-    <Wrapper aria-label={rotulo} role={Wrapper === "div" ? "group" : undefined} className={cn("flex w-fit flex-wrap gap-1 rounded-[9px] bg-control p-[3px]", className)}>
+    <Wrapper aria-label={rotulo} role={Wrapper === "div" ? "group" : undefined} className={cn("flex w-fit flex-wrap gap-1 rounded-controle bg-control p-[3px]", className)}>
       {itens.map((p) => {
         const conteudo = (
           <>
@@ -23,11 +23,11 @@ export function Pills({ itens, className, rotulo }: { itens: Pill[]; className?:
           </>
         );
         return p.href ? (
-          <Link key={p.href + p.label} href={p.href} aria-current={p.ativo ? "true" : undefined} className={pillCls(p.ativo)} scroll={false}>
+          <Link key={p.href + p.label} href={p.href} title={p.title} aria-current={p.ativo ? "true" : undefined} className={pillCls(p.ativo)} scroll={false}>
             {conteudo}
           </Link>
         ) : (
-          <button key={p.label} type="button" aria-pressed={p.ativo} onClick={p.onSelect} className={pillCls(p.ativo)}>
+          <button key={p.label} type="button" title={p.title} aria-pressed={p.ativo} onClick={p.onSelect} className={pillCls(p.ativo)}>
             {conteudo}
           </button>
         );

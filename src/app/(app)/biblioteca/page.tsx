@@ -10,10 +10,12 @@ import type { Setor } from "@/server/db/schema";
 import { cn } from "@/lib/cn";
 import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { PageHeader, Section } from "@/components/ui/layout";
+import { ChipMono, Tag } from "@/components/ui/badge";
+import { TabsNav } from "@/components/ui/tabs-nav";
+import { EmptyState, PageHeader, Section } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
-import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
+import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
@@ -23,26 +25,16 @@ export const metadata: Metadata = { title: "Biblioteca" };
 
 type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string };
 
+/**
+ * Abas por query string (`?aba=`): o TabsNav decide a aba ativa só pelo pathname, que aqui é o mesmo
+ * nas duas. Mesmo desenho do TabsNav, com a aba ativa vinda do parâmetro.
+ */
 function Abas({ aba, nProjetos, nPecas }: { aba: "projetos" | "pecas"; nProjetos: number; nPecas: number }) {
   const itens = [
     { chave: "projetos", label: "Projetos padrão", n: nProjetos, href: "/biblioteca" },
     { chave: "pecas", label: "Catálogo de peças", n: nPecas, href: "/biblioteca?aba=pecas" },
   ];
-  return (
-    <nav aria-label="Seções da biblioteca" className="mb-[18px] flex gap-5 border-b border-line">
-      {itens.map((t) => (
-        <Link
-          key={t.chave}
-          href={t.href}
-          aria-current={aba === t.chave ? "page" : undefined}
-          className={cn("-mb-px flex items-center gap-1.5 border-b-2 pb-2.5 pt-1 text-[13.5px] no-underline", aba === t.chave ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink")}
-        >
-          {t.label}
-          <span className="rounded-[5px] bg-control px-1.5 font-mono text-[11px] text-ink-3">{t.n}</span>
-        </Link>
-      ))}
-    </nav>
-  );
+  return <TabsNav rotulo="Seções da biblioteca" tabs={itens.map((t) => ({ href: t.href, label: t.label, n: t.n, ativo: aba === t.chave }))} />;
 }
 
 export default async function BibliotecaPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -83,42 +75,69 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       <>
         {cabecalho}
         {projetos.length === 0 ? (
-          <div className="rounded-[10px] border border-line bg-surface px-[18px] py-14 text-center">
-            <p className="m-0 text-[14px] font-medium">Nenhum projeto padrão cadastrado</p>
-            <p className="mt-1 text-[13px] text-muted">A cenografia cadastra os projetos com sua lista de peças.</p>
+          <div className="rounded-cartao border border-line bg-surface">
+            <EmptyState title="Nenhum projeto padrão cadastrado" description="A cenografia cadastra os projetos com sua lista de peças." />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
-            <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
-              {projetos.map((p) => {
-                const sel = p.id === selecionado?.id;
-                const n = uso.get(p.id) ?? 0;
-                return (
-                  <div key={p.id} className={cn("flex items-center gap-4 border-b border-line-row px-[18px] py-3.5 last:border-b-0 hover:bg-subtle", sel && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}>
-                    {p.capa ? (
-                      <ImagemZoom src={`/api/anexos/${p.capa.id}`} alt={p.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-[6px] border border-line" />
-                    ) : (
-                      <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-[6px] border border-dashed border-line-strong text-[10px] text-meta">
-                        sem foto
-                      </span>
-                    )}
-                    <Link href={hrefCom("/biblioteca", {}, { p: p.id })} scroll={false} aria-current={sel ? "true" : undefined} className="min-w-0 flex-1 no-underline">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="min-w-0 text-[14px] font-medium leading-[1.25] text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.nome}</span>
-                        <span className="rounded-[5px] bg-control px-1.5 font-mono text-[11px] text-ink-3">v{p.versaoAtual}</span>
-                      </span>
-                      <span className="mt-0.5 block truncate text-[12.5px] text-muted">
-                        <span className="font-mono">{p.codigo}</span>
-                        {p.descricao ? ` · ${p.descricao}` : ""}
-                      </span>
-                    </Link>
-                    <span className="w-[92px] shrink-0 text-[12.5px] text-ink-3 max-xl:hidden">{p.categoria || "—"}</span>
-                    <span className="w-[64px] shrink-0 text-right font-mono text-[12.5px] text-ink-2 max-xl:hidden">{p.tiposPeca} tipos</span>
-                    <span className="w-[72px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.totalPecas} peças</span>
-                    <span className={cn("w-[84px] shrink-0 text-right text-[12px] max-lg:hidden", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</span>
-                  </div>
-                );
-              })}
+            <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+              <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+                <CaptionOculta>Projetos padrão</CaptionOculta>
+                <thead>
+                  <tr>
+                    <Th largura={56}>
+                      <span className="sr-only">Foto</span>
+                    </Th>
+                    <Th>Projeto</Th>
+                    <Th largura={92} className="hidden xl:table-cell">
+                      Categoria
+                    </Th>
+                    <Th largura={64} alinhar="right" className="hidden xl:table-cell">
+                      Tipos
+                    </Th>
+                    <Th largura={72} alinhar="right">
+                      Peças
+                    </Th>
+                    <Th largura={84} alinhar="right" className="hidden lg:table-cell">
+                      Uso
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projetos.map((p) => {
+                    const sel = p.id === selecionado?.id;
+                    const n = uso.get(p.id) ?? 0;
+                    return (
+                      <LinhaLink key={p.id} href={hrefCom("/biblioteca", {}, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
+                        <td className="relative border-b border-line-row py-3.5 pl-[18px] pr-1">
+                          {sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />}
+                          {p.capa ? (
+                            <ImagemZoom src={`/api/anexos/${p.capa.id}`} alt={p.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line" />
+                          ) : (
+                            <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-micro text-meta">
+                              sem foto
+                            </span>
+                          )}
+                        </td>
+                        <th scope="row" aria-current={sel ? "true" : undefined} className="border-b border-line-row px-3 py-3.5 text-left font-normal">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="min-w-0 text-corpo font-medium leading-[1.25] text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.nome}</span>
+                            <ChipMono tom="control">v{p.versaoAtual}</ChipMono>
+                          </span>
+                          <span className="mt-0.5 block truncate text-pequeno text-muted">
+                            <span className="font-mono">{p.codigo}</span>
+                            {p.descricao ? ` · ${p.descricao}` : ""}
+                          </span>
+                        </th>
+                        <td className="hidden border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 xl:table-cell">{p.categoria || "—"}</td>
+                        <td className="hidden border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 xl:table-cell">{p.tiposPeca} tipos</td>
+                        <td className="border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 max-lg:pr-[18px]">{p.totalPecas} peças</td>
+                        <td className={cn("hidden border-b border-line-row py-3.5 pl-3 pr-[18px] text-right text-pequeno lg:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
+                      </LinhaLink>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
             {detalhe && atual && (
@@ -135,7 +154,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                           pecas={pecasTodas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, permiteEmProjeto: p.permiteEmProjeto }))}
                         />
                       )}
-                      <Link href={`/projetos/${detalhe.id}`} className="link text-[12.5px]">
+                      <Link href={`/projetos/${detalhe.id}`} className="link text-pequeno">
                         Abrir
                       </Link>
                     </span>
@@ -146,7 +165,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       {detalhe.anexos
                         .filter((a) => a.tipo === "IMAGEM")
                         .map((a) => (
-                          <ImagemZoom key={a.id} src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} legenda={`${detalhe.nome} · ${a.nomeArquivo}`} className="h-[84px] w-28 shrink-0 overflow-hidden rounded-[7px] border border-line" />
+                          <ImagemZoom key={a.id} src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} legenda={`${detalhe.nome} · ${a.nomeArquivo}`} className="h-[84px] w-28 shrink-0 overflow-hidden rounded-controle border border-line" />
                         ))}
                     </div>
                   )}
@@ -155,18 +174,22 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       const novo = anterior && !anterior.itens.some((x) => x.pecaId === i.pecaId);
                       return (
                         <div key={i.id} className="flex items-baseline gap-2.5 border-b border-line-faint px-[18px] py-2 last:border-b-0">
-                          <span className="w-[86px] shrink-0 font-mono text-[12px] text-ink-2">{i.peca.codigo}</span>
-                          <span className="min-w-0 flex-1 text-[12.5px] text-ink">
+                          <span className="w-[86px] shrink-0 font-mono text-pequeno text-ink-2">{i.peca.codigo}</span>
+                          <span className="min-w-0 flex-1 text-pequeno text-ink">
                             {i.peca.nome}
-                            {novo && <span className="ml-1.5 rounded-[5px] bg-accent-bg px-1.5 py-px text-[10.5px] font-medium text-accent">novo na v{detalhe.versaoAtual}</span>}
+                            {novo && (
+                              <Tag tom="accent" className="ml-1.5 font-medium">
+                                novo na v{detalhe.versaoAtual}
+                              </Tag>
+                            )}
                           </span>
-                          <span className="font-mono text-[12.5px] font-semibold">{i.quantidade}</span>
+                          <span className="font-mono text-pequeno font-semibold">{i.quantidade}</span>
                         </div>
                       );
                     })}
                   </div>
                   {(detalhe.versaoAtual > 1 || detalhe.usosDefasados.length > 0) && (
-                    <p className="m-0 border-t border-line-soft bg-subtle px-[18px] py-3 text-[12px] leading-[1.5] text-ink-3">
+                    <p className="m-0 border-t border-line-soft bg-subtle px-[18px] py-3 text-pequeno leading-[1.5] text-ink-3">
                       {detalhe.versaoAtual > 1 && atual.observacao ? `A v${detalhe.versaoAtual}: ${atual.observacao} ` : ""}
                       {detalhe.versaoAtual > 1 ? `Eventos que ainda usam versões anteriores aparecem marcados na ata.` : ""}
                       {detalhe.usosDefasados.length > 0 && <span className="mt-1 block text-warning">Em versão anterior: {detalhe.usosDefasados.map((u) => `${u.codigo} (v${u.versao})`).join(", ")}.</span>}
@@ -203,17 +226,17 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
-      <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-[12.5px] font-medium text-ink">{p.codigo}</td>
-      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-[13.5px] font-normal text-ink">
+      <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-pequeno font-medium text-ink">{p.codigo}</td>
+      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal text-ink">
         {p.nome}
-        {!p.permiteEmProjeto && <span className="ml-2 text-[11.5px] text-muted">só fora de projeto</span>}
+        {!p.permiteEmProjeto && <span className="ml-2 text-rotulo text-muted">só fora de projeto</span>}
       </th>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-2">{SETOR_LABEL[p.setor]}</td>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-3">{p.familia || "—"}</td>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-right font-mono text-[12.5px]">
-        {p.estoqueProprio > 0 ? p.estoqueProprio : "—"} <span className="text-[11px] text-muted">{p.unidade}</span>
+      <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{SETOR_LABEL[p.setor]}</td>
+      <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{p.familia || "—"}</td>
+      <td className="border-b border-line-row px-2.5 py-2.5 text-right font-mono text-pequeno">
+        {p.estoqueProprio > 0 ? p.estoqueProprio : "—"} <span className="text-rotulo text-muted">{p.unidade}</span>
       </td>
-      <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-[12.5px] text-ink-3">{emBom.get(p.id) ?? 0}</td>
+      <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-pequeno text-ink-3">{emBom.get(p.id) ?? 0}</td>
     </>
   );
 
@@ -230,12 +253,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           ]}
         />
       </div>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         {pag.total === 0 ? (
-          <div className="px-[18px] py-14 text-center">
-            <p className="m-0 text-[14px] font-medium">Nenhuma peça corresponde aos filtros</p>
-            <p className="mt-1 text-[13px] text-muted">Ajuste a busca ou volte para todos os setores.</p>
-          </div>
+          <EmptyState title="Nenhuma peça corresponde aos filtros" description="Ajuste a busca ou volte para todos os setores." />
         ) : (
           <>
             <table className="w-full border-collapse">

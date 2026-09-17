@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
-export type Aba = { href: string; label: string; n?: number | string | null; exact?: boolean };
+export type Aba = { href: string; label: string; n?: number | string | null; exact?: boolean; /** Força o estado ativo (abas por query string, onde o pathname não muda). */ ativo?: boolean };
 
 const abaCls = (ativo: boolean) => cn("-mb-px flex cursor-pointer items-center gap-[7px] whitespace-nowrap border-0 border-b-2 bg-transparent px-3.5 py-[9px] text-corpo no-underline", ativo ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink");
 
@@ -21,7 +21,7 @@ export function TabsNav({ tabs, className, rotulo = "Seções do evento" }: { ta
   return (
     <nav className={cn("mb-5", trilho, className)} aria-label={rotulo}>
       {tabs.map((t) => {
-        const ativo = t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/");
+        const ativo = t.ativo ?? (t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/"));
         return (
           <Link key={t.href} href={t.href} aria-current={ativo ? "page" : undefined} className={abaCls(ativo)}>
             {t.label}

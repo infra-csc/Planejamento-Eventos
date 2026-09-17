@@ -4,10 +4,9 @@ import { dadosPainel, type ItemAgenda, type ItemFila } from "@/server/services/d
 import { pode } from "@/domain/permissions";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { dataExtenso } from "@/lib/format";
-import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
-import { Metric, MetricStrip, Section } from "@/components/ui/layout";
-import { ForaJanelaTag, TipoSolicitacaoTag } from "@/components/ui/badge";
+import { EmptyState, Marcador, Metric, MetricStrip, PageHeader, Section } from "@/components/ui/layout";
+import { Badge, ForaJanelaTag, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { AtenderRapido } from "@/components/painel/atender-rapido";
 
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
@@ -19,19 +18,17 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
   const contexto = [f.areaNome, f.eventoNome, plural(f.total, "item", "itens"), f.respondidos > 0 ? `${f.respondidos} já respondido${f.respondidos === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
   return (
     <div className="flex items-start gap-[13px] border-b border-line-row px-[18px] py-[13px] last:border-b-0">
-      <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0 rounded-full", pi.vencido && "animate-pulse-dot")} style={{ background: cor }} />
+      <Marcador cor={cor} pulsar={pi.vencido} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <Link href={href} className="font-mono text-[12.5px] font-medium text-ink no-underline hover:underline">
-            {f.codigo}
-          </Link>
-          <Link href={href} className="text-[13.5px] text-ink no-underline hover:underline">
-            {f.titulo || "sem título"}
+          <Link href={href} className="inline-flex flex-wrap items-baseline gap-2 text-ink no-underline hover:underline">
+            <span className="font-mono text-pequeno font-medium">{f.codigo}</span>
+            <span className="text-corpo">{f.titulo || "sem título"}</span>
           </Link>
           <TipoSolicitacaoTag tipo={f.tipo} />
           {f.foraDaJanela && <ForaJanelaTag />}
         </div>
-        <p className="mt-[3px] text-[12.5px] text-muted">{contexto}</p>
+        <p className="mt-[3px] text-pequeno text-muted">{contexto}</p>
         {rapida && f.pendenteUnico && (
           <AtenderRapido
             itemId={f.pendenteUnico.id}
@@ -43,28 +40,28 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
         )}
       </div>
       <div className="shrink-0 pl-1.5 text-right">
-        <span className="block font-mono text-[12.5px] font-medium" style={{ color: cor }}>
+        <span className="block font-mono text-pequeno font-medium" style={{ color: cor }}>
           {pi.label === "vencido" ? "vencido" : pi.label}
         </span>
-        <span className="block text-[11.5px] text-meta">{pi.sub && !pi.vencido && (f.status === "ENVIADA" || f.status === "EM_ANALISE") ? `resposta até ${pi.sub}` : pi.sub}</span>
+        <span className="block text-rotulo text-meta">{pi.sub && !pi.vencido && (f.status === "ENVIADA" || f.status === "EM_ANALISE") ? `resposta até ${pi.sub}` : pi.sub}</span>
       </div>
     </div>
   );
 }
 
 function Agenda({ itens }: { itens: ItemAgenda[] }) {
-  const cor = { reuniao: "#2a1418", carga: "#7a5f00", montagem: "#6b6263" };
+  const cor = { reuniao: "var(--color-dark)", carga: "var(--color-warning)", montagem: "var(--color-muted)" };
   return (
     <Section titulo="Próximos 14 dias" sub="Reuniões, cargas e montagens de todos os eventos.">
       <div className="px-[18px] pb-3.5 pt-1.5">
-        {itens.length === 0 && <p className="m-0 py-3 text-[12.5px] text-muted">Nada marcado nas próximas duas semanas.</p>}
+        {itens.length === 0 && <p className="m-0 py-3 text-pequeno text-muted">Nada marcado nas próximas duas semanas.</p>}
         {itens.map((a) => (
           <Link key={a.chave} href={a.href} className="flex w-full gap-3 border-b border-line-faint py-[9px] text-left no-underline last:border-b-0 hover:bg-subtle">
-            <span className="shrink-0 basis-[46px] pt-px font-mono text-[12px] text-muted">{a.dia}</span>
-            <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0", a.tipo === "reuniao" ? "rounded-[2px]" : "rounded-full")} style={{ background: cor[a.tipo] }} />
+            <span className="shrink-0 basis-[46px] pt-px font-mono text-pequeno text-muted">{a.dia}</span>
+            <Marcador cor={cor[a.tipo]} quadrado={a.tipo === "reuniao"} />
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-medium text-ink">{a.titulo}</span>
-              <span className="block text-[12px] text-muted">{a.sub}</span>
+              <span className="block text-corpo font-medium text-ink">{a.titulo}</span>
+              <span className="block text-pequeno text-muted">{a.sub}</span>
             </span>
           </Link>
         ))}
@@ -102,18 +99,18 @@ export default async function PainelPage() {
 
   return (
     <>
-      <div className="mb-[22px] flex items-end justify-between gap-5">
-        <div>
-          <p className="mb-1 mt-0 font-mono text-[12.5px] text-muted">{dataExtenso(agora)}</p>
-          <h1 className="m-0 text-[24px] font-semibold tracking-[-0.025em]">Olá, {primeiroNome}</h1>
-          <p className="mt-1.5 max-w-[620px] text-[14.5px] text-ink-2">{subtitulo}</p>
-        </div>
-        {acao && (
-          <ButtonLink href={acao.href} variant="primary" size="lg" className="no-underline">
-            {acao.label}
-          </ButtonLink>
-        )}
-      </div>
+      <PageHeader
+        eyebrow={<span className="font-mono">{dataExtenso(agora)}</span>}
+        title={`Olá, ${primeiroNome}`}
+        description={subtitulo}
+        actions={
+          acao && (
+            <ButtonLink href={acao.href} variant="primary" size="lg" className="no-underline">
+              {acao.label}
+            </ButtonLink>
+          )
+        }
+      />
 
       {d.tipo === "operacao" && (
         <MetricStrip>
@@ -163,10 +160,7 @@ export default async function PainelPage() {
               }
             >
               {d.fila.length === 0 ? (
-                <div className="px-[18px] py-10 text-center">
-                  <p className="m-0 text-[13.5px] font-medium text-ink">Fila zerada</p>
-                  <p className="mt-1 text-[12.5px] text-muted">Nenhuma solicitação aguardando resposta.</p>
-                </div>
+                <EmptyState compact title="Fila zerada" description="Nenhuma solicitação aguardando resposta." />
               ) : (
                 d.fila.map((f) => <LinhaFila key={f.id} f={f} rapida={responde} />)
               )}
@@ -185,26 +179,21 @@ export default async function PainelPage() {
                 }
               >
                 {d.fila.length === 0 ? (
-                  <div className="px-[18px] py-10 text-center">
-                    <p className="m-0 text-[13.5px] font-medium text-ink">Nada pendente da sua área</p>
-                    <p className="mt-1 text-[12.5px] text-muted">Quando um evento abrir para envio, ele aparece aqui.</p>
-                  </div>
+                  <EmptyState compact title="Nada pendente da sua área" description="Quando um evento abrir para envio, ele aparece aqui." />
                 ) : (
                   d.fila.map((f) => <LinhaFila key={f.id} f={f} rapida={false} />)
                 )}
               </Section>
               <Section titulo="Respostas recebidas" sub="Cada item tem resposta própria. Parcial e recusa vêm sempre com motivo.">
-                {d.respostas.length === 0 && <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhuma resposta ainda.</p>}
+                {d.respostas.length === 0 && <EmptyState compact title="Nenhuma resposta ainda." />}
                 {d.respostas.map((r) => (
                   <Link key={r.id} href={`/solicitacoes/${r.id}`} className="block border-b border-line-row px-[18px] py-[13px] text-left no-underline last:border-b-0 hover:bg-subtle">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-[12.5px] font-medium text-ink">{r.codigo}</span>
-                      <span className="min-w-0 flex-1 text-[13.5px] text-ink">{r.titulo || "sem título"}</span>
-                      <span className={cn("rounded-[5px] px-2 py-0.5 text-[11px] font-medium", r.ressalvas > 0 ? "bg-warning-bg text-warning" : "bg-success-bg text-success")}>
-                        {r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "tudo atendido"}
-                      </span>
+                      <span className="font-mono text-pequeno font-medium text-ink">{r.codigo}</span>
+                      <span className="min-w-0 flex-1 text-corpo text-ink">{r.titulo || "sem título"}</span>
+                      <Badge tom={r.ressalvas > 0 ? "warning" : "success"}>{r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "tudo atendido"}</Badge>
                     </div>
-                    <p className="mt-1 text-[12.5px] text-muted">
+                    <p className="mt-1 text-pequeno text-muted">
                       {r.eventoNome} · respondida por {r.respondidoPor}
                     </p>
                   </Link>
@@ -219,8 +208,7 @@ export default async function PainelPage() {
           <Agenda itens={d.agenda} />
 
           {d.tipo === "requisitante" && (
-            <section className="rounded-[10px] bg-dark p-[18px]">
-              <h2 className="mb-3 mt-0 text-[13.5px] font-semibold text-white">Como o processo funciona</h2>
+            <Section tom="dark" titulo="Como o processo funciona" padded>
               {[
                 "Evento em preparação: envie as necessidades da área antes da reunião de OS.",
                 "Ata fechada: mudanças passam a entrar como solicitação de alteração.",
@@ -228,11 +216,11 @@ export default async function PainelPage() {
                 "Encerrado: nada mais entra. Só a Gestão reabre, em exceção.",
               ].map((texto, i) => (
                 <div key={i} className="flex gap-[11px] py-[7px]">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-[6px] bg-dark-2 font-mono text-[11px] text-accent-light">{i + 1}</span>
-                  <span className="flex-1 text-[12.5px] leading-[1.5] text-on-dark-3">{texto}</span>
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-chip bg-dark-2 font-mono text-rotulo text-accent-light">{i + 1}</span>
+                  <span className="flex-1 text-pequeno leading-[1.5] text-on-dark-3">{texto}</span>
                 </div>
               ))}
-            </section>
+            </Section>
           )}
         </div>
       </div>

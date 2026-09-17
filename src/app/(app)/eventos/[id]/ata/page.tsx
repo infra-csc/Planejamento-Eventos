@@ -5,11 +5,11 @@ import { obterEventoCache } from "@/server/cache";
 import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
-import { cn } from "@/lib/cn";
-import { Aviso, ListaDados, Section } from "@/components/ui/layout";
+import { Aviso, EmptyState, ListaDados, RodapeTabela, Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { Tag } from "@/components/ui/badge";
+import { Pills } from "@/components/ui/pills";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
@@ -58,20 +58,10 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <div className="flex min-w-0 flex-col gap-3.5">
         {!emConstrucao && fechada && versoes.length > 1 && (
-          <nav aria-label="Fechamentos da ata" className="flex flex-wrap items-center gap-1 rounded-[10px] border border-line bg-surface p-1">
-            <span className="px-2 text-[12px] text-muted">Evento reaberto · fechamentos:</span>
-            {[...versoes].reverse().map((v) => (
-              <Link
-                key={v.id}
-                href={v.numero === versoes[0].numero ? `/eventos/${id}/ata` : `/eventos/${id}/ata?v=${v.numero}`}
-                scroll={false}
-                aria-current={v.id === congelada?.id ? "page" : undefined}
-                className={cn("rounded-[7px] px-3 py-1.5 text-[13px] no-underline", v.id === congelada?.id ? "bg-dark font-medium text-white" : "text-ink-2 hover:bg-subtle")}
-              >
-                v{v.numero} · {diaMesHora(v.fechadaEm)}
-              </Link>
-            ))}
-          </nav>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-pequeno text-muted">Evento reaberto · fechamentos:</span>
+            <Pills rotulo="Fechamentos da ata" itens={[...versoes].reverse().map((v) => ({ label: `v${v.numero} · ${diaMesHora(v.fechadaEm)}`, ativo: v.id === congelada?.id, href: v.numero === versoes[0].numero ? `/eventos/${id}/ata` : `/eventos/${id}/ata?v=${v.numero}` }))} />
+          </div>
         )}
 
         {emConstrucao || !fechada ? (
@@ -84,7 +74,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             sub={`Registro do que foi decidido na reunião, fechado em ${congelada ? formatarDataHora(congelada.fechadaEm) : "—"}. Não muda: alterações e ajustes posteriores entram na OS.`}
           >
             {linhasCongeladas.length === 0 ? (
-              <p className="m-0 px-[18px] py-10 text-center text-[13px] text-muted">A ata foi fechada sem linhas.</p>
+              <EmptyState compact title="A ata foi fechada sem linhas." />
             ) : (
               <table className="w-full border-collapse">
                 <CaptionOculta>Linhas da ata congelada</CaptionOculta>
@@ -104,33 +94,30 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                   {linhasCongeladas.map((l) => (
                     <tr key={l.id}>
                       <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
-                        <span className="text-[13.5px] text-ink">{l.descricao.replace(/\s*\(v\d+\)$/, "")}</span>
+                        <span className="text-corpo text-ink">{l.descricao.replace(/\s*\(v\d+\)$/, "")}</span>
                         <Tag className="ml-2" tom="muted">
                           {TIPO[l.tipo]}
                         </Tag>
                         {l.codigo && (
-                          <span className="mt-px block font-mono text-[11.5px] text-muted">
+                          <span className="mt-px block font-mono text-rotulo text-muted">
                             {l.codigo}
                             {l.versao ? ` · v${l.versao}` : ""}
                           </span>
                         )}
                       </th>
-                      <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-[13px] font-medium">{l.quantidade}</td>
-                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>
-                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.area ?? "Logística"}</td>
-                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12px] text-ink-3">{ORIGEM[l.origem]}</td>
-                      <td className="border-b border-line-row px-2.5 py-[11px] text-[12px] text-success">{l.conferidoPor ? `✓ ${l.conferidoPor}` : <span className="text-meta">—</span>}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-corpo font-medium">{l.quantidade}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.area ?? "Logística"}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-3">{ORIGEM[l.origem]}</td>
+                      <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-success">{l.conferidoPor ? `✓ ${l.conferidoPor}` : <span className="text-meta">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            <div className="flex items-center justify-between gap-3 rounded-b-[10px] bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
-              <span>
-                {linhasCongeladas.length} {linhasCongeladas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhasCongeladas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
-              </span>
-              <span>somente leitura</span>
-            </div>
+            <RodapeTabela direita="somente leitura">
+              {linhasCongeladas.length} {linhasCongeladas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhasCongeladas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
+            </RodapeTabela>
           </Section>
         )}
 
@@ -157,7 +144,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
               <ButtonLink href={`/conferencia/${id}`} variant="primary" size="md" className="w-full no-underline">
                 Abrir conferência da ata
               </ButtonLink>
-              <p className="mb-0 mt-2 text-[12px] leading-[1.5] text-muted">A ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>
+              <p className="mb-0 mt-2 text-pequeno leading-[1.5] text-muted">A ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>
             </div>
           </Section>
         )}
@@ -178,16 +165,16 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
         <Section titulo="Reunião de OS" sub={!emConstrucao && congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
           <ListaDados itens={dadosReuniao} />
           <div className="border-t border-line-faint px-[18px] py-3">
-            <p className="m-0 text-[12px] text-muted">Pessoas presentes</p>
-            <p className="mb-0 mt-1 whitespace-pre-wrap text-[13px] leading-[1.5] text-ink-2">{presentes?.trim() || <span className="text-meta">ainda não registrado</span>}</p>
+            <p className="m-0 text-pequeno text-muted">Pessoas presentes</p>
+            <p className="mb-0 mt-1 whitespace-pre-wrap text-corpo leading-[1.5] text-ink-2">{presentes?.trim() || <span className="text-meta">ainda não registrado</span>}</p>
           </div>
-          <div className="border-t border-line-faint px-[18px] py-3 text-[12.5px] text-ink-3">
+          <div className="border-t border-line-faint px-[18px] py-3 text-pequeno text-ink-3">
             <span className="font-mono text-ink-2">{conferidas}</span>/{totalLinhas} linhas conferidas na reunião
           </div>
         </Section>
 
         <Section titulo="Observações da reunião">
-          <div className="px-[18px] py-3.5">{observacoes ? <p className="m-0 whitespace-pre-wrap text-[13px] leading-[1.55] text-ink-2">{observacoes}</p> : <p className="m-0 text-[12.5px] text-muted">Nenhuma observação registrada.</p>}</div>
+          <div className="px-[18px] py-3.5">{observacoes ? <p className="m-0 whitespace-pre-wrap text-corpo leading-[1.55] text-ink-2">{observacoes}</p> : <p className="m-0 text-pequeno text-muted">Nenhuma observação registrada.</p>}</div>
         </Section>
       </div>
     </div>

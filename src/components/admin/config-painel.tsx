@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox, Input } from "@/components/ui/field";
 import { toast, toastErro } from "@/components/ui/toast";
 import { salvarConfigAction } from "@/app/(app)/admin/actions";
 
@@ -33,44 +35,32 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
     });
 
   return (
-    <div className="max-w-[780px] overflow-hidden rounded-[10px] border border-line bg-surface">
+    <div className="max-w-[780px] overflow-hidden rounded-cartao border border-line bg-surface">
       {LINHAS.map((l) => (
         <div key={l.chave} className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
           <label htmlFor={l.chave} className="min-w-0 flex-1">
-            <span className="block text-[13.5px] font-medium text-ink">{l.titulo}</span>
-            <span className="mt-0.5 block text-[12.5px] text-muted">{l.descricao}</span>
-            {erros[l.chave] && <span className="mt-1 block text-[12px] text-danger">{erros[l.chave]}</span>}
+            <span className="block text-corpo font-medium text-ink">{l.titulo}</span>
+            <span className="mt-0.5 block text-pequeno text-muted">{l.descricao}</span>
+            {erros[l.chave] && <span className="mt-1 block text-pequeno text-danger">{erros[l.chave]}</span>}
           </label>
           <span className="flex shrink-0 items-center gap-2">
-            <input
-              id={l.chave}
-              type="number"
-              min={l.min}
-              max={l.max}
-              value={v[l.chave] ?? ""}
-              onChange={(e) => setV({ ...v, [l.chave]: e.target.value })}
-              className="h-9 w-[84px] rounded-lg border border-line-control bg-surface px-2.5 text-right font-mono text-[13.5px] focus:border-accent focus:outline-none"
-            />
-            <span className="w-8 text-[12.5px] text-muted">{l.unidade}</span>
+            <Input id={l.chave} type="number" min={l.min} max={l.max} value={v[l.chave] ?? ""} aria-invalid={Boolean(erros[l.chave])} onChange={(e) => setV({ ...v, [l.chave]: e.target.value })} className="w-[84px] px-2.5 text-right font-mono" />
+            <span className="w-8 text-pequeno text-muted">{l.unidade}</span>
           </span>
         </div>
       ))}
-      <div className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
-        <label htmlFor="bloquear" className="min-w-0 flex-1">
-          <span className="block text-[13.5px] font-medium text-ink">Bloquear encerramento com solicitações abertas</span>
-          <span className="mt-0.5 block text-[12.5px] text-muted">Recomendado. Desmarcado, a logística encerra mesmo com itens sem resposta.</span>
-        </label>
-        <input id="bloquear" type="checkbox" checked={v.bloquear_encerramento_com_pendentes === "true"} onChange={(e) => setV({ ...v, bloquear_encerramento_com_pendentes: String(e.target.checked) })} className="size-[17px] accent-accent" />
+      <div className="border-b border-line-row px-[18px] py-4">
+        <Checkbox id="bloquear" label="Bloquear encerramento com solicitações abertas" description="Recomendado. Desmarcado, a logística encerra mesmo com itens sem resposta." checked={v.bloquear_encerramento_com_pendentes === "true"} onChange={(marcado) => setV({ ...v, bloquear_encerramento_com_pendentes: String(marcado) })} />
       </div>
       <div className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
         <span className="min-w-0 flex-1">
-          <span className="block text-[13.5px] font-medium text-ink">Reabertura de evento</span>
-          <span className="mt-0.5 block text-[12.5px] text-muted">Só a Gestão reabre um evento encerrado, com justificativa registrada no histórico.</span>
+          <span className="block text-corpo font-medium text-ink">Reabertura de evento</span>
+          <span className="mt-0.5 block text-pequeno text-muted">Só a Gestão reabre um evento encerrado, com justificativa registrada no histórico.</span>
         </span>
-        <span className="rounded-[5px] bg-neutral-bg px-2 py-0.5 text-[12px] font-medium text-ink-3">restrita</span>
+        <Badge tom="rascunho">restrita</Badge>
       </div>
       <div className="flex items-center justify-end gap-3 bg-subtle px-[18px] py-3">
-        {mudou && <span className="text-[12px] text-muted">alterações não salvas</span>}
+        {mudou && <span className="text-pequeno text-muted">alterações não salvas</span>}
         <Button variant="primary" size="md" loading={pendente} disabled={!mudou} onClick={salvar}>
           Salvar configurações
         </Button>

@@ -115,7 +115,7 @@ export function ComboBox({
             }
           }}
           className={cn(
-            "h-[38px] w-full rounded-lg border border-line-control bg-surface pl-9 pr-9 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none",
+            "h-[38px] w-full rounded-lg border border-line-control bg-surface pl-9 pr-9 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none",
             "disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted aria-[invalid=true]:border-danger-input",
           )}
         />
@@ -130,7 +130,7 @@ export function ComboBox({
           role="listbox"
           className="absolute left-0 right-0 z-30 m-0 mt-1 max-h-[320px] list-none overflow-y-auto rounded-cartao border border-line-strong bg-surface p-1.5 shadow-popover animate-fade-up-rapido"
         >
-          {visiveis.length === 0 && <li className="px-2.5 py-3 text-center text-[12.5px] text-muted">Nada encontrado para “{busca}”.</li>}
+          {visiveis.length === 0 && <li className="px-2.5 py-3 text-center text-pequeno text-muted">Nada encontrado para “{busca}”.</li>}
           {visiveis.map((o, i) => (
             <li
               key={o.value}
@@ -142,7 +142,7 @@ export function ComboBox({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => escolher(o)}
               className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px]",
+                "flex cursor-pointer items-center gap-2.5 rounded-controle px-2.5 py-2 text-corpo",
                 i === indice && "bg-subtle",
                 o.value === value && "font-medium",
                 o.disabled && "cursor-not-allowed text-meta",
@@ -150,9 +150,9 @@ export function ComboBox({
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-ink">{o.label}</span>
-                {o.descricao && <span className="block truncate text-[11.5px] text-muted">{o.descricao}</span>}
+                {o.descricao && <span className="block truncate text-rotulo text-muted">{o.descricao}</span>}
               </span>
-              {o.selo && <span className={cn("shrink-0 rounded-[5px] px-1.5 py-px text-[10.5px] font-medium", TOM[o.seloTom ?? "muted"])}>{o.selo}</span>}
+              {o.selo && <span className={cn("shrink-0 rounded-chip px-1.5 py-px text-micro font-medium", TOM[o.seloTom ?? "muted"])}>{o.selo}</span>}
               {o.value === value && (
                 <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent">
                   <path d="M5 12l5 5 9-10" />

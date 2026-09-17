@@ -5,9 +5,13 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { Tag } from "@/components/ui/badge";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconeCheck, IconeLapis } from "@/components/ui/icons";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
+import { EmptyState, RodapeTabela } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast, toastErro } from "@/components/ui/toast";
 import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
@@ -68,9 +72,7 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
         marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-transparent hover:border-success hover:text-success/50",
       )}
     >
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <IconeCheck size={14} />
     </button>
   );
 }
@@ -78,18 +80,9 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
 /** Canetinha: ajustar a quantidade da linha (fica no histórico quem mudou, de quanto para quanto e a justificativa). */
 function BotaoAjustar({ nome, onClick }: { nome: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Ajustar ${nome}`}
-      title="Ajustar quantidade (registrado no histórico)"
-      className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent text-ink-3 hover:border-line hover:bg-subtle hover:text-accent"
-    >
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M11.3 2.3a1.5 1.5 0 0 1 2.1 2.1L5.5 12.3 2.5 13l.7-3L11.3 2.3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M10 3.6l2.4 2.4" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    </button>
+    <IconButton label={`Ajustar ${nome}`} onClick={onClick}>
+      <IconeLapis size={13} />
+    </IconButton>
   );
 }
 
@@ -98,7 +91,7 @@ const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as cons
 function BadgeVersao({ l, eventoId, podeAtualizar }: { l: LinhaAtaView; eventoId: string; podeAtualizar: boolean }) {
   const [pendente, iniciar] = useTransition();
   const texto = `v${l.versao} · atualizar para v${l.versaoAtual}`;
-  const cls = "ml-2 inline-flex h-[22px] items-center rounded-[5px] border border-warning-border bg-warning-bg px-[7px] text-[11px] font-medium text-warning";
+  const cls = "ml-2 inline-flex h-[22px] items-center rounded-chip border border-warning-border bg-warning-bg px-[7px] text-rotulo font-medium text-warning";
   if (!podeAtualizar) return <span className={cls}>{`v${l.versao} · existe v${l.versaoAtual}`}</span>;
   return (
     <button
@@ -158,21 +151,15 @@ export function AtaLista({
   const soma = linhas.reduce((a, l) => a + l.quantidade, 0);
 
   const botaoIncluir = editavel && (
-    <button type="button" onClick={() => setIncluir(true)} className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] font-medium text-accent hover:underline">
+    <Button variant="link" size="sm" onClick={() => setIncluir(true)}>
       + {contexto === "os" ? "Incluir item na OS com justificativa" : `Incluir linha ${exigeJustificativa ? "com justificativa" : "decidida na reunião"}`}
-    </button>
+    </Button>
   );
 
   return (
     <>
       {linhas.length === 0 ? (
-        <div className={cn("text-center", compacta ? "px-[18px] py-8" : "px-[18px] py-12")}>
-          <p className="m-0 text-[13.5px] font-medium text-ink">Ata ainda não montada</p>
-          <p className="mx-auto mt-1 max-w-[380px] text-[12.5px] text-muted">
-            {compacta ? "As linhas entram aqui conforme você responde os itens." : `A ata é montada na reunião de OS, marcada para ${dataReuniao}.`}
-          </p>
-          {botaoIncluir && <div className="mt-3">{botaoIncluir}</div>}
-        </div>
+        <EmptyState compact={compacta} title="Ata ainda não montada" description={compacta ? "As linhas entram aqui conforme você responde os itens." : `A ata é montada na reunião de OS, marcada para ${dataReuniao}.`} action={botaoIncluir || undefined} />
       ) : (
         <>
           <table className="w-full border-collapse">
@@ -197,8 +184,8 @@ export function AtaLista({
               {linhas.map((l) => (
                 <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
                   <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
-                    {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-[5px] border border-line" />}
-                    <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-[13.5px] text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
+                    {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
+                    <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
                       {l.nome}
                     </Link>
                     {!compacta && (
@@ -217,12 +204,12 @@ export function AtaLista({
                         <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                       </span>
                     )}
-                    {l.codigo && <span className="mt-px block font-mono text-[11.5px] text-muted">{l.codigo}</span>}
+                    {l.codigo && <span className="mt-px block font-mono text-rotulo text-muted">{l.codigo}</span>}
                   </th>
-                  <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-[13px] font-medium">{l.quantidade}</td>
-                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
-                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-[12.5px] text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
-                  <td className="border-b border-line-row px-2.5 py-[11px] text-[12px] text-ink-3">
+                  <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-corpo font-medium">{l.quantidade}</td>
+                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
+                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
+                  <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-3">
                     {l.origemSolicitacaoId ? (
                       <Link href={`/solicitacoes/${l.origemSolicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
                         {l.origemLabel}
@@ -243,39 +230,41 @@ export function AtaLista({
               ))}
             </tbody>
           </table>
-          <div className="flex items-center justify-between gap-3 bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
-            <span>
-              {linhas.length} {contexto === "os" ? (linhas.length === 1 ? "item na OS" : "itens na OS") : `${linhas.length === 1 ? "linha" : "linhas"} na ata`} · <span className="font-mono">{soma}</span> unidades
-              {conferivel && (
-                <>
-                  {" · "}
-                  <span className={cn("font-mono", conferidas === linhas.length ? "text-success" : "text-warning")}>
-                    {conferidas}/{linhas.length}
-                  </span>{" "}
-                  conferidas
-                </>
-              )}
-            </span>
-            <span className="flex flex-wrap items-center gap-3">
-              {conferivel && conferidas < linhas.length && linhas.length - conferidas > 1 && (
-                <button
-                  type="button"
-                  disabled={conferindoTodas}
-                  onClick={() =>
-                    iniciarTodas(async () => {
-                      const r = await conferirTodasAction(eventoId);
-                      if (r.ok) toast("Linhas restantes marcadas como conferidas");
-                      else toastErro(r.erro);
-                    })
-                  }
-                  className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-ink-2 hover:underline disabled:opacity-60"
-                >
-                  {conferindoTodas ? "conferindo…" : `Conferir as ${linhas.length - conferidas} restantes`}
-                </button>
-              )}
-              {botaoIncluir}
-            </span>
-          </div>
+          <RodapeTabela
+            direita={
+              <span className="flex flex-wrap items-center gap-3">
+                {conferivel && conferidas < linhas.length && linhas.length - conferidas > 1 && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="!text-ink-2 hover:!text-ink"
+                    disabled={conferindoTodas}
+                    onClick={() =>
+                      iniciarTodas(async () => {
+                        const r = await conferirTodasAction(eventoId);
+                        if (r.ok) toast("Linhas restantes marcadas como conferidas");
+                        else toastErro(r.erro);
+                      })
+                    }
+                  >
+                    {conferindoTodas ? "conferindo…" : `Conferir as ${linhas.length - conferidas} restantes`}
+                  </Button>
+                )}
+                {botaoIncluir}
+              </span>
+            }
+          >
+            {linhas.length} {contexto === "os" ? (linhas.length === 1 ? "item na OS" : "itens na OS") : `${linhas.length === 1 ? "linha" : "linhas"} na ata`} · <span className="font-mono">{soma}</span> unidades
+            {conferivel && (
+              <>
+                {" · "}
+                <span className={cn("font-mono", conferidas === linhas.length ? "text-success" : "text-warning")}>
+                  {conferidas}/{linhas.length}
+                </span>{" "}
+                conferidas
+              </>
+            )}
+          </RodapeTabela>
         </>
       )}
 

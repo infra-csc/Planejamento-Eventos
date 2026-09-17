@@ -38,10 +38,10 @@ export function ImagemZoom({ src, alt, className, legenda }: { src: string; alt:
           <div role="dialog" aria-modal="true" aria-label={alt} onClick={() => setAberta(false)} className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-[rgba(22,23,26,0.82)] p-4 backdrop-blur-[2px] sm:p-8">
             <figure className="m-0 flex max-h-full max-w-[1200px] flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={alt} className="max-h-[calc(100vh-96px)] max-w-full rounded-[10px] bg-white object-contain shadow-[0_24px_64px_rgba(0,0,0,0.45)]" />
-              <figcaption className="flex items-center gap-3 text-[12.5px] text-white/80">
+              <img src={src} alt={alt} className="max-h-[calc(100vh-96px)] max-w-full rounded-cartao bg-white object-contain shadow-modal" />
+              <figcaption className="flex items-center gap-3 text-pequeno text-white/80">
                 {legenda ?? alt}
-                <button type="button" onClick={() => setAberta(false)} className="cursor-pointer rounded-[7px] border border-white/30 bg-transparent px-2.5 py-1 text-[12px] text-white hover:bg-white/10">
+                <button type="button" onClick={() => setAberta(false)} className="cursor-pointer rounded-controle border border-white/30 bg-transparent px-2.5 py-1 text-pequeno text-white hover:bg-white/10">
                   Fechar (Esc)
                 </button>
               </figcaption>

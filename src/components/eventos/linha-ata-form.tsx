@@ -4,12 +4,12 @@ import { SETORES } from "@/domain/constantes";
 import { useActionState, useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { incluirLinhaAtaAction } from "@/app/(app)/eventos/actions";
-import { Field, FormError, Input, Select, Textarea } from "@/components/ui/field";
+import { Field, FormError, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { Button, SubmitButton } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
+import { Pills } from "@/components/ui/pills";
 import { useActionFeedback } from "@/components/ui/use-action-feedback";
 import { ESTADO_INICIAL } from "@/lib/action";
-import { cn } from "@/lib/cn";
 import { SETOR_LABEL } from "@/domain/os";
 import type { Setor } from "@/server/db/schema";
 
@@ -33,17 +33,11 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
   return (
     <ActionForm action={action} className="flex flex-col gap-3.5" noValidate>
       <input type="hidden" name="eventoId" value={eventoId} />
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="mb-1.5 text-[13px] font-medium text-ink-2">O que entra na ata</legend>
-        <div className="flex w-fit gap-1 rounded-lg bg-control p-[3px]">
-          {TIPOS.map(([t, label]) => (
-            <label key={t} className={cn("cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px]", tipo === t ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(42,20,24,.08)]" : "text-ink-3")}>
-              <input type="radio" name="referenciaTipo" value={t} checked={tipo === t} onChange={() => setTipo(t)} className="sr-only" />
-              {label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <input type="hidden" name="referenciaTipo" value={tipo} />
+      <div>
+        <Label>O que entra na ata</Label>
+        <Pills rotulo="O que entra na ata" itens={TIPOS.map(([t, label]) => ({ label, ativo: tipo === t, onSelect: () => setTipo(t) }))} />
+      </div>
 
       {tipo === "PROJETO" && (
         <Field label="Projeto padrão" htmlFor="projetoId" error={campos?.projetoId} hint="A OS soma a lista de peças do projeto × quantidade.">

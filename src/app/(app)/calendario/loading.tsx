@@ -10,12 +10,12 @@ export default function Loading() {
           <Skeleton className="mt-2.5 h-4 w-[320px]" />
         </div>
         <div className="flex gap-2">
-          <Skeleton className="size-8 rounded-[6px]" />
-          <Skeleton className="h-8 w-16 rounded-[6px]" />
-          <Skeleton className="size-8 rounded-[6px]" />
+          <Skeleton className="size-8 rounded-controle" />
+          <Skeleton className="h-8 w-16 rounded-controle" />
+          <Skeleton className="size-8 rounded-controle" />
         </div>
       </div>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="grid grid-cols-7 border-b border-line-soft bg-subtle">
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="px-2 py-2">
@@ -27,8 +27,8 @@ export default function Loading() {
           {Array.from({ length: 42 }, (_, i) => (
             <div key={i} className="min-h-[112px] border-b border-r border-line-row p-2 [&:nth-child(7n)]:border-r-0">
               <Skeleton className="size-6 rounded-full" />
-              {i % 3 === 0 && <Skeleton className="mt-2 h-4 w-full rounded-[4px]" />}
-              {i % 5 === 0 && <Skeleton className="mt-1 h-4 w-4/5 rounded-[4px]" />}
+              {i % 3 === 0 && <Skeleton className="mt-2 h-4 w-full rounded-chip" />}
+              {i % 5 === 0 && <Skeleton className="mt-1 h-4 w-4/5 rounded-chip" />}
             </div>
           ))}
         </div>

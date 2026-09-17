@@ -7,7 +7,8 @@ import { SETOR_LABEL } from "@/domain/os";
 import { NaoEncontradoError } from "@/domain/errors";
 import { SETORES } from "@/domain/constantes";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, ListaDados, PageHeader, Section } from "@/components/ui/layout";
+import { Aviso, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
+import { Badge, ChipMono } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { AnexosManager } from "@/components/projetos/anexos-manager";
@@ -37,24 +38,19 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     <>
       <PageHeader
         breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca" }, { label: p.codigo }]}
-        title={
-          <span className="flex items-center gap-2.5">
-            {p.nome}
-            <span className="rounded-[5px] bg-control px-1.5 font-mono text-[12px] font-normal text-ink-3">v{p.versaoAtual}</span>
-            {!p.ativo && <span className="rounded-[5px] bg-neutral-bg px-1.5 text-[12px] font-normal text-muted">inativo</span>}
-          </span>
+        eyebrow={
+          <>
+            <span className="font-mono">{p.codigo}</span>
+            <ChipMono tom="control">v{p.versaoAtual}</ChipMono>
+            {!p.ativo && <Badge tom="muted">inativo</Badge>}
+          </>
         }
+        title={p.nome}
         description={p.descricao || undefined}
         meta={
           <>
-            <span>
-              <span className="text-muted">Código</span> <span className="font-mono">{p.codigo}</span>
-            </span>
-            {p.categoria && (
-              <span>
-                <span className="text-muted">Categoria</span> {p.categoria}
-              </span>
-            )}
+            <Meta rotulo="Código" valor={p.codigo} mono />
+            {p.categoria && <Meta rotulo="Categoria" valor={p.categoria} />}
           </>
         }
         actions={
@@ -110,14 +106,14 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
                     .sort((a, b) => a.peca.codigo.localeCompare(b.peca.codigo))
                     .map((i) => (
                       <tr key={i.id} className="hover:bg-subtle">
-                        <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-[12.5px]">{i.peca.codigo}</td>
-                        <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-[13.5px] font-normal">
+                        <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-pequeno">{i.peca.codigo}</td>
+                        <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal">
                           {i.peca.nome}
-                          {!i.peca.ativo && <span className="ml-2 text-[11.5px] text-danger">peça inativa</span>}
+                          {!i.peca.ativo && <span className="ml-2 text-rotulo text-danger">peça inativa</span>}
                         </th>
-                        <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-3">{SETOR_LABEL[setor]}</td>
-                        <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-[13px] font-semibold">
-                          {i.quantidade} <span className="text-[11px] font-normal text-muted">{i.peca.unidade}</span>
+                        <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{SETOR_LABEL[setor]}</td>
+                        <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-corpo font-semibold">
+                          {i.quantidade} <span className="text-rotulo font-normal text-muted">{i.peca.unidade}</span>
                         </td>
                       </tr>
                     )),
@@ -130,14 +126,15 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col gap-5">
           <Section titulo="Versões">
             {p.versoes.map((v) => (
-              <div key={v.id} className="border-b border-line-row px-4 py-3 last:border-b-0" style={{ boxShadow: v.numero === p.versaoAtual ? "inset 3px 0 0 var(--color-accent)" : undefined }}>
+              <div key={v.id} className="relative border-b border-line-row px-[18px] py-3 last:border-b-0">
+                {v.numero === p.versaoAtual && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />}
                 <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-[13px] font-semibold">v{v.numero}</span>
-                  <span className="flex-1 font-mono text-[11.5px] text-muted">{diaMesHora(v.criadoEm)}</span>
-                  {v.numero === p.versaoAtual && <span className="text-[11px] font-medium text-accent">atual</span>}
+                  <span className="font-mono text-corpo font-semibold">v{v.numero}</span>
+                  <span className="flex-1 font-mono text-rotulo text-muted">{diaMesHora(v.criadoEm)}</span>
+                  {v.numero === p.versaoAtual && <Badge tom="accent">atual</Badge>}
                 </div>
-                {v.observacao && <p className="mb-0 mt-1 text-[12.5px] text-ink-2">{v.observacao}</p>}
-                <p className="mb-0 mt-0.5 text-[11.5px] text-muted">
+                {v.observacao && <p className="mb-0 mt-1 text-pequeno text-ink-2">{v.observacao}</p>}
+                <p className="mb-0 mt-0.5 text-rotulo text-muted">
                   {v.itens.length} tipos · {v.itens.reduce((a, i) => a + i.quantidade, 0)} unidades · {v.criadoPor?.nome ?? "—"}
                 </p>
               </div>
@@ -154,11 +151,11 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
           </Section>
           <Section titulo="Histórico">
             <div className="px-[18px] py-3">
-              {historico.length === 0 && <p className="m-0 text-[12.5px] text-muted">Sem registros.</p>}
+              {historico.length === 0 && <p className="m-0 text-pequeno text-muted">Sem registros.</p>}
               {historico.slice(0, 8).map((h) => (
                 <div key={h.id} className="py-1.5">
-                  <p className="m-0 text-[12.5px] text-ink">{h.descricao}</p>
-                  <p className="m-0 text-[11.5px] text-meta">
+                  <p className="m-0 text-pequeno text-ink">{h.descricao}</p>
+                  <p className="m-0 text-rotulo text-meta">
                     {h.usuario?.nome ?? "Sistema"} · {diaMesHora(h.criadoEm)}
                   </p>
                 </div>

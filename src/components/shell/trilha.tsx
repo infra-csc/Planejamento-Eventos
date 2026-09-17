@@ -55,7 +55,7 @@ export function Trilha() {
   );
   const itens: ItemTrilha[] = definida ?? [{ label: NOMES[pathname.split("/")[1] ?? ""] ?? "Painel" }];
   return (
-    <nav aria-label="Trilha" className="flex min-w-0 flex-1 items-center gap-[7px] text-[13px] text-ink-3">
+    <nav aria-label="Trilha" className="flex min-w-0 flex-1 items-center gap-[7px] text-corpo text-ink-3">
       {itens.map((t, i) => {
         const ultimo = i === itens.length - 1;
         return (

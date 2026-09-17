@@ -8,6 +8,12 @@ import { combinaBusca } from "@/lib/busca";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tag } from "@/components/ui/badge";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconeCheck, IconeLapis } from "@/components/ui/icons";
+import { EmptyState, RodapeTabela } from "@/components/ui/layout";
+import { Pills } from "@/components/ui/pills";
+import { Stepper } from "@/components/ui/stepper";
 import { toast, toastErro } from "@/components/ui/toast";
 import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
@@ -17,23 +23,6 @@ import type { LinhaConferencia } from "@/server/services/conferencia";
 type Filtro = "todas" | "pendentes" | "conferidas";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
-
-function IconeCheck() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconeCaneta() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M11.3 2.3a1.5 1.5 0 0 1 2.1 2.1L5.5 12.3 2.5 13l.7-3L11.3 2.3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M10 3.6l2.4 2.4" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
 
 /** Check verde da linha: um clique confere, outro desfaz. Otimista, volta se o servidor recusar. */
 function Check({ l, eventoId, onMudou }: { l: LinhaConferencia; eventoId: string; onMudou: (id: string, v: boolean) => void }) {
@@ -104,57 +93,29 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
       <DialogContent title={`Ajustar ${l.nome}`} description="O ajuste fica registrado com seu nome, data e motivo." width={480}>
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 rounded-[8px] bg-subtle px-3.5 py-2.5 text-[12.5px]">
+          <div className="grid grid-cols-2 gap-3 rounded-controle bg-subtle px-3.5 py-2.5 text-pequeno">
             <span>
               <span className="block text-muted">Na ata agora</span>
-              <span className="font-mono text-[15px] font-medium">{l.quantidade}</span>
+              <span className="font-mono text-destaque font-medium">{l.quantidade}</span>
             </span>
             <span>
               <span className="block text-muted">{l.origem ? `Pedido em ${l.origem.codigo}` : "Origem"}</span>
-              <span className="font-mono text-[15px] font-medium">{pedido ?? "incluída na reunião"}</span>
+              <span className="font-mono text-destaque font-medium">{pedido ?? "incluída na reunião"}</span>
             </span>
           </div>
 
-          <div>
-            <label htmlFor="qtd-ajuste" className="text-[13px] font-medium text-ink">
-              Nova quantidade
-            </label>
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="flex items-center overflow-hidden rounded-lg border border-line-control">
-                <button type="button" aria-label="Diminuir" onClick={() => setQtd((q) => Math.max(0, q - 1))} className="h-10 w-10 cursor-pointer border-0 bg-subtle text-[16px] text-ink-2 hover:bg-control">
-                  −
-                </button>
-                <input
-                  id="qtd-ajuste"
-                  type="number"
-                  min={0}
-                  value={qtd}
-                  autoFocus
-                  onChange={(e) => setQtd(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                  className="h-10 w-20 border-0 bg-surface text-center font-mono text-[15px] focus:outline-none"
-                />
-                <button type="button" aria-label="Aumentar" onClick={() => setQtd((q) => q + 1)} className="h-10 w-10 cursor-pointer border-0 bg-subtle text-[16px] text-ink-2 hover:bg-control">
-                  +
-                </button>
-              </div>
-              <span className="text-[12px] text-muted">{efeito ?? "0 retira a linha da ata"}</span>
+          <Field label="Nova quantidade" htmlFor="qtd-ajuste">
+            <div className="flex items-center gap-2">
+              <Stepper id="qtd-ajuste" valor={qtd} onChange={setQtd} min={0} tamanho="md" autoFocus />
+              <span className="text-pequeno text-muted">{efeito ?? "0 retira a linha da ata"}</span>
             </div>
-          </div>
+          </Field>
 
-          <div>
-            <label htmlFor="motivo-ajuste" className="text-[13px] font-medium text-ink">
-              Motivo <span className="font-normal text-danger">obrigatório</span>
-            </label>
-            <textarea
-              id="motivo-ajuste"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação"
-              className="mt-1.5 min-h-[84px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none"
-            />
-          </div>
+          <Field label="Motivo" htmlFor="motivo-ajuste" obrigatorio>
+            <Textarea id="motivo-ajuste" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação" className="min-h-[84px]" />
+          </Field>
 
-          {erro && <p className="m-0 text-[12.5px] text-danger">{erro}</p>}
+          {erro && <p className="m-0 text-pequeno text-danger">{erro}</p>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onFechar} disabled={pendente}>
               Cancelar
@@ -206,20 +167,20 @@ function Linha({
 
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5">
-          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-[13.5px] font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
+          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
             {l.nome}
           </Link>
           {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
-          {l.codigo && <span className="hidden shrink-0 font-mono text-[11px] text-muted xl:inline">{l.codigo}</span>}
+          {l.codigo && <span className="hidden shrink-0 font-mono text-rotulo text-muted xl:inline">{l.codigo}</span>}
         </span>
         {dicas && (
-          <span title={dicas} className={cn("block truncate text-[11.5px] leading-[1.4]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
-            {l.ultimoAjuste && <IconeCaneta />} {dicas}
+          <span title={dicas} className={cn("block truncate text-rotulo leading-[1.4]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+            {l.ultimoAjuste && <IconeLapis />} {dicas}
           </span>
         )}
       </span>
 
-      <span className="truncate text-[12.5px] text-ink-3" title={l.origem ? `${l.origem.solicitante} · ${l.origem.codigo}${l.origem.titulo ? ` · ${l.origem.titulo}` : ""}` : undefined}>
+      <span className="truncate text-pequeno text-ink-3" title={l.origem ? `${l.origem.solicitante} · ${l.origem.codigo}${l.origem.titulo ? ` · ${l.origem.titulo}` : ""}` : undefined}>
         {l.origem ? (
           <>
             <span className="text-ink-2">{l.origem.solicitante}</span> ·{" "}
@@ -232,27 +193,21 @@ function Linha({
         )}
       </span>
 
-      <span className="truncate text-[12.5px] text-ink-3" title={l.destino ?? undefined}>
+      <span className="truncate text-pequeno text-ink-3" title={l.destino ?? undefined}>
         {l.destino ?? "—"}
       </span>
 
       <span className="text-right">
-        <span className="font-mono text-[14px] font-medium text-ink">{l.quantidade}</span>
-        {pedidoDiferente && <span className="block font-mono text-[10.5px] leading-none text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
+        <span className="font-mono text-secao font-medium text-ink">{l.quantidade}</span>
+        {pedidoDiferente && <span className="block font-mono text-micro leading-none text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 
       <span className="flex items-center justify-end gap-1">
         {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
         {editavel && (
-          <button
-            type="button"
-            onClick={() => onAjustar(l)}
-            aria-label={`Ajustar quantidade de ${l.nome}`}
-            title="Ajustar quantidade (com motivo)"
-            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent text-ink-3 hover:border-line hover:bg-surface hover:text-accent"
-          >
-            <IconeCaneta />
-          </button>
+          <IconButton label={`Ajustar quantidade de ${l.nome}`} onClick={() => onAjustar(l)}>
+            <IconeLapis />
+          </IconButton>
         )}
       </span>
     </li>
@@ -308,26 +263,13 @@ export function ConferenciaAta({
     return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
   }, [visiveis]);
 
-  const filtroBtn = (v: Filtro, rotulo: string, n: number) => (
-    <button
-      key={v}
-      type="button"
-      onClick={() => setFiltro(v)}
-      aria-pressed={filtro === v}
-      className={cn("flex cursor-pointer items-center gap-1.5 rounded-[7px] border-0 px-3 py-1.5 text-[13px]", filtro === v ? "bg-dark font-medium text-white" : "bg-transparent text-ink-2 hover:bg-subtle")}
-    >
-      {rotulo}
-      <span className={cn("rounded-[4px] px-1.5 font-mono text-[11px]", filtro === v ? "bg-dark-3 text-on-dark-2" : "bg-control text-ink-3")}>{n}</span>
-    </button>
-  );
-
   return (
-    <section className="rounded-[10px] border border-line bg-surface" aria-label="Conferência da ata">
+    <section className="rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
       <div className="flex flex-col gap-3 border-b border-line-soft px-[18px] py-3.5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="m-0 text-[15px] font-semibold">Ata da reunião · conferência</h2>
-            <p className="mb-0 mt-0.5 text-[12.5px] text-muted">Confira cada item ou projeto com as áreas. Ajustes pedem motivo e ficam no histórico.</p>
+            <h2 className="m-0 text-destaque font-semibold">Ata da reunião · conferência</h2>
+            <p className="mb-0 mt-0.5 text-pequeno text-muted">Confira cada item ou projeto com as áreas. Ajustes pedem motivo e ficam no histórico.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {editavel && pendentes > 1 && (
@@ -354,67 +296,58 @@ export function ConferenciaAta({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1 rounded-[9px] bg-control p-[3px]">
-            {filtroBtn("todas", "Todas", linhas.length)}
-            {filtroBtn("pendentes", "A conferir", pendentes)}
-            {filtroBtn("conferidas", "Conferidas", conferidas)}
-          </div>
-          <input
-            aria-label="Buscar na ata"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar item, área, solicitação ou pessoa"
-            className="h-9 min-w-[220px] flex-1 rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none"
+          <Pills
+            rotulo="Filtrar linhas da ata"
+            itens={[
+              { label: "Todas", n: linhas.length, ativo: filtro === "todas", onSelect: () => setFiltro("todas") },
+              { label: "A conferir", n: pendentes, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
+              { label: "Conferidas", n: conferidas, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
+            ]}
           />
+          <Input aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar item, área, solicitação ou pessoa" className="min-w-[220px] flex-1" />
         </div>
       </div>
 
       {linhas.length === 0 ? (
-        <div className="px-[18px] py-14 text-center">
-          <p className="m-0 text-[14px] font-medium">A ata está vazia</p>
-          <p className="mt-1 text-[12.5px] text-muted">As necessidades enviadas pelas áreas entram aqui automaticamente. Você também pode incluir linhas decididas na reunião.</p>
-        </div>
+        <EmptyState compact title="A ata está vazia" description="As necessidades enviadas pelas áreas entram aqui automaticamente. Você também pode incluir linhas decididas na reunião." />
       ) : visiveis.length === 0 ? (
-        <p className="m-0 px-[18px] py-10 text-center text-[13px] text-muted">{filtro === "pendentes" ? "Nada a conferir. Tudo certo por aqui." : "Nenhuma linha com esse filtro."}</p>
+        <EmptyState compact title={filtro === "pendentes" ? "Nada a conferir. Tudo certo por aqui." : "Nenhuma linha com esse filtro."} />
       ) : (
         <>
-        <div className={cn(COLUNAS, "border-b border-line-soft px-[18px] py-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted")} aria-hidden>
-          <span className="flex justify-center text-success" title="Conferido">
-            <IconeCheck />
-          </span>
-          <span>Item</span>
-          <span>Pedido por</span>
-          <span>Destino</span>
-          <span className="text-right">Qtd.</span>
-          <span />
-        </div>
-        {grupos.map(([area, ls]) => {
-          const ok = ls.filter((l) => l.conferidoEm).length;
-          return (
-            <div key={area}>
-              <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-[18px] py-1.5">
-                <span className="text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-2">{area}</span>
-                <span className={cn("font-mono text-[12px]", ok === ls.length ? "text-success" : "text-ink-3")}>
-                  {ok}/{ls.length} conferidas
-                </span>
+          <div className={cn(COLUNAS, "border-b border-line-soft px-[18px] py-1.5 text-rotulo font-medium text-muted")} aria-hidden>
+            <span className="flex justify-center text-success" title="Conferido">
+              <IconeCheck />
+            </span>
+            <span>Item</span>
+            <span>Pedido por</span>
+            <span>Destino</span>
+            <span className="text-right">Qtd.</span>
+            <span />
+          </div>
+          {grupos.map(([area, ls]) => {
+            const ok = ls.filter((l) => l.conferidoEm).length;
+            return (
+              <div key={area}>
+                <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-[18px] py-1.5">
+                  <span className="text-rotulo font-semibold uppercase tracking-[0.05em] text-ink-2">{area}</span>
+                  <span className={cn("font-mono text-pequeno", ok === ls.length ? "text-success" : "text-ink-3")}>
+                    {ok}/{ls.length} conferidas
+                  </span>
+                </div>
+                <ul className="m-0 list-none p-0">
+                  {ls.map((l) => (
+                    <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                  ))}
+                </ul>
               </div>
-              <ul className="m-0 list-none p-0">
-                {ls.map((l) => (
-                  <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
+            );
+          })}
         </>
       )}
 
-      <div className="flex items-center justify-between gap-3 rounded-b-[10px] border-t border-line-soft bg-subtle px-[18px] py-2.5 text-[12.5px] text-ink-3">
-        <span>
-          {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
-        </span>
-        <span className="text-muted">clique no nome para ver peças e histórico</span>
-      </div>
+      <RodapeTabela className="rounded-b-cartao" direita={<span className="text-muted">clique no nome para ver peças e histórico</span>}>
+        {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
+      </RodapeTabela>
 
       {ajustando && <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />}
       <Dialog open={incluir} onOpenChange={setIncluir}>

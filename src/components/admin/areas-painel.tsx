@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox, Field, Input } from "@/components/ui/field";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast } from "@/components/ui/toast";
 import { salvarAreaAction } from "@/app/(app)/admin/actions";
@@ -40,17 +42,10 @@ function ModalArea({ area, onClose }: { area: A | null; onClose: () => void }) {
           }}
           className="flex flex-col gap-3.5"
         >
-          <div>
-            <label htmlFor="a-nome" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Nome
-            </label>
-            <input id="a-nome" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} aria-invalid={Boolean(erro)} className="h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input" />
-            {erro && <p className="mb-0 mt-[5px] text-[12px] text-danger">{erro}</p>}
-          </div>
-          <label className="flex items-center gap-2 text-[13px] text-ink-2">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="size-[15px] accent-accent" />
-            Área ativa
-          </label>
+          <Field label="Nome" htmlFor="a-nome" error={erro}>
+            <Input id="a-nome" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} />
+          </Field>
+          <Checkbox id="a-ativo" label="Área ativa" checked={ativo} onChange={setAtivo} />
           <DialogFooter>
             <Button type="submit" variant="primary" loading={pendente}>
               {area ? "Salvar alterações" : "Criar área"}
@@ -69,9 +64,9 @@ export function AreasPainel({ areas }: { areas: A[] }) {
   const [modal, setModal] = useState<A | "nova" | null>(null);
   return (
     <>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line-soft px-[18px] py-3">
-          <span className="text-[12.5px] text-muted">Cadastro fixo: todas as áreas ativas participam de qualquer evento.</span>
+          <span className="text-pequeno text-muted">Cadastro fixo: todas as áreas ativas participam de qualquer evento.</span>
           <Button variant="primary" size="sm" onClick={() => setModal("nova")}>
             Nova área
           </Button>
@@ -87,26 +82,27 @@ export function AreasPainel({ areas }: { areas: A[] }) {
               <Th largura={120} alinhar="right">
                 Solicitações
               </Th>
-              <Th largura={150} alinhar="right">
-                Status
+              <Th largura={90}>Status</Th>
+              <Th largura={80} alinhar="right">
+                Ações
               </Th>
             </tr>
           </thead>
           <tbody>
             {areas.map((a) => (
               <tr key={a.id} className="hover:bg-subtle">
-                <th scope="row" className="border-b border-line-row px-[18px] py-3 text-left text-[13.5px] font-normal text-ink">
+                <th scope="row" className="border-b border-line-row px-[18px] py-3 text-left text-corpo font-normal text-ink">
                   {a.nome}
                 </th>
-                <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-[12.5px]">{a.pessoas}</td>
-                <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-[12.5px]">{a.solicitacoes}</td>
+                <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-pequeno">{a.pessoas}</td>
+                <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-pequeno">{a.solicitacoes}</td>
+                <td className="border-b border-line-row px-2.5 py-3">
+                  <Badge tom={a.ativo ? "success" : "muted"}>{a.ativo ? "ativa" : "inativa"}</Badge>
+                </td>
                 <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
-                  <span className="flex items-center justify-end gap-3">
-                    <span className={a.ativo ? "text-[12px] text-success" : "text-[12px] text-muted"}>{a.ativo ? "ativa" : "inativa"}</span>
-                    <button type="button" onClick={() => setModal(a)} className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-accent hover:underline">
-                      Editar
-                    </button>
-                  </span>
+                  <Button variant="link" size="xs" onClick={() => setModal(a)}>
+                    Editar
+                  </Button>
                 </td>
               </tr>
             ))}

@@ -11,7 +11,7 @@ import { pode } from "@/domain/permissions";
 import { diaMesHora, periodoCurto } from "@/lib/format";
 import { EventoStatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { DefinirTrilha } from "@/components/shell/trilha";
+import { PageHeader } from "@/components/ui/layout";
 import { BannerReuniao } from "@/components/eventos/banner-reuniao";
 import { ConferenciaAta } from "@/components/eventos/conferencia-ata";
 import { PainelReuniao } from "@/components/eventos/painel-reuniao";
@@ -42,32 +42,34 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
 
   return (
     <div className="-mt-2 flex flex-col gap-4">
-      <DefinirTrilha itens={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}`, href: `/eventos/${id}` }, { label: "Conferência da ata" }]} />
-
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <p className="m-0 flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
+      <PageHeader
+        className="!mb-0"
+        breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}`, href: `/eventos/${id}` }, { label: "Conferência da ata" }]}
+        eyebrow={
+          <>
             <Link href={`/eventos/${id}`} className="font-mono text-ink-2 no-underline hover:underline">
               {ev.codigo}
             </Link>
             <EventoStatusBadge status={ev.status} />
             <span>evento {periodoCurto(ev.dataInicio, ev.dataFim)}</span>
             <span>· reunião {diaMesHora(ev.dataReuniao)}</span>
-          </p>
-          <h1 className="mb-0 mt-0.5 text-[22px] font-semibold leading-[1.2] tracking-[-0.02em]">Conferência da ata · {ev.nome}</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="md" className="no-underline">
-            Prévia da OS
-          </ButtonLink>
-          <ButtonLink href={`/impressao/ata/${id}`} target="_blank" variant="secondary" size="md" className="no-underline">
-            Imprimir ata
-          </ButtonLink>
-          <ButtonLink href={`/eventos/${id}`} variant="ghost" size="md" className="no-underline">
-            Voltar ao evento
-          </ButtonLink>
-        </div>
-      </header>
+          </>
+        }
+        title={`Conferência da ata · ${ev.nome}`}
+        actions={
+          <>
+            <ButtonLink href={`/eventos/${id}/os`} variant="secondary" size="md" className="no-underline">
+              Prévia da OS
+            </ButtonLink>
+            <ButtonLink href={`/impressao/ata/${id}`} target="_blank" variant="secondary" size="md" className="no-underline">
+              Imprimir ata
+            </ButtonLink>
+            <ButtonLink href={`/eventos/${id}`} variant="ghost" size="md" className="no-underline">
+              Voltar ao evento
+            </ButtonLink>
+          </>
+        }
+      />
 
       <BannerReuniao
         eventoId={id}

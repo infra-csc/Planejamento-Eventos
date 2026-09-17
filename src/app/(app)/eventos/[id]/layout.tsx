@@ -7,10 +7,9 @@ import { pode } from "@/domain/permissions";
 import { statusExibicao } from "@/domain/evento";
 import { NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
-import { EventoStatusBadge } from "@/components/ui/badge";
-import { Aviso } from "@/components/ui/layout";
+import { Badge, EventoStatusBadge } from "@/components/ui/badge";
+import { Aviso, Meta, PageHeader } from "@/components/ui/layout";
 import { TabsNav, type Aba } from "@/components/ui/tabs-nav";
-import { DefinirTrilha } from "@/components/shell/trilha";
 import { LinhaTempo } from "@/components/eventos/fases";
 import { AcoesEvento } from "@/components/eventos/acoes-evento";
 
@@ -83,32 +82,25 @@ export default async function EventoLayout({ children, params }: { children: Rea
 
   return (
     <>
-      <DefinirTrilha itens={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}` }]} />
-      <div className="mb-[18px] flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="font-mono text-[12.5px] text-muted">{ev.codigo}</span>
+      <PageHeader
+        breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}` }]}
+        eyebrow={
+          <>
+            <span className="font-mono">{ev.codigo}</span>
             <EventoStatusBadge status={st} />
-            {ev.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {ev.reabertoVezes}× pela gestão</span>}
-          </div>
-          <h1 className="mb-0 mt-1 text-[24px] font-semibold leading-[1.2] tracking-[-0.025em]">{ev.nome}</h1>
-          <dl className="mt-2 flex flex-wrap gap-x-[26px] gap-y-1 text-[13px] text-ink">
-            {(
-              [
-                ["Cliente", ev.cliente || "—", false],
-                ["Local", ev.local || "—", false],
-                ["Evento", periodoCurto(ev.dataInicio, ev.dataFim), true],
-                ["Logística", ev.responsavel.nome, false],
-              ] as const
-            ).map(([rotulo, valor, mono]) => (
-              <div key={rotulo} className="flex items-baseline gap-[5px]">
-                <dt className="text-[12.5px] text-muted">{rotulo}</dt>
-                <dd className={mono ? "m-0 font-mono" : "m-0"}>{valor}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            {ev.reabertoVezes > 0 && <Badge tom="warning">reaberto {ev.reabertoVezes}× pela gestão</Badge>}
+          </>
+        }
+        title={ev.nome}
+        meta={
+          <>
+            <Meta rotulo="Cliente" valor={ev.cliente || "—"} />
+            <Meta rotulo="Local" valor={ev.local || "—"} />
+            <Meta rotulo="Evento" valor={periodoCurto(ev.dataInicio, ev.dataFim)} mono />
+            <Meta rotulo="Logística" valor={ev.responsavel.nome} />
+          </>
+        }
+        actions={
           <AcoesEvento
             evento={{ id: ev.id, codigo: ev.codigo, nome: ev.nome, status: ev.status }}
             perfil={usuario.perfil}
@@ -116,8 +108,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
             pendentesPreReuniao={pendentesPre}
             solicitacoesAbertas={abertas.map((s) => s.codigo)}
           />
-        </div>
-      </div>
+        }
+      />
 
       {ev.status === "CANCELADO" && (
         <Aviso tom="danger" titulo="Evento cancelado" className="mb-[18px]">

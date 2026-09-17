@@ -48,11 +48,6 @@ export const IconeBusca = (p: P) => (
     <path d="M20 20l-4.2-4.2" />
   </svg>
 );
-export const IconeFechar = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M6 6l12 12M18 6L6 18" />
-  </svg>
-);
 export const IconePerspectiva = (p: P) => (
   <svg {...base} className={p.className}>
     <path d="M3 17l9 4 9-4-9-4z" />

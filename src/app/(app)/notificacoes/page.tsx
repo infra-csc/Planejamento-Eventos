@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import { listarNotificacoes, marcarLida, marcarTodasLidas } from "@/server/services/notificacoes";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/layout";
+import { EmptyState, Marcador, PageHeader } from "@/components/ui/layout";
 import { tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { destinoInterno } from "@/lib/destino";
@@ -47,27 +47,24 @@ export default async function NotificacoesPage() {
           )
         }
       />
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         {lista.length === 0 ? (
-          <div className="px-[18px] py-14 text-center">
-            <p className="m-0 text-[14px] font-medium">Nenhuma notificação</p>
-            <p className="mt-1 text-[13px] text-muted">Quando algo precisar da sua ação, aparece aqui.</p>
-          </div>
+          <EmptyState title="Nenhuma notificação" description="Quando algo precisar da sua ação, aparece aqui." />
         ) : (
           lista.map((n) => {
             const prazo = /PRAZO|SLA/.test(n.tipo);
             const conteudo = (
               <>
-                <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0 rounded-full", n.lidaEm ? "bg-transparent" : prazo ? "bg-danger" : "bg-accent")} />
+                <Marcador tom={n.lidaEm ? undefined : prazo ? "danger" : "accent"} className={cn(n.lidaEm && "bg-transparent")} />
                 <span className="min-w-0 flex-1">
-                  <span className={cn("block text-[13.5px] text-ink", !n.lidaEm && "font-medium")}>
+                  <span className={cn("block text-corpo text-ink", !n.lidaEm && "font-medium")}>
                     {!n.lidaEm && <span className="sr-only">Não lida: </span>}
                     {n.titulo}
                   </span>
-                  <span className="mt-0.5 block text-[12.5px] leading-[1.45] text-ink-3">{n.mensagem}</span>
-                  <span className="mt-1 block font-mono text-[11.5px] text-meta">{tempoRelativo(n.criadoEm)}</span>
+                  <span className="mt-0.5 block text-pequeno leading-[1.45] text-ink-3">{n.mensagem}</span>
+                  <span className="mt-1 block font-mono text-rotulo text-meta">{tempoRelativo(n.criadoEm)}</span>
                 </span>
-                {n.link && <span className="shrink-0 self-center text-[12.5px] text-accent">Abrir ›</span>}
+                {n.link && <span className="shrink-0 self-center text-pequeno text-accent">Abrir ›</span>}
               </>
             );
             const classe = cn("flex w-full items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 text-left last:border-b-0", !n.lidaEm && "bg-selected");

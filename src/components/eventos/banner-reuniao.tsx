@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Aviso } from "@/components/ui/layout";
+import { Aviso, BannerEscuro } from "@/components/ui/layout";
 import { toast } from "@/components/ui/toast";
 import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
 import type { EventoStatus } from "@/server/db/schema";
@@ -51,37 +52,35 @@ export function BannerReuniao({
   const motivoBloqueio = total === 0 ? "Inclua ao menos uma linha na ata" : faltam > 0 ? `Ainda ${faltam === 1 ? "falta 1 linha" : `faltam ${faltam} linhas`} sem conferência` : "Registre quem estava presente na reunião";
 
   return (
-    <section className="mb-[18px] flex items-center gap-6 rounded-[10px] bg-dark px-[22px] py-[18px]" aria-label="Andamento da reunião">
-      <div className="min-w-0 flex-1">
-        <h2 className="m-0 text-[15px] font-semibold text-white">{titulo}</h2>
-        <p className="mb-0 mt-1 text-[13px] leading-[1.5] text-on-dark-3">{sub}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <span className="relative block h-1.5 max-w-[360px] flex-1 overflow-hidden rounded-[3px] bg-dark-3" role="progressbar" aria-valuenow={conferidas} aria-valuemin={0} aria-valuemax={total} aria-label="Linhas conferidas">
-            <span className="absolute left-0 top-0 block h-1.5 rounded-[3px]" style={{ width: `${pct === 0 ? 0 : Math.max(4, pct)}%`, background: faltam <= 0 && total > 0 ? "#7fd0a8" : "#e0798f" }} />
-          </span>
-          <span className="font-mono text-[12.5px] text-on-dark-2">
-            {conferidas}/{total} conferidas
-          </span>
-          {emReuniao && iniciadaEm && <span className="text-[12px] text-on-dark-4">· iniciada {iniciadaEm}</span>}
-        </div>
+    <BannerEscuro
+      className="mb-[18px]"
+      aria-label="Andamento da reunião"
+      titulo={titulo}
+      acoes={
+        emReuniao ? (
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Button variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
+              Fechar ata e gerar OS
+            </Button>
+            {!completo && <span className="text-rotulo text-on-dark-4">{motivoBloqueio}</span>}
+          </div>
+        ) : (
+          <Button variant="pink" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
+            Iniciar reunião
+          </Button>
+        )
+      }
+    >
+      <p className="m-0">{sub}</p>
+      <div className="mt-3 flex items-center gap-3">
+        <span className="relative block h-1.5 max-w-[360px] flex-1 overflow-hidden rounded-[3px] bg-dark-3" role="progressbar" aria-valuenow={conferidas} aria-valuemin={0} aria-valuemax={total} aria-label="Linhas conferidas">
+          <span className={cn("absolute left-0 top-0 block h-1.5 rounded-[3px]", faltam <= 0 && total > 0 ? "bg-success-light" : "bg-accent-light")} style={{ width: `${pct === 0 ? 0 : Math.max(4, pct)}%` }} />
+        </span>
+        <span className="font-mono text-pequeno text-on-dark-2">
+          {conferidas}/{total} conferidas
+        </span>
+        {emReuniao && iniciadaEm && <span className="text-pequeno text-on-dark-4">· iniciada {iniciadaEm}</span>}
       </div>
-      {emReuniao ? (
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <button
-            type="button"
-            aria-disabled={!completo}
-            onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}
-            className={cn("h-[38px] shrink-0 rounded-lg border-0 px-4 text-[13.5px] font-medium", completo ? "cursor-pointer bg-accent-light text-dark hover:brightness-105" : "cursor-not-allowed bg-dark-3 text-muted")}
-          >
-            Fechar ata e gerar OS
-          </button>
-          {!completo && <span className="text-[11.5px] text-on-dark-4">{motivoBloqueio}</span>}
-        </div>
-      ) : (
-        <button type="button" onClick={() => setConfirmar("INICIAR_REUNIAO")} className="h-[38px] shrink-0 cursor-pointer rounded-lg border-0 bg-accent-light px-4 text-[13.5px] font-medium text-dark hover:brightness-105">
-          Iniciar reunião
-        </button>
-      )}
       {confirmar && (
         <ConfirmDialog
           open
@@ -99,6 +98,6 @@ export function BannerReuniao({
           {confirmar === "FECHAR_ATA" && <Aviso>As áreas são notificadas e, a partir daqui, mudanças entram como solicitação de alteração.</Aviso>}
         </ConfirmDialog>
       )}
-    </section>
+    </BannerEscuro>
   );
 }

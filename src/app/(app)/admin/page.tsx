@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { listarAreas, listarAreasComContagem, listarUsuarios, obterConfig } from "@/server/services/admin";
 import { ultimoAcesso } from "@/lib/format";
-import { cn } from "@/lib/cn";
+import { TabsNav } from "@/components/ui/tabs-nav";
 import { hrefCom } from "@/lib/url";
 import { PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
@@ -71,18 +71,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Administração" description="Usuários e perfis, áreas requisitantes e parâmetros do processo." />
-      <nav aria-label="Seções da administração" className="mb-[18px] flex gap-5 border-b border-line">
-        {abas.map((t) => (
-          <Link
-            key={t.chave}
-            href={t.href}
-            aria-current={aba === t.chave ? "page" : undefined}
-            className={cn("-mb-px border-b-2 pb-2.5 pt-1 text-[13.5px] no-underline", aba === t.chave ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink")}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <TabsNav rotulo="Seções da administração" tabs={abas.map((t) => ({ href: t.href, label: t.label, ativo: aba === t.chave }))} />
       {conteudo}
     </>
   );

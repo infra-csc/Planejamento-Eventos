@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
-import { PerfilBadge } from "@/components/ui/badge";
+import { Badge, PerfilBadge } from "@/components/ui/badge";
+import { Field, Input } from "@/components/ui/field";
+import { EmptyState } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { Select } from "@/components/ui/select";
 import { toast, toastErro } from "@/components/ui/toast";
@@ -16,7 +18,6 @@ import type { Perfil } from "@/server/db/schema";
 type U = { id: string; nome: string; email: string; perfil: Perfil; areaId: string | null; areaNome: string | null; ativo: boolean; ultimoAcesso: string };
 type Form = { nome: string; email: string; perfil: Perfil; areaId: string };
 
-const campo = "h-9 w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-danger-input";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function absoluto(link: string) {
@@ -29,7 +30,7 @@ function LinkAcesso({ nome, link, onClose }: { nome: string; link: string; onClo
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent title={`Link de acesso de ${nome.split(" ")[0]}`} description="Este ambiente não envia e-mail. Envie o link por um canal seguro; ele vale por 7 dias e uma única vez.">
         <div className="flex gap-2">
-          <input readOnly value={url} aria-label="Link de acesso" onFocus={(e) => e.currentTarget.select()} className={cn(campo, "bg-subtle font-mono text-[12px]")} />
+          <Input readOnly value={url} aria-label="Link de acesso" onFocus={(e) => e.currentTarget.select()} className="font-mono text-pequeno" />
           <Button
             variant="secondary"
             size="md"
@@ -137,63 +138,26 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
           }}
           className="flex flex-col gap-3.5"
         >
-          <div>
-            <label htmlFor="u-nome" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Nome
-            </label>
-            <input id="u-nome" autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} aria-invalid={Boolean(erros.nome)} aria-describedby={erros.nome ? "u-nome-erro" : undefined} className={campo} />
-            {erros.nome && (
-              <p id="u-nome-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
-                {erros.nome}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="u-email" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              E-mail
-            </label>
-            <input
-              id="u-email"
-              type="email"
-              value={f.email}
-              readOnly={Boolean(usuario)}
-              onChange={(e) => setF({ ...f, email: e.target.value })}
-              aria-invalid={Boolean(erros.email)}
-              aria-describedby={erros.email ? "u-email-erro" : undefined}
-              className={cn(campo, usuario && "cursor-default bg-subtle text-ink-3")}
-            />
-            {erros.email && (
-              <p id="u-email-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
-                {erros.email}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="u-perfil" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-              Perfil
-            </label>
+          <Field label="Nome" htmlFor="u-nome" error={erros.nome}>
+            <Input id="u-nome" autoFocus value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+          </Field>
+          <Field label="E-mail" htmlFor="u-email" error={erros.email}>
+            <Input id="u-email" type="email" value={f.email} readOnly={Boolean(usuario)} onChange={(e) => setF({ ...f, email: e.target.value })} className={cn(usuario && "cursor-default text-ink-3")} />
+          </Field>
+          <Field label="Perfil" htmlFor="u-perfil" hint={PERFIL_DESCRICAO[f.perfil]}>
             <Select id="u-perfil" value={f.perfil} onValueChange={(v) => setF({ ...f, perfil: v as Perfil })} disabled={usuario?.id === meuId} ordenarAlfabetico={false} opcoes={PERFIS.map((p) => ({ value: p, label: PERFIL_LABEL[p], descricao: PERFIL_DESCRICAO[p] }))} />
-            <p className="mb-0 mt-[5px] text-[12px] leading-[1.45] text-muted">{PERFIL_DESCRICAO[f.perfil]}</p>
-          </div>
+          </Field>
           {usaArea && (
-            <div>
-              <label htmlFor="u-area" className="mb-1.5 block text-[13px] font-medium text-ink-2">
-                Área
-              </label>
-              <Select id="u-area" value={f.areaId} onValueChange={(v) => setF({ ...f, areaId: v })} invalid={Boolean(erros.areaId)} aria-describedby={erros.areaId ? "u-area-erro" : undefined} placeholder="Selecione a área" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
-              {erros.areaId && (
-                <p id="u-area-erro" className="mb-0 mt-[5px] text-[12px] text-danger">
-                  {erros.areaId}
-                </p>
-              )}
-            </div>
+            <Field label="Área" htmlFor="u-area" error={erros.areaId}>
+              <Select id="u-area" value={f.areaId} onValueChange={(v) => setF({ ...f, areaId: v })} invalid={Boolean(erros.areaId)} placeholder="Selecione a área" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
+            </Field>
           )}
           {usuario && (
-            <button type="button" onClick={novoLink} className="w-fit cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-accent hover:underline">
+            <Button variant="link" size="sm" onClick={novoLink} className="w-fit">
               Gerar novo link de acesso
-            </button>
+            </Button>
           )}
-          {erroGeral && <p className="m-0 text-[12.5px] text-danger">{erroGeral}</p>}
+          {erroGeral && <p className="m-0 text-pequeno text-danger">{erroGeral}</p>}
           <DialogFooter>
             <Button type="submit" variant="primary" loading={pendente}>
               {usuario ? "Salvar alterações" : "Criar usuário"}
@@ -229,9 +193,9 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
 
   return (
     <>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line-soft px-[18px] py-3">
-          <span className="text-[12.5px] text-muted">
+          <span className="text-pequeno text-muted">
             {usuarios.length} {usuarios.length === 1 ? "pessoa" : "pessoas"}
           </span>
           <Button variant="primary" size="sm" onClick={() => setModal("novo")}>
@@ -239,7 +203,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
           </Button>
         </div>
         {usuarios.length === 0 ? (
-          <p className="m-0 px-[18px] py-12 text-center text-[13.5px] font-medium">{vazio}</p>
+          <EmptyState compact title={vazio} />
         ) : (
           <table className="w-full border-collapse">
             <CaptionOculta>Usuários</CaptionOculta>
@@ -249,8 +213,9 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
                 <Th largura={130}>Perfil</Th>
                 <Th largura={130}>Área</Th>
                 <Th largura={120}>Último acesso</Th>
-                <Th largura={170} alinhar="right">
-                  Status
+                <Th largura={90}>Status</Th>
+                <Th largura={150} alinhar="right">
+                  Ações
                 </Th>
               </tr>
             </thead>
@@ -258,27 +223,29 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
               {usuarios.map((u) => (
                 <tr key={u.id} className={cn("hover:bg-subtle", !u.ativo && "bg-subtle")}>
                   <th scope="row" className="border-b border-line-row px-[18px] py-3 text-left font-normal">
-                    <span className={cn("block text-[13.5px]", u.ativo ? "text-ink" : "text-ink-3")}>
+                    <span className={cn("block text-corpo", u.ativo ? "text-ink" : "text-ink-3")}>
                       {u.nome}
-                      {u.id === meuId && <span className="ml-1.5 text-[11.5px] text-muted">você</span>}
+                      {u.id === meuId && <span className="ml-1.5 text-rotulo text-muted">você</span>}
                     </span>
-                    <span className="block text-[12px] text-muted">{u.email}</span>
+                    <span className="block text-pequeno text-muted">{u.email}</span>
                   </th>
                   <td className="border-b border-line-row px-2.5 py-3">
                     <PerfilBadge perfil={u.perfil} />
                   </td>
-                  <td className="border-b border-line-row px-2.5 py-3 text-[12.5px] text-ink-2">{u.areaNome ?? "—"}</td>
-                  <td className="border-b border-line-row px-2.5 py-3 font-mono text-[12px] text-muted">{u.ultimoAcesso}</td>
+                  <td className="border-b border-line-row px-2.5 py-3 text-pequeno text-ink-2">{u.areaNome ?? "—"}</td>
+                  <td className="border-b border-line-row px-2.5 py-3 font-mono text-pequeno text-muted">{u.ultimoAcesso}</td>
+                  <td className="border-b border-line-row px-2.5 py-3">
+                    <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "ativo" : "inativo"}</Badge>
+                  </td>
                   <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
                     <span className="flex items-center justify-end gap-3">
-                      <span className={cn("text-[12px]", u.ativo ? "text-success" : "text-muted")}>{u.ativo ? "ativo" : "inativo"}</span>
-                      <button type="button" onClick={() => setModal(u)} className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-accent hover:underline">
+                      <Button variant="link" size="xs" onClick={() => setModal(u)}>
                         Editar
-                      </button>
+                      </Button>
                       {u.id !== meuId && (
-                        <button type="button" disabled={pendente} onClick={() => alternar(u)} className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-ink-3 hover:text-ink">
+                        <Button variant="link" size="xs" disabled={pendente} onClick={() => alternar(u)} className="text-ink-3 hover:text-ink">
                           {u.ativo ? "Desativar" : "Reativar"}
-                        </button>
+                        </Button>
                       )}
                     </span>
                   </td>

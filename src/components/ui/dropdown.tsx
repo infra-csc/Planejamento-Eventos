@@ -22,7 +22,7 @@ export function DropdownItem({ children, onSelect, danger, disabled, className }
       disabled={disabled}
       onSelect={onSelect}
       className={cn(
-        "flex cursor-pointer select-none items-center gap-2 rounded-[7px] px-2.5 py-1.5 outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-accent-bg data-[disabled]:opacity-50",
+        "flex cursor-pointer select-none items-center gap-2 rounded-controle px-2.5 py-1.5 outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-accent-bg data-[disabled]:opacity-50",
         danger ? "text-danger" : "text-ink",
         className,
       )}
@@ -37,5 +37,5 @@ export function DropdownSeparator() {
 }
 
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
-  return <DM.Label className="px-2.5 py-1 text-[11.5px] text-muted">{children}</DM.Label>;
+  return <DM.Label className="px-2.5 py-1 text-rotulo text-muted">{children}</DM.Label>;
 }

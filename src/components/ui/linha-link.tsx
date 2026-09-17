@@ -15,11 +15,11 @@ const novaAba = (href: string) => window.open(href, "_blank", "noopener,noreferr
  * Ctrl/⌘ + clique e clique do meio abrem em nova aba, como um link comum.
  * Cliques em controles internos (links, botões) não disparam a navegação da linha.
  */
-export function LinhaLink({ href, rotulo, className, children }: { href: string; rotulo: string; className?: string; children: React.ReactNode }) {
+export function LinhaLink({ href, rotulo, className, children, scroll = true }: { href: string; rotulo: string; className?: string; children: React.ReactNode; /** false: não rola ao topo (seleção na mesma tela). */ scroll?: boolean }) {
   const router = useRouter();
   // Em dev a rota pode levar segundos para compilar: a linha mostra que está abrindo.
   const [abrindo, iniciar] = useTransition();
-  const abrir = () => iniciar(() => router.push(href));
+  const abrir = () => iniciar(() => router.push(href, { scroll }));
   // Linhas não são <a>: o Next não as pré-carrega sozinho. Ao passar o mouse ou focar, a rota já começa a vir.
   const prefetch = () => router.prefetch(href);
   return (

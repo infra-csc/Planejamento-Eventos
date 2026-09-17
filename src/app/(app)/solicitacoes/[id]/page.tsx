@@ -9,9 +9,10 @@ import { aceitaSolicitacao } from "@/domain/evento";
 import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, ListaDados, Section } from "@/components/ui/layout";
-import { ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
-import { DefinirTrilha } from "@/components/shell/trilha";
+import { Aviso, BannerEscuro, EmptyState, ListaDados, PageHeader, Section } from "@/components/ui/layout";
+import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
@@ -98,55 +99,62 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
   return (
     <div className="max-w-[1080px]">
-      <DefinirTrilha itens={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]} />
-
       {modoFila && (
-        <div className="mb-[18px] flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[10px] bg-dark px-[18px] py-3">
-          <span className="text-[13.5px] font-semibold text-white">Respondendo em sequência</span>
-          <span className="font-mono text-[12.5px] text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span>
-          <span className="min-w-0 flex-1 truncate text-[12.5px] text-on-dark-3">ordenada por prazo · atalhos A, P e N no item selecionado</span>
-          {anterior ? (
-            <Link href={`/solicitacoes/${anterior.id}?fila=1`} className="h-[30px] rounded-[7px] border border-dark-4 px-3 text-[12.5px] leading-[28px] text-on-dark-2 no-underline hover:text-white">
-              Anterior
-            </Link>
-          ) : (
-            <span aria-disabled="true" className="h-[30px] cursor-not-allowed rounded-[7px] border border-dark-3 px-3 text-[12.5px] leading-[28px] text-muted">
-              Anterior
-            </span>
-          )}
-          {proxima ? (
-            <Link href={`/solicitacoes/${proxima.id}?fila=1`} className="h-[30px] rounded-[7px] bg-accent-light px-3 text-[12.5px] font-medium leading-[30px] text-dark no-underline hover:brightness-105">
-              Próxima
-            </Link>
-          ) : (
-            <span aria-disabled="true" className="h-[30px] cursor-not-allowed rounded-[7px] bg-dark-3 px-3 text-[12.5px] leading-[30px] text-muted">
-              Fila zerada
-            </span>
-          )}
-          <Link href={`/solicitacoes/${s.id}`} className="text-[12.5px] text-on-dark-3 no-underline hover:text-white">
-            Sair
-          </Link>
-        </div>
+        <BannerEscuro
+          titulo="Respondendo em sequência"
+          className="mb-[18px]"
+          acoes={
+            <>
+              {anterior ? (
+                <ButtonLink href={`/solicitacoes/${anterior.id}?fila=1`} variant="onDark" size="sm" className="no-underline">
+                  Anterior
+                </ButtonLink>
+              ) : (
+                <span aria-disabled="true" className={buttonClasses({ variant: "bloqueado", size: "sm" })}>
+                  Anterior
+                </span>
+              )}
+              {proxima ? (
+                <ButtonLink href={`/solicitacoes/${proxima.id}?fila=1`} variant="pink" size="sm" className="no-underline">
+                  Próxima
+                </ButtonLink>
+              ) : (
+                <span aria-disabled="true" className={buttonClasses({ variant: "bloqueado", size: "sm" })}>
+                  Fila zerada
+                </span>
+              )}
+              <Link href={`/solicitacoes/${s.id}`} className="text-pequeno text-on-dark-3 no-underline hover:text-white">
+                Sair
+              </Link>
+            </>
+          }
+        >
+          <span className="font-mono text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span> · ordenada por prazo · atalhos A, P e N no item selecionado
+        </BannerEscuro>
       )}
 
-      <div className="mb-[18px] flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="font-mono text-[15px] font-medium">{s.codigo}</span>
+      <PageHeader
+        tamanho="sm"
+        breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]}
+        eyebrow={
+          <>
+            <span className="font-mono font-medium text-ink">{s.codigo}</span>
             <SolicitacaoStatusBadge status={s.status} naAta={naAta} />
             {s.foraDaJanela && <ForaJanelaTag />}
-            {pi.vencido && <span className="text-[12.5px] font-medium text-danger">atrasada {pi.sub}</span>}
-          </div>
-          <h1 className="mb-0 mt-1 text-[22px] font-semibold leading-[1.25] tracking-[-0.02em]">{s.titulo || "Solicitação sem título"}</h1>
-          <p className="mb-0 mt-1.5 text-[13px] text-ink-2">
+            {pi.vencido && <span className="font-medium text-danger">atrasada {pi.sub}</span>}
+          </>
+        }
+        title={s.titulo || "Solicitação sem título"}
+        description={
+          <>
             {s.tipo === "PRE_REUNIAO" ? "Necessidade pré-reunião" : "Alteração pós-ata"} ·{" "}
             <Link href={`/eventos/${s.eventoId}`} className="link">
               {s.evento.codigo} {s.evento.nome}
             </Link>{" "}
             · {s.area.nome} · {s.criadoPor.nome}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          </>
+        }
+        actions={
           <AcoesSolicitacao
             id={s.id}
             codigo={s.codigo}
@@ -160,8 +168,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             proximaHref={proximaHref}
             sufixo={sufixo}
           />
-        </div>
-      </div>
+        }
+      />
 
       {s.foraDaJanela && (s.status === "ENVIADA" || s.status === "EM_ANALISE") && (
         <Aviso tom="danger" titulo="Enviada fora da janela de alterações" className="mb-[18px]">
@@ -205,25 +213,22 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       )}
 
       {logisticaVincula && opcoesVinculo && (
-        <section className="mb-[18px] rounded-[10px] border border-warning-border bg-warning-bg" aria-label="Itens fora do catálogo">
-          <div className="px-[18px] pb-2 pt-3.5">
-            <h2 className="m-0 text-[14px] font-semibold text-warning">
-              {foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`}
-            </h2>
-            <p className="mb-0 mt-0.5 text-[12.5px] text-ink-2">A área descreveu à mão. Vincule a uma peça ou projeto que já existe (talvez não tenha achado) ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS.</p>
+        <Section titulo={foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`} className="mb-[18px] border-warning-border">
+          <div className="px-[18px] py-3.5">
+            <Aviso tom="warning">A área descreveu à mão. Vincule a uma peça ou projeto que já existe (talvez não tenha achado) ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS.</Aviso>
           </div>
           <ul className="m-0 list-none p-0">
             {foraCatalogo.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-warning-border px-[18px] py-2.5">
-                <span className="min-w-0 text-[13.5px] text-ink">
-                  “{i.descricaoLivre}” <span className="font-mono text-ink-3">× {i.quantidadeSolicitada}</span>
-                  {i.destino ? <span className="text-[12px] text-muted"> · {i.destino}</span> : null}
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-[18px] py-2.5">
+                <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-corpo text-ink">
+                  “{i.descricaoLivre}” <ChipMono tom="control">× {i.quantidadeSolicitada}</ChipMono>
+                  {i.destino ? <span className="text-pequeno text-muted">· {i.destino}</span> : null}
                 </span>
                 <VincularCatalogo linha={{ solicitacaoItemId: i.id, descricao: i.descricaoLivre ?? "", quantidade: i.quantidadeSolicitada }} opcoes={opcoesVinculo} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
               </li>
             ))}
           </ul>
-        </section>
+        </Section>
       )}
       {!pode(usuario, "ata.consolidar") && enviada && foraCatalogo.length > 0 && (
         <Aviso className="mb-[18px]">
@@ -235,12 +240,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         <div className="flex flex-col gap-5">
           {s.observacao && (
             <Section titulo="Observação do solicitante">
-              <p className="m-0 whitespace-pre-wrap px-[18px] py-3.5 text-[13.5px] leading-[1.55] text-ink-2">{s.observacao}</p>
+              <p className="m-0 whitespace-pre-wrap px-[18px] py-3.5 text-corpo leading-[1.55] text-ink-2">{s.observacao}</p>
             </Section>
           )}
           <RespostaProvider itens={itens} sufixoToast={sufixo}>
             <Section titulo={`Itens · ${s.itens.length}`} sub={respondivel ? "Cada item recebe resposta própria. Parcial e não atendido exigem motivo." : undefined} acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}>
-              {itens.length === 0 ? <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhum item adicionado.</p> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
+              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado." /> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
             </Section>
           </RespostaProvider>
           <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>
@@ -277,7 +282,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           titulo="Evento"
           sub={`${evento.codigo} · ${evento.nome}`}
           acoes={
-            <Link href={`/eventos/${evento.id}`} className="link text-[12.5px]">
+            <Link href={`/eventos/${evento.id}`} className="link text-pequeno">
               Abrir
             </Link>
           }
@@ -295,7 +300,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               { label: "Responsável", valor: evento.responsavel.nome },
             ]}
           />
-          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-[18px] py-2.5 text-[12.5px]">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-[18px] py-2.5 text-pequeno">
             <Link href={`/eventos/${evento.id}/ata`} className="link">
               Ata
             </Link>

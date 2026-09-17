@@ -125,18 +125,18 @@ export function Toaster() {
               role={t.tipo === "erro" ? "alert" : undefined}
             >
               <span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", t.tipo === "erro" ? "bg-white" : "bg-accent-light")} />
-              <span className="text-[13.5px]">{t.mensagem}</span>
+              <span className="text-corpo">{t.mensagem}</span>
               {t.desfazer && (
                 <button
                   type="button"
                   onClick={() => void executarDesfazer(t)}
-                  className={cn("ml-1.5 cursor-pointer border-0 bg-transparent p-0 text-[13px] font-medium underline", t.tipo === "erro" ? "text-white" : "text-accent-light")}
+                  className={cn("ml-1.5 cursor-pointer border-0 bg-transparent p-0 text-corpo font-medium underline", t.tipo === "erro" ? "text-white" : "text-accent-light")}
                   title="Desfazer (Ctrl+Z)"
                 >
                   Desfazer
                 </button>
               )}
-              <button type="button" onClick={() => remover(t.id)} aria-label="Fechar aviso" className="-mr-1 ml-1 cursor-pointer border-0 bg-transparent px-1 text-[15px] leading-none text-white/60 hover:text-white">
+              <button type="button" onClick={() => remover(t.id)} aria-label="Fechar aviso" className="-mr-1 ml-1 cursor-pointer border-0 bg-transparent px-1 text-destaque leading-none text-white/60 hover:text-white">
                 ×
               </button>
             </div>

@@ -6,8 +6,8 @@ import { EVENTO_STATUS_LABEL, statusExibicao } from "@/domain/evento";
 import { diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { EventoStatusBadge } from "@/components/ui/badge";
-import { PageHeader, RotuloGrupo } from "@/components/ui/layout";
+import { Badge, EventoStatusBadge } from "@/components/ui/badge";
+import { EmptyState, PageHeader, RotuloGrupo } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { CaptionOculta } from "@/components/ui/tabela";
@@ -42,11 +42,11 @@ function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
     <LinhaLink href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
       <th scope="row" className="border-b border-line-row px-[18px] py-3.5 text-left font-normal">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-[14.5px] font-medium text-ink">{e.nome}</span>
+          <span className="text-corpo font-medium text-ink">{e.nome}</span>
           <EventoStatusBadge status={st} />
-          {e.reabertoVezes > 0 && <span className="rounded-[5px] bg-warning-bg px-[7px] py-px text-[11px] font-medium text-warning">reaberto {e.reabertoVezes}×</span>}
+          {e.reabertoVezes > 0 && <Badge tom="warning">reaberto {e.reabertoVezes}×</Badge>}
         </span>
-        <span className="mt-[3px] block text-[12.5px] text-muted">
+        <span className="mt-[3px] block text-pequeno text-muted">
           <span className="font-mono">{e.codigo}</span> · {[e.cliente, e.local].filter(Boolean).join(" · ")}
         </span>
       </th>
@@ -54,14 +54,14 @@ function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
         <BarrasFase status={e.status} rotuloStatus={rotulo} />
       </td>
       <td className="w-[150px] border-b border-line-row px-2.5 py-3.5">
-        <span className="block font-mono text-[12.5px] text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
-        <span className="block text-[11.5px] text-muted">{marco(e)}</span>
+        <span className="block font-mono text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
+        <span className="block text-rotulo text-muted">{marco(e)}</span>
       </td>
       <td className="w-[130px] border-b border-line-row py-3.5 pl-2.5 pr-[18px] text-right">
-        <span className={e.solicitacoesAbertas > 0 ? "block text-[12.5px] font-medium text-warning" : "block text-[12.5px] font-medium text-meta"}>
+        <span className={e.solicitacoesAbertas > 0 ? "block text-pequeno font-medium text-warning" : "block text-pequeno font-medium text-meta"}>
           {e.solicitacoesAbertas > 0 ? `${e.solicitacoesAbertas} aguardando` : "—"}
         </span>
-        <span className="block text-[11.5px] text-meta">{e.responsavel.nome}</span>
+        <span className="block text-rotulo text-meta">{e.responsavel.nome}</span>
       </td>
     </LinhaLink>
   );
@@ -125,9 +125,9 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
       </div>
 
       {secoes.map((g) => (
-        <section key={g.titulo} className="mb-[22px]">
+        <section key={g.titulo} className="mb-5">
           <RotuloGrupo contagem={`${g.lista.length} ${g.lista.length === 1 ? "evento" : "eventos"}`}>{g.titulo}</RotuloGrupo>
-          <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+          <div className="overflow-hidden rounded-cartao border border-line bg-surface">
             <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
               <CaptionOculta>{g.titulo}</CaptionOculta>
               <tbody>
@@ -141,9 +141,18 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
       ))}
 
       {secoes.length === 0 && (
-        <div className="rounded-[10px] border border-line bg-surface p-14 text-center">
-          <p className="m-0 text-[14px] font-medium">{todos.length === 0 ? "Nenhum evento cadastrado" : "Nenhum evento corresponde aos filtros"}</p>
-          <p className="mt-[5px] text-[13px] text-muted">{todos.length === 0 ? "Quando a logística criar um evento, ele aparece aqui." : "Ajuste a busca ou volte para todas as fases."}</p>
+        <div className="rounded-cartao border border-line bg-surface">
+          <EmptyState
+            title={todos.length === 0 ? "Nenhum evento cadastrado" : "Nenhum evento corresponde aos filtros"}
+            description={todos.length === 0 ? "Quando a logística criar um evento, ele aparece aqui." : "Ajuste a busca ou volte para todas as fases."}
+            action={
+              todos.length === 0 && pode(usuario, "evento.criar") ? (
+                <ButtonLink href="/eventos/novo" variant="primary" size="md" className="no-underline">
+                  Novo evento
+                </ButtonLink>
+              ) : undefined
+            }
+          />
         </div>
       )}
     </>

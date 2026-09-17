@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 /* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). */
 const base =
-  "w-full rounded-lg border border-line-control bg-surface px-3 text-[13.5px] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
+  "w-full rounded-lg border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(base, "h-[34px]", className)} {...rest} />;
@@ -18,7 +18,7 @@ export { Select } from "./select";
 
 export function Label({ htmlFor, children, className, optional, obrigatorio }: { htmlFor?: string; children: React.ReactNode; className?: string; optional?: boolean; obrigatorio?: boolean }) {
   return (
-    <label htmlFor={htmlFor} className={cn("mb-[5px] block text-[12.5px] text-ink-2", className)}>
+    <label htmlFor={htmlFor} className={cn("mb-[5px] block text-pequeno text-ink-2", className)}>
       {children}
       {obrigatorio && (
         <span className="text-danger" aria-hidden>
@@ -75,11 +75,11 @@ export function Field({
       )}
       {campo}
       {error ? (
-        <span id={idMensagem} className="mt-[5px] block text-[12px] text-danger">
+        <span id={idMensagem} className="mt-[5px] block text-pequeno text-danger">
           {error}
         </span>
       ) : hint ? (
-        <p id={idMensagem} className="mt-1.5 text-[12px] leading-[1.45] text-muted">
+        <p id={idMensagem} className="mt-1.5 text-pequeno leading-[1.45] text-muted">
           {hint}
         </p>
       ) : null}
@@ -105,7 +105,7 @@ export function Checkbox({
   description?: string;
 }) {
   return (
-    <label htmlFor={id} className="flex cursor-pointer items-start gap-2 text-[12.5px] text-ink-2">
+    <label htmlFor={id} className="flex cursor-pointer items-start gap-2 text-pequeno text-ink-2">
       <input
         id={id}
         name={name}
@@ -117,7 +117,7 @@ export function Checkbox({
       />
       <span>
         {label}
-        {description && <span className="block text-[12px] text-muted">{description}</span>}
+        {description && <span className="block text-pequeno text-muted">{description}</span>}
       </span>
     </label>
   );
@@ -126,7 +126,7 @@ export function Checkbox({
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
   return (
-    <div role="alert" className="rounded-[9px] border border-danger-border bg-danger-bg px-4 py-3 text-[13px] text-danger">
+    <div role="alert" className="rounded-controle border border-danger-border bg-danger-bg px-4 py-3 text-corpo text-danger">
       {message}
     </div>
   );

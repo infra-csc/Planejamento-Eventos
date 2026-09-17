@@ -13,6 +13,12 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { removerPosicaoArenaAction, salvarPosicaoArenaAction } from "@/app/(app)/arena/actions";
 import { toast, toastErro } from "@/components/ui/toast";
+import { Badge, ChipMono } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/field";
+import { IconeLapis } from "@/components/ui/icons";
+import { EmptyState, Kbd, Meta, PageHeader, RotuloGrupo } from "@/components/ui/layout";
+import { Pills } from "@/components/ui/pills";
 import { PainelConferencia } from "./painel-conferencia";
 import { Plano2D } from "./plano-2d";
 import { IndicePontos } from "./indice-pontos";
@@ -47,11 +53,28 @@ const ATALHOS: Array<[string, string]> = [
   ["Esc", "Fechar painel"],
 ];
 
-const cartao = "rounded-cartao border border-line bg-surface/95 shadow-[0_2px_8px_rgba(42,20,24,.08)] backdrop-blur";
-const botaoTexto = "h-[30px] cursor-pointer whitespace-nowrap rounded-[8px] border px-2.5 text-[12px] shadow-[0_2px_8px_rgba(42,20,24,.08)]";
-const ativoTexto = (ativo: boolean) => (ativo ? "border-accent bg-accent-bg text-accent" : "border-line bg-surface/95 text-ink-2 hover:text-ink");
+const cartao = "rounded-cartao border border-line bg-surface/95 shadow-pill backdrop-blur";
+/** Botão de canto (Editar, sem posição, origem): secundário com estado "pressionado" em accent. */
+const botaoCanto = "shadow-pill aria-pressed:border-accent aria-pressed:bg-accent-bg aria-pressed:text-accent";
 
-function BotaoMapa({ rotulo, atalho, onClick, children, ativo, className }: { rotulo: string; atalho?: string; onClick: () => void; children: React.ReactNode; ativo?: boolean; className?: string }) {
+function BotaoMapa({
+  rotulo,
+  atalho,
+  onClick,
+  children,
+  ativo,
+  className,
+  tamanho = "md",
+}: {
+  rotulo: string;
+  atalho?: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  ativo?: boolean;
+  className?: string;
+  /** `campo`: mesma altura do Input (34px), para a barra superior. */
+  tamanho?: "md" | "campo";
+}) {
   return (
     <button
       type="button"
@@ -60,19 +83,14 @@ function BotaoMapa({ rotulo, atalho, onClick, children, ativo, className }: { ro
       aria-pressed={ativo}
       aria-keyshortcuts={atalho}
       onClick={onClick}
-      className={cn("grid size-9 cursor-pointer place-items-center border-0 bg-transparent text-ink-2 hover:bg-subtle hover:text-ink aria-pressed:bg-accent-bg aria-pressed:text-accent", className)}
+      className={cn(
+        "grid cursor-pointer place-items-center border-0 bg-transparent text-ink-2 hover:bg-subtle hover:text-ink aria-pressed:bg-accent-bg aria-pressed:text-accent",
+        tamanho === "campo" ? "size-[34px]" : "size-9",
+        className,
+      )}
     >
       {children}
     </button>
-  );
-}
-
-function Chip({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline gap-1.5 rounded-[6px] bg-control/70 px-2 py-[3px] text-[12px]">
-      <dt className="text-muted">{rotulo}</dt>
-      <dd className="m-0 text-ink">{children}</dd>
-    </div>
   );
 }
 
@@ -536,49 +554,37 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Cabeçalho em uma linha: lido uma vez, não pode roubar altura do mapa para sempre. */}
-      <header className="flex items-center gap-x-3">
-        <h1 className="m-0 shrink-0 whitespace-nowrap text-[20px] font-semibold tracking-[-0.02em] text-ink">{arena.evento.nome}</h1>
-        <span className="shrink-0 font-mono text-[12px] text-muted">{arena.evento.sku}</span>
-        {/* Uma linha sempre: em telas mais estreitas os chips são cortados, não empurram o botão para baixo. */}
-        <dl className="m-0 flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden [&>div]:shrink-0">
-          <Chip rotulo="Prova">
-            <span className="font-mono">{DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))}</span>
-          </Chip>
-          <Chip rotulo="Largadas">
-            <span className="font-mono">{arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")}</span>
-          </Chip>
-          {arena.evento.publicoEsperado && (
-            <Chip rotulo="Público">
-              <span className="font-mono tabular-nums">{arena.evento.publicoEsperado.toLocaleString("pt-BR")}</span>
-            </Chip>
-          )}
-          {arena.evento.diretorProva && <Chip rotulo="Direção">{arena.evento.diretorProva}</Chip>}
-        </dl>
-        {totalDivergencias === 0 ? (
-          <span className="flex h-[30px] shrink-0 items-center rounded-[8px] border border-success-border bg-success-bg px-3 text-[12.5px] font-medium text-success">Planta e ata conferidas</span>
-        ) : (
-          <button
-            type="button"
-            aria-pressed={conferenciaAtiva}
-            onClick={alternarConferencia}
-            className={cn(
-              "flex h-[30px] shrink-0 cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-[8px] border px-[11px] text-[12.5px] font-medium",
-              conferenciaAtiva ? "border-warning bg-warning text-white" : "border-warning-border bg-warning-bg text-warning hover:brightness-[0.98]",
-            )}
-          >
-            <span aria-hidden className={cn("block size-1.5 animate-pulse-dot rounded-full", conferenciaAtiva ? "bg-warning-bg" : "bg-danger")} />
-            {totalDivergencias} {totalDivergencias === 1 ? "item a conferir" : "itens a conferir"}
-          </button>
-        )}
-      </header>
+    <div className="flex flex-col">
+      {/* Cabeçalho compacto (tamanho "sm"): lido uma vez, não pode roubar altura do mapa para sempre. */}
+      <PageHeader
+        tamanho="sm"
+        title={arena.evento.nome}
+        eyebrow={<span className="font-mono">{arena.evento.sku}</span>}
+        meta={
+          <>
+            <Meta rotulo="Prova" valor={DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))} mono />
+            <Meta rotulo="Largadas" valor={arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")} mono />
+            {arena.evento.publicoEsperado && <Meta rotulo="Público" valor={<span className="tabular-nums">{arena.evento.publicoEsperado.toLocaleString("pt-BR")}</span>} mono />}
+            {arena.evento.diretorProva && <Meta rotulo="Direção" valor={arena.evento.diretorProva} />}
+          </>
+        }
+        actions={
+          totalDivergencias === 0 ? (
+            <Badge tom="success">Planta e ata conferidas</Badge>
+          ) : (
+            <Button variant="parcial" size="sm" aria-pressed={conferenciaAtiva} onClick={alternarConferencia} className="aria-pressed:border-warning aria-pressed:bg-warning aria-pressed:text-white">
+              <span aria-hidden className={cn("block size-1.5 animate-pulse-dot rounded-full", conferenciaAtiva ? "bg-warning-bg" : "bg-danger")} />
+              {totalDivergencias} {totalDivergencias === 1 ? "item a conferir" : "itens a conferir"}
+            </Button>
+          )
+        }
+      />
 
       <div
         ref={wrapperRef}
         className={cn(
           "overflow-hidden border border-line bg-[#e6e2dc]",
-          telaCheia ? "fixed inset-0 z-[var(--z-tela-cheia)] h-[100dvh] w-screen rounded-none border-0" : "relative h-[calc(100dvh-140px)] min-h-[520px] rounded-modal",
+          telaCheia ? "fixed inset-0 z-[var(--z-tela-cheia)] h-[100dvh] w-screen rounded-none border-0" : "relative h-[calc(100dvh-190px)] min-h-[520px] rounded-modal",
         )}
       >
         {/* Cena 3D */}
@@ -649,13 +655,13 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                       <span
                         data-rotulo
                         className={cn(
-                          "mb-1 whitespace-nowrap rounded-[6px] border px-1.5 py-[3px] text-[11.5px] font-medium leading-none shadow-[0_1px_2px_rgba(42,20,24,.12)] transition-[opacity,transform] duration-150 group-data-[oculto=1]/pin:opacity-0",
+                          "mb-1 whitespace-nowrap rounded-chip border px-1.5 py-[3px] text-rotulo font-medium leading-none shadow-pill transition-[opacity,transform] duration-150 group-data-[oculto=1]/pin:opacity-0",
                           ativo ? "border-accent bg-accent text-white" : divergente ? "border-danger-border bg-surface/95 text-danger" : "border-line bg-surface/95 text-ink",
                           !rotulo && "hidden",
                           !emFoco && !p.principal && !divergente && "group-data-[zoom=longe]/mapa:hidden",
                         )}
                       >
-                        {p.legenda && !emFoco && <span className="mr-1 font-mono text-[10.5px] opacity-60">{p.legenda.split(" ")[0]}</span>}
+                        {p.legenda && !emFoco && <span className="mr-1 font-mono text-micro opacity-60">{p.legenda.split(" ")[0]}</span>}
                         {p.nome}
                         {emFoco && !ativo && <span className="ml-1.5 font-normal text-muted">· {p.tipo}</span>}
                       </span>
@@ -690,11 +696,11 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
             <div className="flex flex-col items-center gap-3 text-center">
               <svg width="132" height="64" viewBox="0 0 120 64" aria-hidden className="text-accent">
                 <path d="M6 50 C 30 44, 40 18, 62 20 S 100 42, 114 14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="8 6" className="animate-esqueleto" />
-                <circle cx="6" cy="50" r="4" fill="#2a1418" />
-                <circle cx="114" cy="14" r="4" fill="#2a1418" />
+                <circle cx="6" cy="50" r="4" fill="var(--color-ink)" />
+                <circle cx="114" cy="14" r="4" fill="var(--color-ink)" />
               </svg>
-              <p className="m-0 text-[14px] font-medium text-ink">Montando a arena</p>
-              <p className="m-0 text-[12.5px] text-muted">
+              <p className="m-0 text-secao font-medium text-ink">Montando a arena</p>
+              <p className="m-0 text-pequeno text-muted">
                 {arena.pontos.length} pontos · {arena.currais.length} currais · {arena.percurso.trechos.length} corredores isolados
               </p>
             </div>
@@ -711,7 +717,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
                 <IconeBusca />
               </span>
-              <input
+              <Input
                 ref={buscaRef}
                 id="arena-busca"
                 type="search"
@@ -744,13 +750,15 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                 aria-controls="arena-busca-lista"
                 aria-autocomplete="list"
                 aria-activedescendant={opcaoAtiva ? `arena-opcao-${opcaoAtiva.id}` : undefined}
-                className="h-10 w-full rounded-[9px] border border-line bg-surface/95 pl-9 pr-10 text-[13.5px] text-ink shadow-[0_2px_8px_rgba(42,20,24,.08)] backdrop-blur placeholder:text-meta focus:border-accent focus:outline-none"
+                className="pl-9 pr-10 shadow-pill"
               />
-              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-[4px] border border-line bg-subtle px-1.5 font-mono text-[10.5px] text-muted">/</kbd>
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+                <Kbd>/</Kbd>
+              </span>
               {buscaAberta && (
-                <ul id="arena-busca-lista" role="listbox" aria-label="Pontos encontrados" className="absolute left-0 right-0 top-11 m-0 max-h-[320px] list-none overflow-y-auto rounded-[9px] border border-line bg-surface p-1 shadow-[0_12px_28px_rgba(42,20,24,.14)]">
+                <ul id="arena-busca-lista" role="listbox" aria-label="Pontos encontrados" className="absolute left-0 right-0 top-10 m-0 max-h-[320px] list-none overflow-y-auto rounded-cartao border border-line bg-surface p-1 shadow-popover">
                   {resultados.length === 0 ? (
-                    <li className="px-3 py-2.5 text-[12.5px] text-muted">Nada encontrado para “{termo}”.</li>
+                    <li className="px-3 py-2.5 text-pequeno text-muted">Nada encontrado para “{termo}”.</li>
                   ) : (
                     resultados.map((p, i) => (
                       <li
@@ -761,14 +769,14 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => escolherResultado(p.id)}
                         onMouseEnter={() => setIndiceBusca(i)}
-                        className={cn("flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2.5 py-2", i === indiceBusca && "bg-accent-bg")}
+                        className={cn("flex cursor-pointer items-center gap-2.5 rounded-controle px-2.5 py-2", i === indiceBusca && "bg-accent-bg")}
                       >
                         <span aria-hidden className="block size-2.5 shrink-0 rounded-full" style={{ background: CATEGORIAS[p.categoria].cor }} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] text-ink">{p.nome}</span>
-                          <span className="block text-[11.5px] text-muted">{p.tipo}</span>
+                          <span className="block truncate text-corpo text-ink">{p.nome}</span>
+                          <span className="block text-rotulo text-muted">{p.tipo}</span>
                         </span>
-                        {p.legenda && <span className="font-mono text-[11px] text-meta">{p.legenda.split(" ")[0]}</span>}
+                        {p.legenda && <span className="font-mono text-rotulo text-meta">{p.legenda.split(" ")[0]}</span>}
                       </li>
                     ))
                   )}
@@ -776,48 +784,37 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
               )}
             </div>
             <div className={cn("pointer-events-auto shrink-0 overflow-hidden", cartao)}>
-              <BotaoMapa rotulo="Índice de pontos" atalho="P" ativo={painelEsquerdo === "indice"} onClick={alternarIndice} className="size-10">
+              <BotaoMapa rotulo="Índice de pontos" atalho="P" ativo={painelEsquerdo === "indice"} onClick={alternarIndice} tamanho="campo">
                 <IconeLista />
               </BotaoMapa>
             </div>
           </div>
 
           <div className="flex shrink-0 items-start gap-2">
-            <div className={cn("pointer-events-auto flex overflow-hidden", cartao)} role="group" aria-label="Vista do mapa">
-              {VISTAS.map(([v, rotulo, titulo]) => (
-                <button
-                  key={v}
-                  type="button"
-                  title={titulo}
-                  aria-pressed={vistaMapa === v}
-                  onClick={() => escolherVista(v)}
-                  className="h-10 cursor-pointer whitespace-nowrap border-0 bg-transparent px-[13px] text-[12.5px] font-medium text-ink-3 hover:text-ink aria-pressed:bg-dark aria-pressed:text-white"
-                >
-                  {rotulo}
-                </button>
-              ))}
-            </div>
+            <Pills rotulo="Vista do mapa" className="pointer-events-auto shrink-0 shadow-pill" itens={VISTAS.map(([v, rotulo]) => ({ label: rotulo, ativo: vistaMapa === v, onSelect: () => escolherVista(v) }))} />
             <div className="pointer-events-auto relative">
               <div className={cn("overflow-hidden", cartao)}>
-                <BotaoMapa rotulo="Camadas" ativo={painelCamadas} onClick={() => setPainelCamadas((v) => !v)} className="size-10">
+                <BotaoMapa rotulo="Camadas" ativo={painelCamadas} onClick={() => setPainelCamadas((v) => !v)} tamanho="campo">
                   <IconeCamadas />
                 </BotaoMapa>
               </div>
               {painelCamadas && (
-                <div className="absolute right-0 top-12 z-40 w-[292px] rounded-cartao border border-line bg-surface shadow-[0_12px_28px_rgba(42,20,24,.14)] animate-fade-up-rapido">
+                <div className="absolute right-0 top-11 z-40 w-[292px] rounded-cartao border border-line bg-surface shadow-popover animate-fade-up-rapido">
                   <div className="flex items-center gap-1.5 border-b border-line-soft px-2.5 py-[9px]">
-                    <p className="m-0 flex-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">O que aparece no mapa</p>
-                    <button type="button" onClick={() => setCamadas(camadasTudo())} className="h-6 cursor-pointer rounded-[6px] border border-line-strong bg-surface px-2 text-[11.5px] text-ink-2 hover:bg-subtle">
+                    <span className="flex-1 [&>div]:mb-0">
+                      <RotuloGrupo>O que aparece no mapa</RotuloGrupo>
+                    </span>
+                    <Button size="xs" onClick={() => setCamadas(camadasTudo())}>
                       Tudo
-                    </button>
-                    <button type="button" onClick={() => setCamadas(camadasEssenciais())} title="Padrões sem o público: para conferir implantação" className="h-6 cursor-pointer rounded-[6px] border border-line-strong bg-surface px-2 text-[11.5px] text-ink-2 hover:bg-subtle">
+                    </Button>
+                    <Button size="xs" onClick={() => setCamadas(camadasEssenciais())} title="Padrões sem o público: para conferir implantação">
                       Essencial
-                    </button>
+                    </Button>
                   </div>
                   <div className="p-1">
                     {GRUPOS_CAMADAS.map((g, i) => (
                       <fieldset key={g.titulo} className={cn("m-0 border-0 p-0", i > 0 && "mt-0.5 border-t border-line-faint pt-0.5")}>
-                        <legend className="px-2 pb-[3px] pt-1.5 text-[11.5px] font-medium text-ink-2">{g.titulo}</legend>
+                        <legend className="px-2 pb-[3px] pt-1.5 text-rotulo font-medium text-ink-2">{g.titulo}</legend>
                         {g.camadas
                           .filter((id) => modo === "3d" || (id !== "publico" && id !== "fluxo"))
                           .map((id) => {
@@ -825,15 +822,15 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                             if (!c) return null;
                             const n = pontosPorCamada[id];
                             return (
-                              <label key={id} htmlFor={`camada-${id}`} className="flex cursor-pointer items-start gap-2.5 rounded-[7px] px-2 py-[5px] hover:bg-subtle">
+                              <label key={id} htmlFor={`camada-${id}`} className="flex cursor-pointer items-start gap-2.5 rounded-controle px-2 py-[5px] hover:bg-subtle">
                                 <input id={`camada-${id}`} type="checkbox" checked={camadas[id]} onChange={(e) => setCamadas((v) => ({ ...v, [id]: e.target.checked }))} className="mt-0.5 size-4 accent-accent" />
                                 <span className="min-w-0 flex-1">
-                                  <span className="block text-[13px] text-ink">{c.rotulo}</span>
-                                  <span className="block text-[11.5px] leading-[1.4] text-muted">{c.descricao}</span>
+                                  <span className="block text-corpo text-ink">{c.rotulo}</span>
+                                  <span className="block text-rotulo leading-[1.4] text-muted">{c.descricao}</span>
                                 </span>
                                 {n ? (
-                                  <span className="shrink-0 font-mono text-[11px] text-meta" aria-label={`${n} pontos`}>
-                                    {n}
+                                  <span className="shrink-0" aria-label={`${n} pontos`}>
+                                    <ChipMono tom="control">{n}</ChipMono>
                                   </span>
                                 ) : null}
                               </label>
@@ -844,28 +841,18 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                   </div>
                   {modo === "3d" && (
                     <div className="border-t border-line-soft px-3 pb-2.5 pt-2.5">
-                      <p className="m-0 mb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Qualidade</p>
-                      <div className="flex gap-1 rounded-[8px] bg-control p-[3px]" role="group" aria-label="Qualidade do 3D">
-                        {(["alta", "leve"] as const).map((q) => (
-                          <button
-                            key={q}
-                            type="button"
-                            aria-pressed={qualidade === q}
-                            onClick={() => trocarQualidade(q)}
-                            className="h-7 flex-1 cursor-pointer rounded-[6px] border-0 bg-transparent text-[12px] text-ink-3 aria-pressed:bg-surface aria-pressed:font-medium aria-pressed:text-ink"
-                          >
-                            {q === "alta" ? "Alta" : "Leve"}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="m-0 mt-1.5 text-[11px] text-meta">{qualidade ? "Escolhida por você." : "Automática pelo aparelho."} Leve desliga sombras e reduz árvores e público.</p>
+                      <span className="block [&>div]:mb-1.5">
+                        <RotuloGrupo>Qualidade</RotuloGrupo>
+                      </span>
+                      <Pills rotulo="Qualidade do 3D" itens={(["alta", "leve"] as const).map((q) => ({ label: q === "alta" ? "Alta" : "Leve", ativo: qualidade === q, onSelect: () => trocarQualidade(q) }))} />
+                      <p className="m-0 mt-1.5 text-rotulo text-meta">{qualidade ? "Escolhida por você." : "Automática pelo aparelho."} Leve desliga sombras e reduz árvores e público.</p>
                     </div>
                   )}
                 </div>
               )}
             </div>
             <div className={cn("pointer-events-auto overflow-hidden", cartao)}>
-              <BotaoMapa rotulo={telaCheia ? "Sair da tela cheia" : "Tela cheia"} atalho="F" onClick={alternarTelaCheia} className="size-10">
+              <BotaoMapa rotulo={telaCheia ? "Sair da tela cheia" : "Tela cheia"} atalho="F" onClick={alternarTelaCheia} tamanho="campo">
                 {telaCheia ? <IconeSairTelaCheia /> : <IconeTelaCheia />}
               </BotaoMapa>
             </div>
@@ -875,30 +862,30 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         {/* Canto inferior direito: procedência e itens sem posição a um clique, câmera (4) e atalhos. */}
         <div className={cn("pointer-events-none absolute z-10 flex flex-col items-end gap-2", direitaAberta && !estreito ? "right-[384px]" : "right-3", mostrarPlano ? "bottom-[132px]" : "bottom-3")}>
           {fontesAbertas && (
-            <div role="dialog" aria-labelledby="fontes-titulo" className="pointer-events-auto max-w-[360px] rounded-cartao border border-line bg-surface px-[13px] py-[11px] shadow-[0_12px_28px_rgba(42,20,24,.14)] animate-fade-up-rapido">
-              <p id="fontes-titulo" className="m-0 mb-[5px] text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted">
-                Fontes deste mapa
-              </p>
-              <ul className="m-0 list-none p-0 text-[11.5px] leading-[1.5] text-ink-2">
+            <div role="dialog" aria-labelledby="fontes-titulo" className="pointer-events-auto max-w-[360px] rounded-cartao border border-line bg-surface px-[13px] py-[11px] shadow-popover animate-fade-up-rapido">
+              <span id="fontes-titulo" className="block [&>div]:mb-[5px]">
+                <RotuloGrupo>Fontes deste mapa</RotuloGrupo>
+              </span>
+              <ul className="m-0 list-none p-0 text-rotulo leading-[1.5] text-ink-2">
                 {arena.fonte.documentos.map((d) => (
                   <li key={d.nome} className="mb-1">
                     <span className="font-medium text-ink">{d.nome}</span> — {d.detalhe}
                   </li>
                 ))}
               </ul>
-              <p className="m-0 mt-1 text-[11.5px] leading-[1.5] text-muted">{arena.fonte.nota}</p>
+              <p className="m-0 mt-1 text-rotulo leading-[1.5] text-muted">{arena.fonte.nota}</p>
             </div>
           )}
           {ajudaAberta && usar3D && (
-            <div role="dialog" aria-labelledby="atalhos-titulo" className="pointer-events-auto w-[290px] rounded-cartao border border-line bg-surface p-3 shadow-[0_12px_28px_rgba(42,20,24,.14)] animate-fade-up-rapido">
-              <p id="atalhos-titulo" className="m-0 mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-                Como navegar
-              </p>
-              <dl className="m-0 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-[12.5px]">
+            <div role="dialog" aria-labelledby="atalhos-titulo" className="pointer-events-auto w-[290px] rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido">
+              <span id="atalhos-titulo" className="block [&>div]:mb-2">
+                <RotuloGrupo>Como navegar</RotuloGrupo>
+              </span>
+              <dl className="m-0 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-pequeno">
                 {ATALHOS.map(([tecla, acao]) => (
                   <div key={tecla} className="contents">
-                    <dt>
-                      <kbd className="whitespace-nowrap rounded-[4px] border border-line bg-subtle px-1.5 py-px font-mono text-[11px] text-ink-2">{tecla}</kbd>
+                    <dt className="whitespace-nowrap">
+                      <Kbd>{tecla}</Kbd>
                     </dt>
                     <dd className="m-0 text-ink-2">{acao}</dd>
                   </div>
@@ -908,16 +895,24 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           )}
           <div className="pointer-events-auto flex flex-col items-end gap-1">
             {podeEditar && (
-              <button type="button" aria-pressed={editando} onClick={alternarEdicao} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", editando ? "border-accent bg-accent text-white" : "border-line bg-surface/95 text-accent hover:border-accent")}>
+              <Button
+                size="xs"
+                aria-pressed={editando}
+                aria-label={editando ? "Concluir edição de posições no mapa" : "Editar posições no mapa"}
+                title={editando ? "Concluir edição de posições no mapa" : "Editar posições no mapa"}
+                onClick={alternarEdicao}
+                className="shadow-pill hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
+              >
+                <IconeLapis size={12} />
                 {editando ? "Concluir edição" : "Editar"}
-              </button>
+              </Button>
             )}
-            <button type="button" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", ativoTexto(painelDireito === "sem-posicao"))}>
-              Sem posição · {foraDoMapa}
-            </button>
-            <button type="button" aria-expanded={fontesAbertas} onClick={() => setFontesAbertas((v) => !v)} className={cn(botaoTexto, "h-7 px-2 text-[11.5px]", ativoTexto(fontesAbertas))}>
+            <Button size="xs" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao} className={botaoCanto}>
+              {foraDoMapa} sem posição
+            </Button>
+            <Button size="xs" aria-expanded={fontesAbertas} title="Origem dos dados" onClick={() => setFontesAbertas((v) => !v)} className={cn(botaoCanto, fontesAbertas && "border-accent bg-accent-bg text-accent")}>
               Fontes
-            </button>
+            </Button>
           </div>
           {usar3D && estado === "pronto" && (
             <div className={cn("pointer-events-auto flex flex-col overflow-hidden", cartao)}>
@@ -934,7 +929,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                 <IconeNorte />
               </BotaoMapa>
               {/* Sem teclado em aparelho de toque: o cartão de atalhos seria ruído. */}
-              <BotaoMapa rotulo="Atalhos do teclado" atalho="?" ativo={ajudaAberta} onClick={() => setAjudaAberta((v) => !v)} className="border-t border-line-soft font-mono text-[14px] [@media(pointer:coarse)]:hidden">
+              <BotaoMapa rotulo="Atalhos do teclado" atalho="?" ativo={ajudaAberta} onClick={() => setAjudaAberta((v) => !v)} className="border-t border-line-soft font-mono text-secao [@media(pointer:coarse)]:hidden">
                 ?
               </BotaoMapa>
             </div>
@@ -945,14 +940,14 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         <div className={cn("pointer-events-none absolute bottom-3 z-10 flex items-end gap-2", painelEsquerdo && !estreito ? "left-[376px]" : "left-3", estreito && (direitaAberta || painelEsquerdo) && "hidden")}>
           {usar3D && estado === "pronto" && !estreito && <Minimapa arena={arena} camadas={camadas} selecionado={selecionado} pegadaRef={pegadaRef} onIr={(x, z) => motorRef.current?.irPara(x, z)} />}
           <div className={cn("pointer-events-auto max-w-[250px]", cartao)}>
-            <button type="button" aria-expanded={legendaAberta && largo} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-[12px] font-medium text-ink-2">
+            <button type="button" aria-expanded={legendaAberta && largo} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-pequeno font-medium text-ink-2">
               Legenda
-              <span aria-hidden className={cn("text-[10px] text-muted transition-transform", legendaAberta && largo && "rotate-180")}>
+              <span aria-hidden className={cn("text-micro text-muted transition-transform", legendaAberta && largo && "rotate-180")}>
                 ▲
               </span>
             </button>
             {legendaAberta && largo && (
-              <div className="border-t border-line-soft px-3 pb-2.5 pt-2 text-[12px] text-ink-2">
+              <div className="border-t border-line-soft px-3 pb-2.5 pt-2 text-pequeno text-ink-2">
                 <p className="m-0 mb-1 flex items-center gap-2">
                   <span aria-hidden className="block h-[3px] w-5 rounded-full" style={{ background: COR_PERCURSO }} />
                   Corredor isolado do percurso
@@ -969,18 +964,18 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                   {conferenciaAtiva ? (
                     <>
                       <p className="m-0 flex items-center gap-2">
-                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white bg-danger shadow-[0_0_0_1px_rgba(42,20,24,.2)]" />
+                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white bg-danger ring-1 ring-ink/20" />
                         Planta e ata divergem
                       </p>
                       <p className="m-0 flex items-center gap-2">
-                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white bg-[#c3bcbc] shadow-[0_0_0_1px_rgba(42,20,24,.2)]" />
+                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white bg-[#c3bcbc] ring-1 ring-ink/20" />
                         Sem divergência
                       </p>
                     </>
                   ) : (
                     categoriasPresentes.map((c) => (
                       <p key={c} className="m-0 flex items-center gap-2">
-                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(42,20,24,.2)]" style={{ background: CATEGORIAS[c].cor }} />
+                        <span aria-hidden className="block size-2.5 rounded-full border-2 border-white ring-1 ring-ink/20" style={{ background: CATEGORIAS[c].cor }} />
                         {CATEGORIAS[c].rotulo}
                       </p>
                     ))
@@ -992,39 +987,38 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         </div>
 
         {estado === "erro" && modo === "3d" && (
-          <div role="alert" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-cartao border border-danger-border bg-surface px-3.5 py-2.5 shadow-[0_8px_24px_rgba(42,20,24,.12)]">
-            <span className="text-[12.5px] text-ink-2">
+          <div role="alert" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-cartao border border-danger-border bg-surface px-3.5 py-2.5 shadow-popover">
+            <span className="text-pequeno text-ink-2">
               <span className="font-medium text-danger">3D indisponível.</span> {erro} Mostrando a planta 2D.
             </span>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              className="shrink-0"
               onClick={() => {
                 setErro(null);
                 setEstado("carregando");
                 setTentativa((t) => t + 1);
               }}
-              className="h-8 shrink-0 cursor-pointer rounded-[7px] border border-line-control bg-surface px-2.5 text-[12px] text-ink hover:bg-subtle"
             >
               Tentar de novo
-            </button>
+            </Button>
           </div>
         )}
         {lento && usar3D && (
-          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-cartao border border-warning-border bg-surface px-3.5 py-2.5 shadow-[0_8px_24px_rgba(42,20,24,.12)]">
-            <span className="text-[12.5px] text-ink-2">O 3D está pesado neste computador.</span>
-            <button type="button" onClick={() => trocarQualidade("leve")} className="h-8 cursor-pointer rounded-[7px] border-0 bg-accent px-2.5 text-[12px] font-medium text-white">
+          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-cartao border border-warning-border bg-surface px-3.5 py-2.5 shadow-popover">
+            <span className="text-pequeno text-ink-2">O 3D está pesado neste computador.</span>
+            <Button variant="primary" size="sm" onClick={() => trocarQualidade("leve")}>
               Usar modo leve
-            </button>
-            <button type="button" onClick={() => setLento(false)} className="h-8 cursor-pointer rounded-[7px] border-0 bg-transparent px-2 text-[12px] text-ink-3">
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setLento(false)}>
               Manter
-            </button>
+            </Button>
           </div>
         )}
         {arena.pontos.length === 0 && (
           <div className="absolute inset-0 z-10 grid place-items-center">
-            <div className="rounded-cartao border border-line bg-surface px-5 py-4 text-center">
-              <p className="m-0 text-[14px] font-medium">Arena sem pontos cadastrados</p>
-              <p className="m-0 mt-1 text-[12.5px] text-muted">Importe a planta ou a ata do evento para posicionar estruturas.</p>
+            <div className="rounded-cartao border border-line bg-surface">
+              <EmptyState compact title="Arena sem pontos cadastrados" description="Importe a planta ou a ata do evento para posicionar estruturas." />
             </div>
           </div>
         )}
@@ -1082,8 +1076,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           />
         )}
         {editando && (
-          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[94%] -translate-x-1/2 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-cartao border border-accent bg-surface px-3.5 py-2.5 shadow-[0_8px_24px_rgba(42,20,24,.14)]">
-            <span className="text-[12.5px] text-ink-2">
+          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[94%] -translate-x-1/2 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-cartao border border-accent bg-surface px-3.5 py-2.5 shadow-popover">
+            <span className="text-pequeno text-ink-2">
               {colocando ? (
                 <>
                   Clique no mapa para posicionar <span className="font-medium text-ink">{colocando.nome}</span>.
@@ -1096,23 +1090,19 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
               {salvando && <span className="ml-2 text-meta">salvando…</span>}
             </span>
             {colocando && (
-              <button type="button" onClick={() => setColocando(null)} className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle">
+              <Button size="xs" onClick={() => setColocando(null)}>
                 Cancelar
-              </button>
+              </Button>
             )}
             {!colocando && !formEdicao && (
-              <button type="button" onClick={() => setFormEdicao({ modo: "novo", nome: "", categoria: "operacao" })} className="h-7 cursor-pointer rounded-[6px] border border-accent bg-accent px-2 text-[12px] font-medium text-white hover:brightness-105">
+              <Button variant="primary" size="xs" onClick={() => setFormEdicao({ modo: "novo", nome: "", categoria: "operacao" })}>
                 + Novo item
-              </button>
+              </Button>
             )}
             {!colocando && !formEdicao && pontoSelecionadoEdicao && (
-              <button
-                type="button"
-                onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}
-                className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle"
-              >
+              <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
                 Editar {pontoSelecionadoEdicao.nome}
-              </button>
+              </Button>
             )}
             {formEdicao && (
               <form
@@ -1122,39 +1112,37 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                   confirmarFormEdicao();
                 }}
               >
-                <span className="text-[12px] font-medium text-ink">{formEdicao.modo === "novo" ? "Item fora da planta:" : "Editar ponto:"}</span>
-                <input
+                <span className="text-pequeno font-medium text-ink">{formEdicao.modo === "novo" ? "Item fora da planta:" : "Editar ponto:"}</span>
+                <Input
                   autoFocus
                   aria-label="Nome do item"
                   value={formEdicao.nome}
                   onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })}
                   placeholder="Ex.: Tenda de hidratação extra"
-                  className="h-8 min-w-[200px] flex-1 rounded-[7px] border border-line-control bg-surface px-2.5 text-[12.5px] text-ink focus:border-accent focus:outline-none"
+                  className="min-w-[200px] flex-1"
                 />
-                <select
-                  aria-label="Categoria"
-                  value={formEdicao.categoria}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, categoria: e.target.value })}
-                  className="h-8 rounded-[7px] border border-line-control bg-surface px-2 text-[12.5px] text-ink focus:border-accent focus:outline-none"
-                >
-                  {Object.entries(CATEGORIAS).map(([id, c]) => (
-                    <option key={id} value={id}>
-                      {c.rotulo}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className="h-8 cursor-pointer rounded-[7px] border-0 bg-accent px-2.5 text-[12px] font-medium text-white">
+                <label htmlFor="edicao-categoria" className="sr-only">
+                  Categoria
+                </label>
+                <span className="w-[180px]">
+                  <Select
+                    id="edicao-categoria"
+                    value={formEdicao.categoria}
+                    onValueChange={(v) => setFormEdicao({ ...formEdicao, categoria: v })}
+                    ordenarAlfabetico={false}
+                    opcoes={Object.entries(CATEGORIAS).map(([id, c]) => ({ value: id, label: c.rotulo }))}
+                  />
+                </span>
+                <Button type="submit" variant="primary">
                   {formEdicao.modo === "novo" ? "Escolher lugar no mapa" : "Salvar"}
-                </button>
-                <button type="button" onClick={() => setFormEdicao(null)} className="h-8 cursor-pointer rounded-[7px] border border-line bg-surface px-2 text-[12px] text-ink-2">
-                  Cancelar
-                </button>
+                </Button>
+                <Button onClick={() => setFormEdicao(null)}>Cancelar</Button>
               </form>
             )}
             {pontoEditado && (
-              <button type="button" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)} className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle">
+              <Button size="xs" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
                 {pontoEditado.id.startsWith("novo:livre:") ? `Excluir ${pontoEditado.nome}` : pontoEditado.id.startsWith("novo:") ? `Tirar ${pontoEditado.nome} do mapa` : `Desfazer ajustes de ${pontoEditado.nome}`}
-              </button>
+              </Button>
             )}
           </div>
         )}

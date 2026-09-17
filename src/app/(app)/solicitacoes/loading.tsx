@@ -11,12 +11,12 @@ export default function Loading() {
         </div>
         <Skeleton className="h-9 w-36" />
       </div>
-      <div className="mb-[18px] flex gap-1 rounded-[9px] bg-control p-[3px]">
+      <div className="mb-[18px] flex gap-1 rounded-cartao bg-control p-[3px]">
         {[0, 1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-7 w-24 rounded-[7px]" />
+          <Skeleton key={i} className="h-7 w-24 rounded-controle" />
         ))}
       </div>
-      <div className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="flex gap-4 border-b border-line-soft bg-subtle px-[18px] py-2.5">
           {["w-24", "w-40", "w-20", "w-16"].map((w) => (
             <Skeleton key={w} className={`h-3 ${w}`} />
@@ -29,7 +29,7 @@ export default function Loading() {
               <Skeleton className="h-3.5 w-3/5" />
               <Skeleton className="mt-2 h-3 w-2/5" />
             </div>
-            <Skeleton className="h-5 w-20 rounded-[5px]" />
+            <Skeleton className="h-5 w-20 rounded-chip" />
             <Skeleton className="h-3.5 w-16" />
           </div>
         ))}

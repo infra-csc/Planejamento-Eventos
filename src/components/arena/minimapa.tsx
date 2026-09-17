@@ -29,7 +29,7 @@ export function Minimapa({
   const w = maxX - minX;
   const h = maxZ - minZ;
   return (
-    <div className="pointer-events-auto overflow-hidden rounded-[10px] border border-line bg-[#e4e6d9] shadow-[0_2px_8px_rgba(42,20,24,.1)]">
+    <div className="pointer-events-auto overflow-hidden rounded-cartao border border-line bg-[#e4e6d9] shadow-pill">
       <svg
         ref={svgRef}
         viewBox={`${minX} ${minZ} ${w} ${h}`}
