@@ -39,7 +39,7 @@ export function VincularCatalogo({
           compacto ? "h-7 px-2 text-[11.5px]" : "h-8 px-2.5 text-[12px]",
         )}
       >
-        Vincular ao catálogo
+        {compacto ? "Vincular" : "Vincular ao catálogo"}
       </button>
       {aberto && <VincularModal linha={linha} opcoes={opcoes} podeCadastrar={podeCadastrar} onFechar={() => setAberto(false)} />}
     </>

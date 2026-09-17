@@ -170,7 +170,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
 }
 
 /** Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações. */
-const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_92px] items-center gap-x-3";
+const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_128px] items-center gap-x-3";
 
 function Linha({
   l,
