@@ -450,10 +450,15 @@ export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtu
     await responderNaTransacao(tx, usuario, item.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
   }
   if (pendentes.length) {
+    const ids = pendentes.map((p) => p.id);
     await tx
       .update(solicitacaoItens)
       .set({ respondidoPorId: null, observacaoLogistica: "Registrado na ata automaticamente; conferido pela logística na reunião de OS." })
-      .where(inArray(solicitacaoItens.id, pendentes.map((p) => p.id)));
+      .where(inArray(solicitacaoItens.id, ids));
+    await tx
+      .update(historico)
+      .set({ acao: "REGISTRADO_NA_ATA" })
+      .where(and(eq(historico.entidade, "solicitacao_item"), inArray(historico.entidadeId, ids), eq(historico.acao, "RESPONDIDO")));
   }
   return pendentes.length;
 }

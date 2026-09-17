@@ -15,6 +15,12 @@ import { DefinirTrilha } from "@/components/shell/trilha";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
+import { LinhaDoTempo } from "@/components/ui/linha-do-tempo";
+import { linhaDoTempoSolicitacao } from "@/server/services/linha-do-tempo";
+import { obterEventoCache } from "@/server/cache";
+import { listarOsResumo } from "@/server/services/os";
+import { EventoStatusBadge } from "@/components/ui/badge";
+import { diaMesISO, periodoCurto } from "@/lib/format";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -77,7 +83,16 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
   const eventoAtivo = s.evento.status !== "ENCERRADO" && s.evento.status !== "CANCELADO";
   const logisticaVincula = pode(usuario, "ata.consolidar") && enviada && eventoAtivo && foraCatalogo.length > 0;
-  const opcoesVinculo = logisticaVincula ? await opcoesReferenciasResumidas() : null;
+  const [opcoesVinculo, historicoSolicitacao, evento, versoesOs] = await Promise.all([
+    logisticaVincula ? opcoesReferenciasResumidas() : Promise.resolve(null),
+    linhaDoTempoSolicitacao(usuario, s.id),
+    obterEventoCache(usuario, s.eventoId),
+    listarOsResumo(s.eventoId),
+  ]);
+  const rotuloItem = (itemId: string) => {
+    const i = s.itens.find((x) => x.id === itemId);
+    return i ? descricaoItem(i) : null;
+  };
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
   const semStatus = s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
 
@@ -216,7 +231,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </Aviso>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex flex-col gap-5">
           {s.observacao && (
             <Section titulo="Observação do solicitante">
@@ -228,10 +243,16 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               {itens.length === 0 ? <p className="m-0 px-[18px] py-8 text-center text-[12.5px] text-muted">Nenhum item adicionado.</p> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
             </Section>
           </RespostaProvider>
+          <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>
+            <LinhaDoTempo entradas={historicoSolicitacao} rotuloItem={rotuloItem} />
+          </Section>
         </div>
+        <div className="flex flex-col gap-5 lg:sticky lg:top-[76px]">
         <Section titulo="Dados">
           <ListaDados
             itens={[
+              { label: "Solicitante", valor: s.criadoPor.nome },
+              { label: "Área", valor: s.area.nome },
               { label: "Criada em", valor: diaMesHora(s.criadoEm) },
               { label: "Enviada em", valor: s.enviadaEm ? diaMesHora(s.enviadaEm) : "—" },
               ...(naAta
@@ -252,6 +273,44 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             ]}
           />
         </Section>
+        <Section
+          titulo="Evento"
+          sub={`${evento.codigo} · ${evento.nome}`}
+          acoes={
+            <Link href={`/eventos/${evento.id}`} className="link text-[12.5px]">
+              Abrir
+            </Link>
+          }
+        >
+          <ListaDados
+            itens={[
+              { label: "Situação", valor: <EventoStatusBadge status={evento.status} /> },
+              { label: "Cliente", valor: evento.cliente || "—" },
+              { label: "Local", valor: evento.local || "—" },
+              { label: "Data do evento", valor: periodoCurto(evento.dataInicio, evento.dataFim), forte: true },
+              { label: "Reunião de OS", valor: diaMesHora(evento.dataReuniao) },
+              { label: "Alterações até", valor: evento.janelaAlteracoesAte ? diaMesISO(evento.janelaAlteracoesAte) : "até encerrar" },
+              { label: "Ata fechada", valor: evento.ataFechadaEm ? diaMesHora(evento.ataFechadaEm) : "ainda não" },
+              { label: "OS atual", valor: versoesOs[0] ? `v${versoesOs[0].numero}` : "não gerada" },
+              { label: "Responsável", valor: evento.responsavel.nome },
+            ]}
+          />
+          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-[18px] py-2.5 text-[12.5px]">
+            <Link href={`/eventos/${evento.id}/ata`} className="link">
+              Ata
+            </Link>
+            <Link href={`/eventos/${evento.id}/os`} className="link">
+              OS
+            </Link>
+            <Link href={`/eventos/${evento.id}/solicitacoes`} className="link">
+              Solicitações do evento
+            </Link>
+            <Link href={`/eventos/${evento.id}/historico`} className="link">
+              Histórico do evento
+            </Link>
+          </div>
+        </Section>
+        </div>
       </div>
     </div>
   );

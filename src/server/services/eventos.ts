@@ -676,6 +676,15 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
       .where(and(eq(eventoItens.id, linhaId), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)))
       .returning({ id: eventoItens.id });
     if (!linha) throw new NaoEncontradoError("Linha da ata");
+    const [l] = await montarLinhasAta(tx, eventoId, { linhaId });
+    await registrarHistorico(tx, {
+      eventoId,
+      entidade: "evento_item",
+      entidadeId: linhaId,
+      acao: conferida ? "CONFERIDO" : "CONFERENCIA_DESFEITA",
+      descricao: `${l ? descricaoLinha(l) : "Linha"}: ${conferida ? "conferida na reunião" : "conferência desfeita"}`,
+      usuarioId: usuario.id,
+    });
     const [{ total, conferidas }] = await tx
       .select({ total: count(), conferidas: sql<number>`count(${eventoItens.conferidoEm})` })
       .from(eventoItens)
@@ -691,10 +700,14 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
   if (!ev) throw new NaoEncontradoError("Evento");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
-  await db
+  const marcadas = await db
     .update(eventoItens)
     .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
-    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`))
+    .returning({ id: eventoItens.id });
+  for (const m of marcadas) {
+    await registrarHistorico(db, { eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id });
+  }
 }
 
 /* ------------------------------------------------------------------ */
