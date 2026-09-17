@@ -66,7 +66,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
     },
     {
       titulo: "Encerrado",
-      quando: ev.encerradoEm ? diaMes(ev.encerradoEm) : ev.dataCarga ? `carga em ${diaMesISO(ev.dataCarga)}` : "carga sem data",
+      quando: ev.encerradoEm ? diaMes(ev.encerradoEm) : `evento em ${diaMesISO(ev.dataInicio)}`,
       detalhe: ev.encerradoEm ? `OS final v${versaoOs}` : "nada entra depois disso",
     },
   ];

@@ -3,7 +3,7 @@ import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
 import { SETOR_LABEL } from "@/domain/os";
-import { formatarData, formatarDataHora, formatarPeriodo } from "@/lib/format";
+import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { ImprimirBotao } from "./imprimir-botao";
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
@@ -37,7 +37,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
             <span className="text-neutral-500">Evento:</span> {formatarPeriodo(ev.dataInicio, ev.dataFim)}
           </div>
           <div>
-            <span className="text-neutral-500">Montagem:</span> {formatarData(ev.dataMontagem)}
+            <span className="text-neutral-500">Reunião de OS:</span> {formatarDataHora(ev.dataReuniao)}
           </div>
           <div>
             <span className="text-neutral-500">Local:</span> {ev.local || "—"}

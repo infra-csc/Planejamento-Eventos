@@ -60,28 +60,18 @@ export const dadosReuniaoSchema = z.object({
   kitDescarrega: textoOpcional(120),
 });
 
-export const eventoSchema = z
-  .object({
-    nome: texto(120),
-    cliente: textoOpcional(120),
-    local: textoOpcional(160),
-    dataMontagem: dataISO,
-    dataInicio: dataISO,
-    dataFim: dataISO,
-    dataDesmontagem: dataISO,
-    dataReuniao: z.string().min(1, "Informe a data e hora da reunião"),
-    dataCarga: z.union([dataISO, z.literal("")]).transform((v) => (v ? v : null)),
-    janelaAlteracoesAte: z
-      .union([dataISO, z.literal("")])
-      .nullish()
-      .transform((v) => (v ? v : null)),
-    responsavelId: z.string().min(1, "Escolha o responsável"),
-  })
-  .superRefine((d, ctx) => {
-    if (d.dataInicio < d.dataMontagem) ctx.addIssue({ code: "custom", path: ["dataInicio"], message: "Início não pode ser antes da montagem" });
-    if (d.dataFim < d.dataInicio) ctx.addIssue({ code: "custom", path: ["dataFim"], message: "Fim não pode ser antes do início" });
-    if (d.dataDesmontagem < d.dataFim) ctx.addIssue({ code: "custom", path: ["dataDesmontagem"], message: "Desmontagem não pode ser antes do fim" });
-  });
+/** Cadastro enxuto: responsável é quem cria; montagem, fim, desmontagem e carga não são pedidos. */
+export const eventoSchema = z.object({
+  nome: texto(120),
+  cliente: textoOpcional(120),
+  local: textoOpcional(160),
+  dataInicio: dataISO,
+  dataReuniao: z.string().min(1, "Informe a data e hora da reunião"),
+  janelaAlteracoesAte: z
+    .union([dataISO, z.literal("")])
+    .nullish()
+    .transform((v) => (v ? v : null)),
+});
 
 export const justificativaSchema = z.object({ justificativa: texto(500, "Informe a justificativa") });
 

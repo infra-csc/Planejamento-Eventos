@@ -6,7 +6,7 @@ import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
 import { SETOR_LABEL } from "@/domain/os";
-import { formatarData, formatarDataHora, formatarPeriodo } from "@/lib/format";
+import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import type { OsConteudo } from "@/server/db/schema";
 
 /*
@@ -105,9 +105,6 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
     ["Cliente", ev.cliente || "—"],
     ["Local", ev.local || "—"],
     ["Evento", formatarPeriodo(ev.dataInicio, ev.dataFim)],
-    ["Montagem", formatarData(ev.dataMontagem)],
-    ["Desmontagem", formatarData(ev.dataDesmontagem)],
-    ["Carga do caminhão", ev.dataCarga ? formatarData(ev.dataCarga) : "—"],
     ["Responsável", ev.responsavel.nome],
     ["Gerado em", formatarDataHora(new Date())],
     ["", ""],

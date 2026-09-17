@@ -4,7 +4,7 @@ import { getUsuarioAtual } from "@/server/auth/session";
 import { pode } from "@/domain/permissions";
 import { montarAtaExport } from "@/server/export/ata";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
-import { formatarData, formatarDataHora, formatarPeriodo } from "@/lib/format";
+import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 
 /*
  * Ata da reunião de OS em Excel: cabeçalho com os campos da ata (reunião, presentes, público, carga),
@@ -91,8 +91,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ["Cliente", ev.cliente || "—"],
     ["Local", ev.local || "—"],
     ["Data do evento", formatarPeriodo(ev.dataInicio, ev.dataFim)],
-    ["Montagem", formatarData(ev.dataMontagem)],
-    ["Desmontagem", formatarData(ev.dataDesmontagem)],
     ["Público esperado", reu?.publicoEsperado != null ? reu.publicoEsperado.toLocaleString("pt-BR") : "—"],
     ["Caminhão carrega", reu?.caminhaoCarrega || "—"],
     ["Caminhão sai", reu?.caminhaoSai || "—"],

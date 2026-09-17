@@ -1,7 +1,7 @@
 import { requirePermissao } from "@/server/auth/session";
 import { montarAtaExport } from "@/server/export/ata";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
-import { formatarData, formatarDataHora, formatarPeriodo } from "@/lib/format";
+import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { ImprimirBotao } from "../../os/[id]/imprimir-botao";
 
 const TIPO_LABEL = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
@@ -50,8 +50,6 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
           <Campo k="Cliente" v={ev.cliente || "—"} />
           <Campo k="Local" v={ev.local || "—"} />
           <Campo k="Data do evento" v={formatarPeriodo(ev.dataInicio, ev.dataFim)} />
-          <Campo k="Montagem" v={formatarData(ev.dataMontagem)} />
-          <Campo k="Desmontagem" v={formatarData(ev.dataDesmontagem)} />
           <Campo k="Público esperado" v={reu?.publicoEsperado != null ? reu.publicoEsperado.toLocaleString("pt-BR") : "—"} />
           <Campo k="Caminhão carrega" v={reu?.caminhaoCarrega || "—"} />
           <Campo k="Caminhão sai" v={reu?.caminhaoSai || "—"} />

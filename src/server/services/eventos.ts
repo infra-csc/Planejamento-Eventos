@@ -262,32 +262,62 @@ export type DadosEvento = {
   nome: string;
   cliente: string | null;
   local: string | null;
-  dataMontagem: string;
   dataInicio: string;
-  dataFim: string;
-  dataDesmontagem: string;
   dataReuniao: Date;
-  dataCarga: string | null;
   /** Fim da janela de alterações pós-ata (opcional; sem data = até encerrar). */
   janelaAlteracoesAte?: string | null;
-  responsavelId: string;
+  /*
+   * Não pedidos no cadastro. Sem valor: montagem, fim e desmontagem viram a data do evento
+   * (período usado na consolidação) e o responsável é quem criou. Scripts ainda podem informar.
+   */
+  dataMontagem?: string;
+  dataFim?: string;
+  dataDesmontagem?: string;
+  dataCarga?: string | null;
+  responsavelId?: string;
 };
 
-function validarOrdemDatas(dados: DadosEvento) {
-  if (dados.dataInicio < dados.dataMontagem || dados.dataFim < dados.dataInicio || dados.dataDesmontagem < dados.dataFim) {
+function validarOrdemDatas(d: { dataMontagem: string; dataInicio: string; dataFim: string; dataDesmontagem: string }) {
+  if (d.dataInicio < d.dataMontagem || d.dataFim < d.dataInicio || d.dataDesmontagem < d.dataFim) {
     throw new ValidacaoError("As datas precisam seguir a ordem: montagem, início, fim e desmontagem.");
   }
 }
 
+/** Período interno do evento: usa o informado; senão preserva o atual se ainda couber na nova data; senão, o próprio dia do evento. */
+function periodoEvento(dados: DadosEvento, atual?: { dataMontagem: string; dataFim: string; dataDesmontagem: string; dataCarga: string | null }) {
+  const ini = dados.dataInicio;
+  const cabe = atual && atual.dataMontagem <= ini && ini <= atual.dataFim && atual.dataFim <= atual.dataDesmontagem;
+  const p = {
+    dataMontagem: dados.dataMontagem ?? (cabe ? atual.dataMontagem : ini),
+    dataInicio: ini,
+    dataFim: dados.dataFim ?? (cabe ? atual.dataFim : ini),
+    dataDesmontagem: dados.dataDesmontagem ?? (cabe ? atual.dataDesmontagem : ini),
+    dataCarga: dados.dataCarga !== undefined ? dados.dataCarga : (atual?.dataCarga ?? null),
+  };
+  validarOrdemDatas(p);
+  return p;
+}
+
 export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
   exigir(usuario, "evento.criar");
-  validarOrdemDatas(dados);
+  const periodo = periodoEvento(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const codigo = await proximoCodigo(tx, "evento");
     const [ev] = await tx
       .insert(eventos)
-      .values({ ...dados, cliente: dados.cliente ?? "", local: dados.local ?? "", codigo, criadoPorId: usuario.id })
+      .values({
+        nome: dados.nome,
+        cliente: dados.cliente ?? "",
+        local: dados.local ?? "",
+        ...periodo,
+        dataReuniao: dados.dataReuniao,
+        janelaAlteracoesAte: dados.janelaAlteracoesAte ?? null,
+        // Quem cria o evento responde por ele.
+        responsavelId: dados.responsavelId ?? usuario.id,
+        codigo,
+        criadoPorId: usuario.id,
+      })
       .returning();
     await registrarHistorico(tx, {
       eventoId: ev.id,
@@ -311,7 +341,6 @@ export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
 
 export async function editarEvento(usuario: UsuarioAtual, id: string, dados: DadosEvento) {
   exigir(usuario, "evento.editar");
-  validarOrdemDatas(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
     await bloquearEvento(tx, id);
@@ -322,9 +351,19 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
     if (atual.status !== "PREPARACAO" && Math.abs(atual.dataReuniao.getTime() - dados.dataReuniao.getTime()) >= 60_000) {
       throw new ValidacaoError("A reunião de OS já começou ou aconteceu; a data dela não muda mais.", { dataReuniao: "Reunião já iniciada ou realizada." });
     }
+    const periodo = periodoEvento(dados, atual);
     const [ev] = await tx
       .update(eventos)
-      .set({ ...dados, cliente: dados.cliente ?? "", local: dados.local ?? "" })
+      .set({
+        nome: dados.nome,
+        cliente: dados.cliente ?? "",
+        local: dados.local ?? "",
+        ...periodo,
+        dataReuniao: dados.dataReuniao,
+        janelaAlteracoesAte: dados.janelaAlteracoesAte ?? null,
+        // Responsável não muda pela edição (é quem criou), salvo quando informado explicitamente.
+        responsavelId: dados.responsavelId ?? atual.responsavelId,
+      })
       .where(eq(eventos.id, id))
       .returning();
     const antes = {

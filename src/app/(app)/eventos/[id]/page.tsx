@@ -71,11 +71,8 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
         <Section titulo="Datas">
           <ListaDados
             itens={[
-              { label: "Montagem", valor: diaMesISO(ev.dataMontagem) },
               { label: "Evento", valor: periodoCurto(ev.dataInicio, ev.dataFim), forte: true },
-              { label: "Desmontagem", valor: diaMesISO(ev.dataDesmontagem) },
               { label: "Reunião de OS", valor: diaMesHora(ev.dataReuniao) },
-              { label: "Carga do caminhão", valor: ev.dataCarga ? diaMesISO(ev.dataCarga) : "não definida", forte: Boolean(ev.dataCarga) },
               { label: "Alterações até", valor: ev.janelaAlteracoesAte ? diaMesISO(ev.janelaAlteracoesAte) : "até encerrar", forte: Boolean(ev.janelaAlteracoesAte) },
               { label: "Ata fechada", valor: ev.ataFechadaEm ? diaMesHora(ev.ataFechadaEm) : "ainda não" },
             ]}

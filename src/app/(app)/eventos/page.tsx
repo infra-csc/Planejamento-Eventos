@@ -29,7 +29,7 @@ const FASES = [
 function marco(e: EventoLista) {
   if (e.status === "PREPARACAO") return `reunião ${diaMesHora(e.dataReuniao)}`;
   if (e.status === "EM_REUNIAO") return "reunião agora";
-  if (e.status === "ABERTO") return e.dataCarga ? `carga ${diaMesISO(e.dataCarga)}` : "sem data de carga";
+  if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : "aberto a alterações";
   if (e.status === "CANCELADO") return "cancelado";
   return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
 }
