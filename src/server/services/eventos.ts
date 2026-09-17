@@ -492,6 +492,10 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     if (acao === "INICIAR_REUNIAO") {
       patch.reuniaoIniciadaEm = agora;
     }
+    if (acao === "VOLTAR_PREPARACAO") {
+      // Reunião adiada: o horário de início vale para a próxima vez que ela começar.
+      patch.reuniaoIniciadaEm = null;
+    }
 
     if (acao === "FECHAR_ATA") {
       const pend = await tx

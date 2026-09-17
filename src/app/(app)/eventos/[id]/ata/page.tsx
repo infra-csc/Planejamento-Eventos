@@ -47,11 +47,21 @@ export default async function AtaPage({ params }: { params: Promise<{ id: string
           areas={areas.map((a) => ({ id: a.id, nome: a.nome }))}
           linhas={linhas.map(paraView)}
           dataReuniao={diaMesHora(ev.dataReuniao)}
-          conferivel={editavel && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO")}
         />
       </Section>
 
       <div className="flex flex-col gap-5">
+        {editavel && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") && (
+          <Section titulo="Conferência da reunião" sub={`${conferidasNaAta} de ${linhas.length} linhas conferidas`}>
+            <div className="px-[18px] py-3.5">
+              <ButtonLink href={`/eventos/${id}/reuniao`} variant="primary" size="md" className="w-full no-underline">
+                Abrir conferência da ata
+              </ButtonLink>
+              <p className="mb-0 mt-2 text-[12px] leading-[1.5] text-muted">Tela com a ata inteira por área: quem pediu, check de conferido e ajuste com motivo.</p>
+            </div>
+          </Section>
+        )}
+
         <Section titulo="Exportar ata" sub={congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
           <div className="flex flex-col gap-2 px-[18px] py-3.5">
             <a href={`/api/eventos/${id}/ata/excel`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>

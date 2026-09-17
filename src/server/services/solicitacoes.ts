@@ -615,7 +615,7 @@ async function eventoDoItem(tx: Executor, itemId: string) {
 }
 
 /** Responde um item dentro de uma transação que já travou o evento. */
-async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, itemId: string, resposta: Resposta, justificativaCorrecao: string | null | undefined, opcoes: { gerarOs: boolean; notificar: boolean }) {
+export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, itemId: string, resposta: Resposta, justificativaCorrecao: string | null | undefined, opcoes: { gerarOs: boolean; notificar: boolean }) {
   const item = await tx.query.solicitacaoItens.findFirst({
     where: eq(solicitacaoItens.id, itemId),
     with: { projeto: true, peca: true, eventoItem: { with: { projeto: true, peca: true } } },

@@ -42,9 +42,9 @@ export function BannerReuniao({
     : total === 0
       ? "A ata está vazia. Inclua linhas decididas na reunião antes de fechar."
       : faltam > 0
-        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Faltam conferir ${faltam} linhas`} da ata. Marque cada item ou projeto conforme for confirmado na reunião.`
+        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Faltam conferir ${faltam} linhas`} da ata. Use o check verde em cada item ou projeto abaixo.`
         : !presentesOk
-          ? "Tudo conferido. Registre quem estava presente (à direita) para fechar a ata."
+          ? "Tudo conferido. Registre quem estava presente em “Dados da reunião” para fechar a ata."
           : "Tudo conferido e presentes registrados. Feche a ata para gerar a OS.";
   const motivoBloqueio = total === 0 ? "Inclua ao menos uma linha na ata" : faltam > 0 ? `Ainda ${faltam === 1 ? "falta 1 linha" : `faltam ${faltam} linhas`} sem conferência` : "Registre quem estava presente na reunião";
 

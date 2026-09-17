@@ -74,7 +74,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
   const abas: Aba[] = [
     { href: base, label: "Visão geral", exact: true },
     { href: `${base}/ata`, label: "Ata", n: linhas.length },
-    ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `${base}/reuniao`, label: "Consolidar ata" }] : []),
+    ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `${base}/reuniao`, label: "Conferência da ata" }] : []),
     { href: `${base}/solicitacoes`, label: "Solicitações", n: sols.length },
     ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),
     { href: `${base}/historico`, label: "Histórico" },

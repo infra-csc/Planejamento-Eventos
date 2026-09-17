@@ -23,6 +23,7 @@ import {
   salvarSolicitacaoCompleta,
 } from "../src/server/services/solicitacoes";
 import { listarOsVersoes } from "../src/server/services/os";
+import { ajustarLinhaNaConferencia, obterConferencia } from "../src/server/services/conferencia";
 import { anexarArquivo, obterAnexo, removerAnexo } from "../src/server/services/projetos";
 import { alterarAtivoPeca, listarPecas } from "../src/server/services/catalogo";
 import { alterarAtivoUsuario, criarUsuario, editarUsuario } from "../src/server/services/admin";
@@ -92,6 +93,21 @@ async function main() {
   const c1 = await conferirLinha(marina, e3.id, linhasE3[0].id, true);
   ok(c1.conferidas === 1 && c1.total === linhasE3.length, "conferência item a item conta certo");
   await deveFalhar(() => conferirLinha(paulo, e3.id, linhasE3[0].id, true), "requisitante não confere linha", "permissão");
+  // Canetinha da conferência: motivo obrigatório; abaixo do pedido vira parcial para a área, com log.
+  const conf = await obterConferencia(e3.id);
+  const alvo = conf.find((l) => l.origem && l.quantidade >= 2);
+  if (alvo) {
+    await deveFalhar(() => ajustarLinhaNaConferencia(marina, e3.id, alvo.id, alvo.quantidade - 1, " "), "ajuste na conferência sem motivo é bloqueado", "motivo");
+    await deveFalhar(() => ajustarLinhaNaConferencia(paulo, e3.id, alvo.id, alvo.quantidade - 1, "x"), "requisitante não ajusta linha", "permissão");
+    await ajustarLinhaNaConferencia(marina, e3.id, alvo.id, alvo.quantidade - 1, "Uma unidade reservada para outro evento.");
+    const depois = (await obterConferencia(e3.id)).find((l) => l.id === alvo.id);
+    ok(depois?.quantidade === alvo.quantidade - 1 && Boolean(depois?.conferidoEm), "ajuste muda a quantidade e deixa a linha conferida");
+    ok(Boolean(depois?.ultimoAjuste?.descricao.includes("Uma unidade reservada") && depois?.ultimoAjuste?.descricao.includes("→")) && depois?.ultimoAjuste?.por === marina.nome, "log do ajuste mostra quem e o motivo");
+    const itemAjustado = (await obterSolicitacao(marina, alvo.origem!.solicitacaoId)).itens.find((i) => i.eventoItemGeradoId === alvo.id);
+    ok(itemAjustado?.status === "PARCIAL" && itemAjustado.quantidadeAtendida === alvo.quantidade - 1, "área vê o item como parcial com a nova quantidade");
+  } else {
+    ok(false, "seed sem linha de solicitação com quantidade ≥ 2 para testar o ajuste");
+  }
   await conferirTodasLinhas(marina, e3.id);
   ok((await obterLinhasAta(e3.id)).every((l) => l.conferidoEm), "todas as linhas conferidas");
   await deveFalhar(() => transicionarEvento(marina, e3.id, "FECHAR_ATA"), "fechar ata sem presentes é bloqueado", "presente");

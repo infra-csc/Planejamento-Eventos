@@ -20,6 +20,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
+import { ajustarLinhaNaConferencia } from "@/server/services/conferencia";
 
 function revalidarTudo() {
   revalidatePath("/", "layout");
@@ -154,5 +155,13 @@ export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: stri
   if (typeof eventoId !== "string" || typeof linhaId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   const r = await executar(() => atualizarVersaoLinha(usuario, eventoId, linhaId));
   revalidarTudo();
+  return r;
+}
+
+export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: string, quantidade: number, motivo: string) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
 }
