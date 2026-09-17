@@ -9,6 +9,7 @@ import { PERFIL_LABEL } from "@/domain/permissions";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { Dropdown, DropdownContent, DropdownItem, DropdownLabel, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { logoutAction } from "@/app/(auth)/actions";
+import { sairVerComoAction, verComoAction } from "@/app/(app)/ver-como/actions";
 import { Trilha } from "./trilha";
 import { BuscaGlobal, abrirBuscaGlobal } from "./busca-global";
 
@@ -80,7 +81,11 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
   );
 }
 
-export function AppShell({ usuario, nav, naoLidas, children }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode }) {
+export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areas: Array<{ id: string; nome: string }> } | null }) {
+  const vendoComo = Boolean(usuario.verComo);
+  const escolherVerComo = (perfil: string, areaId: string | null) => {
+    void verComoAction(perfil, areaId).then(() => router.refresh());
+  };
   const pathname = usePathname();
   const router = useRouter();
   const estaAtivo = (item: NavItem) =>
@@ -251,6 +256,22 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
               <DropdownLabel>{usuario.email}</DropdownLabel>
               <DropdownSeparator />
               <DropdownItem onSelect={() => router.push("/perfil")}>Meu perfil</DropdownItem>
+              {verComo && (
+                <>
+                  <DropdownSeparator />
+                  <DropdownLabel>Ver o app como…</DropdownLabel>
+                  <DropdownItem onSelect={() => escolherVerComo("LOGISTICA", null)}>Logística</DropdownItem>
+                  <DropdownItem onSelect={() => escolherVerComo("GESTAO", null)}>Gestão</DropdownItem>
+                  {verComo.areas
+                    .filter((a) => a.nome !== "Logística")
+                    .map((a) => (
+                      <DropdownItem key={a.id} onSelect={() => escolherVerComo(a.nome === "Cenografia" ? "CENOGRAFIA" : "REQUISITANTE", a.id)}>
+                        {a.nome === "Cenografia" ? "Cenografia" : `Requisitante · ${a.nome}`}
+                      </DropdownItem>
+                    ))}
+                  {vendoComo && <DropdownItem onSelect={() => void sairVerComoAction().then(() => router.refresh())}>Voltar a administrador</DropdownItem>}
+                </>
+              )}
               <DropdownItem onSelect={() => logoutAction()} danger>
                 Sair
               </DropdownItem>
@@ -258,6 +279,16 @@ export function AppShell({ usuario, nav, naoLidas, children }: { usuario: Usuari
           </Dropdown>
         </header>
 
+        {vendoComo && (
+          <div role="status" className="no-print flex items-center justify-between gap-3 border-b border-warning-border bg-warning-bg px-4 py-1.5 text-[12.5px] text-warning sm:px-5 xl:px-7">
+            <span>
+              Você está vendo o app como <span className="font-semibold">{perfilTexto}</span>. Tudo o que fizer vale como administrador.
+            </span>
+            <button type="button" onClick={() => void sairVerComoAction().then(() => router.refresh())} className="shrink-0 cursor-pointer rounded-[6px] border border-warning-border bg-surface px-2.5 py-1 text-[12px] font-medium text-warning hover:brightness-95">
+              Voltar a administrador
+            </button>
+          </div>
+        )}
         {/* Sem overflow no <main>: um contêiner de rolagem aqui quebra o `sticky` das colunas laterais (ata, OS, biblioteca). */}
         <main id="conteudo" tabIndex={-1} className="flex-1 px-4 pb-16 pt-5 focus:outline-none sm:px-5 sm:pt-7 xl:px-7">
           <div key={pathname} className="mx-auto max-w-[1240px] animate-fade-up">

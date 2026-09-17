@@ -32,7 +32,8 @@ export const ACOES = [
 
 export type Acao = (typeof ACOES)[number];
 
-const TODOS: Perfil[] = ["REQUISITANTE", "CENOGRAFIA", "LOGISTICA", "GESTAO", "ADMIN"];
+export const PERFIS = ["REQUISITANTE", "CENOGRAFIA", "LOGISTICA", "GESTAO", "ADMIN"] as const satisfies readonly Perfil[];
+const TODOS: Perfil[] = [...PERFIS];
 const REQUISITANTES: Perfil[] = ["REQUISITANTE", "CENOGRAFIA"];
 
 /**

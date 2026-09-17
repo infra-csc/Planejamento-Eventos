@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { requireUsuario } from "@/server/auth/session";
+import { getUsuarioReal, requireUsuario } from "@/server/auth/session";
+import { listarAreas } from "@/server/services/admin";
 import { contarNaoLidas } from "@/server/services/notificacoes";
 import { executarVerificacoesSeNecessario } from "@/server/jobs/verificacoes";
 import { getDb } from "@/server/db";
@@ -22,7 +23,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")));
     return Number(r.n);
   };
-  const [naoLidas, abertas] = await Promise.all([contarNaoLidas(usuario), contarAbertas()]);
+  const real = await getUsuarioReal();
+  const ehAdminReal = real?.perfil === "ADMIN";
+  const [naoLidas, abertas, areasVerComo] = await Promise.all([contarNaoLidas(usuario), contarAbertas(), ehAdminReal ? listarAreas() : Promise.resolve([])]);
 
   const nav: NavItem[] = [
     { href: "/", label: "Painel", exato: true },
@@ -36,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <AppShell usuario={usuario} nav={nav} naoLidas={naoLidas}>
+    <AppShell usuario={usuario} nav={nav} naoLidas={naoLidas} verComo={ehAdminReal ? { areas: areasVerComo.map((a) => ({ id: a.id, nome: a.nome })) } : null}>
       {children}
     </AppShell>
   );

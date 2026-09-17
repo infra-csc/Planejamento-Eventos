@@ -6,13 +6,16 @@ import { and, eq, gt, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, sessoes, usuarios } from "@/server/db/schema";
 import { gerarToken, hashSenha, hashToken, verificarSenha } from "./password";
-import { pode, type Acao } from "@/domain/permissions";
+import { pode, PERFIS, type Acao } from "@/domain/permissions";
+import type { Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "./autorizacao";
 import { ipCliente, limiteExcedido, limparTentativas, registrarTentativas } from "./limite";
 
 export { exigir, type UsuarioAtual };
 
 export const COOKIE_SESSAO = "npe_sessao";
+/** Administrador vendo o app como outro perfil: JSON { perfil, areaId } só neste navegador. */
+export const COOKIE_VER_COMO = "npe_ver_como";
 const DURACAO_SESSAO_MS = 1000 * 60 * 60 * 24 * 14; // 14 dias
 const JANELA_LOGIN_MS = 15 * 60_000;
 const MAX_POR_EMAIL = 8;
@@ -101,7 +104,8 @@ async function carregarUsuario(id: string): Promise<UsuarioAtual | null> {
 }
 
 /** Usuário da sessão atual (memoizado por requisição). */
-export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
+/** Quem está logado de fato (ignora o "ver como"). */
+export const getUsuarioReal = cache(async (): Promise<UsuarioAtual | null> => {
   const store = await cookies();
   const token = store.get(COOKIE_SESSAO)?.value;
   if (!token) return null;
@@ -116,6 +120,27 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
     .limit(1);
   if (!u || !u.ativo) return null;
   return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null };
+});
+
+/**
+ * Usuário como o app deve tratá-lo: o real, ou o perfil escolhido em "ver como" quando o real é
+ * administrador. Páginas e actions usam esta função; permissões seguem o perfil visto.
+ */
+export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
+  const real = await getUsuarioReal();
+  if (!real || real.perfil !== "ADMIN") return real;
+  const store = await cookies();
+  const bruto = store.get(COOKIE_VER_COMO)?.value;
+  if (!bruto) return real;
+  try {
+    const { perfil, areaId } = JSON.parse(bruto) as { perfil?: string; areaId?: string | null };
+    if (!perfil || perfil === "ADMIN" || !(PERFIS as readonly string[]).includes(perfil)) return real;
+    const db = await getDb();
+    const area = areaId ? await db.query.areas.findFirst({ where: eq(areas.id, areaId), columns: { id: true, nome: true } }) : null;
+    return { ...real, perfil: perfil as Perfil, areaId: area?.id ?? null, areaNome: area?.nome ?? null, verComo: { perfilReal: "ADMIN" } };
+  } catch {
+    return real;
+  }
 });
 
 export async function requireUsuario(): Promise<UsuarioAtual> {

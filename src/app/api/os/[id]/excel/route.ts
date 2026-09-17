@@ -8,237 +8,185 @@ import { getDb } from "@/server/db";
 import { SETOR_LABEL } from "@/domain/os";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import type { OsConteudo } from "@/server/db/schema";
+import { blocoDados, CHECK, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
 
 /*
- * OS completa em Excel: uma pasta com tudo que vai no caminhão, nas três leituras da tela
- * (totais por peça, por projeto, peças soltas) mais os itens avulsos e uma capa com o resumo.
- * As células de texto nunca começam com = + - @ (ExcelJS grava como string, não fórmula).
+ * OS completa em Excel: capa com resumo e, em abas, tudo que vai no caminhão nas três leituras da tela
+ * (totais por peça, por projeto, peças soltas) mais os itens avulsos. Tabelas nativas do Excel:
+ * filtros, listras, linha de totais com fórmula e coluna de separação para marcar no galpão.
  */
 
-const VINHO = "FF8E2740";
-const ESCURO = "FF2A1418";
-const CINZA = "FFF0ECEB";
-const LINHA = "FFE4DEDD";
-
-type Celula = string | number | null;
-
-function cabecalho(ws: ExcelJS.Worksheet, colunas: Array<{ titulo: string; largura: number; alinhar?: "left" | "right" | "center" }>, linha: number) {
-  const row = ws.getRow(linha);
-  colunas.forEach((c, i) => {
-    const cell = row.getCell(i + 1);
-    cell.value = c.titulo;
-    cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ESCURO } };
-    cell.alignment = { vertical: "middle", horizontal: c.alinhar ?? "left" };
-    cell.border = { bottom: { style: "thin", color: { argb: ESCURO } } };
-    ws.getColumn(i + 1).width = c.largura;
-  });
-  row.height = 20;
-  return linha + 1;
-}
-
-function dados(ws: ExcelJS.Worksheet, linha: number, valores: Celula[], opcoes: { alinhar?: Array<"left" | "right" | "center" | undefined>; negrito?: number[]; mono?: number[]; zebra?: boolean; checkbox?: number } = {}) {
-  const row = ws.getRow(linha);
-  valores.forEach((v, i) => {
-    const cell = row.getCell(i + 1);
-    cell.value = v;
-    cell.alignment = { vertical: "middle", horizontal: opcoes.alinhar?.[i] ?? (typeof v === "number" ? "right" : "left"), wrapText: true };
-    cell.font = { size: 10, bold: opcoes.negrito?.includes(i) ?? false, name: opcoes.mono?.includes(i) ? "Consolas" : "Calibri" };
-    cell.border = { bottom: { style: "hair", color: { argb: LINHA } } };
-    if (opcoes.zebra) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF8F8" } };
-    if (typeof v === "number") cell.numFmt = "#,##0";
-  });
-  if (opcoes.checkbox !== undefined) {
-    const c = row.getCell(opcoes.checkbox + 1);
-    c.value = "☐";
-    c.alignment = { horizontal: "center", vertical: "middle" };
-  }
-  return linha + 1;
-}
-
-function secao(ws: ExcelJS.Worksheet, linha: number, titulo: string, sub: string | null, colunas: number) {
-  const row = ws.getRow(linha);
-  row.getCell(1).value = titulo;
-  row.getCell(1).font = { bold: true, size: 12, color: { argb: VINHO } };
-  ws.mergeCells(linha, 1, linha, colunas);
-  row.height = 22;
-  linha++;
-  if (sub) {
-    const r2 = ws.getRow(linha);
-    r2.getCell(1).value = sub;
-    r2.getCell(1).font = { size: 9.5, color: { argb: "FF6B6263" }, italic: true };
-    ws.mergeCells(linha, 1, linha, colunas);
-    linha++;
-  }
-  return linha;
-}
-
-function ajustarImpressao(ws: ExcelJS.Worksheet, titulo: string) {
-  ws.pageSetup = { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.5, right: 0.5, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 } };
-  ws.headerFooter = { oddHeader: `&L&"Calibri,Bold"${titulo}&R&D`, oddFooter: "&LSeparado por: ____________________   Conferido por: ____________________&RPágina &P de &N" };
-}
-
-function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | null; local: string | null; dataMontagem: string; dataInicio: string; dataFim: string; dataDesmontagem: string; dataCarga: string | null; responsavel: { nome: string } }, os: OsConteudo, versao: string) {
+function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | null; local: string | null; dataInicio: string; dataFim: string; dataReuniao: Date; responsavel: { nome: string } }, os: OsConteudo, versao: string, geradaPor: string) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";
   wb.created = new Date();
-  const rotulo = `OS ${ev.codigo} · ${ev.nome} · ${versao}`;
+  const cab = `OS ${ev.codigo} · ${ev.nome} · ${versao}`;
+  const rodape = `Separado por: ______________   Conferido por: ______________   Gerado ${formatarDataHora(new Date())} por ${geradaPor}`;
 
-  /* ---------- Capa ---------- */
-  const capa = wb.addWorksheet("Resumo", { views: [{ showGridLines: false }] });
-  capa.getColumn(1).width = 22;
-  capa.getColumn(2).width = 60;
-  let l = 1;
-  capa.getRow(l).getCell(1).value = "NORTE MKT · ORDEM DE SERVIÇO";
-  capa.getRow(l).getCell(1).font = { bold: true, size: 9, color: { argb: VINHO } };
-  capa.mergeCells(l, 1, l, 2);
-  l++;
-  capa.getRow(l).getCell(1).value = `${ev.codigo} · ${ev.nome}`;
-  capa.getRow(l).getCell(1).font = { bold: true, size: 16, color: { argb: ESCURO } };
-  capa.mergeCells(l, 1, l, 2);
-  capa.getRow(l).height = 26;
-  l += 2;
-  const totalPecas = os.setores.reduce((a, s) => a + s.linhas.reduce((b, x) => b + x.total, 0), 0);
+  const totalUnidades = os.setores.reduce((a, s) => a + s.linhas.reduce((b, x) => b + x.total, 0), 0);
   const tiposPeca = os.setores.reduce((a, s) => a + s.linhas.length, 0);
-  const dadosCapa: Array<[string, string | number]> = [
-    ["Versão", versao],
-    ["Cliente", ev.cliente || "—"],
-    ["Local", ev.local || "—"],
-    ["Evento", formatarPeriodo(ev.dataInicio, ev.dataFim)],
-    ["Responsável", ev.responsavel.nome],
-    ["Gerado em", formatarDataHora(new Date())],
-    ["", ""],
-    ["Projetos padrão", os.projetos?.length ?? 0],
-    ["Tipos de peça", tiposPeca],
-    ["Unidades no total", totalPecas],
-    ["Peças pedidas soltas", os.individuais?.length ?? 0],
-    ["Itens avulsos", os.semSetor.length],
+
+  /* ---------- Resumo ---------- */
+  const capa = wb.addWorksheet("Resumo", { views: [{ showGridLines: false }] });
+  [24, 30, 14, 14, 24, 30].forEach((w, i) => (capa.getColumn(i + 1).width = w));
+  let l = faixaTitulo(capa, 6, "NORTE MKT · PLANEJAMENTO DE EVENTOS", `Ordem de Serviço · ${ev.codigo}`, `${ev.nome} · ${versao}`);
+  const fimEsq = blocoDados(
+    capa,
+    l,
+    1,
+    [
+      ["Evento", ev.nome],
+      ["Cliente", ev.cliente || "—"],
+      ["Local", ev.local || "—"],
+      ["Data do evento", formatarPeriodo(ev.dataInicio, ev.dataFim)],
+      ["Reunião de OS", formatarDataHora(ev.dataReuniao)],
+      ["Responsável", ev.responsavel.nome],
+    ],
+    2,
+  );
+  const fimDir = blocoDados(
+    capa,
+    l,
+    5,
+    [
+      ["Versão da OS", versao],
+      ["Gerado em", formatarDataHora(new Date())],
+      ["Gerado por", geradaPor],
+      ["Projetos padrão", os.projetos?.length ?? 0],
+      ["Tipos de peça", tiposPeca],
+      ["Unidades no total", totalUnidades],
+    ],
+    1,
+  );
+  l = Math.max(fimEsq, fimDir) + 1;
+
+  l = tituloSecao(capa, l, 6, "Resumo por setor", "Quantas peças de cada setor vão no caminhão.");
+  const porSetor = os.setores.map((s) => [SETOR_LABEL[s.setor], s.linhas.length, s.linhas.reduce((a, x) => a + x.total, 0)] as Array<string | number>);
+  l = tabela(
+    capa,
+    "ResumoSetor",
+    l,
+    [
+      { nome: "Setor", largura: 24, rotuloTotal: "Total" },
+      { nome: "Tipos de peça", largura: 30, numero: true, total: "sum" },
+      { nome: "Unidades", largura: 14, numero: true, total: "sum" },
+    ],
+    porSetor,
+  );
+  l += 1;
+
+  l = tituloSecao(capa, l, 6, "Como usar esta pasta");
+  const guia = [
+    ["Totais por peça", "Para carregar o caminhão: cada peça uma vez, com o total somado de todos os projetos e pedidos."],
+    ["Por projeto", "Para montar: o que cada projeto padrão leva, unidade por unidade, já com os ajustes."],
+    ["Peças soltas", "Peças pedidas fora de projeto (também somadas em Totais por peça)."],
+    ["Itens avulsos", "Itens sem peça de catálogo: separação manual, não somam por peça."],
+    ["Coluna Sep.", `Marque ${CHECK} conforme separar. Os filtros de cada tabela ajudam a trabalhar por setor.`],
   ];
-  for (const [k, v] of dadosCapa) {
-    const r = capa.getRow(l);
-    r.getCell(1).value = k;
-    r.getCell(1).font = { size: 10, color: { argb: "FF6B6263" } };
-    r.getCell(2).value = v;
-    r.getCell(2).font = { size: 10, bold: typeof v === "number" };
-    r.getCell(2).alignment = { horizontal: "left" };
+  for (const [k, v] of guia) {
+    capa.getCell(l, 1).value = k;
+    capa.getCell(l, 1).font = { bold: true, size: 10 };
+    capa.getCell(l, 2).value = v;
+    capa.getCell(l, 2).font = { size: 10, color: { argb: COR.texto2 } };
+    capa.getCell(l, 2).alignment = { wrapText: true, vertical: "top" };
+    capa.mergeCells(l, 2, l, 6);
     l++;
   }
-  l++;
-  const abas = capa.getRow(l);
-  abas.getCell(1).value = "Abas";
-  abas.getCell(1).font = { size: 10, color: { argb: "FF6B6263" } };
-  abas.getCell(2).value = "Totais por peça (carregar o caminhão) · Por projeto (montar) · Peças soltas · Itens avulsos";
-  abas.getCell(2).alignment = { wrapText: true };
-  capa.getRow(l + 1).getCell(2).value = "A OS nunca é editada à mão: toda mudança vem de uma resposta a item ou de um ajuste da logística com justificativa.";
-  capa.getRow(l + 1).getCell(2).font = { size: 9, italic: true, color: { argb: "FF6B6263" } };
-  capa.getRow(l + 1).getCell(2).alignment = { wrapText: true };
-  ajustarImpressao(capa, rotulo);
+  capa.getCell(l + 1, 1).value = "A OS nunca é editada à mão: toda mudança vem de uma solicitação respondida ou de um ajuste da logística com justificativa, e gera nova versão.";
+  capa.getCell(l + 1, 1).font = { size: 9, italic: true, color: { argb: COR.texto2 } };
+  capa.mergeCells(l + 1, 1, l + 1, 6);
+  impressao(capa, cab, rodape);
 
   /* ---------- Totais por peça ---------- */
-  const tot = wb.addWorksheet("Totais por peça", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
-  l = cabecalho(tot, [
-    { titulo: "Setor", largura: 22 },
-    { titulo: "Código", largura: 13 },
-    { titulo: "Peça", largura: 44 },
-    { titulo: "Total", largura: 9, alinhar: "right" },
-    { titulo: "Un.", largura: 6, alinhar: "center" },
-    { titulo: "Composição (de onde vem)", largura: 60 },
-    { titulo: "Sep.", largura: 6, alinhar: "center" },
-  ], 1);
-  for (const s of os.setores) {
-    const unidades = s.linhas.reduce((a, x) => a + x.total, 0);
-    l = secao(tot, l, SETOR_LABEL[s.setor], `${s.linhas.length} ${s.linhas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${unidades} unidades`, 7);
-    s.linhas.forEach((x, i) => {
-      l = dados(tot, l, [SETOR_LABEL[s.setor], x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · "), null], { negrito: [3], mono: [1], alinhar: [undefined, undefined, undefined, "right", "center", undefined, "center"], zebra: i % 2 === 1, checkbox: 6 });
-    });
-    const sub = tot.getRow(l);
-    sub.getCell(3).value = `Subtotal ${SETOR_LABEL[s.setor]}`;
-    sub.getCell(3).font = { bold: true, size: 10 };
-    sub.getCell(4).value = unidades;
-    sub.getCell(4).font = { bold: true, size: 10 };
-    sub.getCell(4).numFmt = "#,##0";
-    sub.getCell(4).alignment = { horizontal: "right" };
-    [1, 2, 3, 4, 5, 6, 7].forEach((c) => (sub.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: CINZA } }));
-    l += 2;
-  }
-  const geral = tot.getRow(l);
-  geral.getCell(3).value = "TOTAL GERAL DE UNIDADES";
-  geral.getCell(3).font = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-  geral.getCell(4).value = totalPecas;
-  geral.getCell(4).font = { bold: true, size: 11, color: { argb: "FFFFFFFF" } };
-  geral.getCell(4).numFmt = "#,##0";
-  geral.getCell(4).alignment = { horizontal: "right" };
-  [1, 2, 3, 4, 5, 6, 7].forEach((c) => (geral.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: VINHO } }));
-  tot.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 7 } };
-  ajustarImpressao(tot, `${rotulo} · Totais por peça`);
+  const tot = wb.addWorksheet("Totais por peça", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
+  faixaTitulo(tot, 7, "NORTE MKT", "Totais por peça", `${cab} · carregar o caminhão`);
+  const linhasTot = os.setores.flatMap((s) => s.linhas.map((x) => [SETOR_LABEL[s.setor], x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
+  tabela(
+    tot,
+    "TotaisPorPeca",
+    5,
+    [
+      { nome: "Setor", largura: 22, rotuloTotal: "Total geral" },
+      { nome: "Código", largura: 14, mono: true },
+      { nome: "Peça", largura: 44 },
+      { nome: "Total", largura: 10, numero: true, total: "sum" },
+      { nome: "Un.", largura: 6, alinhar: "center" },
+      { nome: "Composição (de onde vem)", largura: 60 },
+      { nome: "Sep.", largura: 6, alinhar: "center" },
+    ],
+    linhasTot,
+  );
+  impressao(tot, `${cab} · Totais por peça`, rodape, 5, true);
 
   /* ---------- Por projeto ---------- */
-  const proj = wb.addWorksheet("Por projeto", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
-  l = cabecalho(proj, [
-    { titulo: "Projeto", largura: 34 },
-    { titulo: "Qtd. projeto", largura: 11, alinhar: "right" },
-    { titulo: "Código", largura: 13 },
-    { titulo: "Peça", largura: 44 },
-    { titulo: "Setor", largura: 22 },
-    { titulo: "Por unidade", largura: 11, alinhar: "right" },
-    { titulo: "Total", largura: 9, alinhar: "right" },
-    { titulo: "Un.", largura: 6, alinhar: "center" },
-    { titulo: "Sep.", largura: 6, alinhar: "center" },
-  ], 1);
-  if (!os.projetos || os.projetos.length === 0) {
-    proj.getRow(l).getCell(1).value = os.projetos ? "Nenhum projeto padrão nesta OS — só peças soltas e itens avulsos." : "Esta versão da OS foi gerada antes da visão por projeto.";
-    proj.mergeCells(l, 1, l, 9);
+  const proj = wb.addWorksheet("Por projeto", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
+  faixaTitulo(proj, 11, "NORTE MKT", "Por projeto", `${cab} · montar`);
+  const linhasProj = (os.projetos ?? []).flatMap((p) => p.pecas.map((x) => [p.nome, p.quantidade, p.destino ?? "—", p.area ?? "Logística", x.codigo, x.nome, SETOR_LABEL[x.setor], x.porUnidade, x.total, x.unidade, CHECK] as Array<string | number>));
+  if (!os.projetos) {
+    proj.getCell(5, 1).value = "Esta versão da OS foi gerada antes da visão por projeto. Abra a versão atual.";
+    proj.mergeCells(5, 1, 5, 11);
+  } else {
+    tabela(
+      proj,
+      "PorProjeto",
+      5,
+      [
+        { nome: "Projeto", largura: 32, rotuloTotal: "Total geral" },
+        { nome: "Qtd. projeto", largura: 11, numero: true },
+        { nome: "Destino", largura: 24 },
+        { nome: "Área", largura: 16 },
+        { nome: "Código", largura: 14, mono: true },
+        { nome: "Peça", largura: 40 },
+        { nome: "Setor", largura: 22 },
+        { nome: "Por unidade", largura: 11, numero: true },
+        { nome: "Total", largura: 10, numero: true, total: "sum" },
+        { nome: "Un.", largura: 6, alinhar: "center" },
+        { nome: "Sep.", largura: 6, alinhar: "center" },
+      ],
+      linhasProj,
+    );
   }
-  for (const p of os.projetos ?? []) {
-    const unidades = p.pecas.reduce((a, x) => a + x.total, 0);
-    l = secao(proj, l, `${p.nome}  ×${p.quantidade}`, [`${p.codigo} · v${p.versao}`, p.destino ? `Destino: ${p.destino}` : null, p.area, `${p.pecas.length} tipos de peça · ${unidades} unidades`].filter(Boolean).join(" · "), 9);
-    p.pecas.forEach((x, i) => {
-      l = dados(proj, l, [p.nome, p.quantidade, x.codigo, x.nome, SETOR_LABEL[x.setor], x.porUnidade, x.total, x.unidade, null], { negrito: [6], mono: [2], alinhar: [undefined, "right", undefined, undefined, undefined, "right", "right", "center", "center"], zebra: i % 2 === 1, checkbox: 8 });
-    });
-    l++;
-  }
-  proj.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 9 } };
-  ajustarImpressao(proj, `${rotulo} · Por projeto`);
+  impressao(proj, `${cab} · Por projeto`, rodape, 5, true);
 
   /* ---------- Peças soltas ---------- */
-  const solt = wb.addWorksheet("Peças soltas", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
-  l = cabecalho(solt, [
-    { titulo: "Código", largura: 13 },
-    { titulo: "Peça", largura: 44 },
-    { titulo: "Setor", largura: 22 },
-    { titulo: "Qtd.", largura: 9, alinhar: "right" },
-    { titulo: "Un.", largura: 6, alinhar: "center" },
-    { titulo: "Destino", largura: 26 },
-    { titulo: "Área", largura: 18 },
-    { titulo: "Sep.", largura: 6, alinhar: "center" },
-  ], 1);
-  if (!os.individuais || os.individuais.length === 0) {
-    solt.getRow(l).getCell(1).value = os.individuais ? "Nenhuma peça pedida fora de projeto." : "Esta versão da OS foi gerada antes desta visão.";
-    solt.mergeCells(l, 1, l, 8);
-  }
-  (os.individuais ?? []).forEach((x, i) => {
-    l = dados(solt, l, [x.codigo, x.nome, SETOR_LABEL[x.setor], x.quantidade, x.unidade, x.destino ?? "—", x.area ?? "—", null], { negrito: [3], mono: [0], alinhar: [undefined, undefined, undefined, "right", "center", undefined, undefined, "center"], zebra: i % 2 === 1, checkbox: 7 });
-  });
-  solt.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 8 } };
-  ajustarImpressao(solt, `${rotulo} · Peças soltas`);
+  const solt = wb.addWorksheet("Peças soltas", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
+  faixaTitulo(solt, 8, "NORTE MKT", "Peças soltas", `${cab} · pedidas fora de projeto`);
+  const linhasSolt = (os.individuais ?? []).map((x) => [x.codigo, x.nome, SETOR_LABEL[x.setor], x.quantidade, x.unidade, x.destino ?? "—", x.area ?? "—", CHECK] as Array<string | number>);
+  tabela(
+    solt,
+    "PecasSoltas",
+    5,
+    [
+      { nome: "Código", largura: 14, mono: true, rotuloTotal: "Total" },
+      { nome: "Peça", largura: 44 },
+      { nome: "Setor", largura: 22 },
+      { nome: "Qtd.", largura: 10, numero: true, total: "sum" },
+      { nome: "Un.", largura: 6, alinhar: "center" },
+      { nome: "Destino", largura: 26 },
+      { nome: "Área", largura: 18 },
+      { nome: "Sep.", largura: 6, alinhar: "center" },
+    ],
+    linhasSolt,
+  );
+  impressao(solt, `${cab} · Peças soltas`, rodape, 5, true);
 
   /* ---------- Itens avulsos ---------- */
-  const av = wb.addWorksheet("Itens avulsos", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
-  l = cabecalho(av, [
-    { titulo: "Descrição", largura: 50 },
-    { titulo: "Qtd.", largura: 9, alinhar: "right" },
-    { titulo: "Destino", largura: 26 },
-    { titulo: "Área", largura: 18 },
-    { titulo: "Sep.", largura: 6, alinhar: "center" },
-  ], 1);
-  if (os.semSetor.length === 0) {
-    av.getRow(l).getCell(1).value = "Nenhum item avulso (sem peça de catálogo).";
-    av.mergeCells(l, 1, l, 5);
-  }
-  os.semSetor.forEach((x, i) => {
-    l = dados(av, l, [x.descricao, x.quantidade, x.destino ?? "—", x.area ?? "—", null], { negrito: [1], alinhar: [undefined, "right", undefined, undefined, "center"], zebra: i % 2 === 1, checkbox: 4 });
-  });
-  ajustarImpressao(av, `${rotulo} · Itens avulsos`);
+  const av = wb.addWorksheet("Itens avulsos", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
+  faixaTitulo(av, 5, "NORTE MKT", "Itens avulsos", `${cab} · sem peça de catálogo, separação manual`);
+  tabela(
+    av,
+    "ItensAvulsos",
+    5,
+    [
+      { nome: "Descrição", largura: 50, rotuloTotal: "Total" },
+      { nome: "Qtd.", largura: 10, numero: true, total: "sum" },
+      { nome: "Destino", largura: 26 },
+      { nome: "Área", largura: 18 },
+      { nome: "Sep.", largura: 6, alinhar: "center" },
+    ],
+    os.semSetor.map((x) => [x.descricao, x.quantidade, x.destino ?? "—", x.area ?? "—", CHECK]),
+  );
+  impressao(av, `${cab} · Itens avulsos`, rodape, 5);
 
   return wb;
 }
@@ -257,7 +205,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const ehAtual = pedida && versoes[0]?.numero === pedida.numero;
   const os = gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id);
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
-  const wb = montarPastaOs(ev, os, rotulo);
+  const wb = montarPastaOs(ev, os, rotulo, usuario.nome);
   const buffer = await wb.xlsx.writeBuffer();
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {

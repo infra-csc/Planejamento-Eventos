@@ -9,6 +9,8 @@ export type UsuarioAtual = {
   perfil: Perfil;
   areaId: string | null;
   areaNome: string | null;
+  /** Administrador vendo o app como outro perfil (só leitura de tela; a sessão continua sendo dele). */
+  verComo?: { perfilReal: Perfil } | null;
 };
 
 /** Para services e server actions: lança erro de domínio quando o perfil não tem a ação. */
