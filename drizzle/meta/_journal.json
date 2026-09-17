@@ -50,6 +50,13 @@
       "when": 1789584758215,
       "tag": "0006_reuniao_conferencia",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789655826612,
+      "tag": "0007_arena_posicoes",
+      "breakpoints": true
     }
   ]
 }

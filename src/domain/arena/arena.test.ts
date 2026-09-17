@@ -99,3 +99,32 @@ describe("geometria", () => {
     expect(l.minZ).toBeLessThanOrEqual(-101);
   });
 });
+
+describe("posições editadas na Arena 3D", () => {
+  it("mover desloca o ponto e as estruturas juntos, sem mudar a arena original", async () => {
+    const { aplicarPosicoes } = await import("./posicoes");
+    const p = arena.pontos.find((x) => x.modelos.length > 0)!;
+    const alvo: [number, number] = [p.posicao[0] + 10, p.posicao[1] - 5];
+    const nova = aplicarPosicoes(arena, [{ chave: p.id, tipo: "MOVER", nome: null, categoria: null, rotuloTipo: null, itemAta: null, x: alvo[0], z: alvo[1] }]);
+    const movido = nova.pontos.find((x) => x.id === p.id)!;
+    expect(movido.posicao).toEqual([Math.round(alvo[0] * 10) / 10, Math.round(alvo[1] * 10) / 10]);
+    expect(movido.modelos[0].posicao[0] - p.modelos[0].posicao[0]).toBeCloseTo(10, 0);
+    expect(arena.pontos.find((x) => x.id === p.id)!.posicao).toEqual(p.posicao);
+  });
+
+  it("ponto novo de linha da ata sai de 'sem posição'", async () => {
+    const { aplicarPosicoes, chaveItemAta, chavePontoNovo } = await import("./posicoes");
+    const fora = itensNaoPosicionados(arena)[0];
+    const nova = aplicarPosicoes(arena, [{ chave: chavePontoNovo("ata", chaveItemAta(fora)), tipo: "NOVO", nome: fora.item, categoria: null, rotuloTipo: null, itemAta: chaveItemAta(fora), x: 1, z: 2 }]);
+    expect(itensNaoPosicionados(nova).some((i) => chaveItemAta(i) === chaveItemAta(fora))).toBe(false);
+    expect(nova.pontos.length).toBe(arena.pontos.length + 1);
+  });
+
+  it("ponto novo da legenda da planta sai da lista da planta", async () => {
+    const { aplicarPosicoes, chavePontoNovo } = await import("./posicoes");
+    const item = arena.semPosicaoNaPlanta[0];
+    if (!item) return;
+    const nova = aplicarPosicoes(arena, [{ chave: chavePontoNovo("planta", item.item), tipo: "NOVO", nome: item.item, categoria: "operacao", rotuloTipo: null, itemAta: null, x: 0, z: 0 }]);
+    expect(nova.semPosicaoNaPlanta.some((s) => s.item === item.item)).toBe(false);
+  });
+});

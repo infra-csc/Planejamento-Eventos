@@ -232,7 +232,34 @@ export function PainelAta({ arena, ponto, estreito, onFechar }: { arena: Arena; 
 }
 
 /** Tudo que as fontes citam e o mapa não posiciona: prova de que o mapa não escondeu nada. */
-export function PainelSemPosicao({ arena, estreito, onFechar }: { arena: Arena; estreito: boolean; onFechar: () => void }) {
+/** No modo edição, cada item sem lugar ganha "Posicionar": escolhe o item e clica no mapa. */
+export type PosicionarItem = { chave: string; nome: string; itemAta: string | null; categoria?: string | null };
+
+export function PainelSemPosicao({
+  arena,
+  estreito,
+  onFechar,
+  edicao,
+}: {
+  arena: Arena;
+  estreito: boolean;
+  onFechar: () => void;
+  edicao?: { colocando: string | null; onPosicionar: (item: PosicionarItem) => void } | null;
+}) {
+  const botaoPosicionar = (item: PosicionarItem) =>
+    edicao ? (
+      <button
+        type="button"
+        onClick={() => edicao.onPosicionar(item)}
+        aria-pressed={edicao.colocando === item.chave}
+        className={cn(
+          "h-7 shrink-0 cursor-pointer rounded-[6px] border px-2 text-[11.5px] font-medium",
+          edicao.colocando === item.chave ? "border-accent bg-accent text-white" : "border-line bg-surface text-accent hover:border-accent",
+        )}
+      >
+        {edicao.colocando === item.chave ? "Clique no mapa" : "Posicionar"}
+      </button>
+    ) : null;
   const fora = itensNaoPosicionados(arena);
   const porSecao = new Map<string, ItemAta[]>();
   for (const i of fora) porSecao.set(i.secao, [...(porSecao.get(i.secao) ?? []), i]);
@@ -252,9 +279,12 @@ export function PainelSemPosicao({ arena, estreito, onFechar }: { arena: Arena; 
           <section className="border-b border-line-soft px-4 py-3">
             <h3 className="m-0 mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">Na legenda da planta</h3>
             {arena.semPosicaoNaPlanta.map((s) => (
-              <p key={s.item} className="m-0 mb-2 text-[12.5px] leading-[1.5] text-ink-2">
-                <span className="font-medium text-ink">{s.item}.</span> {s.motivo}
-              </p>
+              <div key={s.item} className="mb-2 flex items-start gap-2">
+                <p className="m-0 min-w-0 flex-1 text-[12.5px] leading-[1.5] text-ink-2">
+                  <span className="font-medium text-ink">{s.item}.</span> {s.motivo}
+                </p>
+                {botaoPosicionar({ chave: `novo:planta:${s.item}`, nome: s.item, itemAta: null })}
+              </div>
             ))}
             {arena.contagensDaPlanta.map((c) => (
               <p key={c.item} className="m-0 flex justify-between gap-3 border-b border-line-row py-[5px] text-[12.5px] text-ink-2">
@@ -281,6 +311,7 @@ export function PainelSemPosicao({ arena, estreito, onFechar }: { arena: Arena; 
                         {i.item}
                       </th>
                       <td className="w-[52px] border-b border-line-row py-[5px] text-right font-mono tabular-nums text-ink-2">{i.quantidade ?? "—"}</td>
+                      {edicao && <td className="w-[104px] border-b border-line-row py-[3px] pl-2 text-right">{botaoPosicionar({ chave: `novo:ata:${chaveAta(i)}`, nome: i.item, itemAta: chaveAta(i) })}</td>}
                     </tr>
                   ))}
                 </tbody>

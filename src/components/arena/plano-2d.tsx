@@ -12,6 +12,17 @@ const pts = (lista: Array<[number, number]>) => lista.map(([x, z]) => `${x},${z}
 export type RealcePlano = { destaque: Set<string>; foco: Set<string> };
 
 /**
+ * Modo edição (logística): arrastar um ponto move; com `colocando` definido, um clique no mapa
+ * posiciona o item escolhido. `editadas` marca os pontos com posição manual.
+ */
+export type EdicaoPlano = {
+  colocando: string | null;
+  editadas: Set<string>;
+  onMover: (id: string, x: number, z: number) => void;
+  onColocar: (x: number, z: number) => void;
+};
+
+/**
  * Planta 2D vetorial: alternativa funcional quando o 3D não roda, e vista preferida de quem só quer
  * localizar. Mesmos dados, mesma seleção.
  */
@@ -22,6 +33,7 @@ export function Plano2D({
   realce,
   recuoDireita,
   onSelecionar,
+  edicao,
 }: {
   arena: Arena;
   camadas: Record<Camada, boolean>;
@@ -30,6 +42,7 @@ export function Plano2D({
   /** Painel aberto à direita: os controles de zoom recuam para não ficarem por baixo. */
   recuoDireita?: boolean;
   onSelecionar: (id: string | null) => void;
+  edicao?: EdicaoPlano | null;
 }) {
   const { minX, maxX, minZ, maxZ } = arena.area;
   const largura = maxX - minX;
@@ -37,6 +50,21 @@ export function Plano2D({
   const [vista, setVista] = useState({ s: 1, x: 0, y: 0 });
   const arraste = useRef<{ x: number; y: number; vx: number; vy: number; moveu: boolean } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const grupoRef = useRef<SVGGElement>(null);
+  // Ponto sendo arrastado no modo edição: posição provisória até soltar.
+  const [arrastando, setArrastando] = useState<{ id: string; x: number; z: number; moveu: boolean } | null>(null);
+  /** Coordenada do mapa (metros) sob o ponteiro, considerando zoom e deslocamento. */
+  const paraMapa = (clientX: number, clientY: number): [number, number] | null => {
+    const svg = svgRef.current;
+    const g = grupoRef.current;
+    const ctm = g?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const m = pt.matrixTransform(ctm.inverse());
+    return [Math.round(m.x * 10) / 10, Math.round(m.y * 10) / 10];
+  };
   // Ordem de tabulação espacial (norte → sul, oeste → leste), não a ordem de autoria dos dados.
   const pontos = useMemo(() => [...arena.pontos].sort((a, b) => a.posicao[1] - b.posicao[1] || a.posicao[0] - b.posicao[0]), [arena.pontos]);
 
@@ -48,7 +76,7 @@ export function Plano2D({
         ref={svgRef}
         viewBox={`${minX} ${minZ} ${largura} ${altura}`}
         preserveAspectRatio="xMidYMid meet"
-        className="h-full w-full touch-none select-none"
+        className={cn("h-full w-full touch-none select-none", edicao?.colocando && "cursor-crosshair")}
         role="group"
         aria-label={`Planta 2D da arena ${arena.evento.nome}`}
         onWheel={(e) => zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15)}
@@ -57,6 +85,11 @@ export function Plano2D({
           (e.target as Element).setPointerCapture?.(e.pointerId);
         }}
         onPointerMove={(e) => {
+          if (arrastando) {
+            const m = paraMapa(e.clientX, e.clientY);
+            if (m) setArrastando((d) => (d ? { ...d, x: m[0], z: m[1], moveu: true } : d));
+            return;
+          }
           const a = arraste.current;
           const svg = svgRef.current;
           if (!a || !svg) return;
@@ -64,12 +97,23 @@ export function Plano2D({
           if (Math.hypot(e.clientX - a.x, e.clientY - a.y) > 4) a.moveu = true;
           setVista((v) => ({ ...v, x: a.vx + (e.clientX - a.x) * k, y: a.vy + (e.clientY - a.y) * k }));
         }}
-        onPointerUp={() => {
-          if (arraste.current && !arraste.current.moveu) onSelecionar(null);
+        onPointerUp={(e) => {
+          if (arrastando) {
+            if (arrastando.moveu) edicao?.onMover(arrastando.id, arrastando.x, arrastando.z);
+            else onSelecionar(arrastando.id);
+            setArrastando(null);
+            arraste.current = null;
+            return;
+          }
+          if (arraste.current && !arraste.current.moveu) {
+            const m = edicao?.colocando ? paraMapa(e.clientX, e.clientY) : null;
+            if (m) edicao!.onColocar(m[0], m[1]);
+            else onSelecionar(null);
+          }
           arraste.current = null;
         }}
       >
-        <g transform={`translate(${(minX + largura / 2) * (1 - vista.s) + vista.x * vista.s} ${(minZ + altura / 2) * (1 - vista.s) + vista.y * vista.s}) scale(${vista.s})`}>
+        <g ref={grupoRef} transform={`translate(${(minX + largura / 2) * (1 - vista.s) + vista.x * vista.s} ${(minZ + altura / 2) * (1 - vista.s) + vista.y * vista.s}) scale(${vista.s})`}>
           {arena.zonas
             .filter((z) => z.tipo === "arena" || z.tipo === "agua")
             .map((z) => (
@@ -107,16 +151,32 @@ export function Plano2D({
               // Na conferência, os rótulos seguem a divergência, não a camada.
               const rotulo = realce ? divergente && (emFoco || camadas.rotulos) : camadas.rotulos && (p.principal || vista.s >= 2.2 || ativo);
               const cor = apagado ? "#c3bcbc" : divergente ? "#a8400f" : CATEGORIAS[p.categoria].cor;
+              const emArraste = arrastando?.id === p.id;
+              const [px, pz] = emArraste ? [arrastando.x, arrastando.z] : p.posicao;
+              const manual = edicao?.editadas.has(p.id) ?? false;
               return (
                 <g
                   key={p.id}
-                  transform={`translate(${p.posicao[0]} ${p.posicao[1]}) scale(${1 / vista.s})`}
+                  transform={`translate(${px} ${pz}) scale(${1 / vista.s})`}
+                  style={edicao ? { cursor: emArraste ? "grabbing" : "grab" } : undefined}
+                  onPointerDown={
+                    edicao
+                      ? (e) => {
+                          // Posicionando um item: o clique vale para o mapa, mesmo em cima de outro ponto.
+                          if (edicao.colocando) return;
+                          e.stopPropagation();
+                          (e.currentTarget.ownerSVGElement ?? svgRef.current)?.setPointerCapture?.(e.pointerId);
+                          setArrastando({ id: p.id, x: p.posicao[0], z: p.posicao[1], moveu: false });
+                        }
+                      : undefined
+                  }
                   role="button"
                   tabIndex={0}
                   aria-label={`${p.nome}, ${p.tipo}${divergente ? ", com divergência entre planta e ata" : ""}`}
                   aria-pressed={ativo}
                   className="cursor-pointer outline-none [&:focus-visible>circle:last-of-type]:stroke-[var(--color-accent)]"
                   onPointerUp={(e) => {
+                    if (edicao) return; // o SVG trata soltar/selecionar no modo edição
                     e.stopPropagation();
                     arraste.current = null;
                     onSelecionar(p.id);
@@ -129,6 +189,7 @@ export function Plano2D({
                   }}
                 >
                   {divergente && <circle r={13} fill="none" stroke="#a8400f" strokeWidth={emFoco ? 2 : 1.5} strokeDasharray="3 3" opacity={emFoco ? 1 : 0.7} />}
+                  {edicao && <circle r={emArraste ? 16 : 11} fill={emArraste ? "rgba(142,39,64,.12)" : "transparent"} stroke={manual || emArraste ? "#8e2740" : "#8e274055"} strokeWidth={1.5} strokeDasharray={manual ? undefined : "2 2"} />}
                   <circle r={apagado ? 4 : divergente ? 7 : ativo ? 8 : 5.5} fill={cor} stroke="#fff" strokeWidth={ativo || emFoco ? 3 : 2} />
                   {rotulo && (
                     <text x={divergente ? 16 : 9} y={4} fontSize={11} fontFamily="var(--font-geist), Arial, sans-serif" fontWeight={ativo || emFoco ? 600 : 500} fill="#2a1418" paintOrder="stroke" stroke="#f7f5f2" strokeWidth={3}>

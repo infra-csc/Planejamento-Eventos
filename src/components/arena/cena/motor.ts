@@ -22,6 +22,8 @@ export type EventosMotor = {
   aoDesempenhoBaixo: () => void;
   /** Recebe a área do chão vista pela câmera (4 cantos), a cada quadro desenhado. */
   aoMoverCamera?: (pegada: Array<[number, number]>) => void;
+  /** Clique no chão (metros). Retorna true quando a interface tratou o clique (ex.: posicionar item no modo edição). */
+  aoClicarChao?: (x: number, z: number) => boolean;
 };
 
 type OpcoesMotor = {
@@ -69,6 +71,9 @@ export class MotorArena {
   private hits: THREE.Mesh[] = [];
   private alvoPorHit = new Map<THREE.Object3D, Alvo>();
   private pontoPorId: Map<string, PontoArena>;
+  /** Posição de cada ponto quando a cena foi montada: base para deslocar estruturas editadas. */
+  private origem = new Map<string, [number, number]>();
+  private hitBase = new Map<string, THREE.Vector3>();
   private objetosCamada = new Map<Camada, THREE.Object3D[]>();
   /** Objetos que só aparecem de longe (linha do percurso): lista fixa, sem varrer a cena por quadro. */
   private lodLonge: THREE.Object3D[] = [];
@@ -99,6 +104,7 @@ export class MotorArena {
     this.camadas = { ...o.camadas };
     this.limites = limitesArena(o.arena, 80);
     this.pontoPorId = new Map(o.arena.pontos.map((p) => [p.id, p]));
+    for (const p of o.arena.pontos) this.origem.set(p.id, [p.posicao[0], p.posicao[1]]);
   }
 
   iniciar() {
@@ -267,6 +273,7 @@ export class MotorArena {
       });
       const contorno = cantos.length >= 3 ? envoltoria(cantos).map(([x, z]) => new THREE.Vector3(x, 0.25, z)) : [];
       const alvo: Alvo = { id: ponto.id, camada, caixa, hit, grupo, contorno };
+      this.hitBase.set(ponto.id, hit.position.clone());
       this.alvos.push(alvo);
       this.alvoPorHit.set(hit, alvo);
     }
@@ -458,6 +465,10 @@ export class MotorArena {
     const baixo = this.ponteiro.baixo;
     this.ponteiro.baixo = null;
     if (!baixo || Math.hypot(e.clientX - baixo.x, e.clientY - baixo.y) > 6) return;
+    if (this.o.eventos.aoClicarChao) {
+      const chao = this.chaoEm(e.clientX, e.clientY);
+      if (chao && this.o.eventos.aoClicarChao(chao[0], chao[1])) return;
+    }
     this.o.eventos.aoSelecionar(this.pick(e));
   };
 
@@ -585,6 +596,43 @@ export class MotorArena {
     this.camera.updateProjectionMatrix();
     for (const mat of [this.trilho, this.realce?.matHover, this.realce?.matSel]) mat?.resolution.set(w, h);
     this.sujo = true;
+  }
+
+  /** Ponto do chão (metros, x/z) sob uma posição da tela; null se o raio não toca o chão. */
+  chaoEm(clientX: number, clientY: number): [number, number] | null {
+    if (!this.renderer) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const v = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(v, this.camera);
+    const p = new THREE.Vector3();
+    const hit = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p);
+    if (!hit || hit.distanceTo(this.camera.position) > 4000) return null;
+    return [Math.round(hit.x * 10) / 10, Math.round(hit.z * 10) / 10];
+  }
+
+  /**
+   * Posições editadas (arrastar, posicionar, item novo): os marcadores seguem a nova posição e as
+   * estruturas 3D do ponto se deslocam junto, sem remontar a cena.
+   */
+  atualizarPontos(pontos: PontoArena[]) {
+    this.pontoPorId = new Map(pontos.map((p) => [p.id, p]));
+    for (const alvo of this.alvos) {
+      const p = this.pontoPorId.get(alvo.id);
+      const o = this.origem.get(alvo.id);
+      const base = this.hitBase.get(alvo.id);
+      if (!p || !o) continue;
+      const dx = p.posicao[0] - o[0];
+      const dz = p.posicao[1] - o[1];
+      alvo.grupo.position.set(dx, 0, dz);
+      if (base) alvo.hit.position.set(base.x + dx, base.y, base.z + dz);
+      alvo.hit.updateMatrixWorld(true);
+    }
+    this.sujo = true;
+  }
+
+  /** Durante o arraste de um marcador a câmera não pode girar junto. */
+  travarCamera(travar: boolean) {
+    if (this.controls) this.controls.enabled = !travar;
   }
 
   /** Cantos da vista projetados no chão (para o minimapa). Acima do horizonte, projeta ao longe. */

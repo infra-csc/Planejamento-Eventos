@@ -8,7 +8,11 @@ import { buscarPontos, itensNaoPosicionados } from "@/domain/arena/geometria";
 import { cn } from "@/lib/cn";
 import type { MotorArena } from "./cena/motor";
 import type { Qualidade } from "./cena/materiais";
-import { PainelAta, PainelPonto, PainelSemPosicao } from "./painel-ponto";
+import { PainelAta, PainelPonto, PainelSemPosicao, type PosicionarItem } from "./painel-ponto";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { removerPosicaoArenaAction, salvarPosicaoArenaAction } from "@/app/(app)/arena/actions";
+import { toast, toastErro } from "@/components/ui/toast";
 import { PainelConferencia } from "./painel-conferencia";
 import { Plano2D } from "./plano-2d";
 import { IndicePontos } from "./indice-pontos";
@@ -72,7 +76,25 @@ function Chip({ rotulo, children }: { rotulo: string; children: React.ReactNode 
   );
 }
 
-export function ArenaExperiencia({ arena }: { arena: Arena }) {
+export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, editadas = [] }: { arena: Arena; podeEditar?: boolean; editadas?: string[] }) {
+  const router = useRouter();
+  const [salvando, iniciarSalvar] = useTransition();
+  const [editando, setEditando] = useState(false);
+  const [colocando, setColocando] = useState<PosicionarItem | null>(null);
+  // Formulário do banner de edição: item novo (fora da planta) ou nome/categoria do ponto selecionado.
+  const [formEdicao, setFormEdicao] = useState<{ modo: "novo" | "info"; nome: string; categoria: string } | null>(null);
+  // Posições salvas agora e ainda não refletidas pelo servidor: o ponto não "pula de volta" enquanto recarrega.
+  const [locais, setLocais] = useState<Record<string, [number, number]>>({});
+  const [baseServidor, setBaseServidor] = useState(arenaServidor);
+  if (baseServidor !== arenaServidor) {
+    setBaseServidor(arenaServidor);
+    setLocais({});
+  }
+  const arena = useMemo(
+    () => (Object.keys(locais).length === 0 ? arenaServidor : { ...arenaServidor, pontos: arenaServidor.pontos.map((p) => (locais[p.id] ? { ...p, posicao: locais[p.id] } : p)) }),
+    [arenaServidor, locais],
+  );
+  const idsEditados = useMemo(() => new Set(editadas), [editadas]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -83,6 +105,11 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
   /** Elemento que abriu o painel: recebe o foco de volta quando o painel fecha. */
   const origemFoco = useRef<HTMLElement | null>(null);
   const aoSelecionarNoMapa = useRef<(id: string | null) => void>(() => undefined);
+  /** Clique no chão do 3D: no modo edição com item escolhido, posiciona ali. */
+  const aoClicarChaoRef = useRef<(x: number, z: number) => boolean>(() => false);
+  /** Arraste de marcador no 3D (modo edição). */
+  const arraste3d = useRef<{ id: string; x0: number; y0: number; moveu: boolean; ultimo: [number, number] | null } | null>(null);
+  const ignorarClique = useRef(false);
   const vistaRef = useRef<VistaMapa>("perspectiva");
 
   const [vistaMapa, setVistaMapa] = useState<VistaMapa>("perspectiva");
@@ -240,6 +267,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
             },
             aoDesempenhoBaixo: () => setLento(true),
             aoMoverCamera: (pegada) => pegadaRef.current?.setAttribute("points", pegada.map(([x, z]) => `${x.toFixed(1)},${z.toFixed(1)}`).join(" ")),
+            aoClicarChao: (x, z) => aoClicarChaoRef.current(x, z),
           },
         });
         try {
@@ -278,6 +306,10 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
     motorRef.current?.definirCamadas(camadas);
     motorRef.current?.invalidar();
   }, [camadas, estado]);
+
+  useEffect(() => {
+    if (estado === "pronto") motorRef.current?.atualizarPontos(arena.pontos);
+  }, [arena.pontos, estado]);
 
   useEffect(() => {
     motorRef.current?.definirSelecao(selecionado);
@@ -412,6 +444,97 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
 
   const totalDivergencias = divergencias.length;
 
+  /* ------------------------------------------------------------------ */
+  /* Edição de posições (logística)                                       */
+  /* ------------------------------------------------------------------ */
+
+  const salvarPosicao = (dados: Parameters<typeof salvarPosicaoArenaAction>[1], rotulo: string) => {
+    iniciarSalvar(async () => {
+      const r = await salvarPosicaoArenaAction(arena.slug, dados);
+      if (!r.ok) {
+        toastErro(r.erro);
+        setLocais((l) => {
+          const n = { ...l };
+          delete n[dados.chave];
+          return n;
+        });
+        return;
+      }
+      toast(rotulo);
+      router.refresh();
+    });
+  };
+
+  const alternarEdicao = () => {
+    if (editando) {
+      setEditando(false);
+      setColocando(null);
+      return;
+    }
+    setEditando(true);
+    setPainelEsquerdo(null);
+    setSelecionado(null);
+    setPainelDireito("sem-posicao");
+  };
+
+  const edicaoPlano = editando
+    ? {
+        colocando: colocando?.chave ?? null,
+        editadas: idsEditados,
+        onMover: (id: string, x: number, z: number) => {
+          const p = arena.pontos.find((q) => q.id === id);
+          if (!p) return;
+          setLocais((l) => ({ ...l, [id]: [x, z] }));
+          salvarPosicao({ chave: id, tipo: id.startsWith("novo:") ? "NOVO" : "MOVER", x, z, nome: p.nome, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null }, `${p.nome}: posição salva`);
+        },
+        onColocar: (x: number, z: number) => {
+          if (!colocando) return;
+          const item = colocando;
+          setColocando(null);
+          salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} posicionado no mapa`);
+        },
+      }
+    : null;
+
+  // Atualizado depois de cada render: o motor chama a versão com o item escolhido mais recente.
+  useEffect(() => {
+    aoClicarChaoRef.current = (x, z) => {
+      if (!edicaoPlano || !colocando) return false;
+      edicaoPlano.onColocar(x, z);
+      return true;
+    };
+  });
+
+  const pontoEditado = editando && selecionado && idsEditados.has(selecionado) ? arena.pontos.find((p) => p.id === selecionado) : null;
+  const pontoSelecionadoEdicao = editando && selecionado ? arena.pontos.find((p) => p.id === selecionado) ?? null : null;
+
+  const confirmarFormEdicao = () => {
+    if (!formEdicao) return;
+    const nome = formEdicao.nome.trim();
+    if (!nome) return toastErro("Informe o nome do item.");
+    if (formEdicao.modo === "novo") {
+      setColocando({ chave: `novo:livre:${Date.now().toString(36)}`, nome, itemAta: null, categoria: formEdicao.categoria });
+      setFormEdicao(null);
+      return;
+    }
+    const p = pontoSelecionadoEdicao;
+    if (!p) return setFormEdicao(null);
+    salvarPosicao(
+      { chave: p.id, tipo: p.id.startsWith("novo:") ? "NOVO" : "MOVER", x: p.posicao[0], z: p.posicao[1], nome, categoria: formEdicao.categoria, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null },
+      `${nome}: dados salvos`,
+    );
+    setFormEdicao(null);
+  };
+  const desfazerPosicao = (id: string, nome: string) => {
+    iniciarSalvar(async () => {
+      const r = await removerPosicaoArenaAction(arena.slug, id);
+      if (!r.ok) return toastErro(r.erro);
+      toast(id.startsWith("novo:") ? `${nome} voltou para "sem posição"` : `${nome} voltou ao lugar da planta`);
+      setSelecionado(null);
+      router.refresh();
+    });
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Cabeçalho em uma linha: lido uma vez, não pode roubar altura do mapa para sempre. */}
@@ -478,13 +601,48 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
                     data-ponto-id={p.id}
                     aria-label={`${p.nome}, ${p.tipo}${divergente ? ", com divergência entre planta e ata" : ""}`}
                     aria-pressed={ativo}
-                    onClick={() => abrirPonto(p.id)}
+                    onClick={(e) => {
+                      if (ignorarClique.current) {
+                        ignorarClique.current = false;
+                        return;
+                      }
+                      if (editando && colocando) {
+                        const chao = motorRef.current?.chaoEm(e.clientX, e.clientY);
+                        if (chao) edicaoPlano?.onColocar(chao[0], chao[1]);
+                        return;
+                      }
+                      abrirPonto(p.id);
+                    }}
+                    onPointerDown={(e) => {
+                      if (!editando || colocando || e.button !== 0) return;
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      motorRef.current?.travarCamera(true);
+                      arraste3d.current = { id: p.id, x0: e.clientX, y0: e.clientY, moveu: false, ultimo: null };
+                    }}
+                    onPointerMove={(e) => {
+                      const a = arraste3d.current;
+                      if (!a || a.id !== p.id) return;
+                      if (!a.moveu && Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 5) return;
+                      a.moveu = true;
+                      const chao = motorRef.current?.chaoEm(e.clientX, e.clientY);
+                      if (!chao) return;
+                      a.ultimo = chao;
+                      setLocais((l) => ({ ...l, [p.id]: chao }));
+                    }}
+                    onPointerUp={() => {
+                      const a = arraste3d.current;
+                      arraste3d.current = null;
+                      motorRef.current?.travarCamera(false);
+                      if (!a || a.id !== p.id || !a.moveu || !a.ultimo) return;
+                      ignorarClique.current = true;
+                      edicaoPlano?.onMover(p.id, a.ultimo[0], a.ultimo[1]);
+                    }}
                     onMouseEnter={() => setHover(p.id)}
                     onMouseLeave={() => setHover(null)}
                     onFocus={() => setHover(p.id)}
                     onBlur={() => setHover(null)}
                     data-prioridade={ativo ? 3 : emFoco ? 2 : divergente || p.principal ? 1 : 0}
-                    className="group/pin pointer-events-auto absolute left-0 top-0 cursor-pointer border-0 bg-transparent p-0 will-change-transform"
+                    className={cn("group/pin pointer-events-auto absolute left-0 top-0 border-0 bg-transparent p-0 will-change-transform", editando && !colocando ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer")}
                     style={{ visibility: "hidden", zIndex: emFoco ? 3 : divergente || p.principal ? 2 : 1 }}
                   >
                     <span className="flex -translate-x-1/2 -translate-y-full flex-col items-center">
@@ -523,6 +681,7 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
             realce={conferenciaAtiva ? { destaque: idsDivergentes, foco: idsFoco } : null}
             recuoDireita={direitaAberta && !estreito}
             onSelecionar={(id) => aoSelecionarNoMapa.current(id)}
+            edicao={edicaoPlano}
           />
         )}
 
@@ -748,6 +907,11 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
             </div>
           )}
           <div className="pointer-events-auto flex gap-1.5">
+            {podeEditar && (
+              <button type="button" aria-pressed={editando} onClick={alternarEdicao} className={cn(botaoTexto, editando ? "border-accent bg-accent text-white" : "border-line bg-surface/95 text-accent hover:border-accent")}>
+                {editando ? "Concluir edição" : "Editar posições"}
+              </button>
+            )}
             <button type="button" aria-expanded={fontesAbertas} onClick={() => setFontesAbertas((v) => !v)} className={cn(botaoTexto, ativoTexto(fontesAbertas))}>
               Fontes
             </button>
@@ -909,7 +1073,91 @@ export function ArenaExperiencia({ arena }: { arena: Arena }) {
           />
         )}
         {painelDireito === "ata" && <PainelAta arena={arena} ponto={ponto} estreito={estreito} onFechar={fecharDireito} />}
-        {painelDireito === "sem-posicao" && <PainelSemPosicao arena={arena} estreito={estreito} onFechar={fecharDireito} />}
+        {painelDireito === "sem-posicao" && (
+          <PainelSemPosicao
+            arena={arena}
+            estreito={estreito}
+            onFechar={fecharDireito}
+            edicao={editando ? { colocando: colocando?.chave ?? null, onPosicionar: (item) => setColocando((c) => (c?.chave === item.chave ? null : item)) } : null}
+          />
+        )}
+        {editando && (
+          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[94%] -translate-x-1/2 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-cartao border border-accent bg-surface px-3.5 py-2.5 shadow-[0_8px_24px_rgba(42,20,24,.14)]">
+            <span className="text-[12.5px] text-ink-2">
+              {colocando ? (
+                <>
+                  Clique no mapa para posicionar <span className="font-medium text-ink">{colocando.nome}</span>.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-accent">Editando posições.</span> Arraste um ponto para mover, ou use “Posicionar” em “Sem posição”.
+                </>
+              )}
+              {salvando && <span className="ml-2 text-meta">salvando…</span>}
+            </span>
+            {colocando && (
+              <button type="button" onClick={() => setColocando(null)} className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle">
+                Cancelar
+              </button>
+            )}
+            {!colocando && !formEdicao && (
+              <button type="button" onClick={() => setFormEdicao({ modo: "novo", nome: "", categoria: "operacao" })} className="h-7 cursor-pointer rounded-[6px] border border-accent bg-accent px-2 text-[12px] font-medium text-white hover:brightness-105">
+                + Novo item
+              </button>
+            )}
+            {!colocando && !formEdicao && pontoSelecionadoEdicao && (
+              <button
+                type="button"
+                onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}
+                className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle"
+              >
+                Editar {pontoSelecionadoEdicao.nome}
+              </button>
+            )}
+            {formEdicao && (
+              <form
+                className="flex w-full flex-wrap items-center gap-2 border-t border-line-soft pt-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  confirmarFormEdicao();
+                }}
+              >
+                <span className="text-[12px] font-medium text-ink">{formEdicao.modo === "novo" ? "Item fora da planta:" : "Editar ponto:"}</span>
+                <input
+                  autoFocus
+                  aria-label="Nome do item"
+                  value={formEdicao.nome}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })}
+                  placeholder="Ex.: Tenda de hidratação extra"
+                  className="h-8 min-w-[200px] flex-1 rounded-[7px] border border-line-control bg-surface px-2.5 text-[12.5px] text-ink focus:border-accent focus:outline-none"
+                />
+                <select
+                  aria-label="Categoria"
+                  value={formEdicao.categoria}
+                  onChange={(e) => setFormEdicao({ ...formEdicao, categoria: e.target.value })}
+                  className="h-8 rounded-[7px] border border-line-control bg-surface px-2 text-[12.5px] text-ink focus:border-accent focus:outline-none"
+                >
+                  {Object.entries(CATEGORIAS).map(([id, c]) => (
+                    <option key={id} value={id}>
+                      {c.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className="h-8 cursor-pointer rounded-[7px] border-0 bg-accent px-2.5 text-[12px] font-medium text-white">
+                  {formEdicao.modo === "novo" ? "Escolher lugar no mapa" : "Salvar"}
+                </button>
+                <button type="button" onClick={() => setFormEdicao(null)} className="h-8 cursor-pointer rounded-[7px] border border-line bg-surface px-2 text-[12px] text-ink-2">
+                  Cancelar
+                </button>
+              </form>
+            )}
+            {pontoEditado && (
+              <button type="button" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)} className="h-7 cursor-pointer rounded-[6px] border border-line bg-surface px-2 text-[12px] text-ink-2 hover:bg-subtle">
+                {pontoEditado.id.startsWith("novo:livre:") ? `Excluir ${pontoEditado.nome}` : pontoEditado.id.startsWith("novo:") ? `Tirar ${pontoEditado.nome} do mapa` : `Desfazer ajustes de ${pontoEditado.nome}`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

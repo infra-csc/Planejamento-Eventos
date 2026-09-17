@@ -6,6 +6,7 @@ import {
   check,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -431,6 +432,31 @@ export const osVersoes = pgTable(
 /* ------------------------------------------------------------------ */
 /* Suporte                                                              */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Posições editadas na Arena 3D, aplicadas por cima da planta importada.
+ * MOVER: ponto que já existe foi arrastado (chave = id do ponto).
+ * NOVO: item sem posição na planta/ata ganhou um lugar no mapa.
+ */
+export const arenaPosicoes = pgTable(
+  "arena_posicoes",
+  {
+    id: id(),
+    arenaSlug: text("arena_slug").notNull(),
+    chave: text("chave").notNull(),
+    tipo: text("tipo").$type<"MOVER" | "NOVO">().notNull(),
+    nome: text("nome"),
+    categoria: text("categoria"),
+    rotuloTipo: text("rotulo_tipo"),
+    /** Linha da ata materializada pelo ponto novo ("SEÇÃO|item"), quando veio da ata. */
+    itemAta: text("item_ata"),
+    x: doublePrecision("x").notNull(),
+    z: doublePrecision("z").notNull(),
+    atualizadoPorId: text("atualizado_por_id").references(() => usuarios.id),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("arena_posicoes_chave_idx").on(t.arenaSlug, t.chave)],
+);
 
 export const historico = pgTable(
   "historico",
