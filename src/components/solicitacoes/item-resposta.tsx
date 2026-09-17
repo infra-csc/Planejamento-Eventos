@@ -25,6 +25,8 @@ export type ItemParaResposta = {
   /** Quem pode responder/corrigir este item específico (fase do evento e perfil). */
   respondivel: boolean;
   corrigivel: boolean;
+  /** Pré-reunião com a ata aberta: mostra "Na ata · aguarda conferência" em vez de "Atendido". */
+  aguardandoReuniao?: boolean;
 };
 
 type Edicao = { id: string; modo: "PARCIAL" | "NAO_ATENDIDO" | "CORRIGIR" };
@@ -286,7 +288,10 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
   const editando = edicao?.id === item.id ? edicao : null;
   const emAnalise = item.status === "EM_ANALISE";
   const contexto = [item.ajustes ? `Peças ajustadas: ${item.ajustes}` : null, item.destino ? `Destino: ${item.destino}` : null, item.justificativa].filter(Boolean).join(" · ") || "sem observação do solicitante";
-  const observacao = [item.observacaoLogistica, item.pendenciaCompra ? "pendência de compra/locação" : null].filter(Boolean).join(" · ") || "sem ressalvas";
+  const naAta = Boolean(item.aguardandoReuniao) && item.status === "ATENDIDO";
+  const observacao = naAta
+    ? "aguarda conferência na reunião de OS"
+    : [item.observacaoLogistica, item.pendenciaCompra ? "pendência de compra/locação" : null].filter(Boolean).join(" · ") || "sem ressalvas";
 
   return (
     <div
@@ -300,14 +305,14 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
       className={cn("cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]")}
     >
       <div className="flex items-start gap-3">
-        <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: COR_ITEM[item.status] }} />
+        <span aria-hidden className="mt-1.5 block size-[7px] shrink-0 rounded-full" style={{ background: naAta ? "var(--color-accent)" : COR_ITEM[item.status] }} />
         <div className="min-w-0 flex-1">
           <p className="m-0 text-[13.5px] text-ink">
             {item.descricao} <span className="text-muted">{textoQuantidade(item)}</span>
           </p>
           <p className="mt-0.5 text-[12px] text-muted">{contexto}</p>
         </div>
-        {!semStatus && <ItemStatusBadge status={item.status} className="shrink-0" />}
+        {!semStatus && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
       </div>
 
       {emAnalise && item.respondivel && !editando && (
@@ -352,7 +357,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
 
       {!emAnalise && !editando && (
         <div className="ml-[19px] mt-2 flex items-baseline gap-2 text-[12.5px] text-ink-2">
-          <span className="font-mono font-medium">{resultado(item)}</span>
+          <span className="font-mono font-medium">{naAta ? `× ${item.quantidadeSolicitada} na ata` : resultado(item)}</span>
           <span className="min-w-0 flex-1 text-ink-3">{observacao}</span>
           {item.corrigivel && (
             <button
@@ -364,7 +369,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
               }}
               className="cursor-pointer border-0 bg-transparent p-0 text-[12px] text-accent hover:underline"
             >
-              Corrigir
+              {naAta ? "Ajustar" : "Corrigir"}
             </button>
           )}
         </div>

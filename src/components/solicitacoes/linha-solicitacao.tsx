@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { SolicitacaoLista } from "@/server/services/solicitacoes";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { SolicitacaoStatusBadge } from "@/components/ui/badge";
+import { aguardaReuniao } from "@/domain/solicitacao";
 
 /** Linha compacta de solicitação usada na aba do evento. */
 export function LinhaSolicitacaoEvento({ s }: { s: SolicitacaoLista }) {
@@ -19,7 +20,7 @@ export function LinhaSolicitacaoEvento({ s }: { s: SolicitacaoLista }) {
         {s.itensRespondidos}/{s.totalItens} itens
       </span>
       <span className="shrink-0 basis-[124px]">
-        <SolicitacaoStatusBadge status={s.status} />
+        <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
       </span>
       <span className="shrink-0 basis-[118px] text-right font-mono text-[12.5px]" style={{ color: COR_TOM[pi.tom] }}>
         {pi.vencido ? `vencido ${pi.sub}` : pi.label}

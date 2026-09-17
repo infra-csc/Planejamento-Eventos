@@ -48,7 +48,9 @@ const TOM_SOLICITACAO: Record<SolicitacaoStatus, Tom> = {
   CANCELADA: "muted",
 };
 
-export function SolicitacaoStatusBadge({ status }: { status: SolicitacaoStatus }) {
+/** `naAta`: pré-reunião com a ata aberta — já está na ata, aguardando a conferência da reunião. */
+export function SolicitacaoStatusBadge({ status, naAta = false }: { status: SolicitacaoStatus; naAta?: boolean }) {
+  if (naAta && status === "RESPONDIDA") return <Badge tom="accent">Na ata</Badge>;
   return <Badge tom={TOM_SOLICITACAO[status]}>{SOLICITACAO_STATUS_LABEL[status]}</Badge>;
 }
 
@@ -66,7 +68,13 @@ export const COR_ITEM: Record<ItemStatus, string> = {
   NAO_ATENDIDO: "#a8400f",
 };
 
-export function ItemStatusBadge({ status, className }: { status: ItemStatus; className?: string }) {
+export function ItemStatusBadge({ status, className, naAta = false }: { status: ItemStatus; className?: string; naAta?: boolean }) {
+  if (naAta && status === "ATENDIDO")
+    return (
+      <Badge tom="accent" className={className}>
+        Na ata
+      </Badge>
+    );
   return (
     <Badge tom={TOM_ITEM[status]} className={className}>
       {ITEM_STATUS_LABEL[status]}

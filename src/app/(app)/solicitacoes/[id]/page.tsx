@@ -6,7 +6,7 @@ import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
-import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, Section } from "@/components/ui/layout";
@@ -36,6 +36,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const agora = new Date();
   const ehLogistica = pode(usuario, "solicitacao.responder");
   const faseOk = podeResponderNaFase(s.tipo, s.evento.status);
+  const naAta = aguardaReuniao(s.tipo, s.evento.status);
   const respondivel = ehLogistica && podeResponder(s.status) && faseOk;
   const corrigivel = ehLogistica && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && faseOk;
   const algumRespondido = s.itens.some((i) => i.status !== "EM_ANALISE");
@@ -67,6 +68,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     pendenciaCompra: i.pendenciaCompra,
     respondivel,
     corrigivel: corrigivel && i.status !== "EM_ANALISE",
+    aguardandoReuniao: naAta,
   }));
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
   const semStatus = s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
@@ -108,7 +110,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-[15px] font-medium">{s.codigo}</span>
-            <SolicitacaoStatusBadge status={s.status} />
+            <SolicitacaoStatusBadge status={s.status} naAta={naAta} />
             {s.foraDaJanela && <ForaJanelaTag />}
             {pi.vencido && <span className="text-[12.5px] font-medium text-danger">atrasada {pi.sub}</span>}
           </div>
@@ -197,13 +199,21 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             itens={[
               { label: "Criada em", valor: diaMesHora(s.criadoEm) },
               { label: "Enviada em", valor: s.enviadaEm ? diaMesHora(s.enviadaEm) : "—" },
-              {
-                label: "Prazo de resposta",
-                valor: s.prazoRespostaEm ? <span style={{ color: COR_TOM[pi.tom] }}>{diaMesHora(s.prazoRespostaEm)}</span> : "—",
-                alerta: pi.vencido,
-              },
-              { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
-              { label: "Itens respondidos", valor: `${s.itens.length - pendentes} de ${s.itens.length}`, forte: true },
+              ...(naAta
+                ? [
+                    { label: "Reunião de OS", valor: diaMesHora(s.evento.dataReuniao) },
+                    { label: "Situação", valor: "na ata, aguarda conferência" },
+                    { label: "Itens na ata", valor: `${s.itens.filter((i) => i.status === "ATENDIDO" || i.status === "PARCIAL").length} de ${s.itens.length}`, forte: true },
+                  ]
+                : [
+                    {
+                      label: "Prazo de resposta",
+                      valor: s.prazoRespostaEm ? <span style={{ color: COR_TOM[pi.tom] }}>{diaMesHora(s.prazoRespostaEm)}</span> : "—",
+                      alerta: pi.vencido,
+                    },
+                    { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
+                    { label: "Itens respondidos", valor: `${s.itens.length - pendentes} de ${s.itens.length}`, forte: true },
+                  ]),
             ]}
           />
         </Section>

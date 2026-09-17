@@ -51,6 +51,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
         pendenciaCompra: i.pendenciaCompra,
         respondivel: faseOk && podeResponder(s.status),
         corrigivel: faseOk && (podeCorrigirResposta(s.status) || s.status === "EM_ANALISE") && i.status !== "EM_ANALISE",
+        aguardandoReuniao: true,
       }),
     ),
   }));
@@ -87,7 +88,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
                       {s.codigo}
                     </Link>
                     <span>{s.area.nome}</span>
-                    <SolicitacaoStatusBadge status={s.status} />
+                    <SolicitacaoStatusBadge status={s.status} naAta />
                   </span>
                 }
                 sub={`${s.titulo || "sem título"} · ${s.criadoPor.nome} · enviada ${diaMesHora(s.enviadaEm)}${s.observacao ? ` · ${s.observacao}` : ""}`}

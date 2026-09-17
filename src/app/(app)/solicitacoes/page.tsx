@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
 import { FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
+import { aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { hrefCom, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
@@ -128,7 +129,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                         {s.itensRespondidos}/{s.totalItens}
                       </td>
                       <td className="border-b border-line-row px-2.5 py-3">
-                        <SolicitacaoStatusBadge status={s.status} />
+                        <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                       </td>
                       <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
                         <span className="flex items-center justify-end gap-1.5 font-mono text-[12.5px] font-medium" style={{ color: COR_TOM[pi.tom] }}>

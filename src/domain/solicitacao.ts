@@ -55,6 +55,14 @@ export function podeResponderNaFase(tipo: SolicitacaoTipo, statusEvento: EventoS
   return tipo === "PRE_REUNIAO" ? statusEvento === "PREPARACAO" || statusEvento === "EM_REUNIAO" : statusEvento === "ABERTO";
 }
 
+/**
+ * Necessidade pré-reunião com a ata ainda aberta: entrou na ata sem avaliação e só é validada
+ * na reunião. Nessa fase não faz sentido dizer "atendido"/"respondida" para quem pediu.
+ */
+export function aguardaReuniao(tipo: SolicitacaoTipo, statusEvento: EventoStatus) {
+  return tipo === "PRE_REUNIAO" && (statusEvento === "PREPARACAO" || statusEvento === "EM_REUNIAO");
+}
+
 export function estaAtrasada(status: SolicitacaoStatus, prazoRespostaEm: Date | null, agora: Date) {
   return STATUS_ABERTOS.includes(status) && prazoRespostaEm !== null && agora > prazoRespostaEm;
 }
