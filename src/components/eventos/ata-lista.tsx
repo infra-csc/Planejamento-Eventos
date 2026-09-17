@@ -283,7 +283,7 @@ export function AtaLista({
         {incluir && (
           <DialogContent
             title={exigeJustificativa ? "Ajuste da logística" : "Incluir linha na ata"}
-            description={exigeJustificativa ? "A ata já foi fechada: a inclusão exige justificativa e gera nova versão da OS." : "Projeto padrão, peça do catálogo ou item avulso decidido na reunião."}
+            description={exigeJustificativa ? "A ata já foi fechada: a inclusão exige justificativa e gera nova versão da OS." : "Projeto padrão, peça do catálogo ou item fora do catálogo decidido na reunião."}
             width={520}
           >
             <LinhaAtaForm eventoId={eventoId} opcoes={opcoes} areas={areas} exigeJustificativa={exigeJustificativa} onDone={() => setIncluir(false)} />

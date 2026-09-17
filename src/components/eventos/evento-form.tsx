@@ -44,10 +44,10 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
 
       <Panel title="Datas">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Data do evento" htmlFor="dataInicio" error={c?.dataInicio}>
+          <Field label="Data do evento" htmlFor="dataInicio" error={c?.dataInicio} hint="Evento de mais de um dia: informe o primeiro dia.">
             <Input id="dataInicio" name="dataInicio" type="date" defaultValue={valores.dataInicio ?? ""} required />
           </Field>
-          <Field label="Reunião de OS" htmlFor="dataReuniao" error={c?.dataReuniao} hint="As áreas podem enviar necessidades até este momento.">
+          <Field label="Reunião de OS (ordem de serviço)" htmlFor="dataReuniao" error={c?.dataReuniao} hint="Reunião em que a logística confere tudo o que as áreas pediram. As áreas enviam necessidades até este momento.">
             <Input id="dataReuniao" name="dataReuniao" type="datetime-local" defaultValue={valores.dataReuniao ?? ""} required />
           </Field>
           <Field label="Janela de alterações até" htmlFor="janelaAlteracoesAte" error={c?.janelaAlteracoesAte} optional hint="Pode ser definida depois. Após esta data, alterações chegam marcadas “fora da janela”.">

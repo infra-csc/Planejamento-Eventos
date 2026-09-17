@@ -63,7 +63,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         </Field>
       )}
       {tipo === "AVULSO" && (
-        <Field label="Descrição do item" htmlFor="descricaoLivre" error={campos?.descricaoLivre} hint="Itens avulsos não entram na soma por peça; aparecem listados na OS.">
+        <Field label="Descrição do item" htmlFor="descricaoLivre" error={campos?.descricaoLivre} hint="Itens fora do catálogo não entram na soma por peça; aparecem listados na OS até a logística vinculá-los.">
           <Input id="descricaoLivre" name="descricaoLivre" required maxLength={160} placeholder="Ex.: Fechamento lateral de tenda" />
         </Field>
       )}

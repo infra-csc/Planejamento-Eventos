@@ -61,6 +61,8 @@ export function parseDateTimeLocal(valor: string): Date | null {
   const [, y, mo, d, h, mi] = m;
   // Descobre o offset do fuso na data informada.
   const guess = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi));
+  // Data inexistente (30/02, 31/04) viraria outro dia em silêncio.
+  if (guess.getUTCMonth() !== +mo - 1 || guess.getUTCDate() !== +d || +h > 23 || +mi > 59) return null;
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "shortOffset" }).formatToParts(guess);
   const off = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT-3";
   const mm = off.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);

@@ -33,7 +33,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
     throw e;
   });
   // Só contagens: este layout roda em todas as abas do evento.
-  const [resumo, pendentesPre, abertas] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), solicitacoesPendentes(await getDb(), id)]);
+  const [resumo, pendentesPre, abertasTodas] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), solicitacoesPendentes(await getDb(), id)]);
+  const abertas = pode(usuario, "solicitacao.ver_todas") ? abertasTodas : abertasTodas.filter((s) => s.areaId === usuario.areaId);
   const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
   const { versaoOs, preEnviadas } = resumo;
@@ -76,7 +77,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
     { href: `${base}/ata`, label: "Ata", n: linhas.length },
     ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `/conferencia/${ev.id}`, label: "Conferência da ata" }] : []),
     { href: `${base}/solicitacoes`, label: "Solicitações", n: sols.length },
-    ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),
+    ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "Ordem de serviço (OS)", n: versaoOs ? `v${versaoOs}` : null }] : []),
     { href: `${base}/historico`, label: "Histórico" },
   ];
 

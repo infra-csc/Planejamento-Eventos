@@ -6,10 +6,14 @@ import { tentativasAcesso } from "@/server/db/schema";
 
 export type Regra = { chave: string; maximo: number };
 
-/** IP do cliente atrás do proxy do Replit (primeiro valor de x-forwarded-for). */
+/**
+ * IP do cliente atrás do proxy do Replit: o ÚLTIMO valor de x-forwarded-for é o que o proxy
+ * acrescentou (os anteriores podem ter sido enviados pelo próprio cliente).
+ */
 export async function ipCliente(): Promise<string> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "desconhecido";
+  const xff = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  return xff[xff.length - 1] || h.get("x-real-ip") || "desconhecido";
 }
 
 /** true se alguma das chaves já atingiu o máximo dentro da janela. */

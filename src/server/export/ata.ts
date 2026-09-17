@@ -3,6 +3,13 @@ import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
 import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services/eventos";
 import type { AtaConteudo, AtaReuniao } from "@/server/db/schema";
+import { pode } from "@/domain/permissions";
+
+/** Pedidos das áreas: quem não vê todas as solicitações leva só os da própria área. */
+function filtrarPorArea(usuario: UsuarioAtual, lista: AtaConteudo["solicitacoesPreReuniao"]) {
+  if (pode(usuario, "solicitacao.ver_todas")) return lista;
+  return lista.filter((s) => s.area === usuario.areaNome);
+}
 
 /**
  * Ata pronta para exportar (Excel, impressão). Vem da versão congelada quando a ata já fechou;
@@ -43,7 +50,7 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
       },
       observacoes: c.observacoes,
       linhas: c.linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.codigo, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.area, origem: ORIGEM_LABEL[l.origem] ?? l.origem, conferidoPor: l.conferidoPor ?? null })),
-      solicitacoesPreReuniao: c.solicitacoesPreReuniao,
+      solicitacoesPreReuniao: filtrarPorArea(usuario, c.solicitacoesPreReuniao),
     };
   }
   const linhas = await obterLinhasAta(eventoId);

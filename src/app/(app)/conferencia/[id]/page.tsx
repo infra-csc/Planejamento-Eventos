@@ -34,7 +34,8 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
-  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(`/eventos/${id}/ata`);
+  // Ata fechada: a conferência acabou. Quem acabou de fechar quer ver a OS que nasceu dela.
+  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(ev.status === "ABERTO" && pode(usuario, "os.ver") ? `/eventos/${id}/os` : `/eventos/${id}/ata`);
 
   const [linhas, opcoes, areas] = await Promise.all([obterConferencia(id), opcoesReferenciasResumidas(), listarAreas()]);
   const conferidas = linhas.filter((l) => l.conferidoEm).length;

@@ -169,6 +169,7 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
   it("fechar a ata cancela necessidade pré-reunião que ficou em rascunho", async () => {
     const ev = await novoEvento();
     const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem", quantidadeSolicitada: 1 }] });
+    await incluirLinhaAta(logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId, descricaoLivre: null, quantidade: 1, destino: null, areaId: producao.areaId, justificativa: null });
     await transicionarEvento(logistica, ev.id, "INICIAR_REUNIAO");
     await conferirTodasLinhas(logistica, ev.id);
     await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
@@ -14,7 +15,7 @@ import { LinhaLink } from "@/components/ui/linha-link";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
-const POR_PAGINA = 8;
+const POR_PAGINA = 25;
 
 const ROTULO_FILTRO: Record<FiltroLista, string> = {
   ABERTAS: "Aguardando resposta",
@@ -95,6 +96,13 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
           <div className="px-[18px] py-14 text-center">
             <p className="m-0 text-[14px] font-medium">{vazio[0]}</p>
             <p className="mt-[5px] text-[13px] text-muted">{vazio[1]}</p>
+            {filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 && (
+              <p className="mb-0 mt-2 text-[13px]">
+                <Link href="/solicitacoes?filtro=RASCUNHO" className="link">
+                  Você tem {pag.contagens.RASCUNHO} {pag.contagens.RASCUNHO === 1 ? "rascunho ou devolvida" : "rascunhos ou devolvidas"} esperando você
+                </Link>
+              </p>
+            )}
           </div>
         ) : (
           <>

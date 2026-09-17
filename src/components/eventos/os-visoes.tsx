@@ -30,7 +30,7 @@ export function OsVisoes({
   csvHref?: (setor: Setor) => string;
   titulo: string;
   /** Quarta aba: os itens que compõem a OS (onde a logística ajusta depois da ata fechada). */
-  composicao?: { n: number; conteudo: React.ReactNode };
+  composicao?: { n: number; conteudo: React.ReactNode; ajustavel?: boolean };
 }) {
   return (
     <>
@@ -40,7 +40,7 @@ export function OsVisoes({
             ["totais", "Totais por peça", os.setores.reduce((a, s) => a + s.linhas.length, 0)],
             ["projetos", "Por projeto", os.projetos?.length ?? 0],
             ["individuais", "Peças e itens soltos", (os.individuais?.length ?? 0) + os.semSetor.length],
-            ...(composicao ? ([["composicao", "Itens da OS · ajustar", composicao.n]] as const) : []),
+            ...(composicao ? ([["composicao", composicao.ajustavel ? "Itens da OS · ajustar" : "Itens da OS", composicao.n]] as const) : []),
           ] as const
         ).map(([chave, rotulo, n]) => (
           <Link
@@ -62,7 +62,7 @@ export function OsVisoes({
           {os.projetos?.length === 0 && (
             <div className="rounded-[10px] border border-line bg-surface px-[18px] py-10 text-center">
               <p className="m-0 text-[13.5px] font-medium">Nenhum projeto padrão nesta OS</p>
-              <p className="mt-1 text-[12.5px] text-muted">Só peças soltas e itens avulsos.</p>
+              <p className="mt-1 text-[12.5px] text-muted">Só peças soltas e itens fora do catálogo.</p>
             </div>
           )}
           {os.projetos?.map((p, i) => (
@@ -216,7 +216,7 @@ export function OsVisoes({
       {visao === "composicao" && composicao?.conteudo}
 
       {(visao === "totais" || visao === "individuais") && os.semSetor.length > 0 && (
-        <Section titulo="Itens avulsos" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
+        <Section titulo="Itens fora do catálogo" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
           {os.semSetor.map((a, i) => (
             <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
               <span className="min-w-0 flex-1 text-[13.5px] text-ink">{a.descricao}</span>

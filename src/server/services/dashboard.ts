@@ -4,7 +4,6 @@ import { eventos, solicitacaoItens, solicitacoes, type ItemOperacao, type Solici
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { ehRequisitante, pode } from "@/domain/permissions";
 import { addDiasISO, diaMesHora, diaMesISO, diaSemanaCurto, hojeISO, hora, isoSP } from "@/lib/format";
-import { calcularConsolidacao } from "./consolidacao";
 import { descricaoItem } from "./solicitacoes";
 
 /**
@@ -194,9 +193,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     .filter((e) => (e.status === "PREPARACAO" || e.status === "EM_REUNIAO") && isoSP(e.dataReuniao) >= segunda && isoSP(e.dataReuniao) <= domingo)
     .sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
 
-  const cons = await calcularConsolidacao({ inicio: hoje, fim: addDiasISO(hoje, 30) });
-  // Sem estoque cadastrado (0) não há como apontar déficit — só peças com estoque informado entram no risco.
-  const deficit = cons.pecas.filter((p) => p.estoque > 0 && p.saldo < 0);
+  // Estoque fica fora do painel por enquanto (decisão do produto): nada de déficit aqui.
+  const emPreparacao = evs.filter((e) => e.status === "PREPARACAO").sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
 
   return {
     tipo: "operacao" as const,
@@ -215,10 +213,10 @@ export async function dadosPainel(usuario: UsuarioAtual) {
             .map((e) => `${isoSP(e.dataReuniao) === hoje ? "hoje" : diaSemanaCurto(e.dataReuniao)} ${hora(e.dataReuniao)}`)
             .join(" · ")
         : "nenhuma marcada",
-      deficit: deficit.length,
-      hintDeficit: deficit[0]?.diaPico ? `pico em ${diaMesISO(deficit[0].diaPico)}` : "estoque cobre tudo",
+      emPreparacao: emPreparacao.length,
+      hintPreparacao: emPreparacao[0] ? `próxima reunião ${isoSP(emPreparacao[0].dataReuniao) === hoje ? "hoje" : diaMesISO(isoSP(emPreparacao[0].dataReuniao))}` : "nenhum aguardando reunião",
     },
-    riscos: deficit.slice(0, 4).map((p) => ({ pecaId: p.pecaId, codigo: p.codigo, nome: p.nome, falta: Math.abs(p.saldo), pico: p.pico, estoque: p.estoque })),
+    riscos: [] as Array<{ pecaId: string; codigo: string; nome: string; falta: number; pico: number; estoque: number }>,
   };
 }
 

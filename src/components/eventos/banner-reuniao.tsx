@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Aviso } from "@/components/ui/layout";
@@ -30,6 +31,7 @@ export function BannerReuniao({
   presentesOk: boolean;
   iniciadaEm: string | null;
 }) {
+  const router = useRouter();
   const [confirmar, setConfirmar] = useState<"INICIAR_REUNIAO" | "FECHAR_ATA" | null>(null);
   const faltam = total - conferidas;
   const completo = faltam <= 0 && total > 0 && presentesOk;
@@ -64,14 +66,17 @@ export function BannerReuniao({
         </div>
       </div>
       {emReuniao ? (
-        <button
-          type="button"
-          aria-disabled={!completo}
-          onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}
-          className={cn("h-[38px] shrink-0 rounded-lg border-0 px-4 text-[13.5px] font-medium", completo ? "cursor-pointer bg-accent-light text-dark hover:brightness-105" : "cursor-not-allowed bg-dark-3 text-muted")}
-        >
-          Fechar ata e gerar OS
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <button
+            type="button"
+            aria-disabled={!completo}
+            onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}
+            className={cn("h-[38px] shrink-0 rounded-lg border-0 px-4 text-[13.5px] font-medium", completo ? "cursor-pointer bg-accent-light text-dark hover:brightness-105" : "cursor-not-allowed bg-dark-3 text-muted")}
+          >
+            Fechar ata e gerar OS
+          </button>
+          {!completo && <span className="text-[11.5px] text-on-dark-4">{motivoBloqueio}</span>}
+        </div>
       ) : (
         <button type="button" onClick={() => setConfirmar("INICIAR_REUNIAO")} className="h-[38px] shrink-0 cursor-pointer rounded-lg border-0 bg-accent-light px-4 text-[13.5px] font-medium text-dark hover:brightness-105">
           Iniciar reunião
@@ -86,6 +91,10 @@ export function BannerReuniao({
           confirmLabel={confirmar === "FECHAR_ATA" ? "Fechar ata e gerar OS" : "Iniciar reunião"}
           action={transicionarEventoAction}
           hidden={{ eventoId, acao: confirmar }}
+          onSuccess={() => {
+            // Ata fechada: a OS v1 acabou de nascer, é o que a logística quer ver em seguida.
+            if (confirmar === "FECHAR_ATA") router.push(`/eventos/${eventoId}/os`);
+          }}
         >
           {confirmar === "FECHAR_ATA" && <Aviso>As áreas são notificadas e, a partir daqui, mudanças entram como solicitação de alteração.</Aviso>}
         </ConfirmDialog>

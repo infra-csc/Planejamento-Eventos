@@ -66,6 +66,7 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
   const acao = String(formData.get("acao") ?? "") as AcaoEvento;
   if (!ACOES_EVENTO.includes(acao)) return { ok: false, erro: "Ação inválida." };
   const justificativa = String(formData.get("justificativa") ?? "").trim() || null;
+  if (justificativa && justificativa.length > 500) return { ok: false, erro: "A justificativa deve ter no máximo 500 caracteres." };
   if (TRANSICOES_EVENTO[acao].exigeJustificativa) {
     try {
       parseForm(justificativaSchema, formData);
@@ -152,6 +153,25 @@ export async function salvarDadosReuniaoAction(_prev: ActionResult, formData: Fo
   return r;
 }
 
+/** Autosave dos dados da reunião (presentes, público, carga): mesmo schema do formulário. */
+export async function salvarDadosReuniaoAutoAction(eventoId: string, dados: Record<string, string>) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || !dados || typeof dados !== "object") return { ok: false, erro: "Dados inválidos." } as ActionResult;
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(dados)) if (typeof v === "string") fd.set(k, v);
+  let r: ActionResult;
+  try {
+    const parsed = parseForm(dadosReuniaoSchema, fd);
+    r = await executar(() => salvarDadosReuniao(usuario, eventoId, parsed));
+  } catch (e) {
+    r = tratarErro(e);
+  }
+  // O banner "presentes registrados" e a aba Ata dependem destes dados.
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
 export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: string) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof linhaId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
@@ -163,6 +183,7 @@ export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: stri
 export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: string, quantidade: number, motivo: string) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
@@ -192,6 +213,7 @@ export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
 export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: string, pecaId: string, quantidade: number, motivo: string) {
   const usuario = await requireUsuario();
   if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: "Dados inválidos." } as const;
+  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
   const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;

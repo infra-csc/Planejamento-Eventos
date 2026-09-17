@@ -1,12 +1,8 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
-import { ActionForm } from "@/components/ui/action-form";
-import { Field, FormError, Input } from "@/components/ui/field";
-import { SubmitButton } from "@/components/ui/button";
-import { salvarDadosReuniaoAction } from "@/app/(app)/eventos/actions";
-import { ESTADO_INICIAL } from "@/lib/action";
-import { toast } from "@/components/ui/toast";
+import { useRef, useState } from "react";
+import { Field, Input } from "@/components/ui/field";
+import { salvarDadosReuniaoAutoAction } from "@/app/(app)/eventos/actions";
 
 export type DadosReuniaoValores = {
   reuniaoPresentes: string | null;
@@ -17,32 +13,83 @@ export type DadosReuniaoValores = {
   kitDescarrega: string | null;
 };
 
+type Estado = "ocioso" | "salvando" | "salvo" | "erro";
+type Textos = Record<keyof DadosReuniaoValores, string>;
+
+const paraTextos = (v: DadosReuniaoValores): Textos => ({
+  reuniaoPresentes: v.reuniaoPresentes ?? "",
+  publicoEsperado: v.publicoEsperado == null ? "" : String(v.publicoEsperado),
+  caminhaoCarrega: v.caminhaoCarrega ?? "",
+  caminhaoSai: v.caminhaoSai ?? "",
+  arenaDescarrega: v.arenaDescarrega ?? "",
+  kitDescarrega: v.kitDescarrega ?? "",
+});
+
 /**
  * Campos da ata que a logística preenche na reunião (os mesmos da planilha de ata):
  * presentes, público esperado e a logística de carga/descarga. Congelam no fechamento.
- * Só "presentes" é obrigatório; os demais ficam alinhados em duas colunas com rótulo curto.
+ * Salvam sozinhos ao digitar, como as observações: ninguém fica bloqueado no fechamento
+ * por ter digitado os presentes e não ter clicado em "salvar".
  */
-export function DadosReuniaoForm({ eventoId, valores, editavel }: { eventoId: string; valores: DadosReuniaoValores; editavel: boolean }) {
-  const [state, action] = useActionState(salvarDadosReuniaoAction, ESTADO_INICIAL);
-  const c = !state.ok ? state.campos : undefined;
-  useEffect(() => {
-    if (state.ok && state !== ESTADO_INICIAL) toast("Dados da reunião salvos");
-  }, [state]);
+export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eventoId: string; valores: DadosReuniaoValores; editavel: boolean; onSalvo?: (v: Textos) => void }) {
+  const [t, setT] = useState<Textos>(() => paraTextos(valores));
+  const [estado, setEstado] = useState<Estado>("ocioso");
+  const [erro, setErro] = useState<string | null>(null);
+  const [campos, setCampos] = useState<Partial<Record<keyof Textos, string>>>({});
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ultimoSalvo = useRef(JSON.stringify(paraTextos(valores)));
+  const ultimoPedido = useRef(0);
 
-  const campo = (nome: keyof DadosReuniaoValores, label: string, placeholder: string) => (
-    <Field label={label} htmlFor={nome} error={c?.[nome]}>
-      <Input id={nome} name={nome} defaultValue={valores[nome] ?? ""} placeholder={placeholder} disabled={!editavel} />
+  const salvar = async (atual: Textos) => {
+    const chave = JSON.stringify(atual);
+    if (chave === ultimoSalvo.current) {
+      setEstado("salvo");
+      return;
+    }
+    const n = ++ultimoPedido.current;
+    setEstado("salvando");
+    const r = await salvarDadosReuniaoAutoAction(eventoId, atual);
+    if (n !== ultimoPedido.current) return; // já houve outra gravação depois desta
+    if (r.ok) {
+      ultimoSalvo.current = chave;
+      setEstado("salvo");
+      setErro(null);
+      setCampos({});
+      onSalvo?.(atual);
+    } else {
+      setEstado("erro");
+      setErro(r.erro);
+      setCampos(r.campos ?? {});
+    }
+  };
+
+  const mudar = (nome: keyof Textos, valor: string) => {
+    const prox = { ...t, [nome]: valor };
+    setT(prox);
+    setEstado("ocioso");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void salvar(prox), 900);
+  };
+  const aoSair = () => {
+    if (timer.current) clearTimeout(timer.current);
+    void salvar(t);
+  };
+
+  const campo = (nome: keyof Textos, label: string, placeholder: string, hint?: string) => (
+    <Field label={label} htmlFor={nome} error={campos[nome]} hint={hint}>
+      <Input id={nome} name={nome} value={t[nome]} onChange={(e) => mudar(nome, e.target.value)} onBlur={aoSair} placeholder={placeholder} disabled={!editavel} />
     </Field>
   );
 
   return (
-    <ActionForm action={action} noValidate className="space-y-3.5 px-[18px] py-3.5">
-      <input type="hidden" name="eventoId" value={eventoId} />
-      <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={c?.reuniaoPresentes} hint="Obrigatório para fechar a ata. Nome e área, separados por vírgula." obrigatorio>
+    <div className="space-y-3.5 px-[18px] py-3.5">
+      <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={campos.reuniaoPresentes} hint="Obrigatório para fechar a ata. Nome e área, separados por vírgula." obrigatorio>
         <textarea
           id="reuniaoPresentes"
           name="reuniaoPresentes"
-          defaultValue={valores.reuniaoPresentes ?? ""}
+          value={t.reuniaoPresentes}
+          onChange={(e) => mudar("reuniaoPresentes", e.target.value)}
+          onBlur={aoSair}
           disabled={!editavel}
           placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)"
           className="min-h-[72px] w-full resize-y rounded-lg border border-line-control bg-surface px-3 py-2.5 text-[13.5px] leading-[1.5] text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle"
@@ -54,14 +101,13 @@ export function DadosReuniaoForm({ eventoId, valores, editavel }: { eventoId: st
         {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
         {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 6h")}
         {campo("arenaDescarrega", "Arena descarrega", "Ex.: 09/06 às 22h")}
-        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h")}
+        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h", "Kit = material de consumo")}
       </div>
-      <FormError message={!state.ok ? state.erro : null} />
       {editavel && (
-        <div className="flex justify-end">
-          <SubmitButton variant="secondary">Salvar dados da reunião</SubmitButton>
-        </div>
+        <p className={`mb-0 mt-1 text-[11.5px] ${estado === "erro" ? "text-danger" : "text-muted"}`} aria-live="polite">
+          {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo automaticamente" : "salvo automaticamente ao digitar"}
+        </p>
       )}
-    </ActionForm>
+    </div>
   );
 }

@@ -114,7 +114,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     </Link>
                     <span className="w-[92px] shrink-0 text-[12.5px] text-ink-3 max-xl:hidden">{p.categoria || "—"}</span>
                     <span className="w-[64px] shrink-0 text-right font-mono text-[12.5px] text-ink-2 max-xl:hidden">{p.tiposPeca} tipos</span>
-                    <span className="w-[72px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.totalPecas} pç</span>
+                    <span className="w-[72px] shrink-0 text-right font-mono text-[12.5px] text-ink-2">{p.totalPecas} peças</span>
                     <span className={cn("w-[84px] shrink-0 text-right text-[12px] max-lg:hidden", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</span>
                   </div>
                 );
@@ -206,7 +206,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-[12.5px] font-medium text-ink">{p.codigo}</td>
       <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-[13.5px] font-normal text-ink">
         {p.nome}
-        {!p.permiteEmProjeto && <span className="ml-2 text-[11.5px] text-muted">sempre avulsa</span>}
+        {!p.permiteEmProjeto && <span className="ml-2 text-[11.5px] text-muted">só fora de projeto</span>}
       </th>
       <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-2">{SETOR_LABEL[p.setor]}</td>
       <td className="border-b border-line-row px-2.5 py-2.5 text-[12.5px] text-ink-3">{p.familia || "—"}</td>
@@ -247,7 +247,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   {th("setor", "Setor", 160)}
                   {th("familia", "Família", 120)}
                   {th("estoque", "Estoque", 100, "right")}
-                  {th("bom", "Em BOM", 90, "right")}
+                  {th("bom", "Em projetos", 110, "right")}
                 </tr>
               </thead>
               <tbody>

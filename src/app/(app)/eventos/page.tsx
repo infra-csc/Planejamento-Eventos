@@ -32,7 +32,7 @@ function marco(e: EventoLista) {
   if (e.status === "EM_REUNIAO") return "reunião agora";
   if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : "aberto a alterações";
   if (e.status === "CANCELADO") return "cancelado";
-  return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
+  return e.versaoOs ? `ordem de serviço final v${e.versaoOs}` : "sem ordem de serviço";
 }
 
 function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
@@ -82,7 +82,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
   });
 
   const grupos: Array<{ titulo: string; teste: (e: EventoLista) => boolean }> = [
-    { titulo: "Exige ação agora", teste: (e) => e.status === "EM_REUNIAO" || (e.solicitacoesAbertas > 0 && e.status !== "CANCELADO") },
+    { titulo: pode(usuario, "solicitacao.responder") ? "Exige ação agora" : "Aguardando a logística", teste: (e) => e.status === "EM_REUNIAO" || (e.solicitacoesAbertas > 0 && e.status !== "CANCELADO") },
     { titulo: "Em andamento", teste: (e) => e.status === "PREPARACAO" || e.status === "ABERTO" },
     { titulo: "Encerrados e cancelados", teste: () => true },
   ];

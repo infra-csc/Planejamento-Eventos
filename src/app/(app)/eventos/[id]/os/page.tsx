@@ -118,11 +118,12 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const visao = visaoDe(sp.visao);
   // Itens que compõem a OS: é aqui, e não na ata, que a logística ajusta depois da reunião.
   const podeAjustar = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
-  let composicao: { n: number; conteudo: React.ReactNode } | undefined;
+  let composicao: { n: number; conteudo: React.ReactNode; ajustavel?: boolean } | undefined;
   if (visao === "composicao") {
     const [linhasOs, opcoes, areas] = await Promise.all([obterLinhasAta(id), podeAjustar ? opcoesReferenciasResumidas() : Promise.resolve({ projetos: [], pecas: [] }), podeAjustar ? listarAreas() : Promise.resolve([])]);
     composicao = {
       n: linhasOs.length,
+      ajustavel: podeAjustar,
       conteudo: (
         <Section
           titulo="Itens que compõem a OS"

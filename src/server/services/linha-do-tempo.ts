@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, or, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, historico, solicitacaoItens, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -6,7 +6,7 @@ import { NaoEncontradoError } from "@/domain/errors";
 import { pode, PERFIL_LABEL } from "@/domain/permissions";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { resumirAjustes } from "@/domain/os";
-import { obterLinhasAta } from "./eventos";
+import { ACOES_COM_MOTIVO, obterLinhasAta } from "./eventos";
 import { descricaoItem, obterSolicitacao } from "./solicitacoes";
 
 export type TomLinhaTempo = "neutro" | "ok" | "atencao" | "perigo" | "info";
@@ -162,7 +162,8 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
   const veTudo = pode(usuario, "solicitacao.ver_todas") || areaDaLinha == null || areaDaLinha === usuario.areaId;
   const respondidoPor = origem?.respondidoPorId ? (await db.select({ nome: usuarios.nome }).from(usuarios).where(eq(usuarios.id, origem.respondidoPorId)))[0]?.nome ?? null : null;
 
-  const conds: SQL[] = [and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId))!];
+  // Motivos e observações da logística sobre itens de outra área ficam fora da linha do tempo.
+  const conds: SQL[] = [veTudo ? and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId))! : and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId), notInArray(historico.acao, ACOES_COM_MOTIVO))!];
   if (origem && veTudo) {
     conds.push(and(eq(historico.entidade, "solicitacao_item"), eq(historico.entidadeId, origem.itemId))!);
     conds.push(and(eq(historico.entidade, "solicitacao"), eq(historico.entidadeId, origem.solicitacaoId), inArray(historico.acao, ["RASCUNHO_CRIADO", "ENVIADA", "DEVOLVIDA"]))!);
@@ -190,10 +191,10 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
       ? {
           solicitacaoId: origem.solicitacaoId,
           codigo: origem.codigo,
-          titulo: origem.titulo,
+          titulo: veTudo ? origem.titulo : null,
           tipo: origem.tipo,
           area: origem.area,
-          solicitante: origem.solicitante,
+          solicitante: veTudo ? origem.solicitante : "outra área",
           criadoEm: origem.criadoEm.toISOString(),
           enviadaEm: origem.enviadaEm ? origem.enviadaEm.toISOString() : null,
           quantidadeSolicitada: origem.quantidadeSolicitada,
@@ -201,7 +202,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
           status: origem.status,
           observacaoSolicitante: veTudo ? origem.justificativa : null,
           observacaoSolicitacao: veTudo ? origem.observacao : null,
-          ajustes: resumirAjustes(origem.ajustesBom),
+          ajustes: veTudo ? resumirAjustes(origem.ajustesBom) : null,
           respostaLogistica: veTudo ? origem.observacaoLogistica : null,
           respondidoPor,
           respondidoEm: origem.respondidoEm ? origem.respondidoEm.toISOString() : null,

@@ -112,7 +112,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   const ignorarClique = useRef(false);
   const vistaRef = useRef<VistaMapa>("perspectiva");
 
-  const [vistaMapa, setVistaMapa] = useState<VistaMapa>("perspectiva");
+  const [vistaMapa, setVistaMapa] = useState<VistaMapa>("planta");
   const [estado, setEstado] = useState<"carregando" | "pronto" | "erro">("carregando");
   const [erro, setErro] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);

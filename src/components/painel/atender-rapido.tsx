@@ -37,7 +37,7 @@ export function AtenderRapido({ itemId, codigo, rotulo, href, sufixo }: { itemId
         Atender
       </Button>
       <Link href={href} className={buttonClasses({ variant: "secondary", size: "xs", className: "font-normal no-underline" })}>
-        Parcial / recusar
+        Parcial / não atender
       </Link>
     </div>
   );

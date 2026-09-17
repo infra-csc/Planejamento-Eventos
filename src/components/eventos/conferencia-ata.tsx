@@ -16,7 +16,7 @@ import type { LinhaConferencia } from "@/server/services/conferencia";
 
 type Filtro = "todas" | "pendentes" | "conferidas";
 
-const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
+const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 
 function IconeCheck() {
   return (
@@ -170,7 +170,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
 }
 
 /** Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações. */
-const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_128px] items-center gap-x-3";
+const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_100px] items-center gap-x-3";
 
 function Linha({
   l,
@@ -191,7 +191,7 @@ function Linha({
 }) {
   const conferida = Boolean(l.conferidoEm);
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
-  const dicas = [l.origem?.observacao ? `Obs.: ${l.origem.observacao}` : null, l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join("\n");
+  const dicas = [l.origem?.observacao ? `Obs.: ${l.origem.observacao}` : null, l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   return (
     <li className={cn(COLUNAS, "min-h-[44px] border-b border-line-row px-[18px] py-1.5 last:border-b-0 hover:bg-subtle", !conferida && "bg-[color-mix(in_srgb,var(--color-warning-bg)_35%,transparent)]")}>
       <span className="flex justify-center">
@@ -204,15 +204,17 @@ function Linha({
         )}
       </span>
 
-      <span className="flex min-w-0 items-center gap-1.5">
-        <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-[13.5px] font-medium text-ink no-underline hover:text-accent hover:underline" title={`Ver detalhes de ${l.nome}`}>
-          {l.nome}
-        </Link>
-        {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
-        {l.codigo && <span className="hidden shrink-0 font-mono text-[11px] text-muted xl:inline">{l.codigo}</span>}
+      <span className="min-w-0">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-[13.5px] font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
+            {l.nome}
+          </Link>
+          {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
+          {l.codigo && <span className="hidden shrink-0 font-mono text-[11px] text-muted xl:inline">{l.codigo}</span>}
+        </span>
         {dicas && (
-          <span title={dicas} aria-label={dicas} className={cn("shrink-0 text-[12px]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
-            {l.ultimoAjuste ? <IconeCaneta /> : "ⓘ"}
+          <span title={dicas} className={cn("block truncate text-[11.5px] leading-[1.4]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+            {l.ultimoAjuste && <IconeCaneta />} {dicas}
           </span>
         )}
       </span>
@@ -252,16 +254,6 @@ function Linha({
             <IconeCaneta />
           </button>
         )}
-        <Link
-          href={`/eventos/${eventoId}/itens/${l.id}`}
-          aria-label={`Detalhes de ${l.nome}`}
-          title={l.tipo === "PROJETO" ? "Detalhes, peças do projeto e histórico" : "Detalhes e histórico"}
-          className="inline-flex size-7 items-center justify-center rounded-full text-ink-3 no-underline hover:bg-surface hover:text-accent"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </Link>
       </span>
     </li>
   );
@@ -387,7 +379,9 @@ export function ConferenciaAta({
       ) : (
         <>
         <div className={cn(COLUNAS, "border-b border-line-soft px-[18px] py-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted")} aria-hidden>
-          <span />
+          <span className="flex justify-center text-success" title="Conferido">
+            <IconeCheck />
+          </span>
           <span>Item</span>
           <span>Pedido por</span>
           <span>Destino</span>
@@ -419,15 +413,13 @@ export function ConferenciaAta({
         <span>
           {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
         </span>
-        <span className={cn("font-mono", pendentes === 0 && linhas.length > 0 ? "text-success" : "text-warning")}>
-          {conferidas}/{linhas.length} conferidas
-        </span>
+        <span className="text-muted">clique no nome para ver peças e histórico</span>
       </div>
 
       {ajustando && <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />}
       <Dialog open={incluir} onOpenChange={setIncluir}>
         {incluir && (
-          <DialogContent title="Incluir linha na ata" description="Projeto padrão, peça do catálogo ou item avulso decidido na reunião. Já entra conferida." width={520}>
+          <DialogContent title="Incluir linha na ata" description="Projeto padrão, peça do catálogo ou item fora do catálogo decidido na reunião. Já entra conferida." width={520}>
             <LinhaAtaForm eventoId={eventoId} opcoes={opcoes} areas={areas} exigeJustificativa={false} onDone={() => setIncluir(false)} />
           </DialogContent>
         )}

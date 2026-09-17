@@ -92,6 +92,8 @@ export type RespostaItem = {
 export function validarResposta(
   item: { operacao: ItemOperacao; quantidadeSolicitada: number },
   resposta: { status: ItemStatus; quantidadeAtendida?: number | null; observacaoLogistica?: string | null; pendenciaCompra?: boolean },
+  /** ALTERAR_QUANTIDADE: quantidade que a linha tem hoje — o parcial fica entre ela e a pedida. */
+  quantidadeAtual?: number | null,
 ): RespostaItem {
   const obs = resposta.observacaoLogistica?.trim() || null;
   const status = resposta.status;
@@ -109,7 +111,15 @@ export function validarResposta(
   else if (status === "NAO_ATENDIDO") quantidadeAtendida = 0;
   else {
     const q = Number(resposta.quantidadeAtendida);
-    if (!Number.isInteger(q) || q <= 0 || q >= item.quantidadeSolicitada) {
+    if (item.operacao === "ALTERAR_QUANTIDADE" && quantidadeAtual != null) {
+      const lo = Math.min(quantidadeAtual, item.quantidadeSolicitada);
+      const hi = Math.max(quantidadeAtual, item.quantidadeSolicitada);
+      if (!Number.isInteger(q) || q <= lo || q >= hi) {
+        throw new ValidacaoError(`Parcial deve ficar entre a quantidade atual (${quantidadeAtual}) e a pedida (${item.quantidadeSolicitada}).`, {
+          quantidadeAtendida: hi - lo > 1 ? `Informe um valor entre ${lo + 1} e ${hi - 1}.` : "Não há valor intermediário: atenda ou não atenda.",
+        });
+      }
+    } else if (!Number.isInteger(q) || q <= 0 || q >= item.quantidadeSolicitada) {
       throw new ValidacaoError("Quantidade parcial deve ser maior que zero e menor que a solicitada.", {
         quantidadeAtendida: `Informe um valor entre 1 e ${item.quantidadeSolicitada - 1}.`,
       });
@@ -169,7 +179,8 @@ export function calcularEfeitoLinha(antes: EstadoItemResposta, novo: { status: I
     const next = contribuicao(depois, null);
     if (!linha) return next > 0 ? { acao: "criar", quantidade: next, quantidadeAnterior: null } : { acao: "nada", quantidadeAnterior: null };
     if (!linha.ativo && prev > 0) {
-      if (next === 0) return { acao: "nada", quantidadeAnterior: null };
+      // Desfazer deixaria o item "em análise" apontando para uma linha removida — e a próxima resposta a ressuscitaria.
+      if (next === 0 && novo.status !== "EM_ANALISE") return { acao: "nada", quantidadeAnterior: null };
       throw new DomainError("A linha gerada por este item foi removida da ata depois da resposta (por ajuste ou outra solicitação). Inclua a linha de novo pela ata, se precisar.");
     }
     const nova = (linha.ativo ? linha.quantidade : 0) - prev + next;
@@ -221,7 +232,8 @@ export type ItemRascunho = {
 
 /** Valida a consistência estrutural de um item de solicitação (exatamente uma referência). */
 export function validarItem(item: ItemRascunho) {
-  const refs = [item.projetoId, item.pecaId, item.descricaoLivre?.trim()].filter(Boolean).length;
+  // Item descrito à mão que a logística vinculou ao catálogo guarda o texto original: a referência vale.
+  const refs = item.projetoId || item.pecaId ? [item.projetoId, item.pecaId].filter(Boolean).length : item.descricaoLivre?.trim() ? 1 : 0;
   if (item.operacao === "ADICIONAR") {
     if (refs !== 1) throw new ValidacaoError("Escolha um projeto padrão, uma peça do catálogo ou descreva um item avulso.");
   } else if (!item.eventoItemId) {

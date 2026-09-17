@@ -6,8 +6,9 @@ import { listarPendenciasCompra } from "@/server/services/solicitacoes";
 import { addDiasISO, diaMesISO, hojeISO } from "@/lib/format";
 import { Metric, MetricStrip, PageHeader, Section } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
+import { cn } from "@/lib/cn";
 
-export const metadata: Metadata = { title: "Consolidação" };
+export const metadata: Metadata = { title: "Demanda de peças" };
 
 const JANELAS = [15, 30, 60] as const;
 
@@ -19,17 +20,17 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
   const fim = addDiasISO(inicio, dias);
   const [{ eventos, pecas }, pendenciasTodas] = await Promise.all([consolidarPeriodo(usuario, { inicio, fim }), listarPendenciasCompra(usuario)]);
 
-  const demandadas = pecas.filter((p) => p.pico > 0).sort((a, b) => a.saldo - b.saldo || b.pico - a.pico);
-  // Estoque 0 = não informado: não conta como déficit.
-  const deficit = demandadas.filter((p) => p.estoque > 0 && p.saldo < 0);
-  const aLocar = deficit.reduce((a, p) => a - p.saldo, 0);
+  // Só demanda: o estoque fica fora desta tela por enquanto.
+  const demandadas = pecas.filter((p) => p.pico > 0).sort((a, b) => b.pico - a.pico || a.codigo.localeCompare(b.codigo));
+  const unidadesPico = demandadas.reduce((a, p) => a + p.pico, 0);
+  const simultaneas = demandadas.filter((p) => p.eventosNoPico.length > 1).length;
   const pendencias = pendenciasTodas.filter((p) => p.solicitacao.evento.status !== "CANCELADO" && p.solicitacao.evento.status !== "ENCERRADO" && p.faltante > 0);
 
   return (
     <>
       <PageHeader
-        title="Consolidação"
-        description="Demanda de todos os eventos que ocupam o período, de montagem a desmontagem, contra o estoque próprio. Eventos simultâneos disputam a mesma peça: o pico mostra o pior dia."
+        title="Demanda de peças"
+        description="Peças que todos os eventos do período vão precisar, de montagem a desmontagem. Eventos simultâneos disputam a mesma peça: o pico mostra o pior dia."
       />
 
       <div className="mb-[18px] flex items-center gap-3">
@@ -42,18 +43,18 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
       <MetricStrip>
         <Metric label="Eventos no período" valor={eventos.length} hint={eventos.length ? eventos.map((e) => e.codigo).join(" · ") : "nenhum evento"} />
         <Metric label="Peças demandadas" valor={demandadas.length} hint="tipos com demanda no pico" />
-        <Metric label="Peças em déficit" valor={deficit.length} cor={deficit.length ? "#a8400f" : "#136c41"} hint={deficit.length ? "pico acima do estoque" : "o estoque cobre tudo"} />
-        <Metric label="Unidades a locar" valor={aLocar} cor={aLocar ? "#7a5f00" : undefined} hint="soma do que falta no pico" />
+        <Metric label="Unidades no pico" valor={unidadesPico} hint="soma dos picos de cada peça" />
+        <Metric label="Disputadas" valor={simultaneas} hint={simultaneas ? "pedidas por mais de um evento no mesmo dia" : "nenhuma peça disputada"} />
       </MetricStrip>
 
       <div className="flex flex-col gap-5">
-        <Section titulo="Demanda × estoque" sub="Ordenado por risco: menor saldo primeiro. O traço escuro marca o estoque próprio.">
+        <Section titulo="Demanda por peça" sub="Maior pico primeiro. Ao lado, os eventos que compõem o pico.">
           {demandadas.length === 0 ? (
             <p className="m-0 px-[18px] py-10 text-center text-[13px] text-muted">Nenhuma demanda de peças no período. Eventos entram aqui quando têm ata ou solicitações com itens.</p>
           ) : (
             demandadas.map((p) => {
-              const escala = Math.max(p.pico, p.estoque, 1);
-              const falta = p.saldo < 0;
+              const escala = Math.max(demandadas[0]?.pico ?? 1, 1);
+              const disputada = p.eventosNoPico.length > 1;
               return (
                 <div key={p.pecaId} className="flex items-center gap-4 border-b border-line-row px-[18px] py-3 last:border-b-0">
                   <span className="w-[210px] shrink-0">
@@ -61,18 +62,17 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                     <span className="block truncate text-[12px] text-muted">{p.nome}</span>
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="relative block h-2 rounded-[4px] bg-[#f0eceb]" role="img" aria-label={`Demanda ${p.pico}, estoque ${p.estoque}`}>
-                      <span className="absolute left-0 top-0 block h-2 rounded-[4px]" style={{ width: `${(p.pico / escala) * 100}%`, background: falta ? "#a8400f" : "#136c41" }} />
-                      <span aria-hidden className="absolute -top-1 block h-4 w-0.5 bg-dark" style={{ left: `calc(${(p.estoque / escala) * 100}% - 1px)` }} />
+                    <span className="relative block h-2 rounded-[4px] bg-neutral-bg" role="img" aria-label={`Demanda no pico: ${p.pico}`}>
+                      <span className={cn("absolute left-0 top-0 block h-2 rounded-[4px]", disputada ? "bg-warning" : "bg-dark")} style={{ width: `${Math.max(2, (p.pico / escala) * 100)}%` }} />
                     </span>
                     <span className="mt-1.5 block text-[11.5px] text-ink-3">
-                      demanda <span className="font-mono">{p.pico}</span> · {p.estoque > 0 ? <>estoque <span className="font-mono">{p.estoque}</span></> : "estoque não informado"}
+                      pico <span className="font-mono">{p.pico}</span>
                       {p.eventosNoPico.length > 0 && <span className="text-meta"> · {p.eventosNoPico.map((e) => `${e.codigo} ${e.quantidade}${e.projetado ? " (projetado)" : ""}`).join(" · ")}</span>}
                     </span>
                   </span>
                   <span className="w-[108px] shrink-0 text-right">
-                    <span className={p.estoque === 0 ? "inline-block rounded-[5px] bg-neutral-bg px-2 py-0.5 font-mono text-[12px] text-muted" : falta ? "inline-block rounded-[5px] bg-danger-bg px-2 py-0.5 font-mono text-[12px] font-medium text-danger" : "inline-block rounded-[5px] bg-success-bg px-2 py-0.5 font-mono text-[12px] font-medium text-success"}>
-                      {p.estoque === 0 ? "sem estoque" : falta ? `faltam ${-p.saldo}` : `sobram ${p.saldo}`}
+                    <span className={cn("inline-block rounded-[5px] px-2 py-0.5 font-mono text-[12px] font-medium", disputada ? "bg-warning-bg text-warning" : "bg-neutral-bg text-ink-2")}>
+                      {disputada ? `${p.eventosNoPico.length} eventos` : `${p.pico} un.`}
                     </span>
                     <span className="mt-1 block font-mono text-[11px] text-meta">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
                   </span>

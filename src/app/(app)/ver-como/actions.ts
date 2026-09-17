@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { COOKIE_VER_COMO, getUsuarioReal } from "@/server/auth/session";
+import { COOKIE_VER_COMO, cookieSeguro, getUsuarioReal } from "@/server/auth/session";
 import { PERFIS } from "@/domain/permissions";
 import type { Perfil } from "@/server/db/schema";
 
@@ -16,7 +16,7 @@ export async function verComoAction(perfil: string, areaId: string | null) {
   if (!real || real.perfil !== "ADMIN") return { ok: false, erro: "Só o administrador pode ver como outro perfil." } as const;
   if (!(PERFIS as readonly string[]).includes(perfil) || perfil === "ADMIN") return { ok: false, erro: "Perfil inválido." } as const;
   const store = await cookies();
-  store.set(COOKIE_VER_COMO, JSON.stringify({ perfil: perfil as Perfil, areaId: areaId || null }), { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8 });
+  store.set(COOKIE_VER_COMO, JSON.stringify({ perfil: perfil as Perfil, areaId: areaId || null }), { httpOnly: true, sameSite: "lax", secure: cookieSeguro(), path: "/", maxAge: 60 * 60 * 8 });
   revalidatePath("/", "layout");
   return { ok: true } as const;
 }

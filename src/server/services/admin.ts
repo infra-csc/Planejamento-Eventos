@@ -102,13 +102,14 @@ export async function criarUsuario(usuario: UsuarioAtual, dados: DadosUsuario) {
 /** Edita nome, perfil e área. O e-mail é somente leitura depois de criado (handoff §5.14). */
 export async function editarUsuario(usuario: UsuarioAtual, id: string, dados: DadosUsuario) {
   exigir(usuario, "admin.usuarios");
-  validarPerfilArea(dados);
+  await validarPerfilArea(dados);
   const db = await getDb();
   const atual = await db.query.usuarios.findFirst({ where: eq(usuarios.id, id) });
   if (!atual) throw new NaoEncontradoError("Usuário");
   if (id === usuario.id && (!dados.ativo || dados.perfil !== "ADMIN")) {
     throw new DomainError("Você não pode desativar ou rebaixar o próprio usuário.");
   }
+  if (atual.perfil === "ADMIN" && atual.ativo && (!dados.ativo || dados.perfil !== "ADMIN")) await exigirOutroAdmin(db, id);
   if (dados.senha && dados.senha.length < 8) throw new ValidacaoError("A nova senha deve ter pelo menos 8 caracteres.", { senha: "Mínimo de 8 caracteres." });
   const patch: Partial<typeof usuarios.$inferInsert> = {
     nome: dados.nome,
@@ -135,12 +136,19 @@ export async function editarUsuario(usuario: UsuarioAtual, id: string, dados: Da
   });
 }
 
+/** O sistema nunca fica sem administrador ativo (a recuperação seria só pelo terminal). */
+async function exigirOutroAdmin(db: Awaited<ReturnType<typeof getDb>>, alemDe: string) {
+  const outros = await db.query.usuarios.findMany({ where: and(eq(usuarios.perfil, "ADMIN"), eq(usuarios.ativo, true), ne(usuarios.id, alemDe)), columns: { id: true } });
+  if (outros.length === 0) throw new DomainError("Este é o único administrador ativo. Cadastre outro administrador antes de desativar ou rebaixar este.");
+}
+
 export async function alterarAtivoUsuario(usuario: UsuarioAtual, id: string, ativo: boolean) {
   exigir(usuario, "admin.usuarios");
   if (id === usuario.id && !ativo) throw new DomainError("Você não pode desativar o próprio usuário.");
   const db = await getDb();
   const atual = await db.query.usuarios.findFirst({ where: eq(usuarios.id, id) });
   if (!atual) throw new NaoEncontradoError("Usuário");
+  if (!ativo && atual.perfil === "ADMIN" && atual.ativo) await exigirOutroAdmin(db, id);
   await db.update(usuarios).set({ ativo }).where(eq(usuarios.id, id));
   if (!ativo) await db.delete(sessoes).where(eq(sessoes.usuarioId, id));
   await registrarHistorico(db, {

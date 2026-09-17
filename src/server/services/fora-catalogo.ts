@@ -57,12 +57,13 @@ async function resolverVinculo(ex: Executor, ref: RefVinculo) {
   let linha = ref.linhaId ? await ex.query.eventoItens.findFirst({ where: eq(eventoItens.id, ref.linhaId) }) : undefined;
   const itemId = ref.solicitacaoItemId ?? linha?.solicitacaoItemId ?? null;
   const item = itemId ? await ex.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, itemId) }) : undefined;
-  if (!linha && item) linha = await ex.query.eventoItens.findFirst({ where: and(eq(eventoItens.solicitacaoItemId, item.id), eq(eventoItens.ativo, true)) });
+  if (!linha && item) linha = await ex.query.eventoItens.findFirst({ where: eq(eventoItens.solicitacaoItemId, item.id), orderBy: (t, { desc }) => [desc(t.ativo), desc(t.criadoEm)] });
   const sol = item
     ? await ex.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, item.solicitacaoId), columns: { id: true, codigo: true, criadoPorId: true, areaId: true, eventoId: true, status: true } })
     : undefined;
   const eventoId = linha?.eventoId ?? sol?.eventoId ?? null;
-  const linhaPendente = Boolean(linha && linha.ativo && linha.tipo === "AVULSO");
+  // Linha fora da ata (resposta corrigida para "não atendido") também recebe o vínculo: se voltar, já volta certa.
+  const linhaPendente = Boolean(linha && linha.tipo === "AVULSO");
   const itemPendente = Boolean(item && itemAvulso(item) && sol && sol.status !== "CANCELADA");
   return { linha, item, sol, eventoId, linhaPendente, itemPendente };
 }
@@ -134,7 +135,7 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
       dadosAntes: { tipo: "AVULSO", descricaoLivre: original },
       dadosDepois: { tipo: projetoId ? "PROJETO" : "PECA", projetoId, pecaId },
     });
-    if (linhaPendente && ev.status === "ABERTO") await gerarOsVersao(tx, ev.id, "AJUSTE_LOGISTICA", usuario.id, texto);
+    if (linhaPendente && linha?.ativo && ev.status === "ABERTO") await gerarOsVersao(tx, ev.id, "AJUSTE_LOGISTICA", usuario.id, texto);
     if (sol) {
       await notificar(tx, {
         usuarioIds: [sol.criadoPorId, ...(await usuariosDaArea(tx, sol.areaId))],

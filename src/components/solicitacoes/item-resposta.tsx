@@ -135,7 +135,7 @@ export function RespostaProvider({
       if (k === "a") {
         e.preventDefault();
         void enviar(item, { status: "ATENDIDO" });
-      } else if (k === "p" && item.operacao !== "REMOVER") {
+      } else if (k === "p" && item.operacao !== "REMOVER" && item.quantidadeSolicitada > 1) {
         e.preventDefault();
         setEdicao({ id: item.id, modo: "PARCIAL" });
       } else if (k === "n") {
@@ -328,7 +328,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
           >
             {item.operacao === "REMOVER" ? "Remover da ata" : `Atender ${item.quantidadeSolicitada}`}
           </Button>
-          {item.operacao !== "REMOVER" && (
+          {item.operacao !== "REMOVER" && item.quantidadeSolicitada > 1 && (
             <Button
               variant="parcial"
               size="sm"

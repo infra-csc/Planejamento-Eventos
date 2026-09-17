@@ -56,26 +56,33 @@ export default async function NotificacoesPage() {
         ) : (
           lista.map((n) => {
             const prazo = /PRAZO|SLA/.test(n.tipo);
-            return (
-              <div key={n.id} className={cn("flex items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 last:border-b-0", !n.lidaEm && "bg-selected")}>
+            const conteudo = (
+              <>
                 <span aria-hidden className={cn("mt-1.5 block size-[7px] shrink-0 rounded-full", n.lidaEm ? "bg-transparent" : prazo ? "bg-danger" : "bg-accent")} />
-                <div className="min-w-0 flex-1">
-                  <p className={cn("m-0 text-[13.5px] text-ink", !n.lidaEm && "font-medium")}>
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block text-[13.5px] text-ink", !n.lidaEm && "font-medium")}>
                     {!n.lidaEm && <span className="sr-only">Não lida: </span>}
                     {n.titulo}
-                  </p>
-                  <p className="mb-0 mt-0.5 text-[12.5px] leading-[1.45] text-ink-3">{n.mensagem}</p>
-                  <p className="mb-0 mt-1 font-mono text-[11.5px] text-meta">{tempoRelativo(n.criadoEm)}</p>
-                </div>
-                {n.link && (
-                  <form action={abrirAction} aria-label={`Abrir: ${n.titulo}`}>
-                    <input type="hidden" name="id" value={n.id} />
-                    <input type="hidden" name="link" value={n.link} />
-                    <Button type="submit" variant="secondary" size="sm">
-                      Abrir
-                    </Button>
-                  </form>
-                )}
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] leading-[1.45] text-ink-3">{n.mensagem}</span>
+                  <span className="mt-1 block font-mono text-[11.5px] text-meta">{tempoRelativo(n.criadoEm)}</span>
+                </span>
+                {n.link && <span className="shrink-0 self-center text-[12.5px] text-accent">Abrir ›</span>}
+              </>
+            );
+            const classe = cn("flex w-full items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 text-left last:border-b-0", !n.lidaEm && "bg-selected");
+            // A linha inteira abre o destino (e marca como lida); sem destino, é só leitura.
+            return n.link ? (
+              <form key={n.id} action={abrirAction} className="m-0">
+                <input type="hidden" name="id" value={n.id} />
+                <input type="hidden" name="link" value={n.link} />
+                <button type="submit" aria-label={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent hover:bg-subtle", !n.lidaEm && "bg-selected")}>
+                  {conteudo}
+                </button>
+              </form>
+            ) : (
+              <div key={n.id} className={classe}>
+                {conteudo}
               </div>
             );
           })

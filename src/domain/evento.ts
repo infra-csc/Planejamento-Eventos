@@ -55,7 +55,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
     para: "ENCERRADO",
     perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: false,
-    label: "Encerrar para alterações",
+    label: "Encerrar evento",
     descricao: "Nenhuma solicitação nova entra. A OS final é gerada.",
   },
   REABRIR: {

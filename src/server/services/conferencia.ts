@@ -150,15 +150,19 @@ export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId:
     const agora = new Date();
 
     const item = linha.registro.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId) }) : null;
-    if (item && item.operacao === "ADICIONAR" && quantidade <= item.quantidadeSolicitada) {
+    if (item && item.operacao === "ADICIONAR") {
+      // Acima do pedido, o pedido conta como atendido; o excedente é decisão da reunião e fica só na linha.
       const status = quantidade === 0 ? "NAO_ATENDIDO" : quantidade < item.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO";
-      await responderNaTransacao(tx, usuario, item.id, { status, quantidadeAtendida: quantidade, observacaoLogistica: razao }, razao, { gerarOs: false, notificar: true });
+      const atendida = Math.min(quantidade, item.quantidadeSolicitada);
+      if (!(status === "ATENDIDO" && item.status === "ATENDIDO")) {
+        await responderNaTransacao(tx, usuario, item.id, { status, quantidadeAtendida: atendida, observacaoLogistica: razao }, razao, { gerarOs: false, notificar: true });
+      }
     }
     // A resposta aplica só a diferença em relação à resposta anterior; a canetinha define o valor
     // absoluto da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
     await tx
       .update(eventoItens)
-      .set(quantidade === 0 ? { ativo: false, quantidade: 0, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao } : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao })
+      .set(quantidade === 0 ? { ativo: false, quantidade: 0, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null } : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao })
       .where(eq(eventoItens.id, linhaId));
     if (quantidade > 0) await tx.update(eventoItens).set({ conferidoEm: agora, conferidoPorId: usuario.id }).where(and(eq(eventoItens.id, linhaId), eq(eventoItens.ativo, true)));
 
@@ -216,7 +220,8 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
       peca = p;
       bom.push({ pecaId: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, quantidade: quantidadePorUnidade });
     }
-    await tx.update(eventoItens).set({ bomSnapshot: bom }).where(eq(eventoItens.id, linhaId));
+    // Composição mudou antes da ata: a conferência da linha é refeita na reunião.
+    await tx.update(eventoItens).set(aberto ? { bomSnapshot: bom } : { bomSnapshot: bom, conferidoEm: null, conferidoPorId: null }).where(eq(eventoItens.id, linhaId));
 
     const projeto = linha.projeto?.nome ?? "Projeto";
     const acaoTexto = antes === 0 ? `incluída com ${quantidadePorUnidade} por unidade` : quantidadePorUnidade === 0 ? `retirada (eram ${antes} por unidade)` : `${antes} → ${quantidadePorUnidade} por unidade`;

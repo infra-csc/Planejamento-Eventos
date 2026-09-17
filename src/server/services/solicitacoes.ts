@@ -243,10 +243,8 @@ async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: st
   // O Administrador pede em nome de uma área que ele escolhe; os demais perfis, pela própria área.
   const areaId = admin ? (areaEscolhida ?? usuario.areaId) : usuario.areaId;
   if (!areaId) throw new ValidacaoError(admin ? "Escolha a área que está pedindo." : "Seu usuário não está vinculado a uma área. Peça ao administrador.", admin ? { areaId: "Escolha a área." } : undefined);
-  if (admin) {
-    const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)) });
-    if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
-  }
+  const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)), columns: { id: true } });
+  if (!area) throw new ValidacaoError(admin ? "Área inativa ou inexistente." : "Sua área está desativada. Peça ao administrador.", admin ? { areaId: "Escolha outra área." } : undefined);
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
   if (!ev) throw new NaoEncontradoError("Evento");
   const tipo = tipoSolicitacaoParaStatus(ev.status);
@@ -529,7 +527,8 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     await tx.update(solicitacaoItens).set({ status: "EM_ANALISE" }).where(eq(solicitacaoItens.solicitacaoId, id));
     // Alteração enviada depois da janela que a logística definiu: entra, mas marcada para decisão.
     const foraDaJanela = s.tipo === "ALTERACAO" && Boolean(s.evento.janelaAlteracoesAte) && hojeISO() > String(s.evento.janelaAlteracoesAte);
-    if (foraDaJanela) await tx.update(solicitacoes).set({ foraDaJanela: true }).where(eq(solicitacoes.id, id));
+    // Recalculado a cada envio: uma devolvida reenviada dentro de uma janela estendida deixa de estar "fora".
+    await tx.update(solicitacoes).set({ foraDaJanela }).where(eq(solicitacoes.id, id));
     await registrarHistorico(tx, {
       eventoId: s.eventoId,
       entidade: "solicitacao",
@@ -580,9 +579,10 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
 export async function cancelarSolicitacao(usuario: UsuarioAtual, id: string, motivo: string | null) {
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const s = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { itens: true } });
+    const s = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { itens: true, evento: { columns: { status: true } } } });
     if (!s) throw new NaoEncontradoError("Solicitação");
     if (!podeEditarSolicitacao(usuario, s)) throw new SemPermissaoError();
+    if (s.evento.status === "ENCERRADO" || s.evento.status === "CANCELADO") throw new DomainError("O evento já foi encerrado; a solicitação não muda mais.");
     await bloquearEvento(tx, s.eventoId);
     const atual = await tx.query.solicitacaoItens.findMany({ where: eq(solicitacaoItens.solicitacaoId, id), columns: { status: true } });
     const algumRespondido = atual.some((i) => i.status !== "EM_ANALISE");
@@ -644,7 +644,8 @@ async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId:
     const base = { eventoId: s.eventoId, quantidade: efeito.quantidade, destino: item.destino, areaId: s.areaId, origem: "SOLICITACAO" as const, solicitacaoItemId: item.id, criadoPorId: usuario.id };
     let valores: typeof eventoItens.$inferInsert;
     if (item.projetoId) {
-      const snap = await snapshotBom(tx, item.projetoId);
+      // A versão pedida pela área (MEL-02 atualiza depois, de propósito).
+      const snap = await snapshotBom(tx, item.projetoId, item.projetoVersaoId);
       valores = { ...base, tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, item.ajustesBom) };
     } else if (item.pecaId) {
       valores = { ...base, tipo: "PECA", pecaId: item.pecaId };
@@ -655,9 +656,18 @@ async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId:
     return { eventoItemGeradoId: nova.id, quantidadeAnterior: null };
   }
   if (efeito.acao === "atualizar" && linha) {
+    // Linha descrita à mão que foi vinculada ao catálogo enquanto estava fora da ata volta já com a referência.
+    let referencia: Partial<typeof eventoItens.$inferInsert> = {};
+    if (efeito.ativo && linha.tipo === "AVULSO" && item.operacao === "ADICIONAR" && (item.projetoId || item.pecaId)) {
+      if (item.projetoId) {
+        const snap = await snapshotBom(tx, item.projetoId, item.projetoVersaoId);
+        referencia = { tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, item.ajustesBom) };
+      } else referencia = { tipo: "PECA", pecaId: item.pecaId };
+    }
+    // Quantidade mudou: a conferência da reunião precisa ser refeita (depois da ata, o campo não importa).
     await tx
       .update(eventoItens)
-      .set(efeito.ativo ? { ativo: true, quantidade: efeito.quantidade, removidoEm: null, removidoPorId: null } : { ativo: false, removidoEm: new Date(), removidoPorId: usuario.id })
+      .set(efeito.ativo ? { ativo: true, quantidade: efeito.quantidade, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, ...referencia } : { ativo: false, removidoEm: new Date(), removidoPorId: usuario.id, conferidoEm: null, conferidoPorId: null })
       .where(eq(eventoItens.id, linha.id));
   }
   return { eventoItemGeradoId: item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : (item.eventoItemId ?? null), quantidadeAnterior: efeito.quantidadeAnterior };
@@ -699,7 +709,8 @@ export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, 
   }
   verificarFaseResposta(s);
 
-  const r = validarResposta(item, resposta);
+  const linhaAtual = item.operacao === "ALTERAR_QUANTIDADE" && item.eventoItemId ? await tx.query.eventoItens.findFirst({ where: eq(eventoItens.id, item.eventoItemId), columns: { quantidade: true } }) : null;
+  const r = validarResposta(item, resposta, linhaAtual?.quantidade ?? null);
   const efeito = await aplicarEfeito(tx, usuario, s, item, r);
   await tx
     .update(solicitacaoItens)

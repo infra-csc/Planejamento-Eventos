@@ -13,9 +13,11 @@ function revalidarAdmin() {
 
 export async function salvarUsuarioAction(payload: { id?: string | null; nome: string; email: string; perfil: string; areaId: string | null; ativo: boolean }) {
   const usuario = await requireUsuario();
+  type Resultado = { nome: string; linkAcesso: string | null; criado: boolean };
+  if (payload.id != null && typeof payload.id !== "string") return { ok: false, erro: "Dados inválidos." } as ActionResult<Resultado>;
   try {
     const d = usuarioSchema.parse({ ...payload, areaId: payload.areaId ?? undefined, senha: undefined });
-    let resultado: { nome: string; linkAcesso: string | null; criado: boolean };
+    let resultado: Resultado;
     if (payload.id) {
       await editarUsuario(usuario, payload.id, d);
       resultado = { nome: d.nome, linkAcesso: null, criado: false };

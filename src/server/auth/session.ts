@@ -26,14 +26,15 @@ let hashFicticio: Promise<string> | null = null;
 const obterHashFicticio = () => (hashFicticio ??= hashSenha(gerarToken()));
 
 /** Cookie `Secure` sempre que o app é servido por HTTPS (produção ou o dev exposto do Replit). */
-function cookieSeguro() {
+export function cookieSeguro() {
   return process.env.NODE_ENV === "production" || Boolean(process.env.REPLIT_DEV_DOMAIN) || (process.env.APP_URL ?? "").startsWith("https://");
 }
 
 export async function autenticar(email: string, senha: string): Promise<{ ok: true; usuario: UsuarioAtual } | { ok: false; erro: string }> {
   const chave = email.trim().toLowerCase();
   const ip = await ipCliente();
-  const chaves = [`login:email:${chave}`, `login:ip:${ip}`];
+  // Falhas contam por e-mail+IP: quem só sabe o e-mail de alguém não consegue trancar a conta dele.
+  const chaves = [`login:email:${chave}:ip:${ip}`, `login:ip:${ip}`];
   if (
     await limiteExcedido(
       [
@@ -136,7 +137,7 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
     const { perfil, areaId } = JSON.parse(bruto) as { perfil?: string; areaId?: string | null };
     if (!perfil || perfil === "ADMIN" || !(PERFIS as readonly string[]).includes(perfil)) return real;
     const db = await getDb();
-    const area = areaId ? await db.query.areas.findFirst({ where: eq(areas.id, areaId), columns: { id: true, nome: true } }) : null;
+    const area = areaId ? await db.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)), columns: { id: true, nome: true } }) : null;
     return { ...real, perfil: perfil as Perfil, areaId: area?.id ?? null, areaNome: area?.nome ?? null, verComo: { perfilReal: "ADMIN" } };
   } catch {
     return real;

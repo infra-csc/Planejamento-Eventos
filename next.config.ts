@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: "12mb",
+      bodySizeLimit: "9mb",
       allowedOrigins: ORIGENS_ACTIONS,
     },
   },
@@ -39,6 +39,7 @@ const nextConfig: NextConfig = {
           { key: "Content-Security-Policy", value: `frame-ancestors ${ANCESTRAIS}; base-uri 'self'; form-action 'self'; object-src 'none'` },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          ...(process.env.NODE_ENV === "production" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
         ],
       },
     ];

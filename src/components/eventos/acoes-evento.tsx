@@ -47,17 +47,6 @@ export function AcoesEvento({
           Abrir conferência da ata
         </ButtonLink>,
       );
-      botoes.push(
-        pendentesPreReuniao > 0 ? (
-          <Button key="fechar" variant="secondary" size="lg" aria-disabled="true" className="cursor-not-allowed text-meta" onClick={() => toast(`Ainda há ${pendentesPreReuniao} ${pendentesPreReuniao === 1 ? "item" : "itens"} sem resposta — responda todos para fechar a ata`)}>
-            Fechar ata
-          </Button>
-        ) : (
-          <Button key="fechar" variant="secondary" size="lg" onClick={() => setAcao("FECHAR_ATA")}>
-            Fechar ata
-          </Button>
-        ),
-      );
     }
     if (evento.status === "ABERTO") {
       botoes.push(
@@ -69,11 +58,11 @@ export function AcoesEvento({
             aria-disabled="true"
             onClick={() => toast(`Responda ou devolva ${solicitacoesAbertas.join(", ")} antes de encerrar`)}
           >
-            Encerrar para alterações
+            Encerrar evento
           </Button>
         ) : (
           <Button key="encerrar" variant="primary" size="lg" onClick={() => setAcao("ENCERRAR")}>
-            Encerrar para alterações
+            Encerrar evento
           </Button>
         ),
       );
@@ -81,7 +70,7 @@ export function AcoesEvento({
     if (evento.status !== "CANCELADO" && evento.status !== "ENCERRADO") {
       botoes.push(
         <ButtonLink key="editar" href={`${base}/editar`} variant="secondary" size="lg" className="no-underline">
-          Editar
+          Editar ou cancelar
         </ButtonLink>,
       );
     }
@@ -118,7 +107,7 @@ export function AcoesEvento({
           action={transicionarEventoAction}
           hidden={{ eventoId: evento.id, acao }}
         >
-          {acao === "ENCERRAR" && <Aviso>Depois do encerramento, nenhuma solicitação nova entra. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
+          {acao === "ENCERRAR" && <Aviso>Depois disto nenhuma alteração entra e a ordem de serviço final fica fixada. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
           {acao === "FECHAR_ATA" && <Aviso>A ata é congelada e a OS de cada setor é gerada a partir dela. As áreas são notificadas.</Aviso>}
           {acao === "INICIAR_REUNIAO" && <Aviso>Os envios de necessidades ficam bloqueados enquanto a reunião acontece. Rascunhos das áreas continuam salvos.</Aviso>}
           {acao === "REABRIR" && <Aviso tom="warning">O evento volta a aceitar alterações. A reabertura fica marcada no evento e no histórico.</Aviso>}

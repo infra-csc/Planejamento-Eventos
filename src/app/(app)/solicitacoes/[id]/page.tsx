@@ -51,7 +51,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const pendentes = s.itens.filter((i) => i.status === "EM_ANALISE").length;
   const dono = podeEditarSolicitacao(usuario, s);
   const editavel = dono && podeEnviar(s.status);
-  const sufixo = s.tipo === "ALTERACAO" ? "OS regerada" : "ata atualizada";
+  const sufixo = s.tipo === "ALTERACAO" ? "nova versão da OS" : "item entrou na ata";
 
   const modoFila = sp.fila === "1" && ehLogistica;
   const fila = modoFila ? await listarFila(usuario) : [];
@@ -258,7 +258,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               ...(naAta
                 ? [
                     { label: "Reunião de OS", valor: diaMesHora(s.evento.dataReuniao) },
-                    { label: "Situação", valor: "na ata, aguarda conferência" },
+                    { label: "Situação", valor: `na ata · a logística confirma na reunião de ${diaMesHora(s.evento.dataReuniao)}` },
                     { label: "Itens na ata", valor: `${s.itens.filter((i) => i.status === "ATENDIDO" || i.status === "PARCIAL").length} de ${s.itens.length}`, forte: true },
                   ]
                 : [
@@ -291,7 +291,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               { label: "Reunião de OS", valor: diaMesHora(evento.dataReuniao) },
               { label: "Alterações até", valor: evento.janelaAlteracoesAte ? diaMesISO(evento.janelaAlteracoesAte) : "até encerrar" },
               { label: "Ata fechada", valor: evento.ataFechadaEm ? diaMesHora(evento.ataFechadaEm) : "ainda não" },
-              { label: "OS atual", valor: versoesOs[0] ? `v${versoesOs[0].numero}` : "não gerada" },
+              ...(pode(usuario, "os.ver") ? [{ label: "OS atual", valor: versoesOs[0] ? `v${versoesOs[0].numero}` : "não gerada" }] : []),
               { label: "Responsável", valor: evento.responsavel.nome },
             ]}
           />
@@ -299,9 +299,11 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             <Link href={`/eventos/${evento.id}/ata`} className="link">
               Ata
             </Link>
-            <Link href={`/eventos/${evento.id}/os`} className="link">
-              OS
-            </Link>
+            {pode(usuario, "os.ver") && (
+              <Link href={`/eventos/${evento.id}/os`} className="link">
+                Ordem de serviço
+              </Link>
+            )}
             <Link href={`/eventos/${evento.id}/solicitacoes`} className="link">
               Solicitações do evento
             </Link>

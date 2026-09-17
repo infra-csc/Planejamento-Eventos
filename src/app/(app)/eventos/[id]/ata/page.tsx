@@ -14,7 +14,7 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 
-const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
+const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída na reunião" } as const;
 
 /**
@@ -162,6 +162,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
           </Section>
         )}
 
+        {pode(usuario, "os.exportar") && (
         <Section titulo="Exportar ata" sub={!emConstrucao && congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
           <div className="flex flex-col gap-2 px-[18px] py-3.5">
             <a href={`/api/eventos/${id}/ata/excel${sp.v ? `?v=${sp.v}` : ""}`} className={buttonClasses({ variant: podeConferir ? "secondary" : "primary", size: "md", className: "w-full no-underline" })}>
@@ -172,6 +173,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             </ButtonLink>
           </div>
         </Section>
+        )}
 
         <Section titulo="Reunião de OS" sub={!emConstrucao && congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
           <ListaDados itens={dadosReuniao} />

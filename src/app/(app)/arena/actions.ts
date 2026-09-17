@@ -8,7 +8,10 @@ import { removerPosicaoArena, salvarPosicaoArena, type DadosPosicao } from "@/se
 export async function salvarPosicaoArenaAction(slug: string, dados: DadosPosicao) {
   const usuario = await requireUsuario();
   if (typeof slug !== "string" || !dados || typeof dados !== "object") return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => salvarPosicaoArena(usuario, slug, { chave: String(dados.chave), tipo: dados.tipo, x: Number(dados.x), z: Number(dados.z), nome: dados.nome ?? null, categoria: dados.categoria ?? null, itemAta: dados.itemAta ?? null }));
+  const texto = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const chave = texto(dados.chave, 120);
+  if (!chave || (dados.tipo !== "MOVER" && dados.tipo !== "NOVO") || !Number.isFinite(Number(dados.x)) || !Number.isFinite(Number(dados.z))) return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => salvarPosicaoArena(usuario, slug, { chave, tipo: dados.tipo, x: Number(dados.x), z: Number(dados.z), nome: texto(dados.nome, 120) || null, categoria: texto(dados.categoria, 60) || null, itemAta: texto(dados.itemAta, 120) || null }));
   revalidatePath(`/arena/${slug}`);
   return r;
 }

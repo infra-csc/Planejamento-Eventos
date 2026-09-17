@@ -37,7 +37,7 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
             itemId={f.pendenteUnico.id}
             codigo={f.codigo}
             href={href}
-            sufixo={f.tipo === "ALTERACAO" ? "OS regerada" : "ata atualizada"}
+            sufixo={f.tipo === "ALTERACAO" ? "nova versão da OS" : "item entrou na ata"}
             rotulo={`${f.pendenteUnico.descricao} × ${f.pendenteUnico.quantidade}${f.pendenteUnico.destino ? ` · ${f.pendenteUnico.destino}` : ""}`}
           />
         )}
@@ -131,7 +131,7 @@ export default async function PainelPage() {
             href="/solicitacoes?filtro=ATRASADAS"
           />
           <Metric label="Reuniões esta semana" valor={d.metricas.reunioesSemana} hint={d.metricas.hintSemana} href="/eventos" />
-          <Metric label="Peças em déficit" valor={d.metricas.deficit} cor="#7a5f00" hint={d.metricas.hintDeficit} href="/consolidacao" />
+          <Metric label="Eventos em preparação" valor={d.metricas.emPreparacao} hint={d.metricas.hintPreparacao} href="/eventos" />
         </MetricStrip>
       )}
       {d.tipo === "requisitante" && (
@@ -153,7 +153,7 @@ export default async function PainelPage() {
           {d.tipo === "operacao" && (
             <Section
               titulo="Fila de resposta"
-              sub="Ordenada por prazo. Solicitações de um item só podem ser respondidas aqui mesmo."
+              sub="Ordenada por prazo. Solicitações de um item só podem ser atendidas direto daqui."
               acoes={
                 responde && d.fila.length > 0 ? (
                   <ButtonLink href={`/solicitacoes/${d.fila[0].id}?fila=1`} variant="primary" size="sm" className="no-underline">
@@ -217,37 +217,6 @@ export default async function PainelPage() {
 
         <div className="flex flex-col gap-5">
           <Agenda itens={d.agenda} />
-
-          {d.tipo === "operacao" && (
-            <Section
-              titulo="Estoque em risco"
-              sub="Pico de demanda acima do estoque próprio."
-              acoes={
-                <Link href="/consolidacao" className="link text-[12.5px]">
-                  Ver tudo
-                </Link>
-              }
-            >
-              {d.riscos.length === 0 && <p className="m-0 px-[18px] py-6 text-center text-[12.5px] text-muted">O estoque cobre a demanda dos próximos 30 dias.</p>}
-              {d.riscos.map((r) => (
-                <div key={r.pecaId} className="border-b border-line-faint px-[18px] py-[11px] last:border-b-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-[12.5px] font-medium">{r.codigo}</span>
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-2">{r.nome}</span>
-                    <span className="font-mono text-[12.5px] font-medium text-danger">−{r.falta}</span>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="relative block h-[5px] flex-1 overflow-hidden rounded-[3px] bg-line-soft" role="img" aria-label={`Estoque cobre ${Math.round((r.estoque / r.pico) * 100)}% do pico`}>
-                      <span className="absolute left-0 top-0 block h-[5px] bg-dark" style={{ width: `${Math.min(100, Math.round((r.estoque / r.pico) * 100))}%` }} />
-                    </span>
-                    <span className="text-[11.5px] text-muted">
-                      <span className="font-mono">{r.pico}</span> necessárias · <span className="font-mono">{r.estoque}</span> em estoque
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </Section>
-          )}
 
           {d.tipo === "requisitante" && (
             <section className="rounded-[10px] bg-dark p-[18px]">

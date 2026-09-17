@@ -148,6 +148,9 @@ export type LinhaAtaDetalhe = Awaited<ReturnType<typeof obterLinhasAta>>[number]
  * Histórico do evento. Quem não tem `historico.ver_tudo` (requisitante, cenografia) vê o que é do evento
  * e da ata, mais o que diz respeito às solicitações da própria área — não motivos e observações de outras áreas.
  */
+/** Ações cujo texto carrega o motivo/observação da logística — visíveis só para a própria área. */
+export const ACOES_COM_MOTIVO = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "PECA_PROJETO_AJUSTADA"];
+
 export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string, limite = 300) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
@@ -157,7 +160,8 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
     : and(
         eq(historico.eventoId, eventoId),
         or(
-          inArray(historico.entidade, ["evento", "evento_item"]),
+          eq(historico.entidade, "evento"),
+          and(eq(historico.entidade, "evento_item"), or(notInArray(historico.acao, ACOES_COM_MOTIVO), sql`${historico.entidadeId} in (select id from evento_itens where area_id = ${areaId} or area_id is null)`)),
           and(eq(historico.entidade, "solicitacao"), sql`${historico.entidadeId} in (select id from solicitacoes where area_id = ${areaId})`),
           and(
             eq(historico.entidade, "solicitacao_item"),
@@ -404,7 +408,7 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
 export async function solicitacoesPendentes(ex: Executor, eventoId: string) {
   return ex.query.solicitacoes.findMany({
     where: and(eq(solicitacoes.eventoId, eventoId), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false)),
-    columns: { id: true, codigo: true, tipo: true, status: true, titulo: true },
+    columns: { id: true, codigo: true, tipo: true, status: true, titulo: true, areaId: true },
   });
 }
 
@@ -498,8 +502,10 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       patch.reuniaoIniciadaEm = agora;
     }
     if (acao === "VOLTAR_PREPARACAO") {
-      // Reunião adiada: o horário de início vale para a próxima vez que ela começar.
+      // Reunião adiada: início, presentes e conferências valem para a próxima reunião, do zero.
       patch.reuniaoIniciadaEm = null;
+      patch.reuniaoPresentes = null;
+      await tx.update(eventoItens).set({ conferidoEm: null, conferidoPorId: null }).where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true)));
     }
 
     if (acao === "FECHAR_ATA") {
@@ -520,9 +526,11 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       }
       // A ata só fecha depois de a logística conferir cada linha na reunião e registrar quem estava presente.
       const [naoConferidas] = await tx
-        .select({ n: count() })
+        .select({ n: count(), total: sql<number>`count(*)` })
         .from(eventoItens)
         .where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+      const [ativas] = await tx.select({ n: count() }).from(eventoItens).where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true)));
+      if (Number(ativas.n) === 0) throw new DomainError("A ata não tem nenhuma linha. Inclua os itens do evento antes de fechar.");
       const nc = Number(naoConferidas.n);
       if (nc > 0) {
         throw new DomainError(`Ainda há ${nc} ${nc === 1 ? "linha da ata sem conferência" : "linhas da ata sem conferência"}. Marque cada item ou projeto como conferido na reunião antes de fechar.`);
@@ -645,7 +653,8 @@ export async function salvarObservacoesReuniao(usuario: UsuarioAtual, id: string
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, id) });
   if (!ev) throw new NaoEncontradoError("Evento");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("Observações só podem ser editadas antes de fechar a ata.");
-  await db.update(eventos).set({ observacoesReuniao: observacoes }).where(eq(eventos.id, id));
+  const r = await db.update(eventos).set({ observacoesReuniao: observacoes }).where(and(eq(eventos.id, id), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]))).returning({ id: eventos.id });
+  if (r.length === 0) throw new DomainError("A ata acabou de ser fechada; as observações ficaram como estavam.");
 }
 
 export type DadosReuniao = {
@@ -664,7 +673,8 @@ export async function salvarDadosReuniao(usuario: UsuarioAtual, id: string, dado
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, id) });
   if (!ev) throw new NaoEncontradoError("Evento");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("Os dados da reunião só podem ser editados antes de fechar a ata.");
-  await db.update(eventos).set(dados).where(eq(eventos.id, id));
+  const r = await db.update(eventos).set(dados).where(and(eq(eventos.id, id), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]))).returning({ id: eventos.id });
+  if (r.length === 0) throw new DomainError("A ata acabou de ser fechada; os dados ficaram como estavam.");
 }
 
 /** Marca (ou desmarca) uma linha da ata como conferida na reunião. Pré-requisito para fechar a ata. */
@@ -675,6 +685,7 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
+    await bloquearEvento(tx, eventoId);
     const [linha] = await tx
       .update(eventoItens)
       .set(conferida ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : { conferidoEm: null, conferidoPorId: null })
@@ -722,11 +733,12 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
 /* Linhas da ata (inclusão direta / ajuste da logística)                */
 /* ------------------------------------------------------------------ */
 
-export async function snapshotBom(ex: Executor, projetoId: string): Promise<{ versaoId: string; numero: number; bom: BomSnapshotLinha[] }> {
+/** Lista de peças do projeto: a versão atual ou, quando informada, a versão que a área pediu. */
+export async function snapshotBom(ex: Executor, projetoId: string, versaoId?: string | null): Promise<{ versaoId: string; numero: number; bom: BomSnapshotLinha[] }> {
   const p = await ex.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
-  if (!p) throw new NaoEncontradoError("Projeto padrão");
+  if (!p || !p.ativo) throw new NaoEncontradoError("Projeto padrão");
   const v = await ex.query.projetoVersoes.findFirst({
-    where: and(eq(projetoVersoes.projetoId, projetoId), eq(projetoVersoes.numero, p.versaoAtual)),
+    where: versaoId ? and(eq(projetoVersoes.projetoId, projetoId), eq(projetoVersoes.id, versaoId)) : and(eq(projetoVersoes.projetoId, projetoId), eq(projetoVersoes.numero, p.versaoAtual)),
     with: { itens: { with: { peca: true } } },
   });
   if (!v) throw new NaoEncontradoError("Versão do projeto");
@@ -770,9 +782,13 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
       throw new ValidacaoError("Quantidade deve ser um inteiro entre 1 e 1.000.000.", { quantidade: "Informe um valor maior que zero." });
     }
 
+    if (dados.areaId) {
+      const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, dados.areaId), eq(areas.ativo, true)), columns: { id: true } });
+      if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
+    }
     let valores: typeof eventoItens.$inferInsert;
-    // Linha incluída pela própria logística na reunião já nasce conferida.
-    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id, ...(geraOs ? {} : { conferidoEm: new Date(), conferidoPorId: usuario.id }) };
+    // Linha incluída pela própria logística durante a reunião já nasce conferida; antes dela, é conferida na reunião.
+    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id, ...(ev.status === "EM_REUNIAO" ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : {}) };
     if (dados.referenciaTipo === "PROJETO") {
       if (!dados.projetoId) throw new ValidacaoError("Escolha o projeto padrão.");
       const snap = await snapshotBom(tx, dados.projetoId);
@@ -830,6 +846,7 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
     if (!linha) throw new NaoEncontradoError("Linha da ata");
     const desc = descricaoLinha(linha);
     const remover = quantidade <= 0;
+    if (!remover && quantidade === linha.quantidade) throw new ValidacaoError("A quantidade informada é a mesma que já está na ata.", { quantidade: "Informe outro valor." });
     await tx
       .update(eventoItens)
       .set(remover ? { ativo: false, removidoEm: new Date(), removidoPorId: usuario.id, justificativaAjuste: justificativa } : { quantidade, justificativaAjuste: justificativa })
@@ -881,7 +898,8 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
     if (ajustePeca) throw new DomainError("Este projeto teve peças ajustadas uma a uma neste evento. Atualizar a versão apagaria esses ajustes; se quiser mesmo, ajuste as peças de novo depois de incluir a nova versão.");
     // A linha veio de uma solicitação com peças ajustadas? Os ajustes valem também na versão nova.
     const origem = linha.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.solicitacaoItemId), columns: { ajustesBom: true } }) : null;
-    await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, origem?.ajustesBom) }).where(eq(eventoItens.id, linhaId));
+    const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
+    await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, origem?.ajustesBom), ...(antesDaAta ? { conferidoEm: null, conferidoPorId: null } : {}) }).where(eq(eventoItens.id, linhaId));
     await registrarHistorico(tx, {
       eventoId,
       entidade: "evento_item",

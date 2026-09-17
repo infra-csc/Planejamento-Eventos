@@ -8,7 +8,7 @@ import { listarAreas } from "@/server/services/admin";
 import { getDb } from "@/server/db";
 import { podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEnviar } from "@/domain/solicitacao";
-import { NaoEncontradoError } from "@/domain/errors";
+import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
 import { PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
@@ -23,6 +23,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   const rascunho = sp.rascunho
     ? await obterSolicitacao(usuario, sp.rascunho).catch((e) => {
         if (e instanceof NaoEncontradoError) notFound();
+        if (e instanceof DomainError && e.code === "SEM_PERMISSAO") redirect("/sem-permissao");
         throw e;
       })
     : null;
@@ -60,7 +61,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       justificativa: i.justificativa ?? "",
       ajustes: Object.fromEntries((i.ajustesBom ?? []).map((a) => [a.pecaId, a.quantidade])),
       rotulo: descricaoItem(i),
-      meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "item avulso",
+      meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "fora do catálogo",
     })) ?? [];
 
   const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : null);

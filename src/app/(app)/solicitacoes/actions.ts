@@ -73,6 +73,7 @@ export async function cancelarSolicitacaoAction(_prev: ActionResult, formData: F
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
   const motivo = String(formData.get("justificativa") ?? "").trim() || null;
+  if (motivo && motivo.length > 500) return { ok: false, erro: "A justificativa deve ter no máximo 500 caracteres." };
   const r = await executar(() => cancelarSolicitacao(usuario, id, motivo), "Solicitação cancelada");
   revalidarTudo();
   return r;
@@ -81,7 +82,8 @@ export async function cancelarSolicitacaoAction(_prev: ActionResult, formData: F
 export async function devolverSolicitacaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
-  const motivo = String(formData.get("justificativa") ?? "");
+  const motivo = String(formData.get("justificativa") ?? "").trim();
+  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." };
   const r = await executar(() => devolverSolicitacao(usuario, id, motivo), "Solicitação devolvida — volta como rascunho para a área");
   revalidarTudo();
   return r;

@@ -249,7 +249,7 @@ export function NovaSolicitacaoForm({
     }
     setErroAvulso(null);
     setAvulso("");
-    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", ajustes: {}, rotulo: d, meta: "item avulso" }]);
+    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
   };
 
   const adicionarLinha = (l: LinhaAta, operacao: "ALTERAR_QUANTIDADE" | "REMOVER") => {
@@ -358,7 +358,7 @@ export function NovaSolicitacaoForm({
     });
   };
 
-  const abas: Array<[Modo, string]> = [["projeto", "Projeto padrão"], ["peca", "Peça do catálogo"], ["avulso", "Outro item (descrever)"], ...(ehAlteracao ? ([["ata", "Alterar linha da ata"]] as Array<[Modo, string]>) : [])];
+  const abas: Array<[Modo, string]> = [["projeto", "Projeto padrão"], ["peca", "Peça do catálogo"], ["avulso", "Outro item (fora do catálogo)"], ...(ehAlteracao ? ([["ata", "Alterar linha da ata"]] as Array<[Modo, string]>) : [])];
   const faltaTudo = tentouEnviar && (itens.length === 0 || !titulo.trim());
 
   return (
@@ -556,7 +556,7 @@ export function NovaSolicitacaoForm({
             <div>
               <div className="flex gap-2">
                 <input
-                  aria-label="Descrição do item avulso"
+                  aria-label="Descrição do item fora do catálogo"
                   value={avulso}
                   onChange={(e) => setAvulso(e.target.value)}
                   onKeyDown={(e) => {
