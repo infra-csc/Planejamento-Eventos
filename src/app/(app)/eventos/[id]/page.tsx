@@ -6,7 +6,7 @@ import { obterEventoCache } from "@/server/cache";
 import { pode } from "@/domain/permissions";
 import { totalPecas } from "@/domain/os";
 import { classificarHistorico, COR_HISTORICO } from "@/domain/historico";
-import { diaMes, diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
 import { Tag } from "@/components/ui/badge";
@@ -85,7 +85,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   const galeria = [...grupos.values()].sort((a, b) => b.quantidade - a.quantidade);
 
   const dEvento = diasAte(ev.dataInicio);
-  const dReuniao = diasAte(ev.dataReuniao.toISOString().slice(0, 10));
+  const dReuniao = diasAte(isoSP(ev.dataReuniao));
   const fase =
     ev.status === "PREPARACAO"
       ? { rotulo: "Em preparação", valor: contagem(dReuniao, "reunião é hoje", "reunião foi"), sub: `As áreas enviam necessidades até a reunião de OS, ${diaMesHora(ev.dataReuniao)}.`, tom: "neutro" as const }
