@@ -40,7 +40,8 @@ function AtalhoBusca() {
 function IconeNav({ href }: { href: string }) {
   const d: Record<string, React.ReactNode> = {
     "/": <path d="M3 11.5 12 4l9 7.5M5 10v10h14V10" />,
-    "/eventos": <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+    "/eventos": <><path d="M4 4h16v6H4zM4 14h7v6H4zM15 14h5v6h-5z" /></>,
+    "/calendario": <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><circle cx="9" cy="15" r="1" fill="currentColor" /><circle cx="15" cy="15" r="1" fill="currentColor" /></>,
     "/solicitacoes": <><path d="M6 3h9l5 5v13H6z" /><path d="M14 3v6h6M9 13h7M9 17h7" /></>,
     "/arena": <><path d="M3 9l9-5 9 5-9 5z" /><path d="M3 9v6l9 5 9-5V9" /></>,
     "/consolidacao": <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,

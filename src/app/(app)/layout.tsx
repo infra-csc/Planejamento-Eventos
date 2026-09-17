@@ -27,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const nav: NavItem[] = [
     { href: "/", label: "Painel", exato: true },
     { href: "/eventos", label: "Eventos" },
+    { href: "/calendario", label: "Calendário" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     { href: "/arena", label: "Arena 3D", secao: "Operação" },
     ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Consolidação", secao: "Operação" }] : []),
