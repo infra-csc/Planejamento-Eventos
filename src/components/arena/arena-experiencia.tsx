@@ -11,10 +11,11 @@ import type { Qualidade } from "./cena/materiais";
 import { PainelAta, PainelPonto, PainelSemPosicao, type PosicionarItem } from "./painel-ponto";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { removerPosicaoArenaAction, salvarPosicaoArenaAction } from "@/app/(app)/arena/actions";
+import { removerPosicaoArenaAction, restaurarPlantaArenaFormAction, salvarPosicaoArenaAction } from "@/app/(app)/arena/actions";
 import { toast, toastErro } from "@/components/ui/toast";
 import { Badge, ChipMono } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input, Select } from "@/components/ui/field";
 import { IconeLapis } from "@/components/ui/icons";
 import { EmptyState, Kbd, Meta, PageHeader, RotuloGrupo } from "@/components/ui/layout";
@@ -94,10 +95,29 @@ function BotaoMapa({
   );
 }
 
+/**
+ * O que a logística mais acrescenta no mapa: obstáculos do terreno e apoios simples.
+ * Um clique escolhe o item, o próximo clique põe no lugar — sem formulário antes.
+ */
+const ATALHOS_ITEM: Array<{ nome: string; categoria: string }> = [
+  { nome: "Árvore", categoria: "obstaculo" },
+  { nome: "Bueiro", categoria: "obstaculo" },
+  { nome: "Poste", categoria: "obstaculo" },
+  { nome: "Desnível / rampa", categoria: "obstaculo" },
+  { nome: "Grade / barreira", categoria: "operacao" },
+  { nome: "Tenda extra", categoria: "operacao" },
+  { nome: "Banheiro químico", categoria: "operacao" },
+  { nome: "Ponto de energia", categoria: "operacao" },
+];
+
 export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, editadas = [] }: { arena: Arena; podeEditar?: boolean; editadas?: string[] }) {
   const router = useRouter();
   const [salvando, iniciarSalvar] = useTransition();
   const [editando, setEditando] = useState(false);
+  const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
+  const [menuItens, setMenuItens] = useState(false);
+  /** Última mudança feita nesta sessão de edição, para o botão "Desfazer". */
+  const [ultima, setUltima] = useState<{ chave: string; nome: string; anterior: { x: number; z: number } | null } | null>(null);
   const [colocando, setColocando] = useState<PosicionarItem | null>(null);
   // Formulário do banner de edição: item novo (fora da planta) ou nome/categoria do ponto selecionado.
   const [formEdicao, setFormEdicao] = useState<{ modo: "novo" | "info"; nome: string; categoria: string } | null>(null);
@@ -466,7 +486,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   /* Edição de posições (logística)                                       */
   /* ------------------------------------------------------------------ */
 
-  const salvarPosicao = (dados: Parameters<typeof salvarPosicaoArenaAction>[1], rotulo: string) => {
+  const salvarPosicao = (dados: Parameters<typeof salvarPosicaoArenaAction>[1], rotulo: string, silencioso = false) => {
     iniciarSalvar(async () => {
       const r = await salvarPosicaoArenaAction(arena.slug, dados);
       if (!r.ok) {
@@ -478,15 +498,37 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         });
         return;
       }
-      toast(rotulo);
+      // Arrastar salva a cada solta: um aviso por arrasto viraria ruído. O estado aparece na barra.
+      if (!silencioso) toast(rotulo);
       router.refresh();
     });
   };
+
+  /** Guarda onde o ponto estava antes desta mudança, para o "Desfazer" da barra de edição. */
+  const registrarDesfazer = (chave: string, nome: string) => {
+    const antes = idsEditados.has(chave) ? arena.pontos.find((p) => p.id === chave) : null;
+    setUltima({ chave, nome, anterior: antes ? { x: antes.posicao[0], z: antes.posicao[1] } : null });
+  };
+
+  // Esc sai do modo "clique no mapa" sem ter de achar o botão Cancelar.
+  useEffect(() => {
+    if (!colocando && !menuItens) return;
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setColocando(null);
+      setMenuItens(false);
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [colocando, menuItens]);
 
   const alternarEdicao = () => {
     if (editando) {
       setEditando(false);
       setColocando(null);
+      setMenuItens(false);
+      setFormEdicao(null);
+      setUltima(null);
       return;
     }
     setEditando(true);
@@ -502,14 +544,17 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         onMover: (id: string, x: number, z: number) => {
           const p = arena.pontos.find((q) => q.id === id);
           if (!p) return;
+          registrarDesfazer(id, p.nome);
           setLocais((l) => ({ ...l, [id]: [x, z] }));
-          salvarPosicao({ chave: id, tipo: id.startsWith("novo:") ? "NOVO" : "MOVER", x, z, nome: p.nome, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null }, `${p.nome}: posição salva`);
+          salvarPosicao({ chave: id, tipo: id.startsWith("novo:") ? "NOVO" : "MOVER", x, z, nome: p.nome, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null }, "", true);
         },
         onColocar: (x: number, z: number) => {
           if (!colocando) return;
           const item = colocando;
           setColocando(null);
-          salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} posicionado no mapa`);
+          registrarDesfazer(item.chave, item.nome);
+          setSelecionado(item.chave);
+          salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} entrou no mapa — arraste para acertar o lugar`);
         },
       }
     : null;
@@ -542,6 +587,32 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       `${nome}: dados salvos`,
     );
     setFormEdicao(null);
+  };
+  const desfazerUltima = () => {
+    if (!ultima) return;
+    const alvo = ultima;
+    setUltima(null);
+    if (!alvo.anterior) {
+      // Não havia edição antes: apagar o registro devolve o ponto à planta (ou tira o item novo do mapa).
+      return desfazerPosicao(alvo.chave, alvo.nome);
+    }
+    const p = arena.pontos.find((q) => q.id === alvo.chave);
+    setLocais((l) => ({ ...l, [alvo.chave]: [alvo.anterior!.x, alvo.anterior!.z] }));
+    salvarPosicao(
+      { chave: alvo.chave, tipo: alvo.chave.startsWith("novo:") ? "NOVO" : "MOVER", x: alvo.anterior.x, z: alvo.anterior.z, nome: p?.nome ?? alvo.nome, itemAta: p?.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null },
+      `${alvo.nome}: mudança desfeita`,
+    );
+  };
+
+  // Mapa inteiro de volta à planta do evento: usado quando a edição saiu do controle.
+  const aposRestaurar = () => {
+    setSelecionado(null);
+    setFormEdicao(null);
+    setColocando(null);
+    setUltima(null);
+    setLocais({});
+    setConfirmarRestaurar(false);
+    router.refresh();
   };
   const desfazerPosicao = (id: string, nome: string) => {
     iniciarSalvar(async () => {
@@ -907,6 +978,17 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                 {editando ? "Concluir edição" : "Editar"}
               </Button>
             )}
+            {podeEditar && editando && (
+              <Button
+                size="xs"
+                disabled={salvando || idsEditados.size === 0}
+                title={idsEditados.size === 0 ? "O mapa já está igual à planta original" : `Descartar ${idsEditados.size} ${idsEditados.size === 1 ? "edição" : "edições"} e voltar à planta do evento`}
+                onClick={() => setConfirmarRestaurar(true)}
+                className={cn(botaoCanto, "text-danger")}
+              >
+                Restaurar planta original
+              </Button>
+            )}
             <Button size="xs" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao} className={botaoCanto}>
               {foraDoMapa} sem posição
             </Button>
@@ -1076,55 +1158,95 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           />
         )}
         {editando && (
-          <div role="status" className="pointer-events-auto absolute left-1/2 top-16 z-20 flex max-w-[94%] -translate-x-1/2 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-cartao border border-accent bg-surface px-3.5 py-2.5 shadow-popover">
-            <span className="text-pequeno text-ink-2">
+          <div className="pointer-events-auto absolute left-1/2 top-16 z-20 flex w-[min(94%,760px)] -translate-x-1/2 flex-col gap-2 rounded-cartao border border-accent bg-surface px-3.5 py-2.5 shadow-popover">
+            {/* Linha fixa: o que fazer agora, sempre no mesmo lugar. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span role="status" className="min-w-0 flex-1 text-pequeno text-ink-2">
+                {colocando ? (
+                  <>
+                    Clique no mapa para pôr <span className="font-medium text-ink">{colocando.nome}</span>. <Kbd>Esc</Kbd> cancela.
+                  </>
+                ) : formEdicao ? (
+                  <span className="font-medium text-accent">{formEdicao.modo === "novo" ? "Descreva o item que você quer acrescentar." : "Renomeie ou troque a categoria do ponto."}</span>
+                ) : (
+                  <>
+                    <span className="font-medium text-accent">Editando o mapa.</span> Arraste um ponto para mover. Para acrescentar algo que não está na planta, use “Adicionar”.
+                  </>
+                )}
+                <span className="ml-2 text-meta">{salvando ? "salvando…" : idsEditados.size > 0 ? `${idsEditados.size} ${idsEditados.size === 1 ? "edição" : "edições"}` : "igual à planta"}</span>
+              </span>
               {colocando ? (
-                <>
-                  Clique no mapa para posicionar <span className="font-medium text-ink">{colocando.nome}</span>.
-                </>
+                <Button size="xs" onClick={() => setColocando(null)}>
+                  Cancelar
+                </Button>
               ) : (
                 <>
-                  <span className="font-medium text-accent">Editando posições.</span> Arraste um ponto para mover, ou use “Posicionar” em “Sem posição”.
+                  <Button variant="primary" size="xs" aria-expanded={menuItens} onClick={() => setMenuItens((v) => !v)}>
+                    Adicionar {menuItens ? "▴" : "▾"}
+                  </Button>
+                  <Button size="xs" disabled={!ultima || salvando} title={ultima ? `Desfazer: ${ultima.nome}` : "Nada para desfazer nesta sessão"} onClick={desfazerUltima}>
+                    Desfazer
+                  </Button>
                 </>
               )}
-              {salvando && <span className="ml-2 text-meta">salvando…</span>}
-            </span>
-            {colocando && (
-              <Button size="xs" onClick={() => setColocando(null)}>
-                Cancelar
-              </Button>
+            </div>
+
+            {/* Atalhos: um clique escolhe, o próximo clique põe no mapa. */}
+            {menuItens && !colocando && (
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-line-soft pt-2">
+                <span className="text-rotulo uppercase tracking-[0.06em] text-muted">O que já existe no local ou falta na planta</span>
+                <span className="flex flex-wrap gap-1.5">
+                  {ATALHOS_ITEM.map((a) => (
+                    <Button
+                      key={a.nome}
+                      size="xs"
+                      title={`Clique aqui e depois no mapa para pôr "${a.nome}"`}
+                      onClick={() => {
+                        setMenuItens(false);
+                        setFormEdicao(null);
+                        setColocando({ chave: `novo:livre:${Date.now().toString(36)}`, nome: a.nome, itemAta: null, categoria: a.categoria });
+                      }}
+                    >
+                      {a.nome}
+                    </Button>
+                  ))}
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => {
+                      setMenuItens(false);
+                      setFormEdicao({ modo: "novo", nome: "", categoria: "obstaculo" });
+                    }}
+                  >
+                    Outro…
+                  </Button>
+                </span>
+              </div>
             )}
-            {!colocando && !formEdicao && (
-              <Button variant="primary" size="xs" onClick={() => setFormEdicao({ modo: "novo", nome: "", categoria: "operacao" })}>
-                + Novo item
-              </Button>
-            )}
-            {!colocando && !formEdicao && pontoSelecionadoEdicao && (
-              <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
-                Editar {pontoSelecionadoEdicao.nome}
-              </Button>
-            )}
+
+            {/* Formulário: só para item com nome próprio ou para renomear um ponto. */}
             {formEdicao && (
               <form
-                className="flex w-full flex-wrap items-center gap-2 border-t border-line-soft pt-2"
+                className="flex flex-wrap items-end gap-2 border-t border-line-soft pt-2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   confirmarFormEdicao();
                 }}
               >
-                <span className="text-pequeno font-medium text-ink">{formEdicao.modo === "novo" ? "Item fora da planta:" : "Editar ponto:"}</span>
-                <Input
-                  autoFocus
-                  aria-label="Nome do item"
-                  value={formEdicao.nome}
-                  onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })}
-                  placeholder="Ex.: Tenda de hidratação extra"
-                  className="min-w-[200px] flex-1"
-                />
-                <label htmlFor="edicao-categoria" className="sr-only">
-                  Categoria
-                </label>
-                <span className="w-[180px]">
+                <span className="min-w-[200px] flex-1">
+                  <Input
+                    autoFocus
+                    aria-label="Nome do item"
+                    value={formEdicao.nome}
+                    onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })}
+                    placeholder="Ex.: Árvore baixa em cima do acesso"
+                    className="w-full"
+                  />
+                </span>
+                <span className="w-[190px]">
+                  <label htmlFor="edicao-categoria" className="sr-only">
+                    Categoria
+                  </label>
                   <Select
                     id="edicao-categoria"
                     value={formEdicao.categoria}
@@ -1133,18 +1255,45 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                     opcoes={Object.entries(CATEGORIAS).map(([id, c]) => ({ value: id, label: c.rotulo }))}
                   />
                 </span>
-                <Button type="submit" variant="primary">
+                <Button type="submit" variant="primary" size="sm">
                   {formEdicao.modo === "novo" ? "Escolher lugar no mapa" : "Salvar"}
                 </Button>
-                <Button onClick={() => setFormEdicao(null)}>Cancelar</Button>
+                <Button size="sm" onClick={() => setFormEdicao(null)}>
+                  Cancelar
+                </Button>
               </form>
             )}
-            {pontoEditado && (
-              <Button size="xs" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
-                {pontoEditado.id.startsWith("novo:livre:") ? `Excluir ${pontoEditado.nome}` : pontoEditado.id.startsWith("novo:") ? `Tirar ${pontoEditado.nome} do mapa` : `Desfazer ajustes de ${pontoEditado.nome}`}
-              </Button>
+
+            {/* Ações do ponto selecionado: sempre na última linha, sem empurrar o resto. */}
+            {!colocando && !formEdicao && pontoSelecionadoEdicao && (
+              <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-2">
+                <span className="min-w-0 flex-1 truncate text-pequeno text-ink-2">
+                  Selecionado: <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span>
+                </span>
+                <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
+                  Renomear
+                </Button>
+                {pontoEditado && (
+                  <Button size="xs" variant="recusar" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
+                    {pontoEditado.id.startsWith("novo:livre:") ? "Excluir do mapa" : pontoEditado.id.startsWith("novo:") ? "Tirar do mapa" : "Voltar ao lugar da planta"}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
+        )}
+        {confirmarRestaurar && (
+          <ConfirmDialog
+            open
+            onOpenChange={(o) => !o && setConfirmarRestaurar(false)}
+            title="Restaurar a planta original"
+            description={`${idsEditados.size === 1 ? "A única edição do mapa é descartada" : `Todas as ${idsEditados.size} edições do mapa são descartadas`}: os pontos voltam ao lugar da planta do evento e os itens acrescentados saem do mapa. Fica registrado quem restaurou.`}
+            confirmLabel="Restaurar planta original"
+            danger
+            action={restaurarPlantaArenaFormAction}
+            hidden={{ slug: arena.slug }}
+            onSuccess={aposRestaurar}
+          />
         )}
       </div>
     </div>

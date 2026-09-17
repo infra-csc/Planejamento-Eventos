@@ -8,7 +8,7 @@ import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
 import type { EventoStatus } from "@/server/db/schema";
 
 /** Ações de exceção do evento, fora do cabeçalho: adiar a reunião e cancelar. */
-export function SituacaoEvento({ eventoId, codigo, status }: { eventoId: string; codigo: string; status: EventoStatus }) {
+export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { eventoId: string; codigo: string; status: EventoStatus; /** Linhas já conferidas: avisam o que a volta à preparação descarta. */ conferidas?: number }) {
   const [aberto, setAberto] = useState<"VOLTAR_PREPARACAO" | "CANCELAR" | null>(null);
   if (status !== "PREPARACAO" && status !== "EM_REUNIAO" && status !== "ABERTO") return null;
   return (
@@ -40,7 +40,11 @@ export function SituacaoEvento({ eventoId, codigo, status }: { eventoId: string;
           open
           onOpenChange={(o) => !o && setAberto(null)}
           title={aberto === "CANCELAR" ? `Cancelar ${codigo}` : `Adiar a reunião de ${codigo}`}
-          description={aberto === "CANCELAR" ? "O evento e as solicitações em aberto são cancelados. As áreas são notificadas." : "As áreas voltam a poder enviar necessidades até a nova data da reunião."}
+          description={
+            aberto === "CANCELAR"
+              ? "O evento e as solicitações em aberto são cancelados. As áreas são notificadas."
+              : `As áreas voltam a poder enviar necessidades até a nova data da reunião.${conferidas > 0 ? ` As ${conferidas} ${conferidas === 1 ? "conferência já feita é descartada" : "conferências já feitas são descartadas"} e a lista de presentes também: a próxima reunião confere tudo de novo.` : ""}`
+          }
           confirmLabel={aberto === "CANCELAR" ? "Cancelar evento" : "Voltar para preparação"}
           danger={aberto === "CANCELAR"}
           reasonLabel="Justificativa"

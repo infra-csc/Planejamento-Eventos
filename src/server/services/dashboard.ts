@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, gt, inArray, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventos, solicitacaoItens, solicitacoes, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, solicitacaoItens, solicitacoes, usuarios, type EventoStatus, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { ehRequisitante, pode } from "@/domain/permissions";
 import { addDiasISO, diaMesHora, diaMesISO, diaSemanaCurto, hojeISO, hora, isoSP } from "@/lib/format";
+import { aguardaReuniao } from "@/domain/solicitacao";
 import { descricaoItem } from "./solicitacoes";
 
 /**
@@ -93,7 +94,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
       });
     }
     if (e.dataCarga && e.dataCarga >= hoje && e.dataCarga <= limite14) {
-      agenda.push({ chave: `c-${e.id}`, ordem: new Date(`${e.dataCarga}T09:00:00Z`).getTime(), dia: diaMesISO(e.dataCarga), titulo: `Carga do caminhão · ${e.nome}`, sub: "OS final precisa estar estável", tipo: "carga", href: `/eventos/${e.id}` });
+      agenda.push({ chave: `c-${e.id}`, ordem: new Date(`${e.dataCarga}T09:00:00Z`).getTime(), dia: diaMesISO(e.dataCarga), titulo: `Carga do caminhão · ${e.nome}`, sub: pode(usuario, "os.ver") ? "OS final precisa estar estável" : "o que estiver no evento até aqui é o que embarca", tipo: "carga", href: `/eventos/${e.id}` });
     }
     if (e.dataMontagem >= hoje && e.dataMontagem <= limite14) {
       agenda.push({ chave: `m-${e.id}`, ordem: new Date(`${e.dataMontagem}T10:00:00Z`).getTime(), dia: diaMesISO(e.dataMontagem), titulo: `Montagem · ${e.nome}`, sub: e.local || "—", tipo: "montagem", href: `/eventos/${e.id}` });
@@ -109,6 +110,9 @@ export async function dadosPainel(usuario: UsuarioAtual) {
 
 
   if (req) {
+    // Eventos em que a área está metida: é por evento que o solicitante pensa, não por solicitação.
+    const meusEventos = usuario.areaId ? await resumoEventosDaArea(db, usuario.areaId, hoje) : [];
+    const mudancas = await mudancasRecentes(db, meusEventos.map((e) => e.id), usuario.areaId);
     // Só o que o painel mostra: abertas/rascunhos (fila) e respondidas dos últimos 7 dias.
     // Sem isso o histórico inteiro da área viria a cada visita.
     const minhas = usuario.areaId
@@ -122,7 +126,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
             ),
           ),
           with: {
-            evento: { columns: { id: true, nome: true } },
+            evento: { columns: { id: true, nome: true, status: true } },
             area: true,
             itens: {
               with: { projeto: true, peca: true, eventoItem: { with: { projeto: true, peca: true } }, respondidoPor: { columns: { nome: true } } },
@@ -139,6 +143,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
       .sort((a, b) => (ordemStatus[a.status] ?? 9) - (ordemStatus[b.status] ?? 9) || porPrazo(a, b));
     const aguardando = minhas.filter((s) => s.status === "ENVIADA" || s.status === "EM_ANALISE").length;
     const rascunhos = minhas.filter((s) => s.status === "RASCUNHO" || s.status === "DEVOLVIDA");
+    // Necessidade pré-reunião com a ata ainda aberta não foi avaliada: entrou na ata e espera a reunião.
+    const naAta = (s: { tipo: "PRE_REUNIAO" | "ALTERACAO"; evento: { status: EventoStatus } }) => aguardaReuniao(s.tipo, s.evento.status);
     const respondidas = minhas.filter((s) => s.status === "RESPONDIDA").sort((a, b) => (b.respondidaEm?.getTime() ?? 0) - (a.respondidaEm?.getTime() ?? 0));
     const ressalvas = (s: (typeof minhas)[number]) => s.itens.filter((i) => i.status === "PARCIAL" || i.status === "NAO_ATENDIDO").length;
     const recentes7 = respondidas.filter((s) => s.respondidaEm && agora.getTime() - s.respondidaEm.getTime() <= 7 * 86_400_000);
@@ -148,12 +154,14 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     return {
       tipo: "requisitante" as const,
       agenda: agenda.slice(0, 6),
+      eventos: meusEventos,
+      mudancas,
       fila,
       metricas: {
         aguardando,
         rascunhos: rascunhos.length,
         temDevolvida: rascunhos.some((s) => s.status === "DEVOLVIDA"),
-        respondidas7: recentes7.length,
+        respondidas7: recentes7.filter((s) => !naAta(s)).length,
         comRessalva7,
         aceitando: nPrep + nAberto,
         nPrep,
@@ -165,6 +173,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
         titulo: s.titulo,
         eventoNome: s.evento.nome,
         ressalvas: ressalvas(s),
+        naAta: naAta(s),
         respondidoPor: s.itens.find((i) => i.respondidoPor)?.respondidoPor?.nome ?? "logística",
       })),
     };
@@ -184,6 +193,22 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   });
   const fila = abertas.map(paraFila).sort(porPrazo);
   const atrasadas = fila.filter((f) => f.prazoRespostaEm && f.prazoRespostaEm.getTime() < agora.getTime());
+  // Administrador: além da operação, o estado do cadastro (pessoas, áreas, o que falta vincular).
+  const sistema =
+    usuario.perfil === "ADMIN"
+      ? {
+          usuariosAtivos: (await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.ativo, true))).length,
+          areasAtivas: (await db.select({ id: areas.id }).from(areas).where(eq(areas.ativo, true))).length,
+          foraCatalogo: (
+            await db
+              .select({ id: eventoItens.id })
+              .from(eventoItens)
+              .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
+              .where(and(eq(eventoItens.tipo, "AVULSO"), eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])))
+          ).length,
+          eventosAtivos: evs.filter((e) => e.status !== "ENCERRADO").length,
+        }
+      : null;
 
   const dow = new Date(`${hoje}T12:00:00Z`).getUTCDay();
   const segunda = addDiasISO(hoje, -((dow + 6) % 7));
@@ -199,6 +224,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   return {
     tipo: "operacao" as const,
     agenda: agenda.slice(0, 6),
+    sistema,
     fila,
     reuniaoHoje: reuniaoHoje ? { id: reuniaoHoje.id, nome: reuniaoHoje.nome, hora: hora(reuniaoHoje.dataReuniao) } : null,
     reunioesHoje: reunioesAtivas.filter((e) => isoSP(e.dataReuniao) === hoje).map((e) => hora(e.dataReuniao)),
@@ -221,3 +247,100 @@ export async function dadosPainel(usuario: UsuarioAtual) {
 }
 
 export type DadosPainel = Awaited<ReturnType<typeof dadosPainel>>;
+
+/* ------------------------------------------------------------------ */
+/* Painel do solicitante: os eventos da área e o que mudou neles        */
+/* ------------------------------------------------------------------ */
+
+/** Ações que mexem no que vai ser montado depois que a ata já existe. */
+const ACOES_MUDANCA = ["ATA_INCLUSAO", "AJUSTE_INCLUSAO", "ATA_QUANTIDADE", "ATA_REMOCAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"];
+
+/** Um cartão por evento onde a área tem item ou pedido: fase, datas, quantos itens e o que mudou. */
+async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId: string, hoje: string) {
+  const linhas = await db
+    .select({
+      eventoId: eventoItens.eventoId,
+      id: eventoItens.id,
+      areaId: eventoItens.areaId,
+      quantidade: eventoItens.quantidade,
+      posAta: sql<boolean>`${eventoItens.criadoEm} > coalesce((select min(criado_em) from ata_versoes av where av.evento_id = ${eventoItens.eventoId}), 'infinity')`,
+    })
+    .from(eventoItens)
+    .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
+    .where(and(eq(eventoItens.ativo, true), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`));
+  const pedidos = await db
+    .select({ eventoId: solicitacoes.eventoId, status: solicitacoes.status })
+    .from(solicitacoes)
+    .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
+    .where(and(eq(solicitacoes.areaId, areaId), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA"), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`));
+
+  const ids = [...new Set([...linhas.filter((l) => l.areaId === areaId).map((l) => l.eventoId), ...pedidos.map((p) => p.eventoId)])];
+  if (ids.length === 0) return [];
+  const evs = await db.query.eventos.findMany({ where: inArray(eventos.id, ids), orderBy: [asc(eventos.dataInicio)] });
+  return evs.map((e) => {
+    const doEvento = linhas.filter((l) => l.eventoId === e.id);
+    const meus = doEvento.filter((l) => l.areaId === areaId);
+    return {
+      id: e.id,
+      codigo: e.codigo,
+      nome: e.nome,
+      cliente: e.cliente,
+      local: e.local,
+      status: e.status,
+      dataInicio: e.dataInicio,
+      dataFim: e.dataFim,
+      dataReuniao: e.dataReuniao.toISOString(),
+      ataFechada: Boolean(e.ataFechadaEm),
+      /** Itens da área e do evento inteiro: o solicitante vê o próprio pedido dentro do todo. */
+      meusItens: meus.length,
+      minhasUnidades: meus.reduce((a, l) => a + l.quantidade, 0),
+      itensNoEvento: doEvento.length,
+      depoisDaAta: doEvento.filter((l) => l.posAta).length,
+      aguardando: pedidos.filter((p) => p.eventoId === e.id && (p.status === "ENVIADA" || p.status === "EM_ANALISE")).length,
+      rascunhos: pedidos.filter((p) => p.eventoId === e.id && (p.status === "RASCUNHO" || p.status === "DEVOLVIDA")).length,
+    };
+  });
+}
+
+/** Últimas mudanças de item nos eventos da área. Motivo interno de outra área não vem junto. */
+async function mudancasRecentes(db: Awaited<ReturnType<typeof getDb>>, eventoIds: string[], areaId: string | null) {
+  if (eventoIds.length === 0) return [];
+  const rows = await db
+    .select({
+      id: historico.id,
+      eventoId: historico.eventoId,
+      entidadeId: historico.entidadeId,
+      acao: historico.acao,
+      descricao: historico.descricao,
+      criadoEm: historico.criadoEm,
+      autor: usuarios.nome,
+      eventoNome: eventos.nome,
+      linhaArea: eventoItens.areaId,
+      areaNome: areas.nome,
+      linhaAtiva: eventoItens.ativo,
+    })
+    .from(historico)
+    .innerJoin(eventos, eq(historico.eventoId, eventos.id))
+    .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
+    .leftJoin(eventoItens, eq(historico.entidadeId, eventoItens.id))
+    .leftJoin(areas, eq(eventoItens.areaId, areas.id))
+    .where(and(inArray(historico.eventoId, eventoIds), eq(historico.entidade, "evento_item"), inArray(historico.acao, ACOES_MUDANCA)))
+    .orderBy(desc(historico.criadoEm))
+    .limit(12);
+  return rows.map((r) => {
+    const daArea = r.linhaArea == null || r.linhaArea === areaId;
+    return {
+      id: r.id,
+      eventoId: r.eventoId!,
+      eventoNome: r.eventoNome,
+      quando: r.criadoEm.toISOString(),
+      autor: r.autor,
+      area: r.areaNome,
+      /** Fora da própria área o texto vem sem o motivo interno da logística. */
+      texto: daArea ? r.descricao : `Item de ${r.areaNome ?? "outra área"} ${r.acao === "ATA_REMOCAO" ? "saiu da OS" : r.acao === "ATA_INCLUSAO" || r.acao === "AJUSTE_INCLUSAO" ? "entrou na OS" : "foi ajustado"}`,
+      href: r.linhaAtiva ? `/eventos/${r.eventoId}/itens/${r.entidadeId}` : `/eventos/${r.eventoId}/historico`,
+      novo: r.acao === "ATA_INCLUSAO" || r.acao === "AJUSTE_INCLUSAO",
+      saiu: r.acao === "ATA_REMOCAO",
+    };
+  });
+}

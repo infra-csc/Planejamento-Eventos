@@ -1,5 +1,6 @@
 import { requirePermissao } from "@/server/auth/session";
-import { calcularOsAoVivo, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { calcularOsAoVivo, complementoOs, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { EnvioOs } from "@/components/eventos/envio-os";
 import { obterEventoCache } from "@/server/cache";
 import { diffOS, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
@@ -52,7 +53,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id)]);
+  const [ev, versoes, complemento] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id)]);
 
   if (versoes.length === 0) {
     // Antes do fechamento da ata, a logística confere o que a OS vai conter: mesma leitura, calculada ao vivo da ata em construção.
@@ -191,6 +192,14 @@ export default async function OsPage({ params, searchParams }: { params: Promise
       </div>
 
       <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">
+        <Section titulo="Envio ao carregamento" sub={complemento ? `Enviada: v${complemento.numero}` : "Ainda não enviada"}>
+          <EnvioOs
+            eventoId={id}
+            versaoAtual={atual.numero}
+            podeEnviar={pode(usuario, "ata.ajustar") && (ev.status === "ABERTO" || ev.status === "ENCERRADO")}
+            enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois })), avulsosNovos: complemento.avulsosNovos.length } : null}
+          />
+        </Section>
         <Section titulo="Exportar">
           <div className="px-[18px] py-3.5">
             <a href={`/api/os/${id}/excel${qsExport}`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>

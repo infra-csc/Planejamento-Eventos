@@ -139,7 +139,7 @@ export function RespostaProvider({
       if (k === "a") {
         e.preventDefault();
         void enviar(item, { status: "ATENDIDO" });
-      } else if (k === "p" && item.operacao !== "REMOVER" && item.quantidadeSolicitada > 1) {
+      } else if (k === "p" && temParcial(item)) {
         e.preventDefault();
         setEdicao({ id: item.id, modo: "PARCIAL" });
       } else if (k === "n") {
@@ -167,11 +167,21 @@ function resultado(i: ItemParaResposta) {
   return `${i.quantidadeAtendida ?? 0} de ${i.quantidadeSolicitada}`;
 }
 
+/** Faixa válida do parcial. Em "alterar quantidade", fica entre o que está na ata e o que foi pedido. */
+function faixaParcial(item: ItemParaResposta) {
+  if (item.operacao === "ALTERAR_QUANTIDADE" && item.quantidadeAtual != null) {
+    return { min: Math.min(item.quantidadeAtual, item.quantidadeSolicitada) + 1, max: Math.max(item.quantidadeAtual, item.quantidadeSolicitada) - 1 };
+  }
+  return { min: 1, max: item.quantidadeSolicitada - 1 };
+}
+const temParcial = (item: ItemParaResposta) => item.operacao !== "REMOVER" && faixaParcial(item).max >= faixaParcial(item).min;
+
 function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["modo"] }) {
   const { enviar, setEdicao, pendente } = useResposta();
   const corrigir = modo === "CORRIGIR";
   const [status, setStatus] = useState<Exclude<ItemStatus, "EM_ANALISE">>(corrigir ? (item.status === "EM_ANALISE" ? "ATENDIDO" : item.status) : modo);
-  const [qtd, setQtd] = useState<number>(corrigir && item.quantidadeAtendida ? item.quantidadeAtendida : Math.max(1, item.quantidadeSolicitada - 1));
+  const faixa = faixaParcial(item);
+  const [qtd, setQtd] = useState<number>(corrigir && item.quantidadeAtendida ? item.quantidadeAtendida : Math.min(faixa.max, Math.max(faixa.min, item.quantidadeSolicitada - 1)));
   const [obs, setObs] = useState(corrigir ? item.observacaoLogistica ?? "" : "");
   const [pendencia, setPendencia] = useState(corrigir ? item.pendenciaCompra : modo === "PARCIAL");
   const [justificativa, setJustificativa] = useState("");
@@ -179,8 +189,8 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
 
   const confirmar = async () => {
     if (pendente) return;
-    if (status === "PARCIAL" && (!Number.isInteger(qtd) || qtd < 1 || qtd >= item.quantidadeSolicitada)) {
-      setErro(`No parcial, a quantidade atendida fica entre 1 e ${item.quantidadeSolicitada - 1}.`);
+    if (status === "PARCIAL" && (!Number.isInteger(qtd) || qtd < faixa.min || qtd > faixa.max)) {
+      setErro(`No parcial, a quantidade fica entre ${faixa.min} e ${faixa.max}.`);
       return;
     }
     if (status !== "ATENDIDO" && !obs.trim()) {
@@ -211,8 +221,8 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           <label htmlFor={`qtd-${item.id}`} className="text-pequeno text-ink-2">
             Quantidade atendida
           </label>
-          <Stepper id={`qtd-${item.id}`} tamanho="sm" min={1} max={item.quantidadeSolicitada - 1} valor={qtd} onChange={setQtd} />
-          <span className="text-pequeno text-muted">de {item.quantidadeSolicitada}</span>
+          <Stepper id={`qtd-${item.id}`} tamanho="sm" min={faixa.min} max={faixa.max} valor={qtd} onChange={setQtd} />
+          <span className="text-pequeno text-muted">{item.operacao === "ALTERAR_QUANTIDADE" ? `entre ${faixa.min} e ${faixa.max}` : `de ${item.quantidadeSolicitada}`}</span>
         </div>
       )}
       {status !== "ATENDIDO" || corrigir ? (
@@ -300,7 +310,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
           >
             {item.operacao === "REMOVER" ? "Remover da ata" : `Atender ${item.quantidadeSolicitada}`}
           </Button>
-          {item.operacao !== "REMOVER" && item.quantidadeSolicitada > 1 && (
+          {temParcial(item) && (
             <Button
               variant="parcial"
               size="sm"

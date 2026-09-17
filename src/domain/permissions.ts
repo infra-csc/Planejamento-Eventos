@@ -73,9 +73,11 @@ export function pode(usuario: UsuarioPermissao, acao: Acao): boolean {
 }
 
 /** Requisitantes e Cenografia só enxergam solicitações da própria área. */
-export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string }): boolean {
-  if (pode(usuario, "solicitacao.ver_todas")) return true;
-  return usuario.areaId !== null && usuario.areaId === solicitacao.areaId;
+export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string; status?: string }): boolean {
+  if (usuario.areaId !== null && usuario.areaId === solicitacao.areaId) return true;
+  // Quem vê todas as áreas ainda não vê rascunho não enviado (só o administrador, que edita qualquer um).
+  if (pode(usuario, "solicitacao.ver_todas")) return solicitacao.status !== "RASCUNHO" || usuario.perfil === "ADMIN";
+  return false;
 }
 
 /** Rascunhos pertencem à área (RV-07): qualquer usuário da mesma área pode editar e enviar. O Administrador edita os de qualquer área. */

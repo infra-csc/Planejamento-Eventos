@@ -131,7 +131,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
 }
 
 /** Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações. */
-const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_64px_100px] items-center gap-x-3";
+const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_64px_118px] items-center gap-x-3";
 
 function Linha({
   l,
@@ -167,7 +167,7 @@ function Linha({
 
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5">
-          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="truncate text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
+          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="min-w-0 text-corpo font-medium leading-[1.3] text-ink no-underline hover:text-accent hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" title={`Detalhes, peças e histórico de ${l.nome}`}>
             {l.nome}
           </Link>
           {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
@@ -209,6 +209,11 @@ function Linha({
             <IconeLapis />
           </IconButton>
         )}
+        {l.tipo === "PROJETO" && (
+          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="shrink-0 whitespace-nowrap text-rotulo text-accent no-underline hover:underline" title={`Abrir ${l.nome}: peças do projeto, ajuste peça a peça e histórico`}>
+            Peças
+          </Link>
+        )}
       </span>
     </li>
   );
@@ -249,6 +254,7 @@ export function ConferenciaAta({
   const [ajustando, setAjustando] = useState<LinhaConferencia | null>(null);
   const [incluir, setIncluir] = useState(false);
   const [conferindo, iniciarTodas] = useTransition();
+  const [confirmarTodas, setConfirmarTodas] = useState(false);
 
   const conferidas = linhas.filter((l) => l.conferidoEm).length;
   const pendentes = linhas.length - conferidas;
@@ -273,18 +279,7 @@ export function ConferenciaAta({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {editavel && pendentes > 1 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={conferindo}
-                onClick={() =>
-                  iniciarTodas(async () => {
-                    const r = await conferirTodasAction(eventoId);
-                    if (r.ok) toast(`${pendentes} linhas marcadas como conferidas`);
-                    else toastErro(r.erro);
-                  })
-                }
-              >
+              <Button variant="secondary" size="sm" loading={conferindo} onClick={() => setConfirmarTodas(true)}>
                 Conferir as {pendentes} restantes
               </Button>
             )}
@@ -349,6 +344,32 @@ export function ConferenciaAta({
         {linhas.length} {linhas.length === 1 ? "linha" : "linhas"} · <span className="font-mono">{linhas.reduce((a, l) => a + l.quantidade, 0)}</span> unidades
       </RodapeTabela>
 
+      {/* Conferir em lote marca tudo em nome de quem clicou e destrava o fechamento da ata: confirma antes. */}
+      <Dialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>
+        {confirmarTodas && (
+          <DialogContent title={`Conferir as ${pendentes} linhas restantes`} description="Elas ficam marcadas como conferidas em seu nome, com data e hora. Depois disso a ata pode ser fechada." width={460}>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setConfirmarTodas(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={conferindo}
+                onClick={() =>
+                  iniciarTodas(async () => {
+                    const r = await conferirTodasAction(eventoId);
+                    if (r.ok) toast(`${pendentes} linhas marcadas como conferidas`);
+                    else toastErro(r.erro);
+                    setConfirmarTodas(false);
+                  })
+                }
+              >
+                Marcar {pendentes} como conferidas
+              </Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
       {ajustando && <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />}
       <Dialog open={incluir} onOpenChange={setIncluir}>
         {incluir && (

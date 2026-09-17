@@ -5,6 +5,9 @@ import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services
 import type { AtaConteudo, AtaReuniao } from "@/server/db/schema";
 import { pode } from "@/domain/permissions";
 
+/** Observações da reunião são nota interna de quem conduz: não saem para as áreas. */
+const veObservacoes = (usuario: UsuarioAtual) => pode(usuario, "ata.consolidar") || pode(usuario, "historico.ver_tudo");
+
 /** Pedidos das áreas: quem não vê todas as solicitações leva só os da própria área. */
 function filtrarPorArea(usuario: UsuarioAtual, lista: AtaConteudo["solicitacoesPreReuniao"]) {
   if (pode(usuario, "solicitacao.ver_todas")) return lista;
@@ -48,7 +51,7 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
         arenaDescarrega: null,
         kitDescarrega: null,
       },
-      observacoes: c.observacoes,
+      observacoes: veObservacoes(usuario) ? c.observacoes : null,
       linhas: c.linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.codigo, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.area, origem: ORIGEM_LABEL[l.origem] ?? l.origem, conferidoPor: l.conferidoPor ?? null })),
       solicitacoesPreReuniao: filtrarPorArea(usuario, c.solicitacoesPreReuniao),
     };
@@ -69,7 +72,7 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
       arenaDescarrega: ev.arenaDescarrega,
       kitDescarrega: ev.kitDescarrega,
     },
-    observacoes: ev.observacoesReuniao,
+    observacoes: veObservacoes(usuario) ? ev.observacoesReuniao : null,
     linhas: linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.tipo === "PROJETO" ? (l.projeto?.codigo ?? null) : l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.areaNome, origem: l.origemLabel, conferidoPor: l.conferidoPor ?? null })),
     solicitacoesPreReuniao: [],
   };

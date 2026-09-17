@@ -6,7 +6,7 @@ import { obterSolicitacao } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
 import { listarAreas } from "@/server/services/admin";
 import { getDb } from "@/server/db";
-import { podeEditarSolicitacao } from "@/domain/permissions";
+import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEnviar } from "@/domain/solicitacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
@@ -34,7 +34,10 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   const areasAdmin = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
   const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
   // Linhas da ata de todos os eventos abertos numa consulta só.
-  const linhasPorEvento = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
+  const linhasTodas = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
+  // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
+  const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
+  const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || l.areaId === usuario.areaId)]));
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,

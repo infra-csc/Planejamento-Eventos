@@ -7,7 +7,7 @@ import { descricaoLinha, resumirAjustes } from "@/domain/os";
 import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
-import { bloquearEvento, notificar, registrarHistorico, usuariosDaArea } from "./support";
+import { bloquearEvento, notificar, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -238,9 +238,15 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
     });
     if (aberto) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, texto);
-      if (linha.areaId) {
-        await notificar(tx, { usuarioIds: await usuariosDaArea(tx, linha.areaId), tipo: "ATA_AJUSTE", titulo: `Ajuste na OS: ${ev.nome}`, mensagem: texto, link: `/eventos/${eventoId}/itens/${linhaId}` });
-      }
+      // Peça trocada dentro de um projeto muda o que vai ser montado: quem pediu algo no evento fica sabendo.
+      await notificar(tx, {
+        usuarioIds: [...(linha.areaId ? await usuariosDaArea(tx, linha.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
+        tipo: "ATA_AJUSTE",
+        titulo: `Ajuste na OS: ${ev.nome}`,
+        mensagem: texto,
+        link: `/eventos/${eventoId}/itens/${linhaId}`,
+        excetoUsuarioId: usuario.id,
+      });
     }
     return { texto };
   });

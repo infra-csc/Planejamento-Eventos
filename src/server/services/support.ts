@@ -1,6 +1,6 @@
-import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, eq, inArray, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db, Tx } from "@/server/db";
-import { configuracoes, historico, notificacoes, sequencias, usuarios, type Perfil } from "@/server/db/schema";
+import { configuracoes, historico, notificacoes, sequencias, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 
 export type Executor = Db | Tx;
 
@@ -87,8 +87,23 @@ export async function usuariosDaArea(ex: Executor, areaId: string): Promise<stri
   return rows.map((r) => r.id);
 }
 
+/**
+ * Quem pediu alguma coisa neste evento (e as áreas envolvidas): toda adição ou ajuste de item
+ * no evento interessa a essas pessoas, mesmo quando mexe num item que elas não pediram.
+ */
+export async function usuariosComPedidoNoEvento(ex: Executor, eventoId: string): Promise<string[]> {
+  const rows = await ex
+    .select({ criadoPorId: solicitacoes.criadoPorId, areaId: solicitacoes.areaId })
+    .from(solicitacoes)
+    .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA")));
+  const ids = new Set(rows.map((r) => r.criadoPorId));
+  for (const areaId of new Set(rows.map((r) => r.areaId))) for (const id of await usuariosDaArea(ex, areaId)) ids.add(id);
+  return [...ids];
+}
+
 export const usuariosRequisitantes = (ex: Executor) => usuariosPorPerfil(ex, ["REQUISITANTE", "CENOGRAFIA"]);
-export const usuariosLogistica = (ex: Executor) => usuariosPorPerfil(ex, ["LOGISTICA"]);
+/** Quem responde solicitações: logística e administrador (que tem os mesmos poderes e a mesma fila). */
+export const usuariosLogistica = (ex: Executor) => usuariosPorPerfil(ex, ["LOGISTICA", "ADMIN"]);
 
 /* ------------------------------------------------------------------ */
 /* Sequências de código (EVT-0001, SOL-0001, PRJ-0001)                   */

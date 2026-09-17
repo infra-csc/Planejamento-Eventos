@@ -88,6 +88,7 @@ export async function encerrarSessao() {
     await db.delete(sessoes).where(eq(sessoes.tokenHash, hashToken(token)));
   }
   store.delete(COOKIE_SESSAO);
+  store.delete(COOKIE_VER_COMO);
 }
 
 /** Depois de trocar a senha: derruba as sessões do usuário em outros navegadores, mantendo a atual. */

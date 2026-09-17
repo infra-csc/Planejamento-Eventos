@@ -82,7 +82,7 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
   );
 }
 
-export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areas: Array<{ id: string; nome: string }> } | null }) {
+export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areaSolicitante: { id: string; nome: string } | null } | null }) {
   const vendoComo = Boolean(usuario.verComo);
   const escolherVerComo = (perfil: string, areaId: string | null) => {
     void verComoAction(perfil, areaId).then(() => router.refresh());
@@ -259,14 +259,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
                   <DropdownSeparator />
                   <DropdownLabel>Ver o app como…</DropdownLabel>
                   <DropdownItem onSelect={() => escolherVerComo("LOGISTICA", null)}>Logística</DropdownItem>
-                  <DropdownItem onSelect={() => escolherVerComo("GESTAO", null)}>Gestão</DropdownItem>
-                  {verComo.areas
-                    .filter((a) => a.nome !== "Logística")
-                    .map((a) => (
-                      <DropdownItem key={a.id} onSelect={() => escolherVerComo(a.nome === "Cenografia" ? "CENOGRAFIA" : "REQUISITANTE", a.id)}>
-                        {a.nome === "Cenografia" ? "Cenografia" : `Requisitante · ${a.nome}`}
-                      </DropdownItem>
-                    ))}
+                  {/* Solicitante é um só: a área vem de um exemplo (a primeira área requisitante ativa). */}
+                  {verComo.areaSolicitante && <DropdownItem onSelect={() => escolherVerComo("REQUISITANTE", verComo.areaSolicitante!.id)}>Solicitante · {verComo.areaSolicitante.nome}</DropdownItem>}
                   {vendoComo && <DropdownItem onSelect={() => void sairVerComoAction().then(() => router.refresh())}>Voltar a administrador</DropdownItem>}
                 </>
               )}

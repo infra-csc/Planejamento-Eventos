@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <AppShell usuario={usuario} nav={nav} naoLidas={naoLidas} verComo={ehAdminReal ? { areas: areasVerComo.map((a) => ({ id: a.id, nome: a.nome })) } : null}>
+    <AppShell usuario={usuario} nav={nav} naoLidas={naoLidas} verComo={ehAdminReal ? { areaSolicitante: areasVerComo.filter((a) => a.nome !== "Logística" && a.nome !== "Cenografia").map((a) => ({ id: a.id, nome: a.nome }))[0] ?? null } : null}>
       {children}
     </AppShell>
   );

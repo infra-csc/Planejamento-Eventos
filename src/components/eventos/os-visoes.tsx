@@ -43,7 +43,7 @@ export function OsVisoes({
             ["individuais", "Peças e itens soltos", (os.individuais?.length ?? 0) + os.semSetor.length],
             ...(composicao ? ([["composicao", composicao.ajustavel ? "Itens da OS · ajustar" : "Itens da OS", composicao.n]] as const) : []),
           ] as const
-        ).map(([chave, rotulo, n]) => ({ label: rotulo, n, ativo: visao === chave, href: hrefVisao(chave) }))}
+        ).map(([chave, rotulo, n]) => ({ label: rotulo, n: n >= 0 ? n : undefined, ativo: visao === chave, href: hrefVisao(chave) }))}
       />
 
       {visao === "projetos" && (

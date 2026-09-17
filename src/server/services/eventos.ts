@@ -26,7 +26,7 @@ import { pode } from "@/domain/permissions";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
-import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
+import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -57,7 +57,8 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
     db
       .select({ eventoId: solicitacoes.eventoId, n: count() })
       .from(solicitacoes)
-      .where(and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false)))
+      // Quem não vê todas as áreas conta só o que é da própria área: a fila das outras não é assunto dele.
+      .where(and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.excluida, false), pode(usuario, "solicitacao.ver_todas") ? undefined : eq(solicitacoes.areaId, usuario.areaId ?? "")))
       .groupBy(solicitacoes.eventoId),
     db
       .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
@@ -161,7 +162,7 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
         eq(historico.eventoId, eventoId),
         or(
           eq(historico.entidade, "evento"),
-          and(eq(historico.entidade, "evento_item"), or(notInArray(historico.acao, ACOES_COM_MOTIVO), sql`${historico.entidadeId} in (select id from evento_itens where area_id = ${areaId} or area_id is null)`)),
+          and(eq(historico.entidade, "evento_item"), or(notInArray(historico.acao, ACOES_COM_MOTIVO), sql`${historico.entidadeId} in (select id from evento_itens where area_id = ${areaId})`)),
           and(eq(historico.entidade, "solicitacao"), sql`${historico.entidadeId} in (select id from solicitacoes where area_id = ${areaId})`),
           and(
             eq(historico.entidade, "solicitacao_item"),
@@ -218,7 +219,7 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
 export async function linhasAtaResumidas(eventoIds: string[]) {
   const db = await getDb();
   const mapa = await montarLinhasAtaDeEventos(db, eventoIds);
-  return Object.fromEntries([...mapa].map(([id, ls]) => [id, ls.map((l) => ({ id: l.id, nome: nomeLinha(l), quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome }))]));
+  return Object.fromEntries([...mapa].map(([id, ls]) => [id, ls.map((l) => ({ id: l.id, nome: nomeLinha(l), quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome, areaId: l.registro.areaId }))]));
 }
 
 /** "Onde está cada área" (handoff §5.5): enviados × respondidos por área. */
@@ -816,15 +817,14 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     });
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${dados.quantidade} incluído — ${dados.justificativa}`);
-      if (dados.areaId) {
-        await notificar(tx, {
-          usuarioIds: await usuariosDaArea(tx, dados.areaId),
-          tipo: "ATA_AJUSTE",
-          titulo: `Ajuste na ata: ${ev.nome}`,
-          mensagem: `A logística incluiu ${desc} × ${dados.quantidade}. Motivo: ${dados.justificativa}`,
-          link: `/eventos/${eventoId}/ata`,
-        });
-      }
+      await notificar(tx, {
+        usuarioIds: [...(dados.areaId ? await usuariosDaArea(tx, dados.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
+        tipo: "ATA_AJUSTE",
+        titulo: `Item novo na OS: ${ev.nome}`,
+        mensagem: `A logística incluiu ${desc} × ${dados.quantidade}. Motivo: ${dados.justificativa}`,
+        link: `/eventos/${eventoId}/itens/${linha.id}`,
+        excetoUsuarioId: usuario.id,
+      });
     }
     return linha;
   });
@@ -847,6 +847,15 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
     const desc = descricaoLinha(linha);
     const remover = quantidade <= 0;
     if (!remover && quantidade === linha.quantidade) throw new ValidacaoError("A quantidade informada é a mesma que já está na ata.", { quantidade: "Informe outro valor." });
+    // A resposta que a área lê tem de contar a mesma história da OS: item removido não fica "atendido".
+    const itemOrigem = linha.registro.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId) }) : null;
+    if (itemOrigem && itemOrigem.operacao === "ADICIONAR") {
+      const atendida = Math.min(remover ? 0 : quantidade, itemOrigem.quantidadeSolicitada);
+      await tx
+        .update(solicitacaoItens)
+        .set({ status: atendida === 0 ? "NAO_ATENDIDO" : atendida < itemOrigem.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO", quantidadeAtendida: atendida, observacaoLogistica: justificativa ?? itemOrigem.observacaoLogistica, respondidoPorId: usuario.id, respondidoEm: new Date() })
+        .where(eq(solicitacaoItens.id, itemOrigem.id));
+    }
     await tx
       .update(eventoItens)
       .set(remover ? { ativo: false, removidoEm: new Date(), removidoPorId: usuario.id, justificativaAjuste: justificativa } : { quantidade, justificativaAjuste: justificativa })
@@ -863,13 +872,15 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
     });
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, justificativa ?? `${desc} ${remover ? "removido" : `${linha.quantidade} → ${quantidade}`}`);
-      if (linha.registro.areaId) {
+      {
         await notificar(tx, {
-          usuarioIds: await usuariosDaArea(tx, linha.registro.areaId),
+          usuarioIds: [...(linha.registro.areaId ? await usuariosDaArea(tx, linha.registro.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
           tipo: "ATA_AJUSTE",
-          titulo: `Ajuste na ata: ${ev.nome}`,
+          titulo: `Ajuste na OS: ${ev.nome}`,
           mensagem: `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}. Motivo: ${justificativa}`,
-          link: `/eventos/${eventoId}/ata`,
+          // Linha removida deixa de ter página própria: nesse caso o histórico é o registro.
+          link: remover ? `/eventos/${eventoId}/historico` : `/eventos/${eventoId}/itens/${linhaId}`,
+          excetoUsuarioId: usuario.id,
         });
       }
     }

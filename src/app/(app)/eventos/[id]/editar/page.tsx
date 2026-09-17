@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { obterEvento } from "@/server/services/eventos";
+import { obterEvento, obterLinhasAta } from "@/server/services/eventos";
 import { toDateTimeLocal } from "@/lib/format";
 import { NaoEncontradoError } from "@/domain/errors";
 import { EventoForm } from "@/components/eventos/evento-form";
@@ -17,6 +17,8 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
     throw e;
   });
   if (ev.status === "CANCELADO") redirect(`/eventos/${id}`);
+  // Adiar a reunião apaga as conferências: o diálogo avisa quantas.
+  const conferidas = ev.status === "EM_REUNIAO" ? (await obterLinhasAta(id)).filter((l) => l.conferidoEm).length : 0;
   return (
     <div className="flex max-w-[880px] flex-col gap-5">
       <EventoForm
@@ -31,7 +33,7 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
         }}
         cancelarHref={`/eventos/${ev.id}`}
       />
-      <SituacaoEvento eventoId={ev.id} codigo={ev.codigo} status={ev.status} />
+      <SituacaoEvento eventoId={ev.id} codigo={ev.codigo} status={ev.status} conferidas={conferidas} />
     </div>
   );
 }

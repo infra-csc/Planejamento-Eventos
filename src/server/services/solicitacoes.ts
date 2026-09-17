@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, usuarios, type AjusteBom, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -89,6 +89,9 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
   if (!pode(usuario, "solicitacao.ver_todas")) {
     if (!usuario.areaId) return vazio;
     base.push(eq(solicitacoes.areaId, usuario.areaId));
+  } else if (usuario.perfil !== "ADMIN") {
+    // Rascunho ainda não enviado é da área (a tela promete que "a logística nunca chegou a vê-lo").
+    base.push(ne(solicitacoes.status, "RASCUNHO"));
   }
   // Aguardando resposta = alterações; necessidade pré-reunião não passa por avaliação (já está na ata).
   const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE') and ${solicitacoes.tipo} = 'ALTERACAO'`;
@@ -292,7 +295,7 @@ export async function atualizarCabecalho(usuario: UsuarioAtual, id: string, dado
 type DadosItem = ItemRascunho & { justificativa?: string | null };
 
 /** Valida e resolve as referências de um item (projeto/peça/avulso/linha da ata). */
-async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUNIAO" | "ALTERACAO" }, dados: DadosItem) {
+async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; areaId: string }, dados: DadosItem, usuario?: UsuarioAtual) {
   validarItem(dados);
   if (s.tipo === "PRE_REUNIAO" && dados.operacao !== "ADICIONAR") throw new DomainError("Necessidades pré-reunião só podem adicionar itens.");
   const valores: Partial<typeof solicitacaoItens.$inferInsert> = {
@@ -336,6 +339,9 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
       where: and(eq(eventoItens.id, dados.eventoItemId ?? ""), eq(eventoItens.eventoId, s.eventoId), eq(eventoItens.ativo, true)),
     });
     if (!linha) throw new DomainError("A linha da ata escolhida não existe mais.");
+    // Uma área não altera nem remove o que outra pediu; linha sem área é da logística e fica com ela.
+    const podeMexer = (usuario && pode(usuario, "solicitacao.ver_todas")) || linha.areaId === s.areaId;
+    if (!podeMexer) throw new DomainError("Esta linha da ata é de outra área. Peça a alteração à logística.");
     valores.eventoItemId = linha.id;
     if (dados.operacao === "ALTERAR_QUANTIDADE" && dados.quantidadeSolicitada === linha.quantidade) {
       throw new ValidacaoError("A nova quantidade é igual à atual.", { quantidadeSolicitada: "Informe uma quantidade diferente." });
@@ -348,7 +354,7 @@ export async function salvarItem(usuario: UsuarioAtual, solicitacaoId: string, i
   const db = await getDb();
   return db.transaction(async (tx) => {
     const s = await carregarEditavel(tx, usuario, solicitacaoId);
-    const valores = await prepararItem(tx, s, dados);
+    const valores = await prepararItem(tx, s, dados, usuario);
     if (itemId) {
       if (!s.itens.some((i) => i.id === itemId)) throw new NaoEncontradoError("Item");
       await tx.update(solicitacaoItens).set(valores).where(eq(solicitacaoItens.id, itemId));
@@ -413,7 +419,7 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
     await tx.delete(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, s.id));
     let ordem = 0;
     for (const item of dados.itens) {
-      const valores = await prepararItem(tx, s, item);
+      const valores = await prepararItem(tx, s, item, usuario);
       await tx.insert(solicitacaoItens).values({ ...valores, solicitacaoId: s.id, ordem: ordem++ });
     }
     return { id: s.id, codigo: s.codigo };

@@ -58,7 +58,7 @@ function Compromisso({ i, compacto }: { i: ItemCalendario; compacto?: boolean })
  * Calendário mensal de tudo que tem data: evento (faixa), reunião de OS, fim da janela, montagem,
  * desmontagem, carga e prazos de resposta (logística). Ao lado, a agenda dos próximos dias.
  */
-export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ mes?: string; tipo?: string }> }) {
+export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ mes?: string; tipo?: string; evento?: string }> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const hoje = hojeISO();
@@ -66,6 +66,8 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const ano = Number(m.slice(0, 4));
   const mes = Number(m.slice(5, 7));
   const filtro = sp.tipo && sp.tipo in TIPO ? (sp.tipo as TipoCalendario) : null;
+  const eventoFiltro = sp.evento && /^[\w-]{1,64}$/.test(sp.evento) ? sp.evento : null;
+  const query = (mesAlvo: string, tipo: TipoCalendario | null, evento: string | null) => `/calendario?mes=${mesAlvo}${tipo ? `&tipo=${tipo}` : ""}${evento ? `&evento=${evento}` : ""}`;
 
   // Grade de segunda a domingo, cobrindo o mês inteiro.
   const primeiro = new Date(Date.UTC(ano, mes - 1, 1));
@@ -81,7 +83,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
 
   const fimAgenda = new Date(Date.parse(`${hoje}T00:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
   const [itensMes, agenda] = await Promise.all([listarCalendario(usuario, celulas[0].dia, celulas[celulas.length - 1].dia), listarCalendario(usuario, hoje, fimAgenda)]);
-  const visiveis = filtro ? itensMes.filter((i) => i.tipo === filtro) : itensMes;
+  const visiveis = itensMes.filter((i) => (!filtro || i.tipo === filtro) && (!eventoFiltro || i.evento.id === eventoFiltro));
   const porDia = new Map<string, ItemCalendario[]>();
   for (const i of visiveis) porDia.set(i.dia, [...(porDia.get(i.dia) ?? []), i]);
   const agendaPorDia = new Map<string, ItemCalendario[]>();
@@ -89,8 +91,10 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
 
   const ant = addMes(ano, mes, -1);
   const prox = addMes(ano, mes, 1);
-  const hrefMes = (a: number, me: number) => `/calendario?mes=${a}-${pad(me)}${filtro ? `&tipo=${filtro}` : ""}`;
+  const hrefMes = (a: number, me: number) => query(`${a}-${pad(me)}`, filtro, eventoFiltro);
   const tiposPresentes = [...new Set(itensMes.map((i) => i.tipo))];
+  // Eventos com algum compromisso no mês, para filtrar o calendário por um só.
+  const eventosDoMes = [...new Map(itensMes.map((i) => [i.evento.id, i.evento])).values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const rotuloDia = (d: string) => {
     const dt = new Date(`${d}T12:00:00Z`);
     return `${DIAS[(dt.getUTCDay() + 6) % 7]} ${pad(dt.getUTCDate())}/${pad(dt.getUTCMonth() + 1)}`;
@@ -121,14 +125,23 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         }
       />
 
-      <div className="mb-[18px] flex flex-wrap items-center gap-3">
+      <div className="mb-[18px] flex flex-col gap-2.5">
         <Pills
           rotulo="Filtrar por tipo"
           itens={[
-            { label: "Tudo", n: itensMes.length, href: hrefMes(ano, mes).replace(/&tipo=.*$/, ""), ativo: !filtro },
-            ...(Object.keys(TIPO) as TipoCalendario[]).filter((t) => tiposPresentes.includes(t)).map((t) => ({ label: TIPO[t].rotulo, n: itensMes.filter((i) => i.tipo === t).length, href: `/calendario?mes=${m}&tipo=${t}`, ativo: filtro === t })),
+            { label: "Tudo", n: itensMes.filter((i) => !eventoFiltro || i.evento.id === eventoFiltro).length, href: query(m, null, eventoFiltro), ativo: !filtro },
+            ...(Object.keys(TIPO) as TipoCalendario[]).filter((t) => tiposPresentes.includes(t)).map((t) => ({ label: TIPO[t].rotulo, n: itensMes.filter((i) => i.tipo === t && (!eventoFiltro || i.evento.id === eventoFiltro)).length, href: query(m, t, eventoFiltro), ativo: filtro === t })),
           ]}
         />
+        {eventosDoMes.length > 1 && (
+          <Pills
+            rotulo="Filtrar por evento"
+            itens={[
+              { label: "Todos os eventos", href: query(m, filtro, null), ativo: !eventoFiltro },
+              ...eventosDoMes.map((e) => ({ label: e.nome, n: itensMes.filter((i) => i.evento.id === e.id).length, href: query(m, filtro, e.id), ativo: eventoFiltro === e.id })),
+            ]}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">

@@ -49,6 +49,7 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
   const itens: ItemCalendario[] = [];
   const noPeriodo = (d: string) => d >= inicio && d <= fim;
   const conferir = pode(usuario, "ata.consolidar");
+  const veOs = pode(usuario, "os.ver");
 
   for (const e of evs) {
     const evento = { id: e.id, codigo: e.codigo, nome: e.nome, status: e.status, cliente: e.cliente, local: e.local };
@@ -93,10 +94,10 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
     // Montagem, desmontagem e carga só aparecem quando foram informadas diferentes do dia do evento.
     if (e.dataMontagem !== e.dataInicio && noPeriodo(e.dataMontagem)) itens.push({ chave: `m-${e.id}`, tipo: "montagem", dia: e.dataMontagem, hora: null, titulo: `Montagem · ${e.nome}`, detalhe: e.local || null, href: `/eventos/${e.id}`, evento });
     if (e.dataDesmontagem !== e.dataFim && noPeriodo(e.dataDesmontagem)) itens.push({ chave: `d-${e.id}`, tipo: "desmontagem", dia: e.dataDesmontagem, hora: null, titulo: `Desmontagem · ${e.nome}`, detalhe: e.local || null, href: `/eventos/${e.id}`, evento });
-    if (e.dataCarga && noPeriodo(e.dataCarga)) itens.push({ chave: `c-${e.id}`, tipo: "carga", dia: e.dataCarga, hora: null, titulo: `Carga do caminhão · ${e.nome}`, detalhe: "OS final precisa estar estável", href: `/eventos/${e.id}/os`, evento });
+    if (e.dataCarga && noPeriodo(e.dataCarga)) itens.push({ chave: `c-${e.id}`, tipo: "carga", dia: e.dataCarga, hora: null, titulo: `Carga do caminhão · ${e.nome}`, detalhe: veOs ? "OS final precisa estar estável" : "o que estiver no evento até aqui é o que embarca", href: veOs ? `/eventos/${e.id}/os` : `/eventos/${e.id}`, evento });
   }
 
-  if (pode(usuario, "solicitacao.responder")) {
+  if (pode(usuario, "solicitacao.responder") || pode(usuario, "solicitacao.ver_todas")) {
     const prazos = await db
       .select({ id: solicitacoes.id, codigo: solicitacoes.codigo, titulo: solicitacoes.titulo, prazo: solicitacoes.prazoRespostaEm, area: areas.nome, eventoId: eventos.id, eventoCodigo: eventos.codigo, eventoNome: eventos.nome, eventoStatus: eventos.status, cliente: eventos.cliente, local: eventos.local })
       .from(solicitacoes)

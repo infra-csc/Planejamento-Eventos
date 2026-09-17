@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUsuario } from "@/server/auth/session";
-import { executar } from "@/lib/action";
-import { removerPosicaoArena, salvarPosicaoArena, type DadosPosicao } from "@/server/services/arena";
+import { executar, type ActionResult } from "@/lib/action";
+import { removerPosicaoArena, restaurarPlantaArena, salvarPosicaoArena, type DadosPosicao } from "@/server/services/arena";
 
 export async function salvarPosicaoArenaAction(slug: string, dados: DadosPosicao) {
   const usuario = await requireUsuario();
@@ -14,6 +14,20 @@ export async function salvarPosicaoArenaAction(slug: string, dados: DadosPosicao
   const r = await executar(() => salvarPosicaoArena(usuario, slug, { chave, tipo: dados.tipo, x: Number(dados.x), z: Number(dados.z), nome: texto(dados.nome, 120) || null, categoria: texto(dados.categoria, 60) || null, itemAta: texto(dados.itemAta, 120) || null }));
   revalidatePath(`/arena/${slug}`);
   return r;
+}
+
+/** Desfaz de uma vez todas as edições do mapa: volta à planta importada do evento. */
+export async function restaurarPlantaArenaAction(slug: string) {
+  const usuario = await requireUsuario();
+  if (typeof slug !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => restaurarPlantaArena(usuario, slug), "Mapa restaurado para a planta original");
+  revalidatePath(`/arena/${slug}`);
+  return r;
+}
+
+/** Mesma restauração, no formato que o diálogo de confirmação usa. */
+export async function restaurarPlantaArenaFormAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  return restaurarPlantaArenaAction(String(formData.get("slug") ?? ""));
 }
 
 export async function removerPosicaoArenaAction(slug: string, chave: string) {

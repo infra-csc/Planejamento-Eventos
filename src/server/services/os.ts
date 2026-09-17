@@ -1,8 +1,10 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, osVersoes, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
-import { calcularOS, osIguais, resumoVersaoOs, type LinhaAta } from "@/domain/os";
-import type { Executor } from "./support";
+import { eventoItens, eventos, osVersoes, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
+import { calcularOS, diffOS, osIguais, resumoVersaoOs, type LinhaAta } from "@/domain/os";
+import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
+import { DomainError, NaoEncontradoError } from "@/domain/errors";
+import { bloquearEvento, registrarHistorico, type Executor } from "./support";
 
 type RegistroLinha = typeof eventoItens.$inferSelect & {
   projeto: { id: string; codigo: string; nome: string; versaoAtual: number } | null;
@@ -119,3 +121,59 @@ export async function numeroOsAtual(ex: Executor, eventoId: string): Promise<num
 export async function calcularOsAoVivo(eventoId: string) {
   return calcularOsAtual(await getDb(), eventoId);
 }
+
+/* ------------------------------------------------------------------ */
+/* Envio para carregamento e complemento                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A logística marca a versão atual como "enviada para carregamento". A partir daí, tudo que
+ * entrar ou mudar aparece como complemento: ela decide se manda só o complemento (exporta a
+ * diferença) ou se incorpora, marcando a versão nova como a enviada.
+ */
+export async function marcarOsEnviada(usuario: UsuarioAtual, eventoId: string) {
+  exigir(usuario, "ata.ajustar");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    if (ev.status !== "ABERTO" && ev.status !== "ENCERRADO") throw new DomainError("A OS só pode ser enviada depois que a ata é fechada.");
+    // A versão gravada pode estar atrás da ata (ajustes sem versão nova): garante que o que se marca é o que está valendo.
+    const versao = await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, "Fechamento para envio ao carregamento");
+    const [anterior] = await tx.select({ numero: osVersoes.numero }).from(osVersoes).where(and(eq(osVersoes.eventoId, eventoId), isNotNull(osVersoes.enviadaEm))).orderBy(desc(osVersoes.numero)).limit(1);
+    if (anterior && anterior.numero === versao.numero) throw new DomainError(`A OS v${versao.numero} já é a versão enviada.`);
+    await tx.update(osVersoes).set({ enviadaEm: new Date(), enviadaPorId: usuario.id }).where(and(eq(osVersoes.eventoId, eventoId), eq(osVersoes.numero, versao.numero)));
+    await registrarHistorico(tx, {
+      eventoId,
+      entidade: "evento",
+      entidadeId: eventoId,
+      acao: "OS_ENVIADA",
+      descricao: anterior ? `OS v${versao.numero} enviada ao carregamento (incorpora o complemento desde a v${anterior.numero})` : `OS v${versao.numero} enviada ao carregamento`,
+      usuarioId: usuario.id,
+    });
+    return { numero: versao.numero, incorporou: Boolean(anterior) };
+  });
+}
+
+/** Última versão enviada ao carregamento e a diferença entre ela e a OS de agora (o "complemento"). */
+export async function complementoOs(eventoId: string) {
+  const db = await getDb();
+  const enviada = await db.query.osVersoes.findFirst({
+    where: and(eq(osVersoes.eventoId, eventoId), isNotNull(osVersoes.enviadaEm)),
+    with: { enviadaPor: { columns: { id: true, nome: true } } },
+    orderBy: (t, { desc }) => [desc(t.numero)],
+  });
+  if (!enviada) return null;
+  const agora = await calcularOsAtual(db, eventoId);
+  const diff = diffOS(enviada.conteudo, agora);
+  return {
+    numero: enviada.numero,
+    enviadaEm: enviada.enviadaEm!,
+    enviadaPor: enviada.enviadaPor?.nome ?? null,
+    diff,
+    /** Itens fora do catálogo que entraram depois do envio (não somam peças, mas embarcam). */
+    avulsosNovos: agora.semSetor.filter((a) => !enviada.conteudo.semSetor.some((b) => b.descricao === a.descricao && b.quantidade === a.quantidade)),
+  };
+}
+export type ComplementoOs = NonNullable<Awaited<ReturnType<typeof complementoOs>>>;

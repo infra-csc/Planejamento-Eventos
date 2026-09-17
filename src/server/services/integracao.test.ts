@@ -17,7 +17,7 @@ import { areas, eventoItens, osVersoes, pecas, solicitacoes, usuarios, type Perf
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento, conferirTodasLinhas, salvarDadosReuniao } from "./eventos";
 import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, paginarSolicitacoes, primeiraDaFila, responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
-import { listarOsResumo, obterConteudosOs } from "./os";
+import { complementoOs, listarOsResumo, marcarOsEnviada, obterConteudosOs } from "./os";
 import { buscar } from "./busca";
 import { salvarConfiguracao } from "./support";
 
@@ -89,6 +89,32 @@ beforeAll(async () => {
   const [p] = await db.insert(pecas).values({ codigo: "BOX-T", nome: "Box de teste", setor: "ESTRUTURA" }).returning();
   pecaId = p.id;
 }, 60_000);
+
+describe("OS enviada ao carregamento e complemento", { timeout: 30_000 }, () => {
+  it("marca a versão atual como enviada e o que muda depois vira complemento", async () => {
+    const { ev, linhaId } = await eventoAberto();
+    expect(await complementoOs(ev.id)).toBeNull();
+    const r = await marcarOsEnviada(logistica, ev.id);
+    expect(r.incorporou).toBe(false);
+    expect((await complementoOs(ev.id))?.diff).toHaveLength(0);
+    await alterarQuantidadeLinha(logistica, ev.id, linhaId, 14, "Cliente pediu mais");
+    const c = await complementoOs(ev.id);
+    expect(c?.numero).toBe(r.numero);
+    expect(c?.diff).toEqual([expect.objectContaining({ codigo: "BOX-T", antes: 10, depois: 14 })]);
+    // Incorporar: a OS nova passa a ser a enviada e o complemento zera.
+    const r2 = await marcarOsEnviada(logistica, ev.id);
+    expect(r2.incorporou).toBe(true);
+    expect(r2.numero).toBeGreaterThan(r.numero);
+    expect((await complementoOs(ev.id))?.diff).toHaveLength(0);
+  });
+
+  it("marcar de novo sem mudança é recusado; requisitante não marca", async () => {
+    const { ev } = await eventoAberto();
+    await marcarOsEnviada(logistica, ev.id);
+    await expect(marcarOsEnviada(logistica, ev.id)).rejects.toThrow(/já é a versão enviada/);
+    await expect(marcarOsEnviada(producao, ev.id)).rejects.toThrow();
+  });
+});
 
 describe("efeito das respostas na ata", { timeout: 30_000 }, () => {
   it("REMOVER não atendido não ressuscita linha que a logística já removeu", async () => {

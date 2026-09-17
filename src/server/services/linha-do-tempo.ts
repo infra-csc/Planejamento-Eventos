@@ -190,7 +190,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     origem: origem
       ? {
           solicitacaoId: origem.solicitacaoId,
-          codigo: origem.codigo,
+          codigo: veTudo ? origem.codigo : null,
           titulo: veTudo ? origem.titulo : null,
           tipo: origem.tipo,
           area: origem.area,
@@ -204,7 +204,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
           observacaoSolicitacao: veTudo ? origem.observacao : null,
           ajustes: veTudo ? resumirAjustes(origem.ajustesBom) : null,
           respostaLogistica: veTudo ? origem.observacaoLogistica : null,
-          respondidoPor,
+          respondidoPor: veTudo ? respondidoPor : null,
           respondidoEm: origem.respondidoEm ? origem.respondidoEm.toISOString() : null,
         }
       : null,

@@ -57,6 +57,13 @@
       "when": 1789655826612,
       "tag": "0007_arena_posicoes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789673058828,
+      "tag": "0008_os_enviada",
+      "breakpoints": true
     }
   ]
 }

@@ -94,3 +94,24 @@ export async function removerPosicaoArena(usuario: UsuarioAtual, slug: string, c
     usuarioId: usuario.id,
   });
 }
+
+/**
+ * Descarta TODAS as edições da arena: o mapa volta exatamente à planta importada do evento.
+ * Pontos movidos voltam ao lugar de origem e os itens acrescentados saem do mapa (voltam para
+ * "sem posição"). Fica registro de quem restaurou e de quantos pontos foram descartados.
+ */
+export async function restaurarPlantaArena(usuario: UsuarioAtual, slug: string) {
+  exigir(usuario, "ata.consolidar");
+  if (!obterArenaPorSlug(slug)) throw new NaoEncontradoError("Arena");
+  const db = await getDb();
+  const apagadas = await db.delete(arenaPosicoes).where(eq(arenaPosicoes.arenaSlug, slug)).returning({ chave: arenaPosicoes.chave });
+  if (apagadas.length === 0) throw new ValidacaoError("O mapa já está igual à planta original.");
+  await registrarHistorico(db, {
+    entidade: "arena",
+    entidadeId: slug,
+    acao: "ARENA_PLANTA_RESTAURADA",
+    descricao: `Mapa da arena voltou à planta original — ${apagadas.length} ${apagadas.length === 1 ? "edição descartada" : "edições descartadas"}`,
+    usuarioId: usuario.id,
+  });
+  return { descartadas: apagadas.length };
+}

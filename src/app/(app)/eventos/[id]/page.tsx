@@ -29,8 +29,11 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   const usuario = await requireUsuario();
   const { id } = await params;
   const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
-  const ultimaOs = versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
+  // O total de peças é conteúdo da OS: quem não tem a aba também não vê o número.
+  const veOs = pode(usuario, "os.ver");
+  const ultimaOs = veOs && versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
   const totalOs = ultimaOs ? totalPecas(ultimaOs) : 0;
+  const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   const pecasSoltas = linhas.filter((l) => l.tipo === "PECA");
@@ -43,6 +46,8 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
   const areasEnvolvidas = [...porArea.entries()].sort((a, b) => b[1] - a[1]);
   const minhaArea = usuario.areaId;
   const deOutraArea = (l: (typeof linhas)[number]) => Boolean(minhaArea) && l.registro.areaId !== minhaArea;
+  // Quem pediu é assunto da área que pediu: fora dela, a origem aparece sem o código da solicitação.
+  const origemVisivel = (l: (typeof linhas)[number]) => (veTodasAsAreas || !l.origemSolicitacaoId || l.registro.areaId === minhaArea ? l.origemLabel : "Pedido de área");
   const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
   const ajustes = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
 
@@ -89,11 +94,57 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
         />
         <Metric
           label="Ordem de serviço"
-          valor={versoes.length ? `v${versoes[0].numero} · ${totalOs} peças` : "ainda não gerada"}
-          hint={versoes.length ? `${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · última em ${diaMes(versoes[0].geradaEm)}${posAta.length ? ` · ${posAta.length} ${posAta.length === 1 ? "item" : "itens"} depois da ata` : ""}` : "gerada ao fechar a ata; veja a prévia"}
+          valor={versoes.length ? (veOs ? `v${versoes[0].numero} · ${totalOs} peças` : `v${versoes[0].numero}`) : "ainda não gerada"}
+          hint={versoes.length ? `${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · última em ${diaMes(versoes[0].geradaEm)}${posAta.length ? ` · ${posAta.length} ${posAta.length === 1 ? "item" : "itens"} depois da ata` : ""}` : veOs ? "gerada ao fechar a ata; veja a prévia" : "gerada ao fechar a ata"}
           href={pode(usuario, "os.ver") ? `/eventos/${id}/os` : undefined}
         />
       </MetricStrip>
+
+      {/* Lista completa: é a informação principal para quem pediu, inclusive o que entrou ou mudou depois da ata. */}
+      <div id="itens" className="scroll-mt-20">
+        <Section
+          titulo={ev.ataFechadaEm ? "Todos os itens que vão para o evento" : "Todos os itens já na ata"}
+          sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Itens marcados “depois da ata” ou “ajustado” mudaram após a reunião." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}
+        >
+          {linhas.length === 0 ? (
+            <EmptyState compact title="Nada na ata ainda." />
+          ) : (
+            <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+              <CaptionOculta>Todos os itens do evento</CaptionOculta>
+              <thead>
+                <tr>
+                  <Th>Item</Th>
+                  <Th>Área · destino</Th>
+                  <Th>Origem</Th>
+                  <Th largura={64} alinhar="right">
+                    Qtd.
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {itensOrdenados.map((l) => (
+                  <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
+                    <th scope="row" className="border-b border-line-row px-[18px] py-2 text-left text-corpo font-normal">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className={"min-w-0 leading-[1.3] text-ink "+"[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"}>{l.nome}</span>
+                        {l.posAta && <Tag tom="accent">depois da ata</Tag>}
+                        {!l.posAta && l.registro.justificativaAjuste && <Tag tom="warning">ajustado</Tag>}
+                        {l.tipo === "AVULSO" && <Tag tom="warning">fora do catálogo</Tag>}
+                      </span>
+                    </th>
+                    <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-3">
+                      {l.areaNome ?? "Logística"}
+                      {l.destino ? ` · ${l.destino}` : ""}
+                    </td>
+                    <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-3">{origemVisivel(l)}</td>
+                    <td className="border-b border-line-row py-2 pl-3 pr-[18px] text-right font-mono text-corpo font-medium text-ink">{l.quantidade}</td>
+                  </LinhaLink>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Section>
+      </div>
 
       <Section
         titulo="O que vai ser montado"
@@ -116,7 +167,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
                       {g.capaId ? <ImagemZoom src={`/api/anexos/${g.capaId}`} alt={g.nome} className="aspect-[4/3] w-full bg-white" /> : <div className="grid aspect-[4/3] w-full place-items-center bg-subtle text-rotulo text-meta">sem foto</div>}
                       <div className="px-3 py-2.5">
                         <p className="m-0 flex items-start justify-between gap-2">
-                          <span className="min-w-0 truncate text-corpo font-medium text-ink" title={g.nome}>
+                          <span className={"min-w-0 text-corpo font-medium leading-[1.3] text-ink "+"[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"} title={g.nome}>
                             {g.nome}
                           </span>
                           <ChipMono tom="dark" className="shrink-0 text-accent-light">
@@ -155,52 +206,6 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
         )}
       </Section>
 
-      {/* Lista completa: é a informação principal para quem pediu, inclusive o que entrou ou mudou depois da ata. */}
-      <div id="itens" className="scroll-mt-20">
-        <Section
-          titulo={ev.ataFechadaEm ? "Todos os itens que vão para o evento" : "Todos os itens já na ata"}
-          sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Itens marcados “depois da ata” ou “ajustado” mudaram após a reunião." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}
-        >
-          {linhas.length === 0 ? (
-            <EmptyState compact title="Nada na ata ainda." />
-          ) : (
-            <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
-              <CaptionOculta>Todos os itens do evento</CaptionOculta>
-              <thead>
-                <tr>
-                  <Th>Item</Th>
-                  <Th>Área · destino</Th>
-                  <Th>Origem</Th>
-                  <Th largura={64} alinhar="right">
-                    Qtd.
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {itensOrdenados.map((l) => (
-                  <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
-                    <th scope="row" className="border-b border-line-row px-[18px] py-2 text-left text-corpo font-normal">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate text-ink">{l.nome}</span>
-                        {l.posAta && <Tag tom="accent">depois da ata</Tag>}
-                        {!l.posAta && l.registro.justificativaAjuste && <Tag tom="warning">ajustado</Tag>}
-                        {l.tipo === "AVULSO" && <Tag tom="warning">fora do catálogo</Tag>}
-                      </span>
-                    </th>
-                    <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-3">
-                      {l.areaNome ?? "Logística"}
-                      {l.destino ? ` · ${l.destino}` : ""}
-                    </td>
-                    <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-3">{l.origemLabel}</td>
-                    <td className="border-b border-line-row py-2 pl-3 pr-[18px] text-right font-mono text-corpo font-medium text-ink">{l.quantidade}</td>
-                  </LinhaLink>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Section>
-      </div>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex flex-col gap-5">
           {ev.ataFechadaEm && (
@@ -215,7 +220,7 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
                       </Tag>
                     )}
                   </span>
-                  <span className="shrink-0 text-pequeno text-ink-3">{l.origemLabel}</span>
+                  <span className="shrink-0 text-pequeno text-ink-3">{origemVisivel(l)}</span>
                   <span className="shrink-0 font-mono text-corpo font-medium text-ink">{l.quantidade}</span>
                 </Link>
               ))}

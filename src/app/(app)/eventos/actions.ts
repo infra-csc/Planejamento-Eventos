@@ -22,6 +22,7 @@ import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/event
 import { ValidacaoError } from "@/domain/errors";
 import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
+import { marcarOsEnviada } from "@/server/services/os";
 import { pecaSchema } from "@/lib/schemas";
 
 function revalidarTudo() {
@@ -128,6 +129,7 @@ export async function conferirLinhaAction(eventoId: string, linhaId: string, con
   if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof conferida !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
   const r = await executar(() => conferirLinha(usuario, eventoId, linhaId, conferida));
   revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
   return r;
 }
 
@@ -136,6 +138,7 @@ export async function conferirTodasAction(eventoId: string) {
   if (typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   const r = await executar(() => conferirTodasLinhas(usuario, eventoId));
   revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
   return r;
 }
 
@@ -172,6 +175,16 @@ export async function salvarDadosReuniaoAutoAction(eventoId: string, dados: Reco
   return r;
 }
 
+/** OS enviada ao carregamento: marca a versão atual (gerando uma nova se a ata mudou) como a enviada. */
+export async function marcarOsEnviadaAction(eventoId: string) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as ActionResult;
+  const r = await executar(() => marcarOsEnviada(usuario, eventoId));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  if (!r.ok) return r;
+  return { ok: true, mensagem: r.dados?.incorporou ? `OS v${r.dados.numero} incorporou o complemento e é a versão enviada` : `OS v${r.dados?.numero} marcada como enviada ao carregamento` } as ActionResult;
+}
+
 export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: string) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof linhaId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
@@ -186,6 +199,7 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
   if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
   return r;
 }
 
@@ -216,5 +230,6 @@ export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: stri
   if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
   const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
   return r;
 }

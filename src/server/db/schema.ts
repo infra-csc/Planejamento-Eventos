@@ -425,6 +425,9 @@ export const osVersoes = pgTable(
     conteudo: jsonb("conteudo").$type<OsConteudo>().notNull(),
     geradaPorId: text("gerada_por_id").references(() => usuarios.id),
     geradaEm: criadoEm(),
+    /** Versão que a logística mandou para o carregamento. O que mudar depois vira "complemento". */
+    enviadaEm: ts("enviada_em"),
+    enviadaPorId: text("enviada_por_id").references(() => usuarios.id),
   },
   (t) => [uniqueIndex("os_versoes_numero_idx").on(t.eventoId, t.numero)],
 );
@@ -668,6 +671,7 @@ export const solicitacaoItensRelations = relations(solicitacaoItens, ({ one }) =
 export const osVersoesRelations = relations(osVersoes, ({ one }) => ({
   evento: one(eventos, { fields: [osVersoes.eventoId], references: [eventos.id] }),
   geradaPor: one(usuarios, { fields: [osVersoes.geradaPorId], references: [usuarios.id] }),
+  enviadaPor: one(usuarios, { fields: [osVersoes.enviadaPorId], references: [usuarios.id], relationName: "os_enviada_por" }),
 }));
 
 export const ataVersoesRelations = relations(ataVersoes, ({ one }) => ({

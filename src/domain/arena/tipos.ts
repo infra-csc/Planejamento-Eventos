@@ -18,7 +18,7 @@ export type ItemAta = {
   obs?: string;
 };
 
-export type CategoriaPonto = "largada" | "estrutura" | "atleta" | "medico" | "patrocinio" | "operacao" | "cenografia" | "hidratacao";
+export type CategoriaPonto = "largada" | "estrutura" | "atleta" | "medico" | "patrocinio" | "operacao" | "cenografia" | "hidratacao" | "obstaculo";
 
 export type TipoZona = "arena" | "apoio" | "restrita" | "atletas" | "parque" | "agua";
 

@@ -30,9 +30,15 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const versoes = await listarAtaVersoes(id);
   const fechada = versoes.length > 0;
   const emConstrucao = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
-  const congelada = versoes.find((v) => String(v.numero) === sp.v) ?? versoes[0];
+  // A ata da reunião é uma só: o que muda depois vai para a OS. Versões antigas (reunião refeita) ficam no histórico.
+  const congelada = versoes[0];
   const [linhas, opcoes, areas] = emConstrucao || !fechada ? await Promise.all([obterLinhasAta(id), opcoesReferenciasResumidas(), listarAreas()]) : [[], null, []];
   const podeConferir = pode(usuario, "ata.consolidar") && emConstrucao;
+  const veTodas = pode(usuario, "solicitacao.ver_todas");
+  // Código e link da solicitação são de quem pediu: outra área vê só "Pedido de área".
+  const esconderOrigemAlheia = (v: ReturnType<typeof paraView>, areaDaLinha: string | null) =>
+    veTodas || areaDaLinha == null || areaDaLinha === usuario.areaId ? v : { ...v, origemSolicitacaoId: null, origemLabel: v.origemSolicitacaoId ? "Pedido de área" : v.origemLabel };
+  const veObservacoes = pode(usuario, "historico.ver_tudo") || pode(usuario, "ata.consolidar");
   const podeAjustarOs = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
 
   const reu = fechada && !emConstrucao ? congelada?.conteudo.reuniao : undefined;
@@ -57,20 +63,14 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <div className="flex min-w-0 flex-col gap-3.5">
-        {!emConstrucao && fechada && versoes.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-pequeno text-muted">Evento reaberto · fechamentos:</span>
-            <Pills rotulo="Fechamentos da ata" itens={[...versoes].reverse().map((v) => ({ label: `v${v.numero} · ${diaMesHora(v.fechadaEm)}`, ativo: v.id === congelada?.id, href: v.numero === versoes[0].numero ? `/eventos/${id}/ata` : `/eventos/${id}/ata?v=${v.numero}` }))} />
-          </div>
-        )}
 
         {emConstrucao || !fechada ? (
           <Section titulo="Ata em construção" sub="As necessidades das áreas entram aqui automaticamente. A conferência e os ajustes acontecem na reunião.">
-            <AtaLista eventoId={id} status={ev.status} editavel={false} opcoes={opcoes ?? { projetos: [], pecas: [] }} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhas.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
+            <AtaLista eventoId={id} status={ev.status} editavel={false} opcoes={opcoes ?? { projetos: [], pecas: [] }} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhas.map((l) => esconderOrigemAlheia(paraView(l), l.registro.areaId))} dataReuniao={diaMesHora(ev.dataReuniao)} />
           </Section>
         ) : (
           <Section
-            titulo={`Ata da reunião${congelada ? ` · v${congelada.numero}` : ""}`}
+            titulo="Ata da reunião"
             sub={`Registro do que foi decidido na reunião, fechado em ${congelada ? formatarDataHora(congelada.fechadaEm) : "—"}. Não muda: alterações e ajustes posteriores entram na OS.`}
           >
             {linhasCongeladas.length === 0 ? (
@@ -150,7 +150,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
         )}
 
         {pode(usuario, "os.exportar") && (
-        <Section titulo="Exportar ata" sub={!emConstrucao && congelada ? `Versão congelada v${congelada.numero}` : "Ata em construção (prévia)"}>
+        <Section titulo="Exportar ata" sub={!emConstrucao && congelada ? `Fechada em ${formatarDataHora(congelada.fechadaEm)}` : "Ata em construção (prévia)"}>
           <div className="flex flex-col gap-2 px-[18px] py-3.5">
             <a href={`/api/eventos/${id}/ata/excel${sp.v ? `?v=${sp.v}` : ""}`} className={buttonClasses({ variant: podeConferir ? "secondary" : "primary", size: "md", className: "w-full no-underline" })}>
               Excel da ata (.xlsx)
@@ -162,7 +162,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
         </Section>
         )}
 
-        <Section titulo="Reunião de OS" sub={!emConstrucao && congelada ? `Registro congelado na v${congelada.numero}` : "Preenchido pela logística na reunião"}>
+        <Section titulo="Reunião de OS" sub={!emConstrucao && congelada ? "Registro congelado no fechamento da ata" : "Preenchido pela logística na reunião"}>
           <ListaDados itens={dadosReuniao} />
           <div className="border-t border-line-faint px-[18px] py-3">
             <p className="m-0 text-pequeno text-muted">Pessoas presentes</p>
@@ -173,9 +173,12 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
           </div>
         </Section>
 
-        <Section titulo="Observações da reunião">
-          <div className="px-[18px] py-3.5">{observacoes ? <p className="m-0 whitespace-pre-wrap text-corpo leading-[1.55] text-ink-2">{observacoes}</p> : <p className="m-0 text-pequeno text-muted">Nenhuma observação registrada.</p>}</div>
-        </Section>
+        {/* Nota de condução da reunião (combinados com o cliente): fica com logística e gestão. */}
+        {veObservacoes && (
+          <Section titulo="Observações da reunião" sub="Registro interno da condução">
+            <div className="px-[18px] py-3.5">{observacoes ? <p className="m-0 whitespace-pre-wrap text-corpo leading-[1.55] text-ink-2">{observacoes}</p> : <p className="m-0 text-pequeno text-muted">Nenhuma observação registrada.</p>}</div>
+          </Section>
+        )}
       </div>
     </div>
   );

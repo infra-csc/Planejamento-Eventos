@@ -1,7 +1,7 @@
 import type { CategoriaPonto, TipoZona } from "./tipos";
 
 /** Camadas que o usuário liga e desliga no mapa. Cada uma responde a uma pergunta de planejamento. */
-export type Camada = "percurso" | "estruturas" | "apoio" | "patrocinio" | "zonas" | "publico" | "fluxo" | "rotulos";
+export type Camada = "percurso" | "estruturas" | "apoio" | "patrocinio" | "zonas" | "publico" | "fluxo" | "rotulos" | "local";
 
 export const CAMADAS: Array<{ id: Camada; rotulo: string; descricao: string; padrao: boolean }> = [
   { id: "percurso", rotulo: "Percurso", descricao: "Traçado, cones e sinalização", padrao: true },
@@ -10,6 +10,7 @@ export const CAMADAS: Array<{ id: Camada; rotulo: string; descricao: string; pad
   { id: "patrocinio", rotulo: "Patrocinadores", descricao: "Estandes e tendas de buffet", padrao: true },
   { id: "zonas", rotulo: "Áreas", descricao: "Arena, curral, apoio e acesso restrito", padrao: true },
   { id: "publico", rotulo: "Público", descricao: "Representação do público nas grades", padrao: true },
+  { id: "local", rotulo: "Obstáculos do local", descricao: "Árvore, bueiro, poste, desnível: o que atrapalha a montagem", padrao: true },
   { id: "fluxo", rotulo: "Fluxo de corredores", descricao: "Animação ilustrativa do sentido da prova", padrao: false },
   { id: "rotulos", rotulo: "Rótulos", descricao: "Nomes dos pontos principais", padrao: true },
 ];
@@ -18,6 +19,7 @@ export const CAMADAS: Array<{ id: Camada; rotulo: string; descricao: string; pad
 export const GRUPOS_CAMADAS: Array<{ titulo: string; camadas: Camada[] }> = [
   { titulo: "O que vai ser montado", camadas: ["estruturas", "apoio", "patrocinio"] },
   { titulo: "Como a prova acontece", camadas: ["percurso", "zonas", "publico", "fluxo"] },
+  { titulo: "O que já existe no local", camadas: ["local"] },
   { titulo: "Exibição", camadas: ["rotulos"] },
 ];
 
@@ -36,6 +38,8 @@ export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; c
   medico: { rotulo: "Atendimento médico", cor: "#a8400f", camada: "apoio" },
   hidratacao: { rotulo: "Hidratação", cor: "#2f6680", camada: "apoio" },
   patrocinio: { rotulo: "Patrocinadores", cor: "#7a5f00", camada: "patrocinio" },
+  // Marcações do próprio terreno (não entram na OS): árvore, bueiro, poste, desnível.
+  obstaculo: { rotulo: "Obstáculo do local", cor: "#5f6b4f", camada: "local" },
 };
 
 export const ZONA_VISUAL: Record<TipoZona, { rotulo: string; cor: string }> = {

@@ -3,6 +3,9 @@ import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { contarUsoProjetos, listarProjetos, obterProjeto } from "@/server/services/projetos";
 import { contarPecasEmBom, listarPecas } from "@/server/services/catalogo";
+import { listarItensForaDoCatalogo } from "@/server/services/fora-catalogo";
+import { opcoesReferenciasResumidas } from "@/server/services/eventos";
+import { FilaForaCatalogo } from "@/components/eventos/fila-fora-catalogo";
 import { pode } from "@/domain/permissions";
 import { SETOR_LABEL } from "@/domain/os";
 import { SETORES } from "@/domain/constantes";
@@ -25,14 +28,18 @@ export const metadata: Metadata = { title: "Biblioteca" };
 
 type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string };
 
+type Aba = "projetos" | "pecas" | "fora";
+
 /**
  * Abas por query string (`?aba=`): o TabsNav decide a aba ativa só pelo pathname, que aqui é o mesmo
  * nas duas. Mesmo desenho do TabsNav, com a aba ativa vinda do parâmetro.
  */
-function Abas({ aba, nProjetos, nPecas }: { aba: "projetos" | "pecas"; nProjetos: number; nPecas: number }) {
+function Abas({ aba, nProjetos, nPecas, nFora }: { aba: Aba; nProjetos: number; nPecas: number; nFora: number | null }) {
   const itens = [
     { chave: "projetos", label: "Projetos padrão", n: nProjetos, href: "/biblioteca" },
     { chave: "pecas", label: "Catálogo de peças", n: nPecas, href: "/biblioteca?aba=pecas" },
+    // Só quem cadastra/vincula vê a fila do que as áreas descreveram à mão.
+    ...(nFora == null ? [] : [{ chave: "fora", label: "Fora do catálogo", n: nFora, href: "/biblioteca?aba=fora" }]),
   ];
   return <TabsNav rotulo="Seções da biblioteca" tabs={itens.map((t) => ({ href: t.href, label: t.label, n: t.n, ativo: aba === t.chave }))} />;
 }
@@ -40,8 +47,9 @@ function Abas({ aba, nProjetos, nPecas }: { aba: "projetos" | "pecas"; nProjetos
 export default async function BibliotecaPage({ searchParams }: { searchParams: Promise<SP> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
-  const aba = sp.aba === "pecas" ? "pecas" : "projetos";
-  const [projetos, pecasTodas] = await Promise.all([listarProjetos(usuario), listarPecas(usuario)]);
+  const podeVincular = pode(usuario, "ata.consolidar");
+  const aba: Aba = sp.aba === "pecas" ? "pecas" : sp.aba === "fora" && podeVincular ? "fora" : "projetos";
+  const [projetos, pecasTodas, foraCatalogo] = await Promise.all([listarProjetos(usuario), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null)]);
 
   const acoes =
     aba === "projetos"
@@ -59,9 +67,24 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const cabecalho = (
     <>
       <PageHeader title="Biblioteca" description="Projetos padrão com lista de peças e o catálogo mestre. Um projeto × quantidade na ata vira peças na OS, sem conta manual." actions={acoes} />
-      <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} />
+      <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} nFora={foraCatalogo ? foraCatalogo.length : null} />
     </>
   );
+
+  if (aba === "fora" && foraCatalogo) {
+    const opcoes = await opcoesReferenciasResumidas();
+    return (
+      <>
+        {cabecalho}
+        <Section
+          titulo="Itens que as áreas descreveram à mão"
+          sub="Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça."
+        >
+          <FilaForaCatalogo itens={foraCatalogo} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+        </Section>
+      </>
+    );
+  }
 
   if (aba === "projetos") {
     const uso = await contarUsoProjetos();
@@ -89,16 +112,16 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       <span className="sr-only">Foto</span>
                     </Th>
                     <Th>Projeto</Th>
-                    <Th largura={92} className="hidden xl:table-cell">
+                    <Th largura={104} className="hidden 2xl:table-cell">
                       Categoria
                     </Th>
-                    <Th largura={64} alinhar="right" className="hidden xl:table-cell">
+                    <Th largura={56} alinhar="right" className="hidden 2xl:table-cell">
                       Tipos
                     </Th>
-                    <Th largura={72} alinhar="right">
+                    <Th largura={64} alinhar="right">
                       Peças
                     </Th>
-                    <Th largura={84} alinhar="right" className="hidden lg:table-cell">
+                    <Th largura={92} alinhar="right" className="hidden xl:table-cell">
                       Uso
                     </Th>
                   </tr>
@@ -129,10 +152,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                             {p.descricao ? ` · ${p.descricao}` : ""}
                           </span>
                         </th>
-                        <td className="hidden border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 xl:table-cell">{p.categoria || "—"}</td>
-                        <td className="hidden border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 xl:table-cell">{p.tiposPeca} tipos</td>
-                        <td className="border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 max-lg:pr-[18px]">{p.totalPecas} peças</td>
-                        <td className={cn("hidden border-b border-line-row py-3.5 pl-3 pr-[18px] text-right text-pequeno lg:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
+                        <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell">{p.categoria || "—"}</td>
+                        <td className="hidden border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 2xl:table-cell">{p.tiposPeca}</td>
+                        <td className="border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 max-xl:pr-[18px]">{p.totalPecas}</td>
+                        <td className={cn("hidden whitespace-nowrap border-b border-line-row py-3.5 pl-3 pr-[18px] text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
                       </LinhaLink>
                     );
                   })}

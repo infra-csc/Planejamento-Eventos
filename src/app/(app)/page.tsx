@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Marcador, Metric, MetricStrip, PageHeader, Section } from "@/components/ui/layout";
 import { Badge, ForaJanelaTag, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { AtenderRapido } from "@/components/painel/atender-rapido";
+import { EventosSolicitante } from "@/components/painel/eventos-solicitante";
 
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
 
@@ -85,13 +86,17 @@ export default async function PainelPage() {
     subtitulo =
       usuario.perfil === "GESTAO"
         ? "Visão entre eventos: prazos, exceções e o que está travando a operação."
-        : `Sua fila de hoje: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta e ${plural(d.metricas.atrasadas, "prazo vencido", "prazos vencidos")}.`;
+        : usuario.perfil === "ADMIN"
+          ? `Visão completa: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta, ${plural(d.sistema?.usuariosAtivos ?? 0, "pessoa ativa", "pessoas ativas")} e ${plural(d.sistema?.areasAtivas ?? 0, "área", "áreas")}.`
+          : `Sua fila de hoje: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta e ${plural(d.metricas.atrasadas, "prazo vencido", "prazos vencidos")}.`;
     acao =
       usuario.perfil === "GESTAO"
         ? { label: "Ver atrasos", href: "/solicitacoes?filtro=ATRASADAS" }
-        : d.reuniaoHoje
-          ? { label: "Abrir conferência da ata de hoje", href: `/conferencia/${d.reuniaoHoje.id}` }
-          : { label: "Novo evento", href: "/eventos/novo" };
+        : usuario.perfil === "ADMIN"
+          ? { label: "Administração", href: "/admin" }
+          : d.reuniaoHoje
+            ? { label: "Abrir conferência da ata de hoje", href: `/conferencia/${d.reuniaoHoje.id}` }
+            : { label: "Novo evento", href: "/eventos/novo" };
   } else {
     subtitulo = `Área ${usuario.areaNome ?? ""}: o que você enviou, o que voltou para ajuste e onde ainda dá para pedir alteração.`;
     acao = { label: "Nova solicitação", href: "/solicitacoes/nova" };
@@ -112,6 +117,14 @@ export default async function PainelPage() {
         }
       />
 
+      {d.tipo === "operacao" && d.sistema && (
+        <MetricStrip>
+          <Metric label="Pessoas ativas" valor={d.sistema.usuariosAtivos} hint="usuários que conseguem entrar" href="/admin" />
+          <Metric label="Áreas ativas" valor={d.sistema.areasAtivas} hint="áreas que pedem itens" href="/admin?aba=areas" />
+          <Metric label="Eventos ativos" valor={d.sistema.eventosAtivos} hint="em preparação, reunião ou abertos" href="/eventos" />
+          <Metric label="Fora do catálogo" valor={d.sistema.foraCatalogo} tom={d.sistema.foraCatalogo > 0 ? "warning" : "success"} hint={d.sistema.foraCatalogo > 0 ? "itens para cadastrar ou vincular" : "tudo vinculado"} href="/biblioteca?aba=fora" />
+        </MetricStrip>
+      )}
       {d.tipo === "operacao" && (
         <MetricStrip>
           <Metric
@@ -169,6 +182,7 @@ export default async function PainelPage() {
 
           {d.tipo === "requisitante" && (
             <>
+              <EventosSolicitante eventos={d.eventos} mudancas={d.mudancas} />
               <Section
                 titulo="Precisa de você"
                 sub="Rascunhos, devoluções e o que ainda aguarda resposta da logística."
@@ -191,10 +205,10 @@ export default async function PainelPage() {
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono text-pequeno font-medium text-ink">{r.codigo}</span>
                       <span className="min-w-0 flex-1 text-corpo text-ink">{r.titulo || "sem título"}</span>
-                      <Badge tom={r.ressalvas > 0 ? "warning" : "success"}>{r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "tudo atendido"}</Badge>
+                      <Badge tom={r.naAta ? "accent" : r.ressalvas > 0 ? "warning" : "success"}>{r.naAta ? "na ata" : r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "tudo atendido"}</Badge>
                     </div>
                     <p className="mt-1 text-pequeno text-muted">
-                      {r.eventoNome} · respondida por {r.respondidoPor}
+                      {r.eventoNome} · {r.naAta ? "registrada na ata, confere na reunião" : `respondida por ${r.respondidoPor}`}
                     </p>
                   </Link>
                 ))}
