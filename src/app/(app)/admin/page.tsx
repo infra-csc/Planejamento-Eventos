@@ -11,6 +11,7 @@ import { BuscaUrl } from "@/components/ui/busca-url";
 import { UsuariosPainel } from "@/components/admin/usuarios-painel";
 import { AreasPainel } from "@/components/admin/areas-painel";
 import { ConfigPainel } from "@/components/admin/config-painel";
+import { combinaBusca } from "@/lib/busca";
 
 export const metadata: Metadata = { title: "Administração" };
 
@@ -33,7 +34,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const agora = new Date();
     const termo = (sp.q ?? "").trim().toLowerCase();
     const filtro = sp.filtro === "ATIVOS" || sp.filtro === "INATIVOS" ? sp.filtro : "TODOS";
-    const buscados = termo ? todos.filter((u) => `${u.nome} ${u.email} ${u.area?.nome ?? ""}`.toLowerCase().includes(termo)) : todos;
+    const buscados = termo ? todos.filter((u) => combinaBusca(`${u.nome} ${u.email} ${u.area?.nome ?? ""}`, termo)) : todos;
     const lista = buscados.filter((u) => filtro === "TODOS" || (filtro === "ATIVOS" ? u.ativo : !u.ativo));
     const params = { filtro: sp.filtro, q: sp.q };
     conteudo = (

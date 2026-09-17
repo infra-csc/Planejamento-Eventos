@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db, Tx } from "@/server/db";
 import { configuracoes, historico, notificacoes, sequencias, usuarios, type Perfil } from "@/server/db/schema";
 
@@ -130,4 +130,31 @@ export async function salvarConfiguracao(ex: Executor, chave: ChaveConfig, valor
     .insert(configuracoes)
     .values({ chave, valor })
     .onConflictDoUpdate({ target: configuracoes.chave, set: { valor, atualizadoEm: new Date() } });
+}
+
+const COM_ACENTO = "áàâãäåéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ";
+const SEM_ACENTO = "aaaaaaeeeeiiiiooooouuuucnaaaaaaeeeeiiiiooooouuuucn";
+
+/**
+ * Busca no banco sem diferenciar acento e maiúsculas: cada palavra do termo precisa aparecer em
+ * alguma das colunas ("portico 4" acha "Pórtico boca de 4 m"). Usa translate(), que existe no
+ * Postgres e no PGlite sem extensão.
+ */
+export function buscaSemAcento(colunas: AnyColumn[], termo: string): SQL | undefined {
+  const palavras = termo
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (palavras.length === 0 || colunas.length === 0) return undefined;
+  const alvo = sql.join(
+    colunas.map((c) => sql`coalesce(${c}, '')`),
+    sql` || ' ' || `,
+  );
+  const normalizado = sql`lower(translate(${alvo}, ${COM_ACENTO}, ${SEM_ACENTO}))`;
+  // % e _ são curingas do LIKE: saem do termo para a busca ser literal.
+  const literais = palavras.map((p) => p.replace(/[%_]/g, "")).filter(Boolean);
+  if (literais.length === 0) return undefined;
+  return and(...literais.map((p) => sql`${normalizado} like ${`%${p}%`}`));
 }

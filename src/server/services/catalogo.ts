@@ -1,9 +1,9 @@
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { pecas, projetoItens, projetoVersoes, projetos, type Setor } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
-import { registrarHistorico } from "./support";
+import { registrarHistorico, buscaSemAcento } from "./support";
 
 export type DadosPeca = {
   codigo: string;
@@ -23,8 +23,8 @@ export async function listarPecas(usuario: UsuarioAtual, filtro: { busca?: strin
   if (!filtro.incluirInativas) conds.push(eq(pecas.ativo, true));
   if (filtro.setor && filtro.setor !== "TODOS") conds.push(eq(pecas.setor, filtro.setor));
   if (filtro.busca) {
-    const b = `%${filtro.busca.trim()}%`;
-    conds.push(or(ilike(pecas.codigo, b), ilike(pecas.nome, b), ilike(pecas.familia, b)));
+    const cond = buscaSemAcento([pecas.codigo, pecas.nome, pecas.familia], filtro.busca);
+    if (cond) conds.push(cond);
   }
   return db.query.pecas.findMany({ where: conds.length ? and(...conds) : undefined, orderBy: [asc(pecas.setor), asc(pecas.codigo)] });
 }

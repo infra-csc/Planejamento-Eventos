@@ -17,6 +17,7 @@ import { CaptionOculta, Paginacao, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
+import { combinaBusca } from "@/lib/busca";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -184,7 +185,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const emBom = await contarPecasEmBom();
   const termo = (sp.q ?? "").trim().toLowerCase();
   const setor = (SETORES as readonly string[]).includes(sp.setor ?? "") ? (sp.setor as Setor) : null;
-  const buscadas = termo ? pecasTodas.filter((p) => `${p.codigo} ${p.nome} ${p.familia}`.toLowerCase().includes(termo)) : pecasTodas;
+  const buscadas = termo ? pecasTodas.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasTodas;
   const filtradas = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
   const ordenadas = ordenar(
     filtradas,

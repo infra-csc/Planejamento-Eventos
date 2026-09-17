@@ -1,9 +1,9 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
-import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica } from "./support";
+import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento } from "./support";
 
 export type DadosProjeto = {
   nome: string;
@@ -19,8 +19,8 @@ export async function listarProjetos(usuario: UsuarioAtual, filtro: { busca?: st
   const conds = [];
   if (!filtro.incluirInativos) conds.push(eq(projetos.ativo, true));
   if (filtro.busca) {
-    const b = `%${filtro.busca.trim()}%`;
-    conds.push(or(ilike(projetos.nome, b), ilike(projetos.codigo, b), ilike(projetos.categoria, b)));
+    const cond = buscaSemAcento([projetos.nome, projetos.codigo, projetos.categoria], filtro.busca);
+    if (cond) conds.push(cond);
   }
   const rows = await db.query.projetos.findMany({
     where: conds.length ? and(...conds) : undefined,

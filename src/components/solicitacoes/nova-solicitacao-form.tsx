@@ -12,6 +12,7 @@ import type { ItemOperacao } from "@/server/db/schema";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
+import { combinaBusca } from "@/lib/busca";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -41,8 +42,8 @@ const novaChave = () => `n${Date.now()}-${seq++}`;
 
 function Passo({ n, titulo, sub, children }: { n: number; titulo: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-[10px] border border-line bg-surface">
-      <div className="flex items-start gap-3 border-b border-line-soft px-[18px] py-3.5">
+    <section className="rounded-[10px] border border-line bg-surface">
+      <div className="flex items-start gap-3 rounded-t-[10px] border-b border-line-soft px-[18px] py-3.5">
         <span className="flex size-[22px] shrink-0 items-center justify-center rounded-[6px] bg-dark font-mono text-[11.5px] text-accent-light">{n}</span>
         <div>
           <h2 className="m-0 text-[14px] font-semibold">{titulo}</h2>
@@ -286,15 +287,15 @@ export function NovaSolicitacaoForm({
   };
 
   const resultados = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    const filtra = <T extends { codigo?: string; nome: string }>(xs: T[]) => (t ? xs.filter((x) => `${x.codigo ?? ""} ${x.nome}`.toLowerCase().includes(t)) : xs);
-    if (modo === "projeto") return filtra(projetos).slice(0, 8);
-    if (modo === "peca") return filtra(pecas).slice(0, 8);
+    // Lista completa (sem corte) e busca sem acento: "po" acha "Pórtico" e "Posto".
+    const filtra = <T extends { codigo?: string; nome: string; categoria?: string | null; familia?: string | null }>(xs: T[]) =>
+      busca.trim() ? xs.filter((x) => combinaBusca(`${x.codigo ?? ""} ${x.nome} ${x.categoria ?? ""} ${x.familia ?? ""}`, busca)) : xs;
+    if (modo === "projeto") return filtra(projetos);
+    if (modo === "peca") return filtra(pecas);
     return [];
   }, [busca, modo, projetos, pecas]);
   const linhasFiltradas = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    return t ? linhas.filter((l) => l.nome.toLowerCase().includes(t)) : linhas;
+    return busca.trim() ? linhas.filter((l) => combinaBusca(l.nome, busca)) : linhas;
   }, [busca, linhas]);
 
   const validarTitulo = (v: string) => setErroTitulo(v.trim() ? null : "Dê um título para a logística identificar a solicitação na fila.");
@@ -570,7 +571,13 @@ export function NovaSolicitacaoForm({
           ) : (
             <>
               <input aria-label="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} className={campo} />
-              <div className="mt-2 max-h-[300px] overflow-y-auto">
+              {modo !== "ata" && (
+                <p className="mb-0 mt-2 text-[12px] text-muted">
+                  {resultados.length} {modo === "projeto" ? (resultados.length === 1 ? "projeto" : "projetos") : resultados.length === 1 ? "peça" : "peças"}
+                  {busca.trim() ? ` para “${busca.trim()}”` : " no catálogo"}
+                </p>
+              )}
+              <div className="mt-1">
                 {modo !== "ata" &&
                   resultados.map((r) => (
                     <div key={r.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">

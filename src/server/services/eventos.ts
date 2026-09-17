@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
   anexos,
@@ -26,7 +26,7 @@ import { pode } from "@/domain/permissions";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
-import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor } from "./support";
+import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -40,8 +40,8 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
   const conds = [];
   if (filtro.status && filtro.status !== "TODOS") conds.push(eq(eventos.status, filtro.status));
   if (filtro.busca) {
-    const b = `%${filtro.busca.trim()}%`;
-    conds.push(or(ilike(eventos.nome, b), ilike(eventos.codigo, b), ilike(eventos.cliente, b), ilike(eventos.local, b)));
+    const cond = buscaSemAcento([eventos.nome, eventos.codigo, eventos.cliente, eventos.local], filtro.busca);
+    if (cond) conds.push(cond);
   }
   // Datas fora do calendário são ignoradas em vez de derrubar a consulta.
   const dataValida = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import { combinaBusca } from "@/lib/busca";
 
 export type OpcaoCombo = { value: string; label: string; descricao?: string; selo?: string; seloTom?: "accent" | "warning" | "muted"; disabled?: boolean };
 
@@ -45,7 +46,7 @@ export function ComboBox({
     const t = busca.trim().toLowerCase();
     // Com o rótulo do escolhido ainda no campo (logo após focar), mostra a lista inteira.
     if (!t || t === selecionada?.label.toLowerCase()) return base;
-    return base.filter((o) => `${o.label} ${o.descricao ?? ""}`.toLowerCase().includes(t));
+    return base.filter((o) => combinaBusca(`${o.label} ${o.descricao ?? ""}`, t));
   }, [opcoes, busca, ordenarAlfabetico, selecionada]);
 
   useEffect(() => {

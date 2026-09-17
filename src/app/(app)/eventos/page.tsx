@@ -13,6 +13,7 @@ import { BuscaUrl } from "@/components/ui/busca-url";
 import { CaptionOculta } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { BarrasFase } from "@/components/eventos/fases";
+import { combinaBusca } from "@/lib/busca";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -77,7 +78,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
   const filtrados = todos.filter((e) => {
     if (fase !== "TODOS" && statusExibicao(e.status, e.dataFim, hoje) !== fase) return false;
     if (!termo) return true;
-    return `${e.nome} ${e.codigo} ${e.cliente} ${e.local}`.toLowerCase().includes(termo);
+    return combinaBusca(`${e.nome} ${e.codigo} ${e.cliente} ${e.local}`, termo);
   });
 
   const grupos: Array<{ titulo: string; teste: (e: EventoLista) => boolean }> = [
