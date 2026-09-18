@@ -104,24 +104,19 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-              <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+              {/* table-fixed: a tabela nunca passa da largura do cartão (antes as colunas da direita sumiam atrás do painel). */}
+              <table className="w-full table-fixed border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
                 <CaptionOculta>Projetos padrão</CaptionOculta>
                 <thead>
                   <tr>
-                    <Th largura={56}>
+                    <Th largura={92}>
                       <span className="sr-only">Foto</span>
                     </Th>
                     <Th>Projeto</Th>
-                    <Th largura={104} className="hidden 2xl:table-cell">
+                    <Th largura={120} className="hidden 2xl:table-cell">
                       Categoria
                     </Th>
-                    <Th largura={56} alinhar="right" className="hidden 2xl:table-cell">
-                      Tipos
-                    </Th>
-                    <Th largura={64} alinhar="right">
-                      Peças
-                    </Th>
-                    <Th largura={92} alinhar="right" className="hidden xl:table-cell">
+                    <Th largura={104} alinhar="right" className="hidden lg:table-cell">
                       Uso
                     </Th>
                   </tr>
@@ -147,15 +142,14 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                             <span className="min-w-0 text-corpo font-medium leading-[1.25] text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">{p.nome}</span>
                             <ChipMono tom="control">v{p.versaoAtual}</ChipMono>
                           </span>
-                          <span className="mt-0.5 block truncate text-pequeno text-muted">
-                            <span className="font-mono">{p.codigo}</span>
-                            {p.descricao ? ` · ${p.descricao}` : ""}
+                          {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
+                          <span className="mt-0.5 block text-pequeno text-ink-3">
+                            <span className="font-mono">{p.codigo}</span> · {p.tiposPeca} {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <span className="font-mono">{p.totalPecas}</span> {p.totalPecas === 1 ? "peça" : "peças"}
                           </span>
+                          {p.descricao && <span className="mt-0.5 block truncate text-pequeno text-muted">{p.descricao}</span>}
                         </th>
                         <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell">{p.categoria || "—"}</td>
-                        <td className="hidden border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 2xl:table-cell">{p.tiposPeca}</td>
-                        <td className="border-b border-line-row px-3 py-3.5 text-right font-mono text-pequeno text-ink-2 max-xl:pr-[18px]">{p.totalPecas}</td>
-                        <td className={cn("hidden whitespace-nowrap border-b border-line-row py-3.5 pl-3 pr-[18px] text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
+                        <td className={cn("hidden whitespace-nowrap border-b border-line-row py-3.5 pl-3 pr-[18px] text-right text-pequeno lg:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
                       </LinhaLink>
                     );
                   })}

@@ -9,6 +9,7 @@ import { IconLink } from "@/components/ui/icon-button";
 import { IconeChevron } from "@/components/ui/icons";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
+import { FiltroEvento } from "@/components/ui/filtro-evento";
 
 export const metadata: Metadata = { title: "Calendário" };
 
@@ -134,15 +135,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
             ...(Object.keys(TIPO) as TipoCalendario[]).filter((t) => tiposPresentes.includes(t)).map((t) => ({ label: TIPO[t].rotulo, n: itensMes.filter((i) => i.tipo === t && (!eventoFiltro || i.evento.id === eventoFiltro)).length, href: query(m, t, eventoFiltro), ativo: filtro === t })),
           ]}
         />
-        {eventosDoMes.length > 1 && (
-          <Pills
-            rotulo="Filtrar por evento"
-            itens={[
-              { label: "Todos os eventos", href: query(m, filtro, null), ativo: !eventoFiltro },
-              ...eventosDoMes.map((e) => ({ label: e.nome, n: itensMes.filter((i) => i.evento.id === e.id).length, href: query(m, filtro, e.id), ativo: eventoFiltro === e.id })),
-            ]}
-          />
-        )}
+        {eventosDoMes.length > 1 && <FiltroEvento eventos={eventosDoMes.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: itensMes.filter((i) => i.evento.id === e.id).length }))} />}
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">

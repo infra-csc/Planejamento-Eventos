@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
+import { FiltroEvento } from "@/components/ui/filtro-evento";
 import { eventosComSolicitacoes, FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
 import { aguardaReuniao } from "@/domain/solicitacao";
@@ -95,15 +96,8 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
             ativo: filtro === v,
           }))}
         />
-        {eventosFiltro.length > 1 && (
-          <Pills
-            rotulo="Filtrar por evento"
-            itens={[
-              { label: "Todos os eventos", href: hrefCom("/solicitacoes", params, { evento: null, pagina: null }), ativo: !eventoId },
-              ...eventosFiltro.map((e) => ({ label: e.nome, n: e.n, title: e.codigo, href: hrefCom("/solicitacoes", params, { evento: e.id, pagina: null }), ativo: eventoId === e.id })),
-            ]}
-          />
-        )}
+        {/* Campo com busca: aguenta centenas de eventos (pílulas não). */}
+        {eventosFiltro.length > 1 && <FiltroEvento eventos={eventosFiltro} />}
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
