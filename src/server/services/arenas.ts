@@ -23,6 +23,17 @@ export type ArenaCarregada = {
   versao: number | null;
 };
 
+/**
+ * Banco sem a migração das arenas (0009) ainda: em vez de derrubar a página, registra o motivo no log
+ * e segue só com a arena fixa. Some sozinho depois de `npm run db:migrate`.
+ */
+function avisarMigracao<T>(padrao: T) {
+  return (e: unknown): T => {
+    console.error("Arenas: tabela indisponível — rode `npm run db:migrate`.", e);
+    return padrao;
+  };
+}
+
 export async function obterArenaBase(slug: string): Promise<ArenaCarregada | null> {
   const fixa = obterArenaPorSlug(slug);
   if (fixa) return { arena: fixa, origem: "fixa", eventoId: null, temPlanta: false, versao: null };
@@ -76,9 +87,10 @@ export async function listarArenasResumo(): Promise<ArenaResumo[]> {
       })
       .from(arenas)
       .leftJoin(eventos, eq(arenas.eventoId, eventos.id))
-      .orderBy(desc(arenas.atualizadoEm)),
+      .orderBy(desc(arenas.atualizadoEm))
+      .catch(avisarMigracao([])),
     // Pontos criados direto no mapa também contam.
-    db.select({ slug: arenaPosicoes.arenaSlug, n: count() }).from(arenaPosicoes).where(eq(arenaPosicoes.tipo, "NOVO")).groupBy(arenaPosicoes.arenaSlug),
+    db.select({ slug: arenaPosicoes.arenaSlug, n: count() }).from(arenaPosicoes).where(eq(arenaPosicoes.tipo, "NOVO")).groupBy(arenaPosicoes.arenaSlug).catch(avisarMigracao([])),
   ]);
   const novosPor = new Map(novos.map((n) => [n.slug, Number(n.n)]));
   return [
@@ -98,7 +110,7 @@ export async function listarArenasResumo(): Promise<ArenaResumo[]> {
 /** Slug da arena de um evento, se ele já tiver uma (link "Arena / mapa" do evento). */
 export async function slugArenaDoEvento(eventoId: string): Promise<string | null> {
   const db = await getDb();
-  const row = await db.query.arenas.findFirst({ where: eq(arenas.eventoId, eventoId), columns: { slug: true } });
+  const row = await db.query.arenas.findFirst({ where: eq(arenas.eventoId, eventoId), columns: { slug: true } }).catch(avisarMigracao(undefined));
   return row?.slug ?? null;
 }
 

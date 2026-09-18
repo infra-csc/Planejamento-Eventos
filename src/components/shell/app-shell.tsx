@@ -71,14 +71,13 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
       className={cn(
         "relative flex w-full items-center gap-2.5 rounded-controle border border-transparent py-2 text-corpo no-underline",
         compacto ? "justify-center px-0" : "px-2.5",
-        ativo ? "bg-dark-2 font-medium text-white" : "text-on-dark-2 hover:bg-white/[0.04] hover:text-white",
+        ativo ? "bg-control font-medium text-ink [&_svg]:text-accent" : "text-ink-2 hover:bg-subtle hover:text-ink",
       )}
     >
-      {ativo && <span aria-hidden className="absolute -left-3 bottom-2 top-2 w-[3px] rounded-r-sm bg-accent-light" />}
       <IconeNav href={item.href} />
       <span className={cn("flex-1 text-left", compacto && "sr-only")}>{item.label}</span>
       {temContagem && !compacto && <ChipMono tom="accent">{item.contagem}</ChipMono>}
-      {temContagem && compacto && <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-accent-light" />}
+      {temContagem && compacto && <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-accent" />}
     </Link>
   );
 }
@@ -152,7 +151,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           if ((e.target as HTMLElement).closest("a")) fecharMenu(false);
         }}
         className={cn(
-          "no-print flex h-screen w-[236px] shrink-0 flex-col bg-dark transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0",
+          "no-print flex h-screen w-[236px] shrink-0 flex-col border-r border-line bg-surface transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0",
           recolhido ? "lg:w-[64px]" : "lg:w-[200px] xl:w-[236px]",
           "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-[calc(var(--z-busca)+1)] max-lg:shadow-popover",
           // Fechada no mobile: fora da tela e fora do Tab/leitor de tela (invisible some depois da transição).
@@ -161,10 +160,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
       >
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
-            <span aria-hidden className="block size-5 shrink-0 rounded-chip bg-accent-light" />
+            <span aria-hidden className="block size-5 shrink-0 rounded-chip bg-accent" />
             <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
-              <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-on-dark-3">Norte Mkt</span>
-              <span className="block text-corpo font-semibold tracking-[-0.01em] text-white">Planejamento</span>
+              <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-meta">Norte Mkt</span>
+              <span className="block text-corpo font-semibold tracking-[-0.01em] text-ink">Planejamento</span>
             </span>
           </Link>
           {/* Recolher/expandir: só no desktop (abaixo de lg a sidebar é gaveta). */}
@@ -173,7 +172,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             onClick={alternarRecolhido}
             aria-pressed={recolhido}
             title={recolhido ? "Expandir menu" : "Recolher menu"}
-            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border border-dark-3 bg-transparent text-on-dark-2 hover:bg-white/[0.06] hover:text-white lg:grid"
+            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border border-line bg-transparent text-ink-3 hover:bg-subtle hover:text-ink lg:grid"
           >
             <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", recolhido && "rotate-180")}>
               <path d="M15 6l-6 6 6 6" />
@@ -185,7 +184,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           type="button"
           onClick={abrirBuscaGlobal}
           title={recolhido ? "Buscar ou executar (Ctrl K)" : undefined}
-          className={cn("mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-dark-3 bg-dark-4 py-2 text-corpo text-on-dark-3 hover:text-on-dark-2", recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5")}
+          className={cn("mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-line bg-subtle py-2 text-corpo text-ink-3 hover:border-line-strong hover:text-ink-2", recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5")}
         >
           <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
@@ -193,7 +192,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           </svg>
           <span className={cn("flex-1 text-left", recolhido && "lg:sr-only")}>Buscar ou executar</span>
           <span className={cn(recolhido && "lg:hidden")}>
-            <Kbd escuro>
+            <Kbd>
               <AtalhoBusca />
             </Kbd>
           </span>
@@ -206,9 +205,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
               <div key={item.href}>
                 {mostrarSecao &&
                   (recolhido ? (
-                    <hr className="mx-2 my-2.5 border-0 border-t border-dark-2" />
+                    <hr className="mx-2 my-2.5 border-0 border-t border-line" />
                   ) : (
-                    <p className="mb-1.5 mt-[18px] px-2.5 text-micro font-semibold uppercase tracking-[0.14em] text-on-dark-4">{item.secao}</p>
+                    <p className="mb-1.5 mt-[18px] px-2.5 text-micro font-semibold uppercase tracking-[0.14em] text-meta">{item.secao}</p>
                   ))}
                 <ItemNav item={item} ativo={estaAtivo(item)} compacto={recolhido} />
               </div>
@@ -216,12 +215,12 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           })}
         </nav>
 
-        <div className={cn("flex items-center gap-2.5 border-t border-dark-2 py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
-          <p className={cn("m-0 flex-1 text-rotulo text-on-dark-4", recolhido && "lg:sr-only")}>
+        <div className={cn("flex items-center gap-2.5 border-t border-line py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
+          <p className={cn("m-0 flex-1 text-rotulo text-meta", recolhido && "lg:sr-only")}>
             <Atualizado key={pathname} /> · v0.2
           </p>
           <form action={logoutAction}>
-            <button type="submit" title="Sair" className="cursor-pointer border-0 bg-transparent p-0 text-rotulo text-on-dark-2 hover:text-white">
+            <button type="submit" title="Sair" className="cursor-pointer border-0 bg-transparent p-0 text-rotulo text-ink-3 hover:text-accent">
               {recolhido ? (
                 <svg aria-label="Sair" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />
@@ -255,7 +254,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           <div aria-hidden className="h-[22px] w-px bg-line max-sm:hidden" />
           <Dropdown>
             <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 hover:bg-black/[0.04]" aria-label={`Menu de ${usuario.nome}`}>
-              <span className="flex size-7 items-center justify-center rounded-controle bg-dark text-rotulo font-semibold text-accent-light">{iniciais(usuario.nome)}</span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-accent-bg text-rotulo font-semibold text-accent">{iniciais(usuario.nome)}</span>
               <span className="text-left max-sm:hidden">
                 <span className="block text-pequeno font-medium leading-[1.25] text-ink">{usuario.nome}</span>
                 <span className="block text-rotulo leading-[1.25] text-muted">{perfilTexto}</span>
