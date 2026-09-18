@@ -11,7 +11,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { BuscaUrl } from "@/components/ui/busca-url";
-import { SelectUrl } from "@/components/ui/select-url";
+import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 
@@ -71,7 +71,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
     <>
       <PageHeader
         title="Solicitações"
-        description={veTodas ? "Necessidades pré-reunião e alterações pós-ata de todas as áreas. Cada item recebe resposta própria." : `O que a área ${usuario.areaNome ?? ""} enviou, o que voltou para ajuste e o que já foi respondido.`}
+        divisor
         actions={
           <>
             {primeiraFila && (
@@ -91,7 +91,6 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
       {/* Barra de filtros compacta (template de pedidos): busca, situação e evento na mesma linha. */}
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
         <BuscaUrl placeholder="Buscar por código ou título" ariaLabel="Buscar solicitação por código ou título" />
-        <SelectUrl param="filtro" rotulo="Situação" opcoes={FILTROS_LISTA.map((v) => ({ value: v, label: `${ROTULO_FILTRO[v]} (${pag.contagens[v]})` }))} />
         {/* Campo com busca: aguenta centenas de eventos. */}
         {eventosFiltro.length > 1 && <FiltroEvento eventos={eventosFiltro} rotuloOculto />}
         {pag.contagens.ATRASADAS > 0 && filtro !== "ATRASADAS" && (
@@ -103,6 +102,12 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        {/* Situações como abas com contagem sempre à vista (a logística olha os números o tempo todo). */}
+        <TabsNav
+          rotulo="Situação das solicitações"
+          className="mb-0 px-2 pt-1"
+          tabs={FILTROS_LISTA.map((v) => ({ href: hrefCom("/solicitacoes", params, { filtro: v === "TODAS" ? null : v, pagina: null }), label: ROTULO_FILTRO[v], n: pag.contagens[v], ativo: filtro === v }))}
+        />
         {pag.total === 0 ? (
           <EmptyState
             title={busca ? `Nada encontrado para “${busca}”` : vazio[0]}
@@ -130,7 +135,9 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                     <Th className="hidden lg:table-cell" largura={120}>
                       Área
                     </Th>
-                    {th("itens", "Itens", 64)}
+                    <Th className="hidden 2xl:table-cell" largura={64}>
+                      Itens
+                    </Th>
                     {th("status", "Status", 124)}
                     {th("prazo", "Prazo", 110, "right")}
                     <Th largura={44}>
@@ -154,6 +161,12 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                             <span className="xl:hidden">{s.evento.nome} · </span>
                             <span className="lg:hidden">{s.area.nome} · </span>
                             por {s.criadoPor.nome}
+                            <span className="2xl:hidden">
+                              {" · "}
+                              <span className="font-mono">
+                                {s.itensRespondidos}/{s.totalItens} itens
+                              </span>
+                            </span>
                           </span>
                         </th>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">
@@ -162,7 +175,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                           </span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
-                        <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3">
+                        <td className="hidden border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3 2xl:table-cell">
                           {s.itensRespondidos}/{s.totalItens}
                         </td>
                         <td className="border-b border-line-row px-3 py-3">

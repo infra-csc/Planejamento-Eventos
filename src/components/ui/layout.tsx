@@ -28,6 +28,7 @@ export function PageHeader({
   meta,
   eyebrow,
   tamanho = "md",
+  divisor = false,
   className,
 }: {
   title: React.ReactNode;
@@ -38,12 +39,14 @@ export function PageHeader({
   meta?: React.ReactNode;
   eyebrow?: React.ReactNode;
   tamanho?: "md" | "sm";
+  /** Linha fina sob o cabeçalho, separando título/ações do conteúdo. */
+  divisor?: boolean;
   className?: string;
 }) {
   return (
     <>
       {breadcrumbs && <DefinirTrilha itens={breadcrumbs} />}
-      <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", className)}>
+      <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", divisor && "mb-5 border-b border-line pb-4 sm:items-center", className)}>
         <div className="min-w-0">
           {eyebrow && <div className="mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">{eyebrow}</div>}
           <h1 className={cn("m-0 font-semibold leading-[1.2] tracking-[-0.025em]", tamanho === "sm" ? "text-titulo" : "text-pagina")}>{title}</h1>
