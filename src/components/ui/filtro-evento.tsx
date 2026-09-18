@@ -9,7 +9,7 @@ import { Button } from "./button";
  * Filtro por evento que aguenta centenas de eventos: campo com busca (nome ou código) em vez de
  * uma fileira de pílulas. Escreve `?evento=` na URL e zera a paginação; "Limpar" tira o filtro.
  */
-export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento" }: { eventos: Array<{ id: string; codigo: string; nome: string; n?: number }>; param?: string; rotulo?: string }) {
+export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rotuloOculto = false }: { eventos: Array<{ id: string; codigo: string; nome: string; n?: number }>; param?: string; rotulo?: string; rotuloOculto?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -27,7 +27,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento" }: {
 
   return (
     <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto" aria-busy={pendente || undefined}>
-      <label htmlFor="filtro-evento" className="shrink-0 text-pequeno text-ink-3">
+      <label htmlFor="filtro-evento" className={rotuloOculto ? "sr-only" : "shrink-0 text-pequeno text-ink-3"}>
         {rotulo}
       </label>
       <ComboBox

@@ -99,7 +99,7 @@ export async function eventosComSolicitacoes(usuario: UsuarioAtual) {
   return rows.map((r) => ({ ...r, n: Number(r.n) }));
 }
 
-export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number; eventoId?: string | null }) {
+export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number; eventoId?: string | null; busca?: string | null }) {
   const db = await getDb();
   const agora = sql`${new Date().toISOString()}::timestamptz`;
   const vazio = { itens: [] as SolicitacaoLista[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
@@ -113,6 +113,12 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
   }
   // Filtro por evento vale para a lista e para as contagens de cada aba.
   if (opcoes.eventoId) base.push(eq(solicitacoes.eventoId, opcoes.eventoId));
+  // Busca por código ou título (também entra nas contagens). % e _ do termo são literais.
+  const termo = opcoes.busca?.trim().slice(0, 80);
+  if (termo) {
+    const padrao = `%${termo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    base.push(sql`(${solicitacoes.codigo} ilike ${padrao} or coalesce(${solicitacoes.titulo}, '') ilike ${padrao})`);
+  }
   // Aguardando resposta = alterações; necessidade pré-reunião não passa por avaliação (já está na ata).
   const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE') and ${solicitacoes.tipo} = 'ALTERACAO'`;
   const condicoes: Record<FiltroLista, SQL> = {

@@ -6,6 +6,18 @@ import { PERFIL_LABEL } from "@/domain/permissions";
 
 export type Tom = "neutral" | "rascunho" | "muted" | "accent" | "warning" | "success" | "danger" | "dark";
 
+/** Borda do selo (Badge): um tom mais forte que o fundo, como no template de pedidos. */
+const BORDAS: Record<Tom, string> = {
+  neutral: "border-line-strong",
+  rascunho: "border-line",
+  muted: "border-line",
+  accent: "border-accent-border",
+  warning: "border-warning-border",
+  success: "border-success-border",
+  danger: "border-danger-border",
+  dark: "border-dark",
+};
+
 const TONS: Record<Tom, string> = {
   neutral: "bg-neutral-bg text-ink-2",
   rascunho: "bg-neutral-bg text-ink-3",
@@ -18,7 +30,7 @@ const TONS: Record<Tom, string> = {
 };
 
 export function Badge({ tom = "neutral", children, className }: { tom?: Tom; children: React.ReactNode; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-2 py-[2px] text-rotulo font-medium leading-[1.45]", TONS[tom], className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip border px-2 py-px text-rotulo font-medium leading-[1.45]", TONS[tom], BORDAS[tom], className)}>{children}</span>;
 }
 
 /** Tag pequena usada em linhas (tipo de item, gatilho de versão). */
