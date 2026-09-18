@@ -27,7 +27,7 @@ export function ThOrdenavel({
 }) {
   const ariaSort = ativo ? (dir === "desc" ? "descending" : "ascending") : "none";
   return (
-    <th scope="col" aria-sort={ariaSort} className="border-b border-line-soft bg-subtle p-0 font-medium" style={{ width: largura, textAlign: alinhar }}>
+    <th scope="col" aria-sort={ariaSort} className="relative border-b border-line-soft bg-subtle p-0 font-medium" style={{ width: largura, textAlign: alinhar }}>
       <Link
         href={href}
         scroll={false}
@@ -46,7 +46,7 @@ export function ThOrdenavel({
 
 export function Th({ children, largura, alinhar = "left", className }: { children?: React.ReactNode; largura?: number | string; alinhar?: "left" | "right"; className?: string }) {
   return (
-    <th scope="col" className={cn("border-b border-line-soft bg-subtle px-3 py-2.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted first:pl-cartao last:pr-cartao", className)} style={{ width: largura, textAlign: alinhar }}>
+    <th scope="col" className={cn("relative border-b border-line-soft bg-subtle px-3 py-2.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted first:pl-cartao last:pr-cartao", className)} style={{ width: largura, textAlign: alinhar }}>
       {children}
     </th>
   );

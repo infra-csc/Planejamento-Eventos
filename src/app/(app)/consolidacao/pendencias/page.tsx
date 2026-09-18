@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function Redirecionar() {
-  redirect("/consolidacao#pendencias");
+  redirect("/consolidacao?aba=pendencias");
 }

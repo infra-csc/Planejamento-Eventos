@@ -31,10 +31,7 @@ type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string
 
 type Aba = "projetos" | "pecas" | "fora";
 
-/**
- * Abas por query string (`?aba=`): o TabsNav decide a aba ativa só pelo pathname, que aqui é o mesmo
- * nas duas. Mesmo desenho do TabsNav, com a aba ativa vinda do parâmetro.
- */
+/** Abas por query string (`?aba=`) no topo do cartão da tabela, com a contagem de cada seção. */
 function Abas({ aba, nProjetos, nPecas, nFora }: { aba: Aba; nProjetos: number; nPecas: number; nFora: number | null }) {
   const itens = [
     { chave: "projetos", label: "Projetos padrão", n: nProjetos, href: "/biblioteca" },
@@ -42,8 +39,20 @@ function Abas({ aba, nProjetos, nPecas, nFora }: { aba: Aba; nProjetos: number; 
     // Só quem cadastra/vincula vê a fila do que as áreas descreveram à mão.
     ...(nFora == null ? [] : [{ chave: "fora", label: "Fora do catálogo", n: nFora, href: "/biblioteca?aba=fora" }]),
   ];
-  return <TabsNav rotulo="Seções da biblioteca" tabs={itens.map((t) => ({ href: t.href, label: t.label, n: t.n, ativo: aba === t.chave }))} />;
+  return <TabsNav rotulo="Seções da biblioteca" className="mb-0 px-2 pt-1" tabs={itens.map((t) => ({ href: t.href, label: t.label, n: t.n, ativo: aba === t.chave }))} />;
 }
+
+/** Seta › da última coluna: a linha abre algo (detalhe do projeto, edição da peça). */
+function SetaAbrir({ ativo }: { ativo?: boolean }) {
+  return (
+    <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={cn("inline-block", ativo && "text-accent")}>
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+const barraCls = "mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center";
+const cartaoCls = "overflow-hidden rounded-cartao border border-line bg-surface";
 
 export default async function BibliotecaPage({ searchParams }: { searchParams: Promise<SP> }) {
   const usuario = await requireUsuario();
@@ -51,6 +60,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const podeVincular = pode(usuario, "ata.consolidar");
   const aba: Aba = sp.aba === "pecas" ? "pecas" : sp.aba === "fora" && podeVincular ? "fora" : "projetos";
   const [projetos, pecasTodas, foraCatalogo] = await Promise.all([listarProjetos(usuario), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null)]);
+  const busca = sp.q?.trim().slice(0, 80) || null;
+  const termo = (busca ?? "").toLowerCase();
 
   const acoes =
     aba === "projetos"
@@ -65,31 +76,51 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           </ButtonLink>
         );
 
-  const cabecalho = (
-    <>
-      <PageHeader title="Biblioteca" description="Projetos padrão com lista de peças e o catálogo mestre. Um projeto × quantidade na ata vira peças na OS, sem conta manual." actions={acoes} />
-      <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} nFora={foraCatalogo ? foraCatalogo.length : null} />
-    </>
-  );
+  const cabecalho = <PageHeader title="Biblioteca" divisor actions={acoes} />;
+  const abas = <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} nFora={foraCatalogo ? foraCatalogo.length : null} />;
+
+  // O que está esperando alguém: itens descritos à mão que ainda não somam peças na OS.
+  const atalhoFora =
+    foraCatalogo && foraCatalogo.length > 0 && aba !== "fora" ? (
+      <Link href="/biblioteca?aba=fora" className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
+        <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-warning" />
+        {foraCatalogo.length} {foraCatalogo.length === 1 ? "item fora do catálogo" : "itens fora do catálogo"}
+      </Link>
+    ) : null;
 
   if (aba === "fora" && foraCatalogo) {
     const opcoes = await opcoesReferenciasResumidas();
+    const encontrados = termo ? foraCatalogo.filter((i) => combinaBusca(`${i.descricao ?? ""} ${i.eventoCodigo} ${i.eventoNome} ${i.area ?? ""} ${i.destino ?? ""} ${i.solicitante ?? ""}`, termo)) : foraCatalogo;
+    const pag = paginar(encontrados, sp.pagina, 25);
+    const params = { aba: "fora", q: sp.q, pagina: sp.pagina };
     return (
       <>
         {cabecalho}
-        <Section
-          titulo="Itens que as áreas descreveram à mão"
-          sub="Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça."
-        >
-          <FilaForaCatalogo itens={foraCatalogo} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
-        </Section>
+        {foraCatalogo.length > 0 && (
+          <div className={barraCls}>
+            <BuscaUrl key="busca-fora" placeholder="Buscar por item, evento ou área" ariaLabel="Buscar item fora do catálogo" />
+          </div>
+        )}
+        <div className={cartaoCls}>
+          {abas}
+          {foraCatalogo.length > 0 && (
+            <p className="m-0 border-b border-line-soft px-cartao py-2.5 text-pequeno text-muted">Itens que as áreas descreveram à mão. Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça.</p>
+          )}
+          {foraCatalogo.length > 0 && pag.total === 0 ? (
+            <EmptyState title={`Nada encontrado para “${busca}”`} description="Confira a descrição ou tente o código do evento." />
+          ) : (
+            <>
+              <FilaForaCatalogo itens={pag.itens} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+              <Paginacao {...pag} hrefPagina={(n) => hrefCom("/biblioteca", params, { pagina: n === 1 ? null : n })} />
+            </>
+          )}
+        </div>
       </>
     );
   }
 
   if (aba === "projetos") {
     // Busca e paginação em memória (a lista de projetos já vem inteira do serviço).
-    const termo = (sp.q ?? "").trim().toLowerCase();
     const encontrados = termo ? projetos.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""}`, termo)) : projetos;
     const pag = paginar(encontrados, sp.pagina, 12);
     const params = { q: sp.q, pagina: sp.pagina };
@@ -98,85 +129,105 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     const atual = detalhe?.versaoAtualObj;
     const anterior = detalhe?.versoes.find((v) => v.numero === (detalhe.versaoAtual ?? 1) - 1);
     const bom = [...(atual?.itens ?? [])].sort((a, b) => SETORES.indexOf(a.peca.setor) - SETORES.indexOf(b.peca.setor) || a.peca.codigo.localeCompare(b.peca.codigo));
+    const textoUso = (n: number) => (n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso");
 
     return (
       <>
         {cabecalho}
-        {projetos.length > 0 && (
-          <div className="mb-cartao flex flex-wrap items-center gap-2.5">
-            <BuscaUrl key="busca-projetos" placeholder="Buscar por código, nome ou categoria" />
+        {(projetos.length > 0 || atalhoFora) && (
+          <div className={barraCls}>
+            {projetos.length > 0 && <BuscaUrl key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
+            {atalhoFora}
           </div>
         )}
         {projetos.length === 0 ? (
-          <div className="rounded-cartao border border-line bg-surface">
+          <div className={cartaoCls}>
+            {abas}
             <EmptyState title="Nenhum projeto padrão cadastrado" description="A cenografia cadastra os projetos com sua lista de peças." />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
-            <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+            <div className={cartaoCls}>
+              {abas}
               {pag.total === 0 ? (
-                <EmptyState title="Nenhum projeto corresponde à busca" description="Ajuste a busca para ver os projetos padrão." />
+                <EmptyState title={`Nada encontrado para “${busca}”`} description="Confira o código ou tente outra palavra do nome ou da categoria." />
               ) : (
                 <>
-                  {/* table-fixed: a tabela nunca passa da largura do cartão (antes as colunas da direita sumiam atrás do painel). */}
-                  <table className="w-full table-fixed border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
-                    <CaptionOculta>Projetos padrão</CaptionOculta>
-                    <thead>
-                      <tr>
-                        <Th largura={92}>
-                          <span className="sr-only">Foto</span>
-                        </Th>
-                        <Th>Projeto</Th>
-                        <Th largura={120} className="hidden 2xl:table-cell">
-                          Categoria
-                        </Th>
-                        <Th largura={104} alinhar="right" className="hidden lg:table-cell">
-                          Uso
-                        </Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pag.itens.map((p) => {
-                        const sel = p.id === selecionado?.id;
-                        const n = uso.get(p.id) ?? 0;
-                        return (
-                          <LinhaLink key={p.id} href={hrefCom("/biblioteca", params, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
-                            <td className="relative border-b border-line-row py-3.5 pl-cartao pr-1">
-                              {sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />}
-                              {/* A linha inteira é clicável: aqui a foto é só miniatura; o zoom fica no painel de detalhe. */}
-                              {p.capa ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={`/api/anexos/${p.capa.id}?w=320`} alt="" loading="lazy" decoding="async" className="block h-10 w-14 shrink-0 rounded-controle border border-line bg-white object-contain" />
-                              ) : (
-                                <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-rotulo text-meta">
-                                  sem foto
+                  {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[300px] table-fixed border-collapse sm:min-w-[390px] [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+                      <CaptionOculta>Projetos padrão</CaptionOculta>
+                      <thead>
+                        <tr className="bg-subtle">
+                          <Th largura={92} className="hidden sm:table-cell">
+                            <span className="sr-only">Foto</span>
+                          </Th>
+                          <Th className="pl-cartao sm:pl-3">Projeto</Th>
+                          <Th largura={120} className="hidden 2xl:table-cell">
+                            Categoria
+                          </Th>
+                          <Th largura={112} alinhar="right" className="hidden xl:table-cell">
+                            Uso
+                          </Th>
+                          <Th largura={44}>
+                            <span className="sr-only">Abrir</span>
+                          </Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pag.itens.map((p) => {
+                          const sel = p.id === selecionado?.id;
+                          const n = uso.get(p.id) ?? 0;
+                          const marca = sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />;
+                          return (
+                            <LinhaLink key={p.id} href={hrefCom("/biblioteca", params, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
+                              <td className="relative hidden border-b border-line-row py-3.5 pl-cartao pr-1 sm:table-cell">
+                                {marca}
+                                {/* A linha inteira é clicável: aqui a foto é só miniatura; o zoom fica no painel de detalhe. */}
+                                {p.capa ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={`/api/anexos/${p.capa.id}?w=320`} alt="" loading="lazy" decoding="async" className="block h-10 w-14 shrink-0 rounded-controle border border-line bg-white object-contain" />
+                                ) : (
+                                  <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-rotulo text-meta">
+                                    sem foto
+                                  </span>
+                                )}
+                              </td>
+                              <th scope="row" aria-current={sel ? "true" : undefined} className="relative border-b border-line-row py-3.5 pl-cartao pr-3 text-left font-normal sm:pl-3">
+                                {marca && <span className="sm:hidden">{marca}</span>}
+                                <span className="flex min-w-[220px] items-start gap-2">
+                                  <span className="line-clamp-2 min-w-0 text-corpo font-medium leading-[1.25] text-ink" title={p.nome}>
+                                    {p.nome}
+                                  </span>
+                                  <ChipMono tom="control" className="shrink-0">
+                                    v{p.versaoAtual}
+                                  </ChipMono>
                                 </span>
-                              )}
-                            </td>
-                            <th scope="row" aria-current={sel ? "true" : undefined} className="border-b border-line-row px-3 py-3.5 text-left font-normal">
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span className="line-clamp-2 min-w-0 text-corpo font-medium leading-[1.25] text-ink" title={p.nome}>
-                                  {p.nome}
+                                {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
+                                <span className="mt-0.5 block text-pequeno text-ink-3">
+                                  <span className="font-mono">{p.codigo}</span>
+                                  {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · {p.tiposPeca} {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <span className="font-mono">{p.totalPecas}</span> {p.totalPecas === 1 ? "peça" : "peças"}
+                                  <span className="xl:hidden"> · {textoUso(n)}</span>
                                 </span>
-                                <ChipMono tom="control">v{p.versaoAtual}</ChipMono>
-                              </span>
-                              {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
-                              <span className="mt-0.5 block text-pequeno text-ink-3">
-                                <span className="font-mono">{p.codigo}</span> · {p.tiposPeca} {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <span className="font-mono">{p.totalPecas}</span> {p.totalPecas === 1 ? "peça" : "peças"}
-                              </span>
-                              {p.descricao && (
-                                <span className="mt-0.5 block truncate text-pequeno text-muted" title={p.descricao}>
-                                  {p.descricao}
-                                </span>
-                              )}
-                            </th>
-                            <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell">{p.categoria || "—"}</td>
-                            <td className={cn("hidden whitespace-nowrap border-b border-line-row py-3.5 pl-3 pr-cartao text-right text-pequeno lg:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso"}</td>
-                          </LinhaLink>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                {p.descricao && (
+                                  <span className="mt-0.5 block truncate text-pequeno text-muted" title={p.descricao}>
+                                    {p.descricao}
+                                  </span>
+                                )}
+                              </th>
+                              <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell" title={p.categoria || undefined}>
+                                {p.categoria || "—"}
+                              </td>
+                              <td className={cn("hidden whitespace-nowrap border-b border-line-row px-3 py-3.5 text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{textoUso(n)}</td>
+                              <td className="border-b border-line-row py-3.5 pl-1 pr-cartao text-right text-ink-3">
+                                <SetaAbrir ativo={sel} />
+                              </td>
+                            </LinhaLink>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                   <Paginacao {...pag} hrefPagina={(n) => hrefCom("/biblioteca", params, { pagina: n === 1 ? null : n, p: sp.p })} />
                 </>
               )}
@@ -248,7 +299,6 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   // Catálogo de peças
   const emBom = await contarPecasEmBom();
-  const termo = (sp.q ?? "").trim().toLowerCase();
   const setor = (SETORES as readonly string[]).includes(sp.setor ?? "") ? (sp.setor as Setor) : null;
   const buscadas = termo ? pecasTodas.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasTodas;
   const filtradas = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
@@ -268,25 +318,48 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
-      <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno font-medium text-ink">{p.codigo}</td>
-      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal text-ink">
-        {p.nome}
-        {!p.permiteEmProjeto && <span className="ml-2 text-rotulo text-muted">só fora de projeto</span>}
+      <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno font-medium text-ink">{p.codigo}</td>
+      <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
+        <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="line-clamp-2 text-corpo font-medium text-ink" title={p.nome}>
+            {p.nome}
+          </span>
+          {!p.permiteEmProjeto && <Tag tom="muted">só fora de projeto</Tag>}
+        </span>
+        <span className="mt-0.5 block text-pequeno text-muted xl:hidden">
+          {SETOR_LABEL[p.setor]} · {p.familia || "sem família"}
+        </span>
       </th>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{SETOR_LABEL[p.setor]}</td>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{p.familia || "—"}</td>
-      <td className="border-b border-line-row px-2.5 py-2.5 text-right font-mono text-pequeno">
+      <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">{SETOR_LABEL[p.setor]}</td>
+      <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 xl:table-cell">
+        <span className="line-clamp-2" title={p.familia || undefined}>
+          {p.familia || "—"}
+        </span>
+      </td>
+      <td className="whitespace-nowrap border-b border-line-row px-3 py-3 text-right font-mono text-pequeno">
         {p.estoqueProprio > 0 ? p.estoqueProprio : "—"} <span className="text-rotulo text-muted">{p.unidade}</span>
       </td>
-      <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-pequeno text-ink-3">{emBom.get(p.id) ?? 0}</td>
+      {/* px-3 também na última coluna: alinha com o cabeçalho ordenável. */}
+      <td className="border-b border-line-row px-3 py-3 text-right font-mono text-pequeno text-ink-3">{emBom.get(p.id) ?? 0}</td>
+      {gerencia && (
+        <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
+          <SetaAbrir />
+        </td>
+      )}
     </>
   );
+
+  const vazio: [string, string] = busca
+    ? [`Nada encontrado para “${busca}”`, setor ? "Confira o termo ou volte para todos os setores." : "Confira o código ou tente outra palavra do nome ou da família."]
+    : setor
+      ? [`Nenhuma peça em ${SETOR_LABEL[setor]}`, "Escolha outro setor ou volte para todos."]
+      : ["Nenhuma peça cadastrada", "O catálogo mestre reúne as peças usadas nos projetos e nas OS."];
 
   return (
     <>
       {cabecalho}
-      <div className="mb-cartao flex flex-wrap items-center gap-2.5">
-        <BuscaUrl placeholder="Buscar por código, nome ou família" />
+      <div className={barraCls}>
+        <BuscaUrl key="busca-pecas" placeholder="Buscar por código, nome ou família" ariaLabel="Buscar peça do catálogo" />
         <Pills
           rotulo="Filtrar por setor"
           itens={[
@@ -294,38 +367,51 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             ...SETORES.map((s) => ({ label: SETOR_LABEL[s], n: buscadas.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
           ]}
         />
+        {atalhoFora}
       </div>
-      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+      <div className={cartaoCls}>
+        {abas}
         {pag.total === 0 ? (
-          <EmptyState title="Nenhuma peça corresponde aos filtros" description="Ajuste a busca ou volte para todos os setores." />
+          <EmptyState title={vazio[0]} description={vazio[1]} />
         ) : (
           <>
-            <table className="w-full border-collapse">
-              <CaptionOculta>Catálogo de peças</CaptionOculta>
-              <thead>
-                <tr className="bg-subtle">
-                  {th("codigo", "Código", 120)}
-                  {th("nome", "Peça")}
-                  {th("setor", "Setor", 160)}
-                  {th("familia", "Família", 120)}
-                  {th("estoque", "Estoque", 100, "right")}
-                  {th("bom", "Em projetos", 110, "right")}
-                </tr>
-              </thead>
-              <tbody>
-                {pag.itens.map((p) =>
-                  gerencia ? (
-                    <LinhaLink key={p.id} href={`/catalogo/${p.id}/editar`} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
-                      {celulas(p)}
-                    </LinhaLink>
-                  ) : (
-                    <tr key={p.id} className="hover:bg-subtle">
-                      {celulas(p)}
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] border-collapse">
+                <CaptionOculta>Catálogo de peças</CaptionOculta>
+                <thead>
+                  <tr className="bg-subtle">
+                    {th("codigo", "Código", 120)}
+                    {th("nome", "Peça")}
+                    <Th className="hidden xl:table-cell" largura={150}>
+                      Setor
+                    </Th>
+                    <Th className="hidden xl:table-cell" largura={130}>
+                      Família
+                    </Th>
+                    {th("estoque", "Estoque", 100, "right")}
+                    {th("bom", "Em projetos", 118, "right")}
+                    {gerencia && (
+                      <Th largura={44}>
+                        <span className="sr-only">Editar</span>
+                      </Th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pag.itens.map((p) =>
+                    gerencia ? (
+                      <LinhaLink key={p.id} href={`/catalogo/${p.id}/editar`} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
+                        {celulas(p)}
+                      </LinhaLink>
+                    ) : (
+                      <tr key={p.id} className="hover:bg-subtle">
+                        {celulas(p)}
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
             <Paginacao {...pag} hrefPagina={(n) => hrefCom("/biblioteca", params, { pagina: n === 1 ? null : n })} />
           </>
         )}

@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Badge, PerfilBadge } from "@/components/ui/badge";
 import { Field, FormError, Input } from "@/components/ui/field";
@@ -10,6 +12,7 @@ import { EmptyState } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { Select } from "@/components/ui/select";
 import { toast, toastErro } from "@/components/ui/toast";
+import { usePedidoNovo } from "./novo-via-url";
 import { alternarAtivoUsuarioAction, gerarLinkAcessoAction, salvarUsuarioAction } from "@/app/(app)/admin/actions";
 import { PERFIL_DESCRICAO, PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { PERFIS } from "@/domain/constantes";
@@ -178,10 +181,46 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
   );
 }
 
-export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; abrirNovo: boolean; vazio: string }) {
-  const [modal, setModal] = useState<U | "novo" | null>(abrirNovo ? "novo" : null);
+/** Menu "⋯" da linha (template de pedidos): editar e, para outros usuários, desativar/reativar. */
+function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar }: { u: U; meuId: string; pendente: boolean; onEditar: () => void; onAlternar: () => void }) {
+  return (
+    <Dropdown>
+      <DropdownTrigger asChild>
+        <IconButton label={`Ações de ${u.nome}`}>
+          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.8" />
+            <circle cx="12" cy="12" r="1.8" />
+            <circle cx="19" cy="12" r="1.8" />
+          </svg>
+        </IconButton>
+      </DropdownTrigger>
+      <DropdownContent>
+        <DropdownItem onSelect={onEditar}>Editar</DropdownItem>
+        {u.id !== meuId && (
+          <>
+            <DropdownSeparator />
+            <DropdownItem danger={u.ativo} disabled={pendente} onSelect={onAlternar}>
+              {u.ativo ? "Desativar acesso" : "Reativar acesso"}
+            </DropdownItem>
+          </>
+        )}
+      </DropdownContent>
+    </Dropdown>
+  );
+}
+
+const CELULA = "border-b border-line-row px-3 py-3";
+
+export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; vazio: { titulo: string; descricao?: string } }) {
+  const [modal, setModal] = useState<U | "novo" | null>(null);
   const [link, setLink] = useState<{ nome: string; link: string } | null>(null);
   const [pendente, iniciar] = useTransition();
+  // "Novo usuário" do cabeçalho (e o link direto /admin?novo=1) abre o modal de criação.
+  const limparPedido = usePedidoNovo(() => setModal("novo"));
+  const fechar = () => {
+    setModal(null);
+    limparPedido();
+  };
 
   const alternar = (u: U) =>
     iniciar(async () => {
@@ -193,69 +232,60 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
 
   return (
     <>
-      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-        <div className="flex items-center justify-between border-b border-line-soft px-cartao py-3">
-          <span className="text-pequeno text-muted">
-            {usuarios.length} {usuarios.length === 1 ? "pessoa" : "pessoas"}
-          </span>
-          <Button variant="primary" size="sm" onClick={() => setModal("novo")}>
-            Novo usuário
-          </Button>
-        </div>
-        {usuarios.length === 0 ? (
-          <EmptyState compact title={vazio} />
-        ) : (
-          <table className="w-full border-collapse">
+      {usuarios.length === 0 ? (
+        <EmptyState title={vazio.titulo} description={vazio.descricao} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse">
             <CaptionOculta>Usuários</CaptionOculta>
             <thead>
               <tr className="bg-subtle">
-                <Th>Pessoa</Th>
-                <Th largura={130}>Perfil</Th>
-                <Th largura={130}>Área</Th>
-                <Th largura={120}>Último acesso</Th>
-                <Th largura={90}>Status</Th>
-                <Th largura={150} alinhar="right">
-                  Ações
+                <Th>Nome</Th>
+                <Th largura={140}>Perfil</Th>
+                <Th className="hidden lg:table-cell" largura={150}>
+                  Área
+                </Th>
+                <Th className="hidden lg:table-cell" largura={130}>
+                  Último acesso
+                </Th>
+                <Th largura={104}>Situação</Th>
+                <Th largura={56}>
+                  <span className="sr-only">Ações</span>
                 </Th>
               </tr>
             </thead>
             <tbody>
               {usuarios.map((u) => (
-                <tr key={u.id} className={cn("hover:bg-subtle", !u.ativo && "bg-subtle")}>
-                  <th scope="row" className="border-b border-line-row px-cartao py-3 text-left font-normal">
-                    <span className={cn("block text-corpo", u.ativo ? "text-ink" : "text-ink-3")}>
+                <tr key={u.id} className="hover:bg-subtle">
+                  <th scope="row" className={cn(CELULA, "text-left font-normal")}>
+                    <span className={cn("block text-corpo font-medium", u.ativo ? "text-ink" : "text-ink-3")}>
                       {u.nome}
-                      {u.id === meuId && <span className="ml-1.5 text-rotulo text-muted">você</span>}
+                      {u.id === meuId && <span className="ml-1.5 text-rotulo font-normal text-muted">você</span>}
                     </span>
-                    <span className="block text-pequeno text-muted">{u.email}</span>
+                    <span className="mt-0.5 block text-pequeno text-muted">{u.email}</span>
+                    <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
+                      {u.areaNome ? `${u.areaNome} · ` : ""}
+                      <span className="font-mono">{u.ultimoAcesso}</span>
+                    </span>
                   </th>
-                  <td className="border-b border-line-row px-2.5 py-3">
+                  <td className={CELULA}>
                     <PerfilBadge perfil={u.perfil} />
                   </td>
-                  <td className="border-b border-line-row px-2.5 py-3 text-pequeno text-ink-2">{u.areaNome ?? "—"}</td>
-                  <td className="border-b border-line-row px-2.5 py-3 font-mono text-pequeno text-muted">{u.ultimoAcesso}</td>
-                  <td className="border-b border-line-row px-2.5 py-3">
+                  <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
+                  <td className={cn(CELULA, "hidden font-mono text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
+                  <td className={CELULA}>
                     <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "Ativo" : "Inativo"}</Badge>
                   </td>
-                  <td className="border-b border-line-row py-3 pl-2.5 pr-cartao text-right">
-                    <span className="flex items-center justify-end gap-3">
-                      <Button variant="link" size="xs" onClick={() => setModal(u)} aria-label={`Editar ${u.nome}`}>
-                        Editar
-                      </Button>
-                      {u.id !== meuId && (
-                        <Button variant="link" size="xs" disabled={pendente} onClick={() => alternar(u)} className="text-ink-3 hover:text-ink" aria-label={`${u.ativo ? "Desativar" : "Reativar"} ${u.nome}`}>
-                          {u.ativo ? "Desativar" : "Reativar"}
-                        </Button>
-                      )}
-                    </span>
+                  <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">
+                    <AcoesUsuario u={u} meuId={meuId} pendente={pendente} onEditar={() => setModal(u)} onAlternar={() => alternar(u)} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </div>
-      {modal && <ModalUsuario key={modal === "novo" ? "novo" : modal.id} usuario={modal === "novo" ? null : modal} areas={areas} emails={emails} meuId={meuId} onClose={() => setModal(null)} onLink={(nome, l) => setLink({ nome, link: l })} />}
+        </div>
+      )}
+      {modal && <ModalUsuario key={modal === "novo" ? "novo" : modal.id} usuario={modal === "novo" ? null : modal} areas={areas} emails={emails} meuId={meuId} onClose={fechar} onLink={(nome, l) => setLink({ nome, link: l })} />}
       {link && <LinkAcesso nome={link.nome} link={link.link} onClose={() => setLink(null)} />}
     </>
   );

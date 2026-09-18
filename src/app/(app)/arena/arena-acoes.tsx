@@ -20,8 +20,12 @@ export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: stri
     }
   };
 
+  // A linha do índice é clicável (abre a arena). Menu e diálogos vivem em portal, mas o clique
+  // sobe pela árvore do React até a linha: para aqui, senão escolher uma ação abriria a arena.
+  const isolar = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
-    <>
+    <span className="contents" onClick={isolar} onAuxClick={isolar}>
       <Dropdown>
         <DropdownTrigger asChild>
           <IconButton label={`Ações de ${nome}`}>
@@ -85,6 +89,6 @@ export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: stri
           hidden={{ slug }}
         />
       )}
-    </>
+    </span>
   );
 }

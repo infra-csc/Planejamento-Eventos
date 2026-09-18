@@ -10,7 +10,7 @@ export default async function PerfilPage() {
   const u = await requireUsuario();
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Meu perfil" description={PERFIL_DESCRICAO[u.perfil]} />
+      <PageHeader title="Meu perfil" description={PERFIL_DESCRICAO[u.perfil]} divisor />
       <div className="flex flex-col gap-5">
         <Section titulo="Dados" sub="Para alterar nome, perfil ou área, fale com o administrador.">
           <ListaDados
