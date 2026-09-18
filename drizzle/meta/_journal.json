@@ -64,6 +64,13 @@
       "when": 1789673058828,
       "tag": "0008_os_enviada",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789744956734,
+      "tag": "0009_arenas",
+      "breakpoints": true
     }
   ]
 }

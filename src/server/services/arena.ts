@@ -6,7 +6,7 @@ import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { CATEGORIAS } from "@/domain/arena/categorias";
 import type { PosicaoEditada } from "@/domain/arena/posicoes";
 import { registrarHistorico } from "./support";
-import { obterArenaPorSlug } from "@/domain/arena/eco-run-sp-2026";
+import { arenaExiste } from "./arenas";
 
 export async function listarPosicoesArena(slug: string): Promise<PosicaoEditada[]> {
   const db = await getDb();
@@ -49,7 +49,7 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
   if (![dados.x, dados.z].every((n) => Number.isFinite(n) && Math.abs(n) <= LIMITE)) throw new ValidacaoError("Posição fora da área do mapa.");
   if (dados.tipo === "NOVO" && !dados.nome?.trim()) throw new ValidacaoError("Informe o nome do item.");
   if (dados.categoria && !Object.hasOwn(CATEGORIAS, dados.categoria)) throw new ValidacaoError("Categoria inválida.");
-  if (!obterArenaPorSlug(slug)) throw new NaoEncontradoError("Arena");
+  if (!(await arenaExiste(slug))) throw new NaoEncontradoError("Arena");
   const db = await getDb();
   const valores = {
     arenaSlug: slug,
@@ -105,7 +105,7 @@ export async function removerPosicaoArena(usuario: UsuarioAtual, slug: string, c
 export async function restaurarPlantaArena(usuario: UsuarioAtual, slug: string) {
   exigir(usuario, "arena.ver");
   exigir(usuario, "ata.consolidar");
-  if (!obterArenaPorSlug(slug)) throw new NaoEncontradoError("Arena");
+  if (!(await arenaExiste(slug))) throw new NaoEncontradoError("Arena");
   const db = await getDb();
   const apagadas = await db.delete(arenaPosicoes).where(eq(arenaPosicoes.arenaSlug, slug)).returning({ chave: arenaPosicoes.chave });
   if (apagadas.length === 0) throw new ValidacaoError("O mapa já está igual à planta original.");

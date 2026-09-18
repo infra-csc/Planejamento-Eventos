@@ -10,7 +10,8 @@ export type Vec2 = [x: number, z: number];
 
 /** Linha da ata de reunião de OS, como está na planilha do evento. */
 export type ItemAta = {
-  secao: "PERCURSO" | "TENDAS 3X3" | "TENDAS 5X5" | "BOX TRUSS" | "ATIVAÇÃO" | "ARENA";
+  /** Na Eco Run: "PERCURSO", "TENDAS 3X3", "TENDAS 5X5", "BOX TRUSS", "ATIVAÇÃO", "ARENA". Nos eventos do sistema, a área que pediu. */
+  secao: string;
   item: string;
   quantidade: number | null;
   /** Colunas complementares da linha (fechamentos, calhas...). */
@@ -73,6 +74,8 @@ export type PontoArena = {
   posicao: Vec2;
   /** Altura do marcador acima do chão, em metros. */
   alturaMarcador: number;
+  /** Giro do ponto em radianos (eixo vertical), aplicado às estruturas dele. Ajustado na edição do mapa. */
+  rotacao?: number;
   zonaId: string | null;
   modelos: Modelo[];
   /** Linhas da ata que este ponto materializa. */

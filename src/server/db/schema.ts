@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { relations, sql } from "drizzle-orm";
+import type { Arena as ArenaBase } from "@/domain/arena/tipos";
 import {
   type AnyPgColumn,
   boolean,
@@ -455,10 +456,35 @@ export const arenaPosicoes = pgTable(
     itemAta: text("item_ata"),
     x: doublePrecision("x").notNull(),
     z: doublePrecision("z").notNull(),
+    /** Giro em radianos em relação à planta (null = como está na planta). */
+    rotacao: doublePrecision("rotacao"),
     atualizadoPorId: text("atualizado_por_id").references(() => usuarios.id),
     atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("arena_posicoes_chave_idx").on(t.arenaSlug, t.chave)],
+);
+
+/**
+ * Arena de um evento do sistema. A Eco Run SP 2026 continua no código (planta transcrita à mão);
+ * as demais nascem aqui: em branco ou copiadas de outra arena, com imagem da planta de fundo opcional.
+ * `base` é a estrutura Arena inteira (tipos em src/domain/arena/tipos.ts); as edições de posição
+ * continuam em arena_posicoes, pelo slug.
+ */
+export const arenas = pgTable(
+  "arenas",
+  {
+    id: id(),
+    slug: text("slug").notNull(),
+    eventoId: text("evento_id").references(() => eventos.id, { onDelete: "set null" }),
+    nome: text("nome").notNull(),
+    base: jsonb("base").$type<ArenaBase>().notNull(),
+    plantaMime: text("planta_mime"),
+    plantaImagem: bytea("planta_imagem"),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("arenas_slug_idx").on(t.slug), uniqueIndex("arenas_evento_idx").on(t.eventoId)],
 );
 
 export const historico = pgTable(
@@ -666,6 +692,10 @@ export const solicitacaoItensRelations = relations(solicitacaoItens, ({ one }) =
   peca: one(pecas, { fields: [solicitacaoItens.pecaId], references: [pecas.id] }),
   eventoItem: one(eventoItens, { fields: [solicitacaoItens.eventoItemId], references: [eventoItens.id] }),
   respondidoPor: one(usuarios, { fields: [solicitacaoItens.respondidoPorId], references: [usuarios.id] }),
+}));
+
+export const arenasRelations = relations(arenas, ({ one }) => ({
+  evento: one(eventos, { fields: [arenas.eventoId], references: [eventos.id] }),
 }));
 
 export const osVersoesRelations = relations(osVersoes, ({ one }) => ({
