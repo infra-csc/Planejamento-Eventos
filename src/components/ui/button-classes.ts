@@ -28,16 +28,16 @@ const variantes: Record<ButtonVariant, string> = {
   dangerOutline: "bg-transparent text-danger border-danger-border hover:bg-danger-bg",
   onDark: "bg-dark-2 text-white border-dark-2 hover:bg-dark-3",
   pink: "bg-accent-light text-ink border-accent-light hover:brightness-105",
-  bloqueado: "bg-dark-2 text-meta border-dark-2 cursor-not-allowed",
+  bloqueado: "bg-dark-2 text-on-dark-2 border-dark-2 cursor-not-allowed",
 };
 
 const tamanhos: Record<ButtonSize, string> = {
   xs: "h-[27px] px-2.5 text-pequeno rounded-controle",
   sm: "h-[30px] px-3 text-pequeno rounded-controle",
-  md: "h-[34px] px-[13px] text-corpo rounded-lg",
-  lg: "h-9 px-[15px] text-corpo rounded-lg",
-  xl: "h-[38px] px-[17px] text-corpo rounded-lg",
-  full: "h-[42px] w-full px-4 text-destaque rounded-lg",
+  md: "h-[34px] px-[13px] text-corpo rounded-controle",
+  lg: "h-9 px-[15px] text-corpo rounded-controle",
+  xl: "h-[38px] px-[17px] text-corpo rounded-controle",
+  full: "h-[42px] w-full px-4 text-destaque rounded-controle",
 };
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string }) {

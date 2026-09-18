@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getUsuarioAtual, requirePermissao } from "@/server/auth/session";
-import { historicoProjeto, obterProjeto } from "@/server/services/projetos";
+import { historicoProjeto } from "@/server/services/projetos";
+import { obterProjetoCache } from "@/server/cache";
 import { pode } from "@/domain/permissions";
 import { SETOR_LABEL } from "@/domain/os";
 import { NaoEncontradoError } from "@/domain/errors";
@@ -18,19 +19,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const usuario = await getUsuarioAtual();
   if (!usuario) return {};
   const { id } = await params;
-  const p = await obterProjeto(usuario, id).catch(() => null);
+  const p = await obterProjetoCache(usuario, id).catch(() => null);
   return { title: p ? p.nome : "Projeto padrão" };
 }
 
 export default async function ProjetoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requirePermissao("projeto.ver");
   const { id } = await params;
-  const p = await obterProjeto(usuario, id).catch((e) => {
-    if (e instanceof NaoEncontradoError) notFound();
-    throw e;
-  });
+  const [p, historico] = await Promise.all([
+    obterProjetoCache(usuario, id).catch((e) => {
+      if (e instanceof NaoEncontradoError) notFound();
+      throw e;
+    }),
+    historicoProjeto(id),
+  ]);
   const gerencia = pode(usuario, "projeto.gerenciar");
-  const historico = await historicoProjeto(id);
   const itens = p.versaoAtualObj?.itens ?? [];
   const total = itens.reduce((a, i) => a + i.quantidade, 0);
 
@@ -66,7 +69,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       />
 
       {p.usosDefasados.length > 0 && (
-        <Aviso tom="warning" titulo="Eventos usando versões anteriores" className="mb-[18px]">
+        <Aviso tom="warning" titulo="Eventos usando versões anteriores" className="mb-cartao">
           {p.usosDefasados.map((u, i) => (
             <span key={u.eventoId}>
               {i > 0 && " · "}
@@ -106,13 +109,13 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
                     .sort((a, b) => a.peca.codigo.localeCompare(b.peca.codigo))
                     .map((i) => (
                       <tr key={i.id} className="hover:bg-subtle">
-                        <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-pequeno">{i.peca.codigo}</td>
+                        <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno">{i.peca.codigo}</td>
                         <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal">
                           {i.peca.nome}
                           {!i.peca.ativo && <span className="ml-2 text-rotulo text-danger">peça inativa</span>}
                         </th>
                         <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{SETOR_LABEL[setor]}</td>
-                        <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-corpo font-semibold">
+                        <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
                           {i.quantidade} <span className="text-rotulo font-normal text-muted">{i.peca.unidade}</span>
                         </td>
                       </tr>
@@ -126,7 +129,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col gap-5">
           <Section titulo="Versões">
             {p.versoes.map((v) => (
-              <div key={v.id} className="relative border-b border-line-row px-[18px] py-3 last:border-b-0">
+              <div key={v.id} className="relative border-b border-line-row px-cartao py-3 last:border-b-0">
                 {v.numero === p.versaoAtual && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />}
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-corpo font-semibold">v{v.numero}</span>
@@ -150,8 +153,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
             />
           </Section>
           <Section titulo="Histórico">
-            <div className="px-[18px] py-3">
-              {historico.length === 0 && <p className="m-0 text-pequeno text-muted">Sem registros.</p>}
+            <div className="px-cartao py-3">
+              {historico.length === 0 && <p className="m-0 text-pequeno text-muted">Sem registros</p>}
               {historico.slice(0, 8).map((h) => (
                 <div key={h.id} className="py-1.5">
                   <p className="m-0 text-pequeno text-ink">{h.descricao}</p>

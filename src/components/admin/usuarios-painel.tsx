@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Badge, PerfilBadge } from "@/components/ui/badge";
-import { Field, Input } from "@/components/ui/field";
+import { Field, FormError, Input } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { Select } from "@/components/ui/select";
@@ -157,7 +157,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
               Gerar novo link de acesso
             </Button>
           )}
-          {erroGeral && <p className="m-0 text-pequeno text-danger">{erroGeral}</p>}
+          <FormError message={erroGeral} />
           <DialogFooter>
             <Button type="submit" variant="primary" loading={pendente}>
               {usuario ? "Salvar alterações" : "Criar usuário"}
@@ -194,7 +194,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
   return (
     <>
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-        <div className="flex items-center justify-between border-b border-line-soft px-[18px] py-3">
+        <div className="flex items-center justify-between border-b border-line-soft px-cartao py-3">
           <span className="text-pequeno text-muted">
             {usuarios.length} {usuarios.length === 1 ? "pessoa" : "pessoas"}
           </span>
@@ -222,7 +222,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
             <tbody>
               {usuarios.map((u) => (
                 <tr key={u.id} className={cn("hover:bg-subtle", !u.ativo && "bg-subtle")}>
-                  <th scope="row" className="border-b border-line-row px-[18px] py-3 text-left font-normal">
+                  <th scope="row" className="border-b border-line-row px-cartao py-3 text-left font-normal">
                     <span className={cn("block text-corpo", u.ativo ? "text-ink" : "text-ink-3")}>
                       {u.nome}
                       {u.id === meuId && <span className="ml-1.5 text-rotulo text-muted">você</span>}
@@ -235,15 +235,15 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, abrirNovo, vazi
                   <td className="border-b border-line-row px-2.5 py-3 text-pequeno text-ink-2">{u.areaNome ?? "—"}</td>
                   <td className="border-b border-line-row px-2.5 py-3 font-mono text-pequeno text-muted">{u.ultimoAcesso}</td>
                   <td className="border-b border-line-row px-2.5 py-3">
-                    <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "ativo" : "inativo"}</Badge>
+                    <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "Ativo" : "Inativo"}</Badge>
                   </td>
-                  <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
+                  <td className="border-b border-line-row py-3 pl-2.5 pr-cartao text-right">
                     <span className="flex items-center justify-end gap-3">
-                      <Button variant="link" size="xs" onClick={() => setModal(u)}>
+                      <Button variant="link" size="xs" onClick={() => setModal(u)} aria-label={`Editar ${u.nome}`}>
                         Editar
                       </Button>
                       {u.id !== meuId && (
-                        <Button variant="link" size="xs" disabled={pendente} onClick={() => alternar(u)} className="text-ink-3 hover:text-ink">
+                        <Button variant="link" size="xs" disabled={pendente} onClick={() => alternar(u)} className="text-ink-3 hover:text-ink" aria-label={`${u.ativo ? "Desativar" : "Reativar"} ${u.nome}`}>
                           {u.ativo ? "Desativar" : "Reativar"}
                         </Button>
                       )}

@@ -17,7 +17,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
   return (
     <ul className="m-0 list-none p-0">
       {itens.map((i) => (
-        <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line-row px-[18px] py-3 last:border-b-0">
+        <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line-row px-cartao py-3 last:border-b-0">
           <span className="min-w-[220px] flex-1">
             <span className="block text-corpo font-medium text-ink">
               {i.descricao ?? "item sem descrição"}

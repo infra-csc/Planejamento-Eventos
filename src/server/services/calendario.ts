@@ -33,18 +33,30 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
   const ini = new Date(`${inicio}T00:00:00-03:00`);
   const fimD = new Date(`${fim}T23:59:59-03:00`);
 
-  const evs = await db.query.eventos.findMany({
-    where: and(
-      opcoes.incluirCancelados ? undefined : ne(eventos.status, "CANCELADO"),
-      or(
-        and(gte(eventos.dataReuniao, ini), lte(eventos.dataReuniao, fimD)),
-        and(lte(eventos.dataMontagem, fim), gte(eventos.dataDesmontagem, inicio)),
-        and(gte(eventos.janelaAlteracoesAte, inicio), lte(eventos.janelaAlteracoesAte, fim)),
-        and(gte(eventos.dataCarga, inicio), lte(eventos.dataCarga, fim)),
+  // Eventos do período e prazos de resposta (para quem responde/vê todas) são independentes: em paralelo.
+  const verPrazos = pode(usuario, "solicitacao.responder") || pode(usuario, "solicitacao.ver_todas");
+  const [evs, prazos] = await Promise.all([
+    db.query.eventos.findMany({
+      where: and(
+        opcoes.incluirCancelados ? undefined : ne(eventos.status, "CANCELADO"),
+        or(
+          and(gte(eventos.dataReuniao, ini), lte(eventos.dataReuniao, fimD)),
+          and(lte(eventos.dataMontagem, fim), gte(eventos.dataDesmontagem, inicio)),
+          and(gte(eventos.janelaAlteracoesAte, inicio), lte(eventos.janelaAlteracoesAte, fim)),
+          and(gte(eventos.dataCarga, inicio), lte(eventos.dataCarga, fim)),
+        ),
       ),
-    ),
-    columns: { id: true, codigo: true, nome: true, status: true, cliente: true, local: true, dataReuniao: true, dataInicio: true, dataFim: true, dataMontagem: true, dataDesmontagem: true, dataCarga: true, janelaAlteracoesAte: true },
-  });
+      columns: { id: true, codigo: true, nome: true, status: true, cliente: true, local: true, dataReuniao: true, dataInicio: true, dataFim: true, dataMontagem: true, dataDesmontagem: true, dataCarga: true, janelaAlteracoesAte: true },
+    }),
+    verPrazos
+      ? db
+          .select({ id: solicitacoes.id, codigo: solicitacoes.codigo, titulo: solicitacoes.titulo, prazo: solicitacoes.prazoRespostaEm, area: areas.nome, eventoId: eventos.id, eventoCodigo: eventos.codigo, eventoNome: eventos.nome, eventoStatus: eventos.status, cliente: eventos.cliente, local: eventos.local })
+          .from(solicitacoes)
+          .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
+          .innerJoin(areas, eq(solicitacoes.areaId, areas.id))
+          .where(and(eq(solicitacoes.excluida, false), eq(solicitacoes.tipo, "ALTERACAO"), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), gte(solicitacoes.prazoRespostaEm, ini), lte(solicitacoes.prazoRespostaEm, fimD)))
+      : Promise.resolve([]),
+  ]);
 
   const itens: ItemCalendario[] = [];
   const noPeriodo = (d: string) => d >= inicio && d <= fim;
@@ -95,13 +107,7 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
     if (e.dataCarga && noPeriodo(e.dataCarga)) itens.push({ chave: `c-${e.id}`, tipo: "carga", dia: e.dataCarga, hora: null, titulo: `Carga do caminhão · ${e.nome}`, detalhe: "OS final precisa estar estável", href: `/eventos/${e.id}/os`, evento });
   }
 
-  if (pode(usuario, "solicitacao.responder") || pode(usuario, "solicitacao.ver_todas")) {
-    const prazos = await db
-      .select({ id: solicitacoes.id, codigo: solicitacoes.codigo, titulo: solicitacoes.titulo, prazo: solicitacoes.prazoRespostaEm, area: areas.nome, eventoId: eventos.id, eventoCodigo: eventos.codigo, eventoNome: eventos.nome, eventoStatus: eventos.status, cliente: eventos.cliente, local: eventos.local })
-      .from(solicitacoes)
-      .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
-      .innerJoin(areas, eq(solicitacoes.areaId, areas.id))
-      .where(and(eq(solicitacoes.excluida, false), eq(solicitacoes.tipo, "ALTERACAO"), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), gte(solicitacoes.prazoRespostaEm, ini), lte(solicitacoes.prazoRespostaEm, fimD)));
+  if (verPrazos) {
     for (const p of prazos) {
       if (!p.prazo) continue;
       itens.push({

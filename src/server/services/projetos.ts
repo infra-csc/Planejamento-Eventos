@@ -54,23 +54,26 @@ export async function listarProjetos(usuario: UsuarioAtual, filtro: { busca?: st
 export async function obterProjeto(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "projeto.ver");
   const db = await getDb();
-  const p = await db.query.projetos.findFirst({
-    where: eq(projetos.id, id),
-    with: {
-      criadoPor: { columns: { id: true, nome: true } },
-      anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true, tamanho: true, criadoEm: true }, orderBy: [asc(anexos.criadoEm)] },
-      versoes: { with: { itens: { with: { peca: true } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
-    },
-  });
+  // O projeto e os usos em eventos só se cruzam em memória (versão atual): as duas consultas vão juntas.
+  const [p, usosDefasados] = await Promise.all([
+    db.query.projetos.findFirst({
+      where: eq(projetos.id, id),
+      with: {
+        criadoPor: { columns: { id: true, nome: true } },
+        anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true, tamanho: true, criadoEm: true }, orderBy: [asc(anexos.criadoEm)] },
+        versoes: { with: { itens: { with: { peca: true } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
+      },
+    }),
+    // eventos não encerrados que usam versões antigas (MEL-02)
+    db
+      .select({ eventoId: eventos.id, codigo: eventos.codigo, nome: eventos.nome, versao: projetoVersoes.numero })
+      .from(eventoItens)
+      .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
+      .innerJoin(projetoVersoes, eq(eventoItens.projetoVersaoId, projetoVersoes.id))
+      .where(and(eq(eventoItens.projetoId, id), eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"]))),
+  ]);
   if (!p) throw new NaoEncontradoError("Projeto padrão");
   const atual = p.versoes.find((v) => v.numero === p.versaoAtual) ?? p.versoes[0];
-  // eventos não encerrados que usam versões antigas (MEL-02)
-  const usosDefasados = await db
-    .select({ eventoId: eventos.id, codigo: eventos.codigo, nome: eventos.nome, versao: projetoVersoes.numero })
-    .from(eventoItens)
-    .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
-    .innerJoin(projetoVersoes, eq(eventoItens.projetoVersaoId, projetoVersoes.id))
-    .where(and(eq(eventoItens.projetoId, id), eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])));
   return { ...p, versaoAtualObj: atual, usosDefasados: usosDefasados.filter((u) => u.versao < p.versaoAtual) };
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Aviso, EmptyState } from "@/components/ui/layout";
 import { Badge, Tag } from "@/components/ui/badge";
 import { TabsControladas } from "@/components/ui/tabs-nav";
@@ -17,6 +18,7 @@ import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
 import { combinaBusca } from "@/lib/busca";
+import type { ActionResult } from "@/lib/action";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -42,11 +44,17 @@ type Modo = "projeto" | "peca" | "avulso" | "ata";
 
 let seq = 0;
 const novaChave = () => `n${Date.now()}-${seq++}`;
+/** Resultados de busca exibidos por vez: o catálogo inteiro (imagem + stepper por linha) pesa no celular. */
+const POR_PAGINA = 50;
+/** Confirmação só do lado do cliente (trocar de evento): o ConfirmDialog espera uma action. */
+const confirmarLocal = async (): Promise<ActionResult> => ({ ok: true });
+/** Evita ".." quando o motivo já termina em pontuação. */
+const comPontoFinal = (t: string) => (/[.!?…]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
 
 function Passo({ n, titulo, sub, children }: { n: number; titulo: string; sub?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-cartao border border-line bg-surface">
-      <div className="flex items-start gap-3 rounded-t-cartao border-b border-line-soft px-[18px] py-3.5">
+      <div className="flex items-start gap-3 rounded-t-cartao border-b border-line-soft px-cartao py-3.5">
         <span className="flex size-[22px] shrink-0 items-center justify-center rounded-controle bg-dark font-mono text-rotulo text-accent-light">{n}</span>
         <div>
           <h2 className="m-0 text-secao font-semibold">{titulo}</h2>
@@ -207,11 +215,19 @@ export function NovaSolicitacaoForm({
     }
     const mantidos = itens.filter((i) => i.operacao === "ADICIONAR" || (e.tipo === "ALTERACAO" && (linhasPorEvento[e.id] ?? []).some((x) => x.id === i.eventoItemId)));
     const descartados = itens.length - mantidos.length;
-    if (descartados > 0 && !window.confirm(`${descartados} ${descartados === 1 ? "item referencia" : "itens referenciam"} a ata do evento anterior e ${descartados === 1 ? "será removido" : "serão removidos"}. Trocar de evento mesmo assim?`)) return;
+    if (descartados > 0) {
+      setTroca({ evento: e, mantidos, descartados });
+      return;
+    }
+    aplicarTroca(e, mantidos);
+  };
+  const aplicarTroca = (e: EventoOpcao, mantidos: ItemNovo[]) => {
     setEventoId(e.id);
     setItens(mantidos);
     if (e.tipo === "PRE_REUNIAO" && modo === "ata") setModo("projeto");
   };
+  // Troca de evento que descartaria itens da ata anterior: aguarda confirmação no diálogo.
+  const [troca, setTroca] = useState<{ evento: EventoOpcao; mantidos: ItemNovo[]; descartados: number } | null>(null);
 
   // Quantidade escolhida na própria lista de busca, antes de "Adicionar" (padrão 1).
   const [qtdNova, setQtdNova] = useState<Record<string, number>>({});
@@ -277,6 +293,14 @@ export function NovaSolicitacaoForm({
   };
 
   const mudar = (chave: string, patch: Partial<ItemNovo>) => setItens((l) => l.map((i) => (i.chave === chave ? { ...i, ...patch } : i)));
+  /** Remove na hora e oferece desfazer (Ctrl+Z), no mesmo padrão de "Desativar" em Usuários. */
+  const removerItem = (item: ItemNovo) => {
+    const posicao = itens.findIndex((x) => x.chave === item.chave);
+    setItens((l) => l.filter((x) => x.chave !== item.chave));
+    toast(`${item.rotulo} removido da solicitação`, {
+      desfazer: () => setItens((l) => (l.some((x) => x.chave === item.chave) ? l : [...l.slice(0, posicao), item, ...l.slice(posicao)])),
+    });
+  };
   // Painel "Ajustar peças" aberto (um por vez).
   const [ajustando, setAjustando] = useState<string | null>(null);
   const bomDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.bom ?? [] : []);
@@ -297,6 +321,9 @@ export function NovaSolicitacaoForm({
     if (modo === "peca") return filtra(pecas);
     return [];
   }, [busca, modo, projetos, pecas]);
+  const [limite, setLimite] = useState(POR_PAGINA);
+  const visiveis = resultados.slice(0, limite);
+  const restantes = resultados.length - visiveis.length;
   const linhasFiltradas = useMemo(() => {
     return busca.trim() ? linhas.filter((l) => combinaBusca(l.nome, busca)) : linhas;
   }, [busca, linhas]);
@@ -368,7 +395,7 @@ export function NovaSolicitacaoForm({
     <div className="flex flex-col gap-4">
       {rascunho?.devolvidaMotivo && (
         <Aviso tom="warning" titulo="Devolvida pela logística">
-          {rascunho.devolvidaMotivo}. Corrija e reenvie.
+          {comPontoFinal(rascunho.devolvidaMotivo)} Corrija e reenvie.
         </Aviso>
       )}
 
@@ -376,7 +403,7 @@ export function NovaSolicitacaoForm({
       <div className="flex min-w-0 flex-col gap-4">
       <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
         {areas && (
-          <div className="border-b border-line-soft px-[18px] py-3.5">
+          <div className="border-b border-line-soft px-cartao py-3.5">
             <Label htmlFor="area-solicitante">
               Área solicitante <span className="text-muted">você está pedindo como administrador</span>
             </Label>
@@ -384,9 +411,9 @@ export function NovaSolicitacaoForm({
           </div>
         )}
         {eventos.length === 0 ? (
-          <EmptyState compact title="Nenhum evento aceitando solicitações agora." description="Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece." />
+          <EmptyState compact title="Nenhum evento aceitando solicitações agora" description="Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece." />
         ) : (
-          <div className="flex flex-col gap-3 p-[18px]">
+          <div className="flex flex-col gap-3 p-cartao">
             <ComboBox
               id="evento"
               value={eventoId}
@@ -429,10 +456,12 @@ export function NovaSolicitacaoForm({
           <div className="border-b border-line-soft">
             {itens.map((i) => (
               <div key={i.chave} className="border-b border-line-row last:border-b-0">
-              <div className="flex flex-wrap items-center gap-3 px-[18px] py-2.5">
+              <div className="flex flex-wrap items-center gap-3 px-cartao py-2.5">
                 {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-corpo text-ink">{i.rotulo}</span>
+                  <span className="line-clamp-2 break-words text-corpo text-ink" title={i.rotulo}>
+                    {i.rotulo}
+                  </span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-rotulo text-muted">
                     <Tag>{i.meta}</Tag>
                     {resumoAjustes(i) && <span className="text-accent">{resumoAjustes(i)}</span>}
@@ -455,12 +484,12 @@ export function NovaSolicitacaoForm({
                 ) : (
                   <Stepper tamanho="sm" valor={i.quantidade} min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1} onChange={(v) => mudar(i.chave, { quantidade: v })} label={`Quantidade de ${i.rotulo}`} />
                 )}
-                <Button variant="link" size="xs" onClick={() => setItens((l) => l.filter((x) => x.chave !== i.chave))}>
+                <Button variant="link" size="xs" onClick={() => removerItem(i)} aria-label={`Remover ${i.rotulo}`}>
                   Remover
                 </Button>
               </div>
               {ajustando === i.chave && (
-                <div className="border-t border-line-faint bg-subtle/60 px-[18px] pb-3 pt-2.5">
+                <div className="border-t border-line-faint bg-subtle/60 px-cartao pb-3 pt-2.5">
                   <div className="mb-2 flex items-start gap-3">
                     {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-[72px] w-24 shrink-0 overflow-hidden rounded-controle border border-line" />}
                     <p className="m-0 text-pequeno text-muted">
@@ -476,7 +505,9 @@ export function NovaSolicitacaoForm({
                       return (
                         <div key={b.pecaId} className="flex items-center gap-2 py-1">
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-pequeno text-ink">{b.nome}</span>
+                            <span className="line-clamp-2 break-words text-pequeno text-ink" title={b.nome}>
+                              {b.nome}
+                            </span>
                             <span className="block font-mono text-rotulo text-meta">
                               {b.codigo} · padrão {b.quantidade} {b.unidade}
                             </span>
@@ -502,6 +533,7 @@ export function NovaSolicitacaoForm({
             onChange={(m) => {
               setModo(m);
               setBusca("");
+              setLimite(POR_PAGINA);
             }}
           />
 
@@ -531,7 +563,11 @@ export function NovaSolicitacaoForm({
             </div>
           ) : (
             <>
-              <Input aria-label="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} />
+              <Input aria-label="Buscar" value={busca} onChange={(e) => {
+                  setBusca(e.target.value);
+                  setLimite(POR_PAGINA);
+                }}
+                placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} />
               {modo !== "ata" && (
                 <p className="mb-0 mt-2 text-pequeno text-muted">
                   {resultados.length} {modo === "projeto" ? (resultados.length === 1 ? "projeto" : "projetos") : resultados.length === 1 ? "peça" : "peças"}
@@ -540,40 +576,56 @@ export function NovaSolicitacaoForm({
               )}
               <div className="mt-1">
                 {modo !== "ata" &&
-                  resultados.map((r) => (
-                    <div key={r.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
+                  visiveis.map((r) => (
+                    <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-faint px-1 py-2 last:border-b-0">
                       {modo === "projeto" &&
                         (r.capaId ? (
                           <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />
                         ) : (
                           <span aria-hidden className="h-9 w-12 shrink-0 rounded-chip border border-dashed border-line-strong" />
                         ))}
-                      <span className="w-[92px] shrink-0 font-mono text-pequeno text-ink-2">{r.codigo}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-corpo text-ink">{r.nome}</span>
-                        <span className="block text-rotulo text-muted">{r.meta}</span>
+                      <span className="hidden w-[92px] shrink-0 font-mono text-pequeno text-ink-2 sm:block">{r.codigo}</span>
+                      <span className="min-w-[140px] flex-1">
+                        <span className="line-clamp-2 break-words text-corpo text-ink" title={r.nome}>
+                          {r.nome}
+                        </span>
+                        <span className="block text-rotulo text-muted">
+                          <span className="font-mono sm:hidden">{r.codigo} · </span>
+                          {r.meta}
+                        </span>
                       </span>
-                      <span
-                        className="flex items-center"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && evento && e.target instanceof HTMLInputElement) {
-                            e.preventDefault();
-                            adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
-                          }
-                        }}
-                      >
-                        <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
+                      <span className="ml-auto flex shrink-0 items-center gap-3">
+                        <span
+                          className="flex items-center"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && evento && e.target instanceof HTMLInputElement) {
+                              e.preventDefault();
+                              adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
+                            }
+                          }}
+                        >
+                          <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
+                        </span>
+                        <Button variant="secondary" size="xs" onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)} aria-label={`Adicionar ${r.nome}`}>
+                          Adicionar
+                        </Button>
                       </span>
-                      <Button variant="secondary" size="xs" onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)}>
-                        Adicionar
-                      </Button>
                     </div>
                   ))}
+                {modo !== "ata" && restantes > 0 && (
+                  <div className="pt-2.5">
+                    <Button variant="secondary" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="w-full">
+                      Mostrar mais ({restantes})
+                    </Button>
+                  </div>
+                )}
                 {modo === "ata" &&
                   linhasFiltradas.map((l) => (
-                    <div key={l.id} className="flex items-center gap-3 border-b border-line-faint px-1 py-2 last:border-b-0">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-corpo text-ink">{l.nome}</span>
+                    <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-faint px-1 py-2 last:border-b-0">
+                      <span className="min-w-[140px] flex-1">
+                        <span className="line-clamp-2 break-words text-corpo text-ink" title={l.nome}>
+                          {l.nome}
+                        </span>
                         <span className="block text-rotulo text-muted">{[`${l.quantidade} na ata`, l.destino, l.areaNome].filter(Boolean).join(" · ")}</span>
                       </span>
                       <Button variant="secondary" size="xs" onClick={() => adicionarLinha(l, "ALTERAR_QUANTIDADE")}>
@@ -585,7 +637,7 @@ export function NovaSolicitacaoForm({
                     </div>
                   ))}
                 {((modo !== "ata" && resultados.length === 0) || (modo === "ata" && linhasFiltradas.length === 0)) && (
-                  <EmptyState compact title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas." : `Nada encontrado${busca ? ` para “${busca}”` : ""}.`} />
+                  <EmptyState compact title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas" : `Nada encontrado${busca ? ` para “${busca}”` : ""}`} />
                 )}
               </div>
             </>
@@ -595,19 +647,21 @@ export function NovaSolicitacaoForm({
       </div>
 
       {/* Coluna de envio: acompanha a rolagem, resume o pedido e fecha com título + botões. */}
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-[76px]">
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
       <Passo n={3} titulo="Resumo e envio" sub={evento ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} para ${evento.nome}` : itens.length ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} · falta escolher o evento` : "Escolha o evento e adicione itens."}>
         {itens.length > 0 && (
           <ul className="m-0 max-h-[220px] list-none overflow-y-auto border-b border-line-soft p-0">
             {itens.map((i) => (
-              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-[18px] py-2 text-pequeno last:border-b-0">
-                <span className="min-w-0 flex-1 truncate text-ink">{i.rotulo}</span>
+              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-cartao py-2 text-pequeno last:border-b-0">
+                <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
+                  {i.rotulo}
+                </span>
                 <span className="shrink-0 font-mono text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
               </li>
             ))}
           </ul>
         )}
-        <div className="flex flex-col gap-3.5 p-[18px]">
+        <div className="flex flex-col gap-3.5 p-cartao">
           <Field label="Título" htmlFor="titulo" obrigatorio error={erroTitulo}>
             <Input
               id="titulo"
@@ -656,6 +710,24 @@ export function NovaSolicitacaoForm({
       </div>
       </aside>
       </div>
+
+      <ConfirmDialog
+        open={troca !== null}
+        onOpenChange={(o) => !o && setTroca(null)}
+        title="Trocar de evento?"
+        description={
+          troca
+            ? `${troca.descartados} ${troca.descartados === 1 ? "item referencia" : "itens referenciam"} a ata do evento anterior e ${troca.descartados === 1 ? "será removido" : "serão removidos"} da solicitação.`
+            : undefined
+        }
+        confirmLabel="Trocar de evento"
+        danger
+        action={confirmarLocal}
+        onSuccess={() => {
+          if (troca) aplicarTroca(troca.evento, troca.mantidos);
+          setTroca(null);
+        }}
+      />
     </div>
   );
 }

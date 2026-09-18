@@ -91,13 +91,13 @@ export function OsVisoes({
                 <tbody>
                   {p.pecas.map((x) => (
                     <tr key={x.codigo} className="hover:bg-subtle">
-                      <td className="border-b border-line-row px-[18px] py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
+                      <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
                       <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
                         {x.nome}
                       </th>
                       <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
                       <td className="border-b border-line-row px-2.5 py-2 text-right font-mono text-pequeno text-ink-2">{x.porUnidade}</td>
-                      <td className="border-b border-line-row py-2 pl-2.5 pr-[18px] text-right font-mono text-corpo font-semibold">
+                      <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
                         {x.total} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
                       </td>
                     </tr>
@@ -135,13 +135,13 @@ export function OsVisoes({
                 <tbody>
                   {os.individuais.map((x, i) => (
                     <tr key={`${x.codigo}-${i}`} className="hover:bg-subtle">
-                      <td className="border-b border-line-row px-[18px] py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
+                      <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
                       <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
                         {x.nome}
                       </th>
                       <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
                       <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
-                      <td className="border-b border-line-row py-2 pl-2.5 pr-[18px] text-right font-mono text-corpo font-semibold">
+                      <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
                         {x.quantidade} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
                       </td>
                     </tr>
@@ -183,12 +183,12 @@ export function OsVisoes({
               <tbody>
                 {s.linhas.map((l) => (
                   <tr key={l.pecaId} className="hover:bg-subtle">
-                    <td className="border-b border-line-row px-[18px] py-2.5 font-mono text-pequeno text-ink">{l.codigo}</td>
+                    <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno text-ink">{l.codigo}</td>
                     <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal text-ink">
                       {l.nome}
                     </th>
                     <td className="border-b border-line-row px-2.5 py-2.5 text-rotulo leading-[1.45] text-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
-                    <td className="border-b border-line-row py-2.5 pl-2.5 pr-[18px] text-right font-mono text-corpo font-semibold">
+                    <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
                       {l.total} <span className="text-rotulo font-normal text-muted">{l.unidade}</span>
                     </td>
                   </tr>
@@ -210,7 +210,7 @@ export function OsVisoes({
       {(visao === "totais" || visao === "individuais") && os.semSetor.length > 0 && (
         <Section titulo="Itens fora do catálogo" sub="Sem peça de catálogo. Separação manual; não entram na soma por peça.">
           {os.semSetor.map((a, i) => (
-            <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-[18px] py-2.5 last:border-b-0">
+            <div key={i} className="flex items-baseline gap-3 border-b border-line-row px-cartao py-2.5 last:border-b-0">
               <span className="min-w-0 flex-1 text-corpo text-ink">{a.descricao}</span>
               <span className="text-pequeno text-muted">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>
               <span className="w-[60px] text-right font-mono text-corpo font-semibold">{a.quantidade}</span>

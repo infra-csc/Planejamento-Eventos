@@ -13,7 +13,7 @@ export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { e
   if (status !== "PREPARACAO" && status !== "EM_REUNIAO" && status !== "ABERTO") return null;
   return (
     <Section titulo="Situação do evento" sub="Mudanças de exceção. Ficam registradas no histórico com a justificativa.">
-      <div className="flex flex-col gap-3 px-[18px] py-3.5">
+      <div className="flex flex-col gap-3 px-cartao py-3.5">
         {status === "EM_REUNIAO" && (
           <div className="flex items-center gap-4">
             <span className="min-w-0 flex-1">

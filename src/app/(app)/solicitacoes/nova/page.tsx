@@ -29,12 +29,19 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     : null;
   if (rascunho && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
 
-  const [todos, opcoes, config, todasAreas] = await Promise.all([listarEventos(usuario), opcoesReferencias(), obterConfiguracoes(await getDb()), usuario.perfil === "ADMIN" ? listarAreas() : Promise.resolve(null)]);
+  const [{ aceitando, linhasTodas }, opcoes, config, todasAreas] = await Promise.all([
+    // Linhas da ata de todos os eventos abertos numa consulta só, encadeada aos eventos e em paralelo com o resto.
+    listarEventos(usuario).then(async (todos) => {
+      const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
+      const linhasTodas = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
+      return { aceitando, linhasTodas };
+    }),
+    opcoesReferencias(),
+    getDb().then(obterConfiguracoes),
+    usuario.perfil === "ADMIN" ? listarAreas() : Promise.resolve(null),
+  ]);
   // Administrador pede em nome de uma área: escolhe qual no formulário.
   const areasAdmin = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
-  const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
-  // Linhas da ata de todos os eventos abertos numa consulta só.
-  const linhasTodas = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
   // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
   const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || l.areaId === usuario.areaId)]));

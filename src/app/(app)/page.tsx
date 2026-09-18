@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { dadosPainel, type ItemAgenda, type ItemFila } from "@/server/services/dashboard";
@@ -10,6 +11,8 @@ import { Badge, ForaJanelaTag, TipoSolicitacaoTag } from "@/components/ui/badge"
 import { AtenderRapido } from "@/components/painel/atender-rapido";
 import { EventosSolicitante } from "@/components/painel/eventos-solicitante";
 
+export const metadata: Metadata = { title: "Painel" };
+
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
 
 function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
@@ -18,7 +21,7 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
   const href = `/solicitacoes/${f.id}`;
   const contexto = [f.areaNome, f.eventoNome, plural(f.total, "item", "itens"), f.respondidos > 0 ? `${f.respondidos} já respondido${f.respondidos === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ");
   return (
-    <div className="flex items-start gap-[13px] border-b border-line-row px-[18px] py-[13px] last:border-b-0">
+    <div className="flex items-start gap-[13px] border-b border-line-row px-cartao py-[13px] last:border-b-0">
       <Marcador cor={cor} pulsar={pi.vencido} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
@@ -42,7 +45,7 @@ function LinhaFila({ f, rapida }: { f: ItemFila; rapida: boolean }) {
       </div>
       <div className="shrink-0 pl-1.5 text-right">
         <span className="block font-mono text-pequeno font-medium" style={{ color: cor }}>
-          {pi.label === "vencido" ? "vencido" : pi.label}
+          {pi.vencido ? "atrasada" : pi.label}
         </span>
         <span className="block text-rotulo text-meta">{pi.sub && !pi.vencido && (f.status === "ENVIADA" || f.status === "EM_ANALISE") ? `resposta até ${pi.sub}` : pi.sub}</span>
       </div>
@@ -54,8 +57,8 @@ function Agenda({ itens }: { itens: ItemAgenda[] }) {
   const cor = { reuniao: "var(--color-dark)", carga: "var(--color-warning)", montagem: "var(--color-muted)" };
   return (
     <Section titulo="Próximos 14 dias" sub="Reuniões, cargas e montagens de todos os eventos.">
-      <div className="px-[18px] pb-3.5 pt-1.5">
-        {itens.length === 0 && <p className="m-0 py-3 text-pequeno text-muted">Nada marcado nas próximas duas semanas.</p>}
+      <div className="px-cartao pb-3.5 pt-1.5">
+        {itens.length === 0 && <p className="m-0 py-3 text-pequeno text-muted">Nada marcado nas próximas duas semanas</p>}
         {itens.map((a) => (
           <Link key={a.chave} href={a.href} className="flex w-full gap-3 border-b border-line-faint py-[9px] text-left no-underline last:border-b-0 hover:bg-subtle">
             <span className="shrink-0 basis-[46px] pt-px font-mono text-pequeno text-muted">{a.dia}</span>
@@ -88,7 +91,7 @@ export default async function PainelPage() {
         ? "Visão entre eventos: prazos, exceções e o que está travando a operação."
         : usuario.perfil === "ADMIN"
           ? `Visão completa: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta, ${plural(d.sistema?.usuariosAtivos ?? 0, "pessoa ativa", "pessoas ativas")} e ${plural(d.sistema?.areasAtivas ?? 0, "área", "áreas")}.`
-          : `Sua fila de hoje: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta e ${plural(d.metricas.atrasadas, "prazo vencido", "prazos vencidos")}.`;
+          : `Sua fila de hoje: ${reunioes}, ${plural(d.metricas.aguardando, "solicitação aguardando", "solicitações aguardando")} resposta e ${plural(d.metricas.atrasadas, "atrasada", "atrasadas")}.`;
     acao =
       usuario.perfil === "GESTAO"
         ? { label: "Ver atrasos", href: "/solicitacoes?filtro=ATRASADAS" }
@@ -130,14 +133,14 @@ export default async function PainelPage() {
           <Metric
             label={responde ? "Aguardando sua resposta" : "Aguardando resposta"}
             valor={d.metricas.aguardando}
-            hint={d.metricas.atrasadas > 0 ? `${d.metricas.atrasadas} com prazo vencido` : "nenhuma vencida"}
+            hint={d.metricas.atrasadas > 0 ? plural(d.metricas.atrasadas, "atrasada", "atrasadas") : "nenhuma atrasada"}
             href="/solicitacoes?filtro=ABERTAS"
           />
           <Metric
-            label="Prazo vencido"
+            label="Atrasadas"
             valor={d.metricas.atrasadas}
             tom={d.metricas.atrasadas > 0 ? "danger" : "success"}
-            hint={d.metricas.piorAtraso ? `${d.metricas.piorAtraso.codigo} ${prazoInfo(d.metricas.piorAtraso).sub}` : "nenhuma pendência vencida"}
+            hint={d.metricas.piorAtraso ? `${d.metricas.piorAtraso.codigo} ${prazoInfo(d.metricas.piorAtraso).sub}` : "nenhuma atrasada"}
             href="/solicitacoes?filtro=ATRASADAS"
           />
           <Metric label="Reuniões esta semana" valor={d.metricas.reunioesSemana} hint={d.metricas.hintSemana} href="/eventos" />
@@ -198,14 +201,14 @@ export default async function PainelPage() {
                   d.fila.map((f) => <LinhaFila key={f.id} f={f} rapida={false} />)
                 )}
               </Section>
-              <Section titulo="Respostas recebidas" sub="Cada item tem resposta própria. Parcial e recusa vêm sempre com motivo.">
-                {d.respostas.length === 0 && <EmptyState compact title="Nenhuma resposta ainda." />}
+              <Section titulo="Respostas recebidas" sub="Cada item tem resposta própria. Parcial e não atendido vêm sempre com motivo.">
+                {d.respostas.length === 0 && <EmptyState compact title="Nenhuma resposta ainda" />}
                 {d.respostas.map((r) => (
-                  <Link key={r.id} href={`/solicitacoes/${r.id}`} className="block border-b border-line-row px-[18px] py-[13px] text-left no-underline last:border-b-0 hover:bg-subtle">
+                  <Link key={r.id} href={`/solicitacoes/${r.id}`} className="block border-b border-line-row px-cartao py-[13px] text-left no-underline last:border-b-0 hover:bg-subtle">
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono text-pequeno font-medium text-ink">{r.codigo}</span>
                       <span className="min-w-0 flex-1 text-corpo text-ink">{r.titulo || "sem título"}</span>
-                      <Badge tom={r.naAta ? "accent" : r.ressalvas > 0 ? "warning" : "success"}>{r.naAta ? "na ata" : r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "tudo atendido"}</Badge>
+                      <Badge tom={r.naAta ? "accent" : r.ressalvas > 0 ? "warning" : "success"}>{r.naAta ? "Na ata" : r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "Tudo atendido"}</Badge>
                     </div>
                     <p className="mt-1 text-pequeno text-muted">
                       {r.eventoNome} · {r.naAta ? "registrada na ata, confere na reunião" : `respondida por ${r.respondidoPor}`}

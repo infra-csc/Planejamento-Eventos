@@ -26,7 +26,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento" }: {
   };
 
   return (
-    <div className="flex items-center gap-2" aria-busy={pendente || undefined}>
+    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto" aria-busy={pendente || undefined}>
       <label htmlFor="filtro-evento" className="shrink-0 text-pequeno text-ink-3">
         {rotulo}
       </label>
@@ -35,7 +35,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento" }: {
         value={atual}
         onChange={(v) => ir(v)}
         placeholder="Todos os eventos — buscar por nome ou código"
-        className="w-[min(420px,70vw)]"
+        className="w-full min-w-0 flex-1 sm:w-[420px] sm:flex-none"
         opcoes={eventos.map((e) => ({ value: e.id, label: e.nome, descricao: e.codigo, selo: e.n != null ? String(e.n) : undefined, seloTom: "muted" as const }))}
       />
       {atual && (

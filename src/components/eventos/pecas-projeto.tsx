@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ComboBox } from "@/components/ui/combobox";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, Label, Textarea } from "@/components/ui/field";
+import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Field, FormError, Label, Textarea } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconeLapis } from "@/components/ui/icons";
 import { RodapeTabela } from "@/components/ui/layout";
+import { Stepper } from "@/components/ui/stepper";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { toast } from "@/components/ui/toast";
 import { ajustarPecaDoProjetoAction } from "@/app/(app)/eventos/actions";
@@ -80,20 +81,24 @@ export function PecasProjeto({
             <Th largura={80} alinhar="right" className="px-2">
               Total
             </Th>
-            {editavel && <Th largura={52} />}
+            {editavel && (
+              <Th largura={52}>
+                <span className="sr-only">Ações</span>
+              </Th>
+            )}
           </tr>
         </thead>
         <tbody>
           {pecas.map((p) => (
             <tr key={p.pecaId} className="border-b border-line-row last:border-b-0 hover:bg-subtle">
-              <td className="px-[18px] py-1.5 font-mono text-pequeno text-ink-2">{p.codigo}</td>
+              <td className="px-cartao py-1.5 font-mono text-pequeno text-ink-2">{p.codigo}</td>
               <td className="px-2 py-1.5 text-ink">{p.nome}</td>
               <td className="px-2 py-1.5 text-right font-mono text-ink-2">{p.porUnidade}</td>
               <td className="px-2 py-1.5 text-right font-mono font-medium text-ink">
                 {p.total} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
               </td>
               {editavel && (
-                <td className="py-1 pr-[18px] text-right">
+                <td className="py-1 pr-cartao text-right">
                   <IconButton label={`Ajustar ${p.nome}`} onClick={() => abrir({ pecaId: p.pecaId, codigo: p.codigo, nome: p.nome, porUnidade: p.porUnidade })}>
                     <IconeLapis size={13} />
                   </IconButton>
@@ -140,7 +145,7 @@ export function PecasProjeto({
               {edicao.codigo && <p className="m-0 text-corpo text-ink-2">{edicao.nome}</p>}
               <div className="flex flex-wrap items-end gap-3">
                 <Field label="Por unidade do projeto" htmlFor="qtd-peca">
-                  <Input id="qtd-peca" type="number" min={0} value={qtd} onChange={(e) => setQtd(Math.max(0, Math.floor(Number(e.target.value) || 0)))} className="w-[110px] font-mono" />
+                  <Stepper id="qtd-peca" valor={qtd} onChange={setQtd} min={0} />
                 </Field>
                 <p className="m-0 pb-2 text-pequeno text-muted">
                   × {quantidadeProjeto} = <span className="font-mono text-ink">{qtd * quantidadeProjeto}</span>
@@ -151,16 +156,18 @@ export function PecasProjeto({
               <Field label="Motivo" htmlFor="motivo-peca" obrigatorio>
                 <Textarea id="motivo-peca" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 2 tramos disponíveis; o cliente pediu vão menor" className="min-h-[72px]" />
               </Field>
-              {erro && <p className="m-0 text-pequeno text-danger">{erro}</p>}
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setEdicao(null)} disabled={pendente}>
+              <FormError message={erro} />
+            </div>
+            <DialogFooter>
+              <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+                Salvar
+              </Button>
+              <DialogClose asChild>
+                <Button variant="secondary" size="lg" disabled={pendente}>
                   Cancelar
                 </Button>
-                <Button variant="primary" onClick={salvar} loading={pendente}>
-                  Salvar
-                </Button>
-              </div>
-            </div>
+              </DialogClose>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

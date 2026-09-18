@@ -71,6 +71,13 @@
       "when": 1789744956734,
       "tag": "0009_arenas",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789746079243,
+      "tag": "0010_indices_desempenho",
+      "breakpoints": true
     }
   ]
 }

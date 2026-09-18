@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { iniciais } from "@/lib/format";
 import { PERFIL_LABEL } from "@/domain/permissions";
@@ -69,7 +69,7 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
       aria-current={ativo ? "page" : undefined}
       title={compacto ? `${item.label}${temContagem ? ` (${item.contagem})` : ""}` : undefined}
       className={cn(
-        "relative flex w-full items-center gap-2.5 rounded-lg border border-transparent py-2 text-corpo no-underline",
+        "relative flex w-full items-center gap-2.5 rounded-controle border border-transparent py-2 text-corpo no-underline",
         compacto ? "justify-center px-0" : "px-2.5",
         ativo ? "bg-dark-2 font-medium text-white" : "text-on-dark-2 hover:bg-white/[0.04] hover:text-white",
       )}
@@ -95,6 +95,13 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
   const perfilTexto = PERFIL_LABEL[usuario.perfil] + (usuario.areaNome && usuario.areaNome !== PERFIL_LABEL[usuario.perfil] ? ` · ${usuario.areaNome}` : "");
   // Abaixo de 1024 px a sidebar vira uma gaveta aberta pelo botão de menu; fecha ao navegar ou com Esc.
   const [menuAberto, setMenuAberto] = useState(false);
+  const botaoMenuRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
+  // Fechar pelo Esc ou pelo fundo devolve o foco ao botão de menu; ao seguir um link, o foco segue a navegação.
+  const fecharMenu = (devolverFoco: boolean) => {
+    setMenuAberto(false);
+    if (devolverFoco) botaoMenuRef.current?.focus();
+  };
   // No desktop a sidebar pode ficar recolhida (só ícones); a preferência fica no navegador.
   const [recolhido, setRecolhido] = useState(false);
   useEffect(() => {
@@ -113,7 +120,13 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
   };
   useEffect(() => {
     if (!menuAberto) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuAberto(false);
+    // Gaveta aberta: o foco entra nela, no primeiro link.
+    menuRef.current?.querySelector<HTMLElement>("a[href]")?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenuAberto(false);
+      botaoMenuRef.current?.focus();
+    };
     window.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -125,26 +138,28 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
 
   return (
     <div className="flex min-h-screen bg-page">
-      <a href="#conteudo" className="no-print sr-only rounded-lg bg-dark px-3 py-2 text-corpo text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[var(--z-toast)]">
+      <a href="#conteudo" className="no-print sr-only rounded-controle bg-dark px-3 py-2 text-corpo text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[var(--z-toast)]">
         Pular para o conteúdo
       </a>
-      {menuAberto && <button type="button" aria-label="Fechar menu" onClick={() => setMenuAberto(false)} className="fixed inset-0 z-[var(--z-busca)] cursor-default border-0 bg-black/45 lg:hidden" />}
+      {menuAberto && <button type="button" aria-label="Fechar menu" onClick={() => fecharMenu(true)} className="fixed inset-0 z-[var(--z-busca)] cursor-default border-0 bg-scrim lg:hidden" />}
       {/* Fixa no desktop (200 px até 1280, 236 px acima); gaveta deslizante abaixo de 1024 px. */}
       <aside
+        ref={menuRef}
         id="menu-principal"
         aria-label="Menu principal"
         onClick={(e) => {
           // Clicou num link da gaveta: fecha ao navegar.
-          if ((e.target as HTMLElement).closest("a")) setMenuAberto(false);
+          if ((e.target as HTMLElement).closest("a")) fecharMenu(false);
         }}
         className={cn(
-          "no-print flex h-screen w-[236px] shrink-0 flex-col bg-dark transition-[transform,width] duration-200 lg:sticky lg:top-0 lg:translate-x-0",
+          "no-print flex h-screen w-[236px] shrink-0 flex-col bg-dark transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0",
           recolhido ? "lg:w-[64px]" : "lg:w-[200px] xl:w-[236px]",
           "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-[calc(var(--z-busca)+1)] max-lg:shadow-popover",
-          !menuAberto && "max-lg:-translate-x-full",
+          // Fechada no mobile: fora da tela e fora do Tab/leitor de tela (invisible some depois da transição).
+          !menuAberto && "max-lg:invisible max-lg:-translate-x-full",
         )}
       >
-        <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-[18px] pr-3")}>
+        <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
             <span aria-hidden className="block size-5 shrink-0 rounded-chip bg-accent-light" />
             <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
@@ -170,7 +185,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           type="button"
           onClick={abrirBuscaGlobal}
           title={recolhido ? "Buscar ou executar (Ctrl K)" : undefined}
-          className={cn("mb-3.5 flex cursor-pointer items-center gap-2 rounded-lg border border-dark-3 bg-dark-4 py-2 text-corpo text-on-dark-3 hover:text-on-dark-2", recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5")}
+          className={cn("mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-dark-3 bg-dark-4 py-2 text-corpo text-on-dark-3 hover:text-on-dark-2", recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5")}
         >
           <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
@@ -201,7 +216,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           })}
         </nav>
 
-        <div className={cn("flex items-center gap-2.5 border-t border-dark-2 py-3", recolhido ? "flex-col px-2" : "px-[18px]")}>
+        <div className={cn("flex items-center gap-2.5 border-t border-dark-2 py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
           <p className={cn("m-0 flex-1 text-rotulo text-on-dark-4", recolhido && "lg:sr-only")}>
             <Atualizado key={pathname} /> · v0.2
           </p>
@@ -220,14 +235,15 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-page/90 px-4 backdrop-blur-sm sm:gap-3.5 lg:px-5 xl:px-7">
+        <header className="no-print sticky top-0 z-[var(--z-header)] flex h-14 items-center gap-2 border-b border-line bg-page/90 px-4 backdrop-blur-sm sm:gap-3.5 lg:px-5 xl:px-7">
           <button
+            ref={botaoMenuRef}
             type="button"
             aria-label="Abrir menu"
             aria-expanded={menuAberto}
             aria-controls="menu-principal"
             onClick={() => setMenuAberto(true)}
-            className="-ml-1 grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-ink-2 hover:bg-black/[0.04] lg:hidden"
+            className="-ml-1 grid size-9 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-2 hover:bg-black/[0.04] lg:hidden"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <path d="M4 7h16M4 12h16M4 17h16" />
@@ -278,7 +294,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         )}
         {/* Sem overflow no <main>: um contêiner de rolagem aqui quebra o `sticky` das colunas laterais (ata, OS, biblioteca). */}
         <main id="conteudo" tabIndex={-1} className="flex-1 px-4 pb-16 pt-5 focus:outline-none sm:px-5 sm:pt-7 xl:px-7">
-          <div key={pathname} className="mx-auto max-w-[1240px] animate-fade-up">
+          {/* Sem `key={pathname}`: remontar a cada navegação zerava o estado da página (abas do evento). A entrada animada fica no template.tsx. */}
+          <div className="mx-auto max-w-[1240px]">
             {children}
           </div>
         </main>

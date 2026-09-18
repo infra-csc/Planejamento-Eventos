@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { montarAtaExport } from "@/server/export/ata";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
@@ -15,8 +16,8 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 function Campo({ k, v, forte }: { k: string; v: React.ReactNode; forte?: boolean }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-neutral-200 py-1">
-      <span className="text-neutral-500">{k}</span>
+    <div className="flex justify-between gap-3 border-b border-line py-1">
+      <span className="text-ink-3">{k}</span>
       <span className={forte ? "font-semibold" : ""}>{v}</span>
     </div>
   );
@@ -33,19 +34,22 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
   const conferidas = ata.linhas.filter((x) => x.conferidoPor).length;
 
   return (
-    <div className="mx-auto max-w-4xl bg-white p-8 text-[13px] text-black print:p-0">
-      <div className="no-print mb-6 flex justify-end">
+    <div className="mx-auto max-w-4xl bg-surface p-8 text-corpo text-ink print:p-0">
+      <div className="no-print mb-6 flex items-center justify-between gap-3 print:hidden">
+        <Link href={`/eventos/${id}/ata${v ? `?v=${v}` : ""}`} className="link text-corpo print:hidden">
+          ← Voltar para a ata
+        </Link>
         <ImprimirBotao />
       </div>
-      <header className="mb-5 border-b border-black pb-4">
-        <p className="text-[11px] uppercase tracking-widest">Norte Mkt · Ata da reunião de OS</p>
-        <h1 className="mt-1 text-xl font-semibold">
+      <header className="mb-5 border-b border-ink pb-4">
+        <p className="text-rotulo uppercase tracking-widest">Norte Mkt · Ata da reunião de OS</p>
+        <h1 className="mt-1 text-pagina font-semibold">
           {ev.codigo} · {ev.nome}
         </h1>
-        <p className="mt-0.5 text-[11px] text-neutral-600">{ata.versao ? `Ata v${ata.versao}${reu?.fechadaEm ? ` · fechada em ${formatarDataHora(reu.fechadaEm)}` : ""}` : "Ata em construção — ainda não fechada"}</p>
+        <p className="mt-0.5 text-rotulo text-ink-3">{ata.versao ? `Ata v${ata.versao}${reu?.fechadaEm ? ` · fechada em ${formatarDataHora(reu.fechadaEm)}` : ""}` : "Ata em construção — ainda não fechada"}</p>
       </header>
 
-      <section className="mb-6 grid grid-cols-2 gap-x-8 text-[12px]">
+      <section className="mb-6 grid grid-cols-2 gap-x-8 text-pequeno">
         <div>
           <Campo k="Cliente" v={ev.cliente || "—"} />
           <Campo k="Local" v={ev.local || "—"} />
@@ -64,44 +68,44 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
           <Campo k="Conduzida por" v={reu?.conduzidaPor || ev.responsavel} />
           <Campo k="Linhas conferidas" v={`${conferidas} de ${ata.linhas.length}`} />
           <div className="mt-2">
-            <p className="mb-0.5 text-neutral-500">Pessoas presentes</p>
+            <p className="mb-0.5 text-ink-3">Pessoas presentes</p>
             <p className="m-0 whitespace-pre-wrap leading-[1.45]">{reu?.presentes?.trim() || "—"}</p>
           </div>
         </div>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-base font-semibold">O que vai para o evento</h2>
+        <h2 className="mb-2 text-destaque font-semibold">O que vai para o evento</h2>
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-black text-left text-[11px] uppercase tracking-wide">
-              <th className="py-1 pr-3">Código</th>
-              <th className="py-1 pr-3">Item</th>
-              <th className="py-1 pr-3 text-right">Qtd.</th>
-              <th className="py-1 pr-3">Destino</th>
-              <th className="py-1 pr-3">Área</th>
-              <th className="py-1 pr-3">Origem</th>
-              <th className="py-1">Conferido por</th>
+            <tr className="border-b border-ink text-left text-rotulo uppercase tracking-wide">
+              <th scope="col" className="py-1 pr-3">Código</th>
+              <th scope="col" className="py-1 pr-3">Item</th>
+              <th scope="col" className="py-1 pr-3 text-right">Qtd.</th>
+              <th scope="col" className="py-1 pr-3">Destino</th>
+              <th scope="col" className="py-1 pr-3">Área</th>
+              <th scope="col" className="py-1 pr-3">Origem</th>
+              <th scope="col" className="py-1">Conferido por</th>
             </tr>
           </thead>
           <tbody>
             {ata.linhas.map((x, i) => (
-              <tr key={i} className="border-b border-neutral-300">
-                <td className="py-1.5 pr-3 font-mono text-[11.5px]">{x.codigo ?? ""}</td>
+              <tr key={i} className="border-b border-line-strong">
+                <td className="py-1.5 pr-3 font-mono text-rotulo">{x.codigo ?? ""}</td>
                 <td className="py-1.5 pr-3">
                   {x.descricao}
-                  {x.versao ? <span className="text-neutral-500"> v{x.versao}</span> : null} <span className="text-[10.5px] text-neutral-500">· {TIPO_LABEL[x.tipo]}</span>
+                  {x.versao ? <span className="text-ink-3"> v{x.versao}</span> : null} <span className="text-micro text-ink-3">· {TIPO_LABEL[x.tipo]}</span>
                 </td>
                 <td className="py-1.5 pr-3 text-right font-mono font-semibold">{x.quantidade}</td>
                 <td className="py-1.5 pr-3">{x.destino ?? "—"}</td>
                 <td className="py-1.5 pr-3">{x.area ?? "Logística"}</td>
-                <td className="py-1.5 pr-3 text-[11px] text-neutral-600">{x.origem}</td>
-                <td className="py-1.5 text-[11px]">{x.conferidoPor ? `✓ ${x.conferidoPor}` : "—"}</td>
+                <td className="py-1.5 pr-3 text-rotulo text-ink-3">{x.origem}</td>
+                <td className="py-1.5 text-rotulo">{x.conferidoPor ? `✓ ${x.conferidoPor}` : "—"}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-black">
+            <tr className="border-t border-ink">
               <td colSpan={2} className="py-1.5 pr-3 font-semibold">
                 {ata.linhas.length} {ata.linhas.length === 1 ? "linha" : "linhas"}
               </td>
@@ -113,36 +117,36 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
       </section>
 
       <section className="mb-6 break-inside-avoid">
-        <h2 className="mb-1 text-base font-semibold">Observações da reunião</h2>
+        <h2 className="mb-1 text-destaque font-semibold">Observações da reunião</h2>
         <p className="m-0 whitespace-pre-wrap leading-[1.5]">{ata.observacoes?.trim() || "Nenhuma observação registrada."}</p>
       </section>
 
       {ata.solicitacoesPreReuniao.length > 0 && (
         <section className="mb-6 break-before-page">
-          <h2 className="mb-2 text-base font-semibold">O que cada área pediu antes da reunião</h2>
+          <h2 className="mb-2 text-destaque font-semibold">O que cada área pediu antes da reunião</h2>
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-black text-left text-[11px] uppercase tracking-wide">
-                <th className="py-1 pr-3">Solicitação</th>
-                <th className="py-1 pr-3">Área</th>
-                <th className="py-1 pr-3">Item</th>
-                <th className="py-1 pr-3 text-right">Pedido</th>
-                <th className="py-1 pr-3 text-right">Atendido</th>
-                <th className="py-1 pr-3">Situação</th>
-                <th className="py-1">Observação</th>
+              <tr className="border-b border-ink text-left text-rotulo uppercase tracking-wide">
+                <th scope="col" className="py-1 pr-3">Solicitação</th>
+                <th scope="col" className="py-1 pr-3">Área</th>
+                <th scope="col" className="py-1 pr-3">Item</th>
+                <th scope="col" className="py-1 pr-3 text-right">Pedido</th>
+                <th scope="col" className="py-1 pr-3 text-right">Atendido</th>
+                <th scope="col" className="py-1 pr-3">Situação</th>
+                <th scope="col" className="py-1">Observação</th>
               </tr>
             </thead>
             <tbody>
               {ata.solicitacoesPreReuniao.flatMap((s) =>
                 s.itens.map((it, i) => (
-                  <tr key={`${s.codigo}-${i}`} className="border-b border-neutral-300">
-                    <td className="py-1.5 pr-3 font-mono text-[11.5px]">{s.codigo}</td>
+                  <tr key={`${s.codigo}-${i}`} className="border-b border-line-strong">
+                    <td className="py-1.5 pr-3 font-mono text-rotulo">{s.codigo}</td>
                     <td className="py-1.5 pr-3">{s.area}</td>
                     <td className="py-1.5 pr-3">{it.descricao}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{it.solicitada}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{it.atendida}</td>
                     <td className="py-1.5 pr-3">{ITEM_STATUS_LABEL[it.status]}</td>
-                    <td className="py-1.5 text-[11px] text-neutral-600">{it.observacao ?? ""}</td>
+                    <td className="py-1.5 text-rotulo text-ink-3">{it.observacao ?? ""}</td>
                   </tr>
                 )),
               )}
@@ -151,9 +155,9 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
         </section>
       )}
 
-      <footer className="mt-10 grid grid-cols-2 gap-8 text-[11px] text-neutral-600">
-        <div className="border-t border-black pt-2">Logística · assinatura e data</div>
-        <div className="border-t border-black pt-2">Cliente / gestão · assinatura e data</div>
+      <footer className="mt-10 grid grid-cols-2 gap-8 text-rotulo text-ink-3">
+        <div className="border-t border-ink pt-2">Logística · assinatura e data</div>
+        <div className="border-t border-ink pt-2">Cliente / gestão · assinatura e data</div>
       </footer>
     </div>
   );

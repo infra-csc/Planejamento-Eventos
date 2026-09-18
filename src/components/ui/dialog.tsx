@@ -30,7 +30,7 @@ export function DialogContent({
   const w = size === "sm" ? 420 : size === "md" ? 520 : size === "lg" ? 720 : width;
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-dialogo)] animate-fade-up-rapido bg-[rgba(22,23,26,0.4)]" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-dialogo)] animate-fade-up-rapido bg-scrim" />
       <DialogPrimitive.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-[calc(var(--z-dialogo)+1)] flex max-h-[calc(100vh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-modal border border-line-strong bg-surface shadow-modal focus:outline-none",

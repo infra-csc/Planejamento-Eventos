@@ -1,16 +1,14 @@
 import Link from "next/link";
 import type { DadosPainel } from "@/server/services/dashboard";
-import { EVENTO_STATUS_LABEL } from "@/domain/evento";
-import { diaMesHora, periodoCurto, tempoRelativo } from "@/lib/format";
+import { statusExibicao } from "@/domain/evento";
+import { diaMesHora, hojeISO, periodoCurto, tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { Badge, ChipMono, Tag } from "@/components/ui/badge";
+import { ChipMono, EventoStatusBadge, Tag } from "@/components/ui/badge";
 import { EmptyState, Marcador, Section } from "@/components/ui/layout";
 
 type Painel = Extract<DadosPainel, { tipo: "requisitante" }>;
 type EventoCartao = Painel["eventos"][number];
 type Mudanca = Painel["mudancas"][number];
-
-const TOM_FASE = { PREPARACAO: "neutral", EM_REUNIAO: "warning", ABERTO: "accent", ENCERRADO: "success", CANCELADO: "danger" } as const;
 
 /** Um cartão por evento: fase, datas, o que a área tem lá dentro e o que mudou desde a ata. */
 function Cartao({ e }: { e: EventoCartao }) {
@@ -26,7 +24,7 @@ function Cartao({ e }: { e: EventoCartao }) {
             {e.local ? ` · ${e.local}` : ""}
           </span>
         </div>
-        <Badge tom={TOM_FASE[e.status]}>{EVENTO_STATUS_LABEL[e.status]}</Badge>
+        <EventoStatusBadge status={statusExibicao(e.status, e.dataFim, hojeISO())} />
       </div>
       <div className="grid grid-cols-3 gap-2">
         <span>
@@ -52,7 +50,7 @@ function Cartao({ e }: { e: EventoCartao }) {
 
 function LinhaMudanca({ m }: { m: Mudanca }) {
   return (
-    <Link href={m.href} className="flex items-start gap-3 border-b border-line-row px-[18px] py-2.5 no-underline last:border-b-0 hover:bg-subtle">
+    <Link href={m.href} className="flex items-start gap-3 border-b border-line-row px-cartao py-2.5 no-underline last:border-b-0 hover:bg-subtle">
       <Marcador tom={m.novo ? "success" : m.saiu ? "danger" : "warning"} />
       <span className="min-w-0 flex-1">
         <span className="block text-corpo leading-[1.4] text-ink">{m.texto}</span>

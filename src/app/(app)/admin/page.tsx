@@ -39,7 +39,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const params = { filtro: sp.filtro, q: sp.q };
     conteudo = (
       <>
-        <div className="mb-[18px] flex flex-wrap items-center gap-2.5">
+        <div className="mb-cartao flex flex-wrap items-center gap-2.5">
           <BuscaUrl placeholder="Buscar por nome, e-mail ou área" />
           <Pills
             rotulo="Filtrar usuários"

@@ -33,7 +33,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
         description="Peças que todos os eventos do período vão precisar, da montagem ao fim do evento. Eventos simultâneos disputam a mesma peça: o pico mostra o pior dia."
       />
 
-      <div className="mb-[18px] flex items-center gap-3">
+      <div className="mb-cartao flex flex-wrap items-center gap-3">
         <Pills rotulo="Janela de tempo" itens={JANELAS.map((d) => ({ label: `${d} dias`, href: d === 30 ? "/consolidacao" : `/consolidacao?dias=${d}`, ativo: d === dias }))} />
         <span className="font-mono text-pequeno text-muted">
           {diaMesISO(inicio)} – {diaMesISO(fim)}
@@ -50,16 +50,18 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
       <div className="flex flex-col gap-5">
         <Section titulo="Demanda por peça" sub="Maior pico primeiro. Ao lado, os eventos que compõem o pico.">
           {demandadas.length === 0 ? (
-            <EmptyState compact title="Nenhuma demanda de peças no período." description="Eventos entram aqui quando têm ata ou solicitações com itens." />
+            <EmptyState compact title="Nenhuma demanda de peças no período" description="Eventos entram aqui quando têm ata ou solicitações com itens." />
           ) : (
             demandadas.map((p) => {
               const escala = Math.max(demandadas[0]?.pico ?? 1, 1);
               const disputada = p.eventosNoPico.length > 1;
               return (
-                <div key={p.pecaId} className="flex items-center gap-4 border-b border-line-row px-[18px] py-3 last:border-b-0">
-                  <span className="w-[210px] shrink-0">
+                <div key={p.pecaId} className="flex flex-col gap-2 border-b border-line-row px-cartao py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+                  <span className="w-full sm:w-[210px] sm:shrink-0">
                     <span className="block font-mono text-pequeno font-medium">{p.codigo}</span>
-                    <span className="block truncate text-pequeno text-muted">{p.nome}</span>
+                    <span className="line-clamp-2 break-words text-pequeno text-muted" title={p.nome}>
+                      {p.nome}
+                    </span>
                   </span>
                   <span className="min-w-0 flex-1">
                     <span role="img" aria-label={`Demanda no pico: ${p.pico}`}>
@@ -70,11 +72,11 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                       {p.eventosNoPico.length > 0 && <span className="text-meta"> · {p.eventosNoPico.map((e) => `${e.codigo} ${e.quantidade}${e.projetado ? " (projetado)" : ""}`).join(" · ")}</span>}
                     </span>
                   </span>
-                  <span className="w-[108px] shrink-0 text-right">
+                  <span className="flex items-center gap-2 sm:block sm:w-[108px] sm:shrink-0 sm:text-right">
                     <ChipMono tom={disputada ? "warning" : "neutral"} className="font-medium">
                       {disputada ? `${p.eventosNoPico.length} eventos` : `${p.pico} un.`}
                     </ChipMono>
-                    <span className="mt-1 block font-mono text-rotulo text-meta">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
+                    <span className="block font-mono text-rotulo text-meta sm:mt-1">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
                   </span>
                 </div>
               );
@@ -83,12 +85,12 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
         </Section>
 
         <section id="pendencias">
-          <Section titulo="Pendências de compra e locação" sub="Respostas parciais ou recusadas que a logística marcou como pendência.">
+          <Section titulo="Pendências de compra e locação" sub="Respostas parciais ou não atendidas que a logística marcou como pendência.">
             {pendencias.length === 0 ? (
-              <EmptyState compact title="Nenhuma pendência aberta." description="Toda resposta parcial ou recusada aparece aqui até ser resolvida." />
+              <EmptyState compact title="Nenhuma pendência aberta" description="Toda resposta parcial ou não atendida aparece aqui até ser resolvida." />
             ) : (
               pendencias.map((p) => (
-                <div key={p.id} className="flex items-start gap-4 border-b border-line-row px-[18px] py-3 last:border-b-0">
+                <div key={p.id} className="flex items-start gap-4 border-b border-line-row px-cartao py-3 last:border-b-0">
                   <Link href={`/solicitacoes/${p.solicitacaoId}`} className="w-[78px] shrink-0 pt-px font-mono text-pequeno font-medium text-ink no-underline hover:underline">
                     {p.solicitacao.codigo}
                   </Link>

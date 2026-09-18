@@ -43,7 +43,7 @@ export function EnvioOs({
     });
 
   return (
-    <div className="px-[18px] py-3.5">
+    <div className="px-cartao py-3.5">
       {!enviada ? (
         <>
           <p className="m-0 text-pequeno leading-[1.5] text-ink-2">Quando a OS for para o galpão, marque aqui. O que entrar depois vira um complemento separado, em vez de sumir dentro de uma versão nova.</p>

@@ -35,31 +35,35 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
     });
 
   return (
-    <div className="max-w-[780px] overflow-hidden rounded-cartao border border-line bg-surface">
+    <div className="max-w-3xl overflow-hidden rounded-cartao border border-line bg-surface">
       {LINHAS.map((l) => (
-        <div key={l.chave} className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
+        <div key={l.chave} className="flex items-center gap-6 border-b border-line-row px-cartao py-4">
           <label htmlFor={l.chave} className="min-w-0 flex-1">
             <span className="block text-corpo font-medium text-ink">{l.titulo}</span>
             <span className="mt-0.5 block text-pequeno text-muted">{l.descricao}</span>
-            {erros[l.chave] && <span className="mt-1 block text-pequeno text-danger">{erros[l.chave]}</span>}
+            {erros[l.chave] && (
+              <span id={`${l.chave}-erro`} className="mt-1 block text-pequeno text-danger">
+                {erros[l.chave]}
+              </span>
+            )}
           </label>
           <span className="flex shrink-0 items-center gap-2">
-            <Input id={l.chave} type="number" min={l.min} max={l.max} value={v[l.chave] ?? ""} aria-invalid={Boolean(erros[l.chave])} onChange={(e) => setV({ ...v, [l.chave]: e.target.value })} className="w-[84px] px-2.5 text-right font-mono" />
+            <Input id={l.chave} type="number" min={l.min} max={l.max} value={v[l.chave] ?? ""} aria-invalid={Boolean(erros[l.chave])} aria-describedby={erros[l.chave] ? `${l.chave}-erro` : undefined} onChange={(e) => setV({ ...v, [l.chave]: e.target.value })} className="w-[84px] px-2.5 text-right font-mono" />
             <span className="w-8 text-pequeno text-muted">{l.unidade}</span>
           </span>
         </div>
       ))}
-      <div className="border-b border-line-row px-[18px] py-4">
+      <div className="border-b border-line-row px-cartao py-4">
         <Checkbox id="bloquear" label="Bloquear encerramento com solicitações abertas" description="Recomendado. Desmarcado, a logística encerra mesmo com itens sem resposta." checked={v.bloquear_encerramento_com_pendentes === "true"} onChange={(marcado) => setV({ ...v, bloquear_encerramento_com_pendentes: String(marcado) })} />
       </div>
-      <div className="flex items-center gap-6 border-b border-line-row px-[18px] py-4">
+      <div className="flex items-center gap-6 border-b border-line-row px-cartao py-4">
         <span className="min-w-0 flex-1">
           <span className="block text-corpo font-medium text-ink">Reabertura de evento</span>
           <span className="mt-0.5 block text-pequeno text-muted">Só a Gestão reabre um evento encerrado, com justificativa registrada no histórico.</span>
         </span>
-        <Badge tom="rascunho">restrita</Badge>
+        <Badge tom="rascunho">Restrita</Badge>
       </div>
-      <div className="flex items-center justify-end gap-3 bg-subtle px-[18px] py-3">
+      <div className="flex items-center justify-end gap-3 bg-subtle px-cartao py-3">
         {mudou && <span className="text-pequeno text-muted">alterações não salvas</span>}
         <Button variant="primary" size="md" loading={pendente} disabled={!mudou} onClick={salvar}>
           Salvar configurações

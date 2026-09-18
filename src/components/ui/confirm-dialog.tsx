@@ -14,6 +14,8 @@ type Props = {
   title: string;
   description?: string;
   confirmLabel?: string;
+  /** Rótulo do botão que fecha sem fazer nada (padrão "Cancelar"). */
+  cancelLabel?: string;
   danger?: boolean;
   /** Se definido, exibe campo de justificativa com este rótulo. */
   reasonLabel?: string;
@@ -29,7 +31,7 @@ type Props = {
  * Confirmação ligada a uma server action. Fecha e mostra toast em sucesso;
  * mantém aberta com o erro em falha.
  */
-export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = "Confirmar", danger, reasonLabel, reasonRequired = true, reasonPlaceholder, action, hidden, children, onSuccess }: Props) {
+export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger, reasonLabel, reasonRequired = true, reasonPlaceholder, action, hidden, children, onSuccess }: Props) {
   const [state, formAction] = useActionState(action, { ok: true } as ActionResult);
   const ultimo = useRef<ActionResult | null>(null);
 
@@ -70,7 +72,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
               </SubmitButton>
               <DialogClose asChild>
                 <Button variant="secondary" size="lg">
-                  Cancelar
+                  {cancelLabel}
                 </Button>
               </DialogClose>
             </DialogFooter>

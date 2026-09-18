@@ -185,20 +185,22 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const [obs, setObs] = useState(corrigir ? item.observacaoLogistica ?? "" : "");
   const [pendencia, setPendencia] = useState(corrigir ? item.pendenciaCompra : modo === "PARCIAL");
   const [justificativa, setJustificativa] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<{ campo: "qtd" | "obs" | "justificativa"; msg: string } | null>(null);
+  const idErro = `erro-resposta-${item.id}`;
+  const aria = (campo: "qtd" | "obs" | "justificativa") => (erro?.campo === campo ? { "aria-invalid": true, "aria-describedby": idErro } : {});
 
   const confirmar = async () => {
     if (pendente) return;
     if (status === "PARCIAL" && (!Number.isInteger(qtd) || qtd < faixa.min || qtd > faixa.max)) {
-      setErro(`No parcial, a quantidade fica entre ${faixa.min} e ${faixa.max}.`);
+      setErro({ campo: "qtd", msg: `No parcial, a quantidade fica entre ${faixa.min} e ${faixa.max}.` });
       return;
     }
     if (status !== "ATENDIDO" && !obs.trim()) {
-      setErro("Parcial e não atendido exigem motivo.");
+      setErro({ campo: "obs", msg: "Parcial e não atendido exigem motivo." });
       return;
     }
     if (corrigir && !justificativa.trim()) {
-      setErro("Informe por que a resposta está sendo corrigida.");
+      setErro({ campo: "justificativa", msg: "Informe por que a resposta está sendo corrigida." });
       return;
     }
     setErro(null);
@@ -237,19 +239,20 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
             }
           }}
           aria-label="Motivo"
+          {...aria("obs")}
           placeholder={status === "ATENDIDO" ? "Observação (opcional)" : "Motivo — obrigatório em parcial e não atendido"}
           className="mb-[9px]"
         />
       ) : null}
-      {corrigir && <Input value={justificativa} onChange={(e) => setJustificativa(e.target.value)} aria-label="Justificativa da correção" placeholder="Por que a resposta está sendo corrigida — fica no histórico" className="mb-[9px]" />}
+      {corrigir && <Input value={justificativa} onChange={(e) => setJustificativa(e.target.value)} aria-label="Justificativa da correção" {...aria("justificativa")} placeholder="Por que a resposta está sendo corrigida — fica no histórico" className="mb-[9px]" />}
       {status !== "ATENDIDO" && (
         <div className="mb-2.5">
           <Checkbox id={`pendencia-${item.id}`} label="Gerar pendência de compra ou locação" checked={pendencia} onChange={setPendencia} />
         </div>
       )}
       {erro && (
-        <p role="alert" className="mb-2.5 mt-0 text-pequeno text-danger">
-          {erro}
+        <p id={idErro} role="alert" className="mb-2.5 mt-0 text-pequeno text-danger">
+          {erro.msg}
         </p>
       )}
       <div className="flex gap-[7px]">
@@ -278,13 +281,14 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
   return (
     <div
       tabIndex={0}
+      role="group"
       aria-label={`${item.descricao}, ${textoQuantidade(item)}${emAnalise && item.respondivel ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
       aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}
       onFocus={(e) => {
         if (e.target === e.currentTarget) setFoco(item.id);
       }}
-      className={cn("relative cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-[18px]", selecionado && "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent")}
+      className={cn("relative cursor-pointer border-b border-line-row py-3 last:border-b-0", compacto ? "px-4" : "px-cartao", selecionado && "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent")}
     >
       <div className="flex items-start gap-3">
         <Marcador cor={naAta ? "var(--color-accent)" : COR_ITEM[item.status]} />

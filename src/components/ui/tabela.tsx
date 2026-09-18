@@ -46,7 +46,7 @@ export function ThOrdenavel({
 
 export function Th({ children, largura, alinhar = "left", className }: { children?: React.ReactNode; largura?: number | string; alinhar?: "left" | "right"; className?: string }) {
   return (
-    <th scope="col" className={cn("border-b border-line-soft bg-subtle px-3 py-[9px] text-rotulo font-medium text-muted first:pl-[18px] last:pr-[18px]", className)} style={{ width: largura, textAlign: alinhar }}>
+    <th scope="col" className={cn("border-b border-line-soft bg-subtle px-3 py-[9px] text-rotulo font-medium text-muted first:pl-cartao last:pr-cartao", className)} style={{ width: largura, textAlign: alinhar }}>
       {children}
     </th>
   );
@@ -57,7 +57,7 @@ export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }:
   if (total <= porPagina) return null;
   const btn = "flex h-7 items-center rounded-controle border border-line-strong bg-surface px-2.5 text-pequeno no-underline";
   return (
-    <div className="flex items-center gap-2 bg-subtle px-[18px] py-[11px]">
+    <div className="flex items-center gap-2 bg-subtle px-cartao py-[11px]">
       <span className="flex-1 text-pequeno text-muted">
         {de + 1}–{Math.min(de + porPagina, total)} de {total}
       </span>
@@ -66,7 +66,7 @@ export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }:
           Anterior
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(btn, "cursor-not-allowed text-on-dark-4")}>
+        <span aria-disabled="true" className={cn(btn, "cursor-not-allowed text-meta")}>
           Anterior
         </span>
       )}
@@ -75,7 +75,7 @@ export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }:
           Próxima
         </Link>
       ) : (
-        <span aria-disabled="true" className={cn(btn, "cursor-not-allowed text-on-dark-4")}>
+        <span aria-disabled="true" className={cn(btn, "cursor-not-allowed text-meta")}>
           Próxima
         </span>
       )}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Página não encontrada" };
 
@@ -14,9 +14,9 @@ export default function NotFound() {
         <p className="m-0 font-mono text-pequeno text-muted">erro 404</p>
         <h1 className="mb-0 mt-1 text-pagina font-semibold tracking-[-0.025em]">Página não encontrada</h1>
         <p className="mb-0 mt-2 text-secao leading-[1.55] text-ink-2">O endereço pode estar errado, ou o registro foi excluído. Eventos e solicitações canceladas continuam acessíveis pela busca.</p>
-        <Link href="/" className="mt-5 inline-flex h-9 items-center rounded-lg bg-accent px-4 text-corpo font-medium text-white no-underline hover:bg-accent-hover">
+        <ButtonLink href="/" variant="primary" size="lg" className="mt-5 no-underline">
           Voltar para o painel
-        </Link>
+        </ButtonLink>
       </div>
     </div>
   );

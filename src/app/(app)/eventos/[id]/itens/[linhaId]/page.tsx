@@ -1,6 +1,7 @@
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUsuario } from "@/server/auth/session";
+import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { obterEventoCache } from "@/server/cache";
 import { detalheLinha } from "@/server/services/linha-do-tempo";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
@@ -8,7 +9,7 @@ import { NaoEncontradoError } from "@/domain/errors";
 import { pode } from "@/domain/permissions";
 import { aguardaReuniao, SOLICITACAO_TIPO_LABEL } from "@/domain/solicitacao";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, ListaDados, PageHeader, Section } from "@/components/ui/layout";
+import { Aviso, ListaDados, Section } from "@/components/ui/layout";
 import { ItemStatusBadge, Tag } from "@/components/ui/badge";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { LinhaDoTempo } from "@/components/ui/linha-do-tempo";
@@ -16,6 +17,17 @@ import { PecasProjeto } from "@/components/eventos/pecas-projeto";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 
 const TIPO = { PROJETO: "projeto padrão", PECA: "peça do catálogo", AVULSO: "fora do catálogo" } as const;
+
+/** `generateMetadata` e a página pedem o mesmo item: a leitura acontece uma vez por requisição. */
+const detalheLinhaCache = cache(detalheLinha);
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string; linhaId: string }> }) {
+  const usuario = await getUsuarioAtual();
+  if (!usuario) return {};
+  const { id, linhaId } = await params;
+  const d = await detalheLinhaCache(usuario, id, linhaId).catch(() => null);
+  return { title: d?.nome ?? "Item" };
+}
 
 /**
  * Detalhe de um item da ata/OS: o que é, quem pediu, a resposta, as peças (editáveis uma a uma
@@ -26,7 +38,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
   const { id, linhaId } = await params;
   const [ev, d] = await Promise.all([
     obterEventoCache(usuario, id),
-    detalheLinha(usuario, id, linhaId).catch((e) => {
+    detalheLinhaCache(usuario, id, linhaId).catch((e) => {
       if (e instanceof NaoEncontradoError) notFound();
       throw e;
     }),
@@ -39,37 +51,43 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        tamanho="sm"
-        breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}`, href: `/eventos/${id}` }, { label: voltar.rotulo, href: voltar.href }, { label: d.nome }]}
-        eyebrow={
-          <>
-            {d.capaId && <ImagemZoom src={`/api/anexos/${d.capaId}`} alt={d.nome} className="h-14 w-[76px] shrink-0 overflow-hidden rounded-controle border border-line" />}
-            <Tag tom={d.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[d.tipo]}</Tag>
-            {d.posAta && <Tag tom="accent">entrou depois da ata</Tag>}
-            {d.conferidoEm && <Tag tom="success">conferido</Tag>}
-          </>
-        }
-        title={d.nome}
-        meta={[d.codigo ? `${d.codigo}${d.versao ? ` · v${d.versao}` : ""}` : null, d.destino ? `Destino: ${d.destino}` : null, d.area ?? "Logística", d.origemLabel]
-          .filter(Boolean)
-          .map((m) => (
-            <span key={String(m)} className="text-pequeno text-ink-3">
-              {m}
-            </span>
-          ))}
-        actions={
-          <>
-            <div className="text-right">
-              <span className="block font-mono text-metrica font-medium leading-none tracking-[-0.02em] text-ink">{d.quantidade}</span>
-              <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : "na ata/OS"}</span>
-            </div>
-            {d.tipo === "AVULSO" && editavel && opcoes && (
-              <VincularCatalogo linha={{ linhaId: d.id, descricao: d.descricaoOriginal ?? d.nome, quantidade: d.quantidade }} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
-            )}
-          </>
-        }
-      />
+      {/* O layout do evento já tem o h1, as fases e as abas: aqui o item abre como seção (h2). */}
+      <section aria-labelledby="titulo-item" className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
+        <div className="flex min-w-0 items-start gap-3">
+          {d.capaId && <ImagemZoom src={`/api/anexos/${d.capaId}`} alt={d.nome} className="h-14 w-[76px] shrink-0 overflow-hidden rounded-controle border border-line" />}
+          <div className="min-w-0">
+            <p className="m-0 mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">
+              <Link href={voltar.href} className="link text-pequeno">
+                ← {voltar.rotulo}
+              </Link>
+              <Tag tom={d.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[d.tipo]}</Tag>
+              {d.posAta && <Tag tom="accent">entrou depois da ata</Tag>}
+              {d.conferidoEm && <Tag tom="success">conferido</Tag>}
+            </p>
+            <h2 id="titulo-item" className="m-0 text-titulo font-semibold leading-[1.2] tracking-[-0.02em]">
+              {d.nome}
+            </h2>
+            <p className="mb-0 mt-1.5 flex flex-wrap gap-x-cartao gap-y-1">
+              {[d.codigo ? `${d.codigo}${d.versao ? ` · v${d.versao}` : ""}` : null, d.destino ? `Destino: ${d.destino}` : null, d.area ?? "Logística", d.origemLabel]
+                .filter(Boolean)
+                .map((m) => (
+                  <span key={String(m)} className="text-pequeno text-ink-3">
+                    {m}
+                  </span>
+                ))}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="text-right">
+            <span className="block font-mono text-metrica font-medium leading-none tracking-[-0.02em] text-ink">{d.quantidade}</span>
+            <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : "na ata/OS"}</span>
+          </div>
+          {d.tipo === "AVULSO" && editavel && opcoes && (
+            <VincularCatalogo linha={{ linhaId: d.id, descricao: d.descricaoOriginal ?? d.nome, quantidade: d.quantidade }} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+          )}
+        </div>
+      </section>
 
       {d.restrito && <Aviso>Este item é de outra área: você vê o que está na ata e os ajustes, sem as observações internas da solicitação.</Aviso>}
 
@@ -81,11 +99,11 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
             </Section>
           )}
           <Section titulo="Linha do tempo" sub={`${d.linhaDoTempo.length} ${d.linhaDoTempo.length === 1 ? "registro" : "registros"} · do pedido até a OS`}>
-            <LinhaDoTempo entradas={d.linhaDoTempo} vazio="Sem registros para este item." />
+            <LinhaDoTempo entradas={d.linhaDoTempo} vazio="Sem registros para este item" />
           </Section>
         </div>
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-[76px]">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
           <Section
             titulo="Quem pediu"
             acoes={
@@ -109,7 +127,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                   ]}
                 />
                 {(d.origem.titulo || d.origem.observacaoSolicitante || d.origem.observacaoSolicitacao || d.origem.ajustes) && (
-                  <div className="border-t border-line-faint px-[18px] py-3 text-pequeno leading-[1.5] text-ink-2">
+                  <div className="border-t border-line-faint px-cartao py-3 text-pequeno leading-[1.5] text-ink-2">
                     {d.origem.titulo && <p className="m-0 font-medium text-ink">{d.origem.titulo}</p>}
                     {d.origem.observacaoSolicitante && <p className="mb-0 mt-1 italic">“{d.origem.observacaoSolicitante}”</p>}
                     {d.origem.observacaoSolicitacao && <p className="mb-0 mt-1 text-ink-3">{d.origem.observacaoSolicitacao}</p>}
@@ -118,13 +136,13 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                 )}
               </>
             ) : (
-              <p className="m-0 px-[18px] py-3.5 text-pequeno text-muted">Incluído direto pela logística ({d.origemLabel.toLowerCase()}), sem solicitação de área.</p>
+              <p className="m-0 px-cartao py-3.5 text-pequeno text-muted">Incluído direto pela logística ({d.origemLabel.toLowerCase()}), sem solicitação de área.</p>
             )}
           </Section>
 
           {d.origem && (
             <Section titulo="Resposta da logística">
-              <div className="flex items-center justify-between gap-3 px-[18px] pt-3">
+              <div className="flex items-center justify-between gap-3 px-cartao pt-3">
                 <ItemStatusBadge status={d.origem.status} naAta={naAta} />
                 <span className="font-mono text-corpo text-ink-2">
                   {d.origem.quantidadeAtendida ?? 0} de {d.origem.quantidadeSolicitada}
@@ -137,7 +155,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                   { label: "Conferido", valor: d.conferidoEm ? `${d.conferidoPor ?? ""} · ${diaMesHora(d.conferidoEm)}` : "ainda não" },
                 ]}
               />
-              {d.origem.respostaLogistica && <p className="m-0 border-t border-line-faint px-[18px] py-3 text-pequeno leading-[1.5] text-ink-2">{d.origem.respostaLogistica}</p>}
+              {d.origem.respostaLogistica && <p className="m-0 border-t border-line-faint px-cartao py-3 text-pequeno leading-[1.5] text-ink-2">{d.origem.respostaLogistica}</p>}
             </Section>
           )}
         </div>

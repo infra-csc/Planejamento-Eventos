@@ -35,13 +35,16 @@ const addMes = (ano: number, mes: number, n: number) => {
 function Compromisso({ i, compacto }: { i: ItemCalendario; compacto?: boolean }) {
   const t = TIPO[i.tipo];
   if (i.tipo === "evento") {
+    const continuacao = !i.faixa?.inicio && !compacto;
     return (
       <Link
         href={i.href}
         title={`${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`}
+        // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
+        {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
         className={cn("block break-words px-1.5 py-[3px] text-rotulo font-medium leading-[1.25] no-underline hover:brightness-110", t.fundo, t.texto, i.faixa?.inicio ? "ml-0.5 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-0.5 rounded-r-chip" : "-mr-px")}
       >
-        {i.faixa?.inicio || compacto ? i.titulo : " "}
+        {continuacao ? " " : i.titulo}
       </Link>
     );
   }
@@ -49,8 +52,25 @@ function Compromisso({ i, compacto }: { i: ItemCalendario; compacto?: boolean })
     <Link href={i.href} title={`${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`} className={cn("mx-0.5 flex items-start gap-1 rounded-chip px-1.5 py-[3px] text-rotulo leading-[1.25] no-underline hover:brightness-95", t.fundo, t.texto)}>
       <span aria-hidden className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", t.ponto)} />
       <span className="min-w-0 break-words">
-        {i.hora && <span className="mr-1 font-mono text-micro opacity-80">{i.hora}</span>}
+        {i.hora && <span className="mr-1 font-mono text-rotulo opacity-80">{i.hora}</span>}
         {i.titulo.replace(/^(Reunião de OS|Prazo de resposta|Fim da janela de alterações|Montagem|Carga do caminhão) · /, "")}
+      </span>
+    </Link>
+  );
+}
+
+/** Linha de lista (agenda lateral e lista do mês no celular). */
+function LinhaAgenda({ it, comFaixa }: { it: ItemCalendario; comFaixa?: boolean }) {
+  const detalhe = [comFaixa && it.faixa && it.faixa.total > 1 ? `dia ${it.faixa.dia} de ${it.faixa.total}` : null, it.detalhe].filter(Boolean).join(" · ");
+  return (
+    <Link href={it.href} className="flex gap-2.5 px-cartao py-1.5 no-underline hover:bg-subtle">
+      <span aria-hidden className={cn("mt-[7px] size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-corpo leading-[1.35] text-ink">
+          {it.hora && <span className="mr-1.5 font-mono text-pequeno text-ink-3">{it.hora}</span>}
+          {it.titulo}
+        </span>
+        {detalhe && <span className="block text-rotulo text-muted">{detalhe}</span>}
       </span>
     </Link>
   );
@@ -84,7 +104,14 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   });
 
   const fimAgenda = new Date(Date.parse(`${hoje}T00:00:00Z`) + 21 * 86_400_000).toISOString().slice(0, 10);
-  const [itensMes, agenda] = await Promise.all([listarCalendario(usuario, celulas[0].dia, celulas[celulas.length - 1].dia), listarCalendario(usuario, hoje, fimAgenda)]);
+  const iniGrade = celulas[0].dia;
+  const fimGrade = celulas[celulas.length - 1].dia;
+  // Grade e agenda se sobrepõem (mês atual): uma consulta só cobrindo os dois intervalos, separada em memória.
+  // Os itens são por dia e a faixa do evento não depende do intervalo pedido, então o recorte é equivalente.
+  const sobrepoe = iniGrade <= fimAgenda && hoje <= fimGrade;
+  const [itensMes, agenda] = sobrepoe
+    ? await listarCalendario(usuario, iniGrade < hoje ? iniGrade : hoje, fimGrade > fimAgenda ? fimGrade : fimAgenda).then((todos) => [todos.filter((i) => i.dia >= iniGrade && i.dia <= fimGrade), todos.filter((i) => i.dia >= hoje && i.dia <= fimAgenda)] as const)
+    : await Promise.all([listarCalendario(usuario, iniGrade, fimGrade), listarCalendario(usuario, hoje, fimAgenda)]);
   const visiveis = itensMes.filter((i) => (!filtro || i.tipo === filtro) && (!eventoFiltro || i.evento.id === eventoFiltro));
   const porDia = new Map<string, ItemCalendario[]>();
   for (const i of visiveis) porDia.set(i.dia, [...(porDia.get(i.dia) ?? []), i]);
@@ -97,6 +124,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const tiposPresentes = [...new Set(itensMes.map((i) => i.tipo))];
   // Eventos com algum compromisso no mês, para filtrar o calendário por um só.
   const eventosDoMes = [...new Map(itensMes.map((i) => [i.evento.id, i.evento])).values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const diasComItens = celulas.filter((c) => c.doMes && porDia.has(c.dia)).map((c) => [c.dia, porDia.get(c.dia)!] as const);
   const rotuloDia = (d: string) => {
     const dt = new Date(`${d}T12:00:00Z`);
     return `${DIAS[(dt.getUTCDay() + 6) % 7]} ${pad(dt.getUTCDate())}/${pad(dt.getUTCMonth() + 1)}`;
@@ -127,7 +155,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         }
       />
 
-      <div className="mb-[18px] flex flex-col gap-2.5">
+      <div className="mb-cartao flex flex-col gap-2.5">
         <Pills
           rotulo="Filtrar por tipo"
           itens={[
@@ -139,7 +167,23 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-        <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        {/* Celular: a grade de 7 colunas fica ilegível; mostra os dias do mês que têm algo, em lista. */}
+        <section aria-label={`Compromissos de ${MESES[mes - 1]} de ${ano}`} className="overflow-hidden rounded-cartao border border-line bg-surface md:hidden">
+          {diasComItens.length === 0 ? (
+            <EmptyState compact title="Nada marcado neste mês" />
+          ) : (
+            diasComItens.map(([dia, itens]) => (
+              <div key={dia} className="border-b border-line-row pb-1.5 last:border-b-0">
+                <h2 className={cn("m-0 px-cartao pb-0.5 pt-2.5 font-mono text-rotulo font-normal uppercase tracking-[0.05em]", dia === hoje ? "text-accent" : "text-muted")}>{dia === hoje ? `hoje · ${rotuloDia(dia)}` : rotuloDia(dia)}</h2>
+                {itens.map((it) => (
+                  <LinhaAgenda key={it.chave} it={it} comFaixa />
+                ))}
+              </div>
+            ))
+          )}
+        </section>
+
+        <div className="hidden overflow-hidden rounded-cartao border border-line bg-surface md:block">
           <div className="grid grid-cols-7 border-b border-line-soft bg-subtle">
             {DIAS.map((d) => (
               <div key={d} className="px-2 py-2 text-center text-rotulo font-medium text-muted">
@@ -156,16 +200,24 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                 <div key={c.dia} className={cn("flex min-h-[112px] flex-col border-b border-r border-line-row [&:nth-child(7n)]:border-r-0", !c.doMes && "bg-subtle/60", fimDeSemana && c.doMes && "bg-subtle/30")}>
                   <div className="flex items-center justify-between px-2 pt-1.5">
                     <span className={cn("inline-flex size-6 items-center justify-center rounded-full font-mono text-pequeno", ehHoje ? "bg-accent font-semibold text-white" : c.doMes ? "text-ink" : "text-meta")}>{c.numero}</span>
-                    {itens.length > 4 && (
-                      <span className="text-micro text-meta" title={itens.slice(3).map((x) => x.titulo).join("\n")}>
-                        +{itens.length - 3}
-                      </span>
-                    )}
                   </div>
                   <div className="mt-1 flex flex-col gap-[3px] pb-1.5">
                     {itens.slice(0, itens.length > 4 ? 3 : 4).map((it) => (
                       <Compromisso key={it.chave} i={it} />
                     ))}
+                    {itens.length > 4 && (
+                      <details className="group">
+                        <summary className="mx-0.5 cursor-pointer list-none rounded-chip px-1.5 py-px text-rotulo font-medium text-ink-3 hover:bg-subtle group-open:mb-[3px] [&::-webkit-details-marker]:hidden">
+                          <span className="group-open:hidden">+{itens.length - 3} mais</span>
+                          <span className="hidden group-open:inline">mostrar menos</span>
+                        </summary>
+                        <div className="flex flex-col gap-[3px]">
+                          {itens.slice(3).map((it) => (
+                            <Compromisso key={it.chave} i={it} compacto />
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </div>
                 </div>
               );
@@ -173,30 +225,21 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           </div>
         </div>
 
-        <aside className="overflow-hidden rounded-cartao border border-line bg-surface xl:sticky xl:top-[76px]">
-          <div className="border-b border-line-soft px-[18px] py-3.5">
+        <aside className="overflow-hidden rounded-cartao border border-line bg-surface xl:sticky xl:top-topo-fixo">
+          <div className="border-b border-line-soft px-cartao py-3.5">
             <h2 className="m-0 text-secao font-semibold">Próximos 21 dias</h2>
             <p className="mb-0 mt-0.5 text-pequeno text-muted">A partir de hoje, em ordem.</p>
           </div>
           {agenda.length === 0 ? (
-            <EmptyState compact title="Nada marcado nas próximas três semanas." />
+            <EmptyState compact title="Nada marcado nas próximas três semanas" />
           ) : (
             [...agendaPorDia.entries()].map(([dia, itens]) => (
               <div key={dia} className="border-b border-line-row last:border-b-0">
-                <p className={cn("m-0 px-[18px] pb-0.5 pt-2.5 font-mono text-rotulo uppercase tracking-[0.05em]", dia === hoje ? "text-accent" : "text-muted")}>{dia === hoje ? `hoje · ${rotuloDia(dia)}` : rotuloDia(dia)}</p>
+                <p className={cn("m-0 px-cartao pb-0.5 pt-2.5 font-mono text-rotulo uppercase tracking-[0.05em]", dia === hoje ? "text-accent" : "text-muted")}>{dia === hoje ? `hoje · ${rotuloDia(dia)}` : rotuloDia(dia)}</p>
                 {itens
                   .filter((it) => it.tipo !== "evento" || it.faixa?.inicio)
                   .map((it) => (
-                    <Link key={it.chave} href={it.href} className="flex gap-2.5 px-[18px] py-1.5 no-underline hover:bg-subtle">
-                      <span aria-hidden className={cn("mt-[7px] size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-corpo leading-[1.35] text-ink">
-                          {it.hora && <span className="mr-1.5 font-mono text-pequeno text-ink-3">{it.hora}</span>}
-                          {it.titulo}
-                        </span>
-                        {it.detalhe && <span className="block text-rotulo text-muted">{it.detalhe}</span>}
-                      </span>
-                    </Link>
+                    <LinhaAgenda key={it.chave} it={it} />
                   ))}
               </div>
             ))

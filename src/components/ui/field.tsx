@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 /* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). */
 const base =
-  "w-full rounded-lg border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
+  "w-full rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(base, "h-[34px]", className)} {...rest} />;

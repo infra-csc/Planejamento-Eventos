@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Meu perfil" };
 export default async function PerfilPage() {
   const u = await requireUsuario();
   return (
-    <div className="max-w-[720px]">
+    <div className="max-w-3xl">
       <PageHeader title="Meu perfil" description={PERFIL_DESCRICAO[u.perfil]} />
       <div className="flex flex-col gap-5">
         <Section titulo="Dados" sub="Para alterar nome, perfil ou área, fale com o administrador.">
@@ -23,7 +23,7 @@ export default async function PerfilPage() {
           />
         </Section>
         <Section titulo="Alterar senha">
-          <div className="px-[18px] py-4">
+          <div className="px-cartao py-4">
             <SenhaForm />
           </div>
         </Section>

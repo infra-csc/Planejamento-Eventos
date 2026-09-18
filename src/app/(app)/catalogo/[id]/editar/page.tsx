@@ -16,7 +16,7 @@ export default async function EditarPecaPage({ params }: { params: Promise<{ id:
     throw e;
   });
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <PageHeader title={`${p.codigo} · ${p.nome}`} breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca?aba=pecas" }, { label: p.codigo }]} />
       <PecaForm valores={p} usos={p.usos} cancelarHref="/biblioteca?aba=pecas" />
     </div>

@@ -26,7 +26,7 @@ export type PassoLinhaTempo = { titulo: string; quando: string; detalhe: string 
 export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: PassoLinhaTempo[] }) {
   const idx = indiceFase(status);
   return (
-    <section aria-label="Fases do evento" className="mb-[18px] rounded-cartao border border-line bg-surface px-[18px] py-4">
+    <section aria-label="Fases do evento" className="mb-cartao rounded-cartao border border-line bg-surface px-cartao py-4">
       <ol className="m-0 grid list-none grid-cols-2 gap-y-4 p-0 sm:flex sm:items-stretch">
         {passos.map((p, i) => {
           const feito = i < idx;

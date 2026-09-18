@@ -33,7 +33,7 @@ export function LoginForm({ next, redefinida, demo }: { next: string; redefinida
 
   return (
     <>
-      <h2 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Entrar</h2>
+      <h1 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Entrar</h1>
       <p className="mb-7 mt-0 text-secao text-ink-3">Use o e-mail e a senha cadastrados pelo administrador.</p>
       {redefinida && (
         <Aviso tom="success" className="mb-4">
@@ -67,7 +67,7 @@ export function LoginForm({ next, redefinida, demo }: { next: string; redefinida
                 key={p.email}
                 type="button"
                 onClick={() => entrarComo(p.email)}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-[9px] text-left hover:bg-subtle"
+                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-controle border border-line bg-surface px-3 py-[9px] text-left hover:bg-subtle"
               >
                 <span className="text-corpo font-medium text-ink">{p.nome}</span>
                 <span className="text-pequeno text-ink-3">{p.perfil}</span>

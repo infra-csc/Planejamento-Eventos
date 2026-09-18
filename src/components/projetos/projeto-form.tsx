@@ -7,7 +7,8 @@ import { salvarProjetoAction } from "@/app/(app)/projetos/actions";
 import { Field, FormError, Input, Select, Textarea } from "@/components/ui/field";
 import { Button, ButtonLink, SubmitButton } from "@/components/ui/button";
 import { Notice, Panel, TableWrap } from "@/components/ui/layout";
-import { Th } from "@/components/ui/tabela";
+import { CaptionOculta, Th } from "@/components/ui/tabela";
+import { Stepper } from "@/components/ui/stepper";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
 import type { Setor } from "@/server/db/schema";
@@ -77,12 +78,15 @@ export function ProjetoForm({
         {itens.length > 0 && (
           <TableWrap>
             <table className="w-full border-collapse text-corpo [&_td]:border-t [&_td]:border-line-row [&_td]:px-3 [&_td]:py-2">
+              <CaptionOculta>Lista de peças do projeto</CaptionOculta>
               <thead>
                 <tr>
                   <Th>Setor</Th>
                   <Th>Peça</Th>
                   <Th largura={128}>Quantidade</Th>
-                  <Th largura={1} />
+                  <Th largura={1}>
+                    <span className="sr-only">Ações</span>
+                  </Th>
                 </tr>
               </thead>
               <tbody>
@@ -95,7 +99,7 @@ export function ProjetoForm({
                         <span className="font-medium font-mono">{p?.codigo}</span> · {p?.nome}
                       </td>
                       <td className="num">
-                        <Input type="number" min={1} value={i.quantidade} aria-label={`Quantidade de ${p?.nome}`} onChange={(e) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : x)))} className="w-24 text-right" />
+                        <Stepper tamanho="sm" min={1} valor={i.quantidade} label={`Quantidade de ${p?.nome}`} onChange={(v) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, quantidade: v } : x)))} />
                       </td>
                       <td>
                         <Button size="sm" variant="ghost" className="text-danger" aria-label={`Remover ${p?.nome}`} onClick={() => setItens((l) => l.filter((_, j) => j !== idx))}>
@@ -126,7 +130,7 @@ export function ProjetoForm({
             Adicionar
           </Button>
         </div>
-        {c?.itens && <p className="px-[18px] pb-3 text-pequeno text-danger">{c.itens}</p>}
+        {c?.itens && <p className="px-cartao pb-3 text-pequeno text-danger">{c.itens}</p>}
       </Panel>
 
       {valores.id && bomMudou && (

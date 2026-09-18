@@ -26,7 +26,7 @@ import { pode } from "@/domain/permissions";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
-import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
+import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -93,29 +93,33 @@ function nomeLinha(l: { tipo: string; projeto?: { nome: string } | null; peca?: 
  * Linhas ativas da ata com a origem legível (handoff §5.6): "SOL-0001", "SOL-0001 (parcial)",
  * "Incluída na reunião" (antes do fechamento) ou "Ajuste da logística" (depois).
  */
-export async function obterLinhasAta(eventoId: string) {
+export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: string } = {}) {
   const db = await getDb();
   const [linhas, ev] = await Promise.all([
-    montarLinhasAta(db, eventoId),
+    // Com `linhaId`, só aquela linha ativa: cada campo abaixo depende apenas da própria linha e do evento.
+    montarLinhasAta(db, eventoId, opcoes.linhaId ? { linhaId: opcoes.linhaId } : {}),
     db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { ataFechadaEm: true } }),
   ]);
   const ids = linhas.map((l) => l.registro.solicitacaoItemId).filter((x): x is string => Boolean(x));
-  const origens = ids.length
-    ? await db
-        .select({ id: solicitacaoItens.id, status: solicitacaoItens.status, codigo: solicitacoes.codigo, solicitacaoId: solicitacoes.id })
-        .from(solicitacaoItens)
-        .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
-        .where(inArray(solicitacaoItens.id, ids))
-    : [];
-  const mapa = new Map(origens.map((o) => [o.id, o]));
   // Miniatura do projeto padrão na linha da ata (primeira imagem anexada).
   const projetoIds = [...new Set(linhas.map((l) => l.registro.projetoId).filter((x): x is string => Boolean(x)))];
-  const capas = projetoIds.length
-    ? await db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(and(inArray(anexos.projetoId, projetoIds), eq(anexos.tipo, "IMAGEM"))).orderBy(asc(anexos.criadoEm))
-    : [];
+  // Origens, capas e nomes de quem conferiu não dependem uns dos outros: uma ida ao banco em paralelo.
+  const [origens, capas, nomesConferiu] = await Promise.all([
+    ids.length
+      ? db
+          .select({ id: solicitacaoItens.id, status: solicitacaoItens.status, codigo: solicitacoes.codigo, solicitacaoId: solicitacoes.id })
+          .from(solicitacaoItens)
+          .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
+          .where(inArray(solicitacaoItens.id, ids))
+      : Promise.resolve([]),
+    projetoIds.length
+      ? db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(and(inArray(anexos.projetoId, projetoIds), eq(anexos.tipo, "IMAGEM"))).orderBy(asc(anexos.criadoEm))
+      : Promise.resolve([]),
+    nomesUsuarios(db, linhas.map((l) => l.registro.conferidoPorId)),
+  ]);
+  const mapa = new Map(origens.map((o) => [o.id, o]));
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
-  const nomesConferiu = await nomesUsuarios(db, linhas.map((l) => l.registro.conferidoPorId));
   return linhas.map((l) => {
     const o = l.registro.solicitacaoItemId ? mapa.get(l.registro.solicitacaoItemId) : undefined;
     const origemLabel = o
@@ -724,9 +728,11 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
       .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
       .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`))
       .returning({ id: eventoItens.id });
-    for (const m of marcadas) {
-      await registrarHistorico(tx, { eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id });
-    }
+    // Um registro por linha, gravados num insert só.
+    await registrarHistoricos(
+      tx,
+      marcadas.map((m) => ({ eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id })),
+    );
   });
 }
 
@@ -941,7 +947,9 @@ export async function opcoesReferenciasResumidas() {
 
 export async function opcoesReferencias() {
   const db = await getDb();
-  const [proj, pcs, versoes] = await Promise.all([
+  // Só a versão atual de cada projeto ativo (os únicos que aparecem na resposta), filtrada no banco.
+  const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true));
+  const [proj, pcs, totais, linhasBom, capas] = await Promise.all([
     db
       .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual })
       .from(projetos)
@@ -953,28 +961,42 @@ export async function opcoesReferencias() {
       .where(eq(pecas.ativo, true))
       .orderBy(asc(pecas.codigo)),
     db
-      .select({ projetoId: projetoVersoes.projetoId, numero: projetoVersoes.numero, total: sql<number>`coalesce(sum(${projetoItens.quantidade}), 0)` })
+      .select({ projetoId: projetoVersoes.projetoId, total: sql<number>`coalesce(sum(${projetoItens.quantidade}), 0)` })
       .from(projetoVersoes)
+      .innerJoin(projetos, versaoAtualAtiva)
       .leftJoin(projetoItens, eq(projetoItens.versaoId, projetoVersoes.id))
-      .groupBy(projetoVersoes.projetoId, projetoVersoes.numero),
+      .groupBy(projetoVersoes.projetoId),
+    // Lista de peças da versão atual de cada projeto: o solicitante pode ajustar unidades por peça.
+    db
+      .select({ projetoId: projetoVersoes.projetoId, pecaId: pecas.id, codigo: pecas.codigo, nome: pecas.nome, unidade: pecas.unidade, quantidade: projetoItens.quantidade })
+      .from(projetoItens)
+      .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+      .innerJoin(projetos, versaoAtualAtiva)
+      .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
+      .orderBy(asc(pecas.codigo)),
+    // Primeira imagem de cada projeto (miniatura na escolha do requisitante).
+    db
+      .select({ projetoId: anexos.projetoId, id: anexos.id })
+      .from(anexos)
+      .innerJoin(projetos, and(eq(projetos.id, anexos.projetoId), eq(projetos.ativo, true)))
+      .where(eq(anexos.tipo, "IMAGEM"))
+      .orderBy(asc(anexos.criadoEm)),
   ]);
-  // Lista de peças da versão atual de cada projeto: o solicitante pode ajustar unidades por peça.
-  const linhasBom = await db
-    .select({ projetoId: projetoVersoes.projetoId, numero: projetoVersoes.numero, pecaId: pecas.id, codigo: pecas.codigo, nome: pecas.nome, unidade: pecas.unidade, quantidade: projetoItens.quantidade })
-    .from(projetoItens)
-    .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
-    .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
-    .orderBy(asc(pecas.codigo));
-  // Primeira imagem de cada projeto (miniatura na escolha do requisitante).
-  const capas = await db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(eq(anexos.tipo, "IMAGEM")).orderBy(asc(anexos.criadoEm));
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
+  const totalDe = new Map(totais.map((t) => [t.projetoId, Number(t.total)]));
+  const bomDe = new Map<string, Array<{ pecaId: string; codigo: string; nome: string; unidade: string; quantidade: number }>>();
+  for (const { projetoId, pecaId, codigo, nome, unidade, quantidade } of linhasBom) {
+    const lista = bomDe.get(projetoId) ?? [];
+    lista.push({ pecaId, codigo, nome, unidade, quantidade });
+    bomDe.set(projetoId, lista);
+  }
   return {
     projetos: proj.map((p) => ({
       ...p,
       capaId: capaDe.get(p.id) ?? null,
-      totalPecas: Number(versoes.find((v) => v.projetoId === p.id && v.numero === p.versaoAtual)?.total ?? 0),
-      bom: linhasBom.filter((l) => l.projetoId === p.id && l.numero === p.versaoAtual).map(({ pecaId, codigo, nome, unidade, quantidade }) => ({ pecaId, codigo, nome, unidade, quantidade })),
+      totalPecas: totalDe.get(p.id) ?? 0,
+      bom: bomDe.get(p.id) ?? [],
     })),
     pecas: pcs,
   };

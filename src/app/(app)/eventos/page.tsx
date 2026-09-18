@@ -10,7 +10,7 @@ import { Badge, EventoStatusBadge } from "@/components/ui/badge";
 import { EmptyState, PageHeader, RotuloGrupo } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
-import { CaptionOculta } from "@/components/ui/tabela";
+import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { BarrasFase } from "@/components/eventos/fases";
 import { combinaBusca } from "@/lib/busca";
@@ -32,7 +32,7 @@ function marco(e: EventoLista) {
   if (e.status === "EM_REUNIAO") return "reunião agora";
   if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : "aberto a alterações";
   if (e.status === "CANCELADO") return "cancelado";
-  return e.versaoOs ? `ordem de serviço final v${e.versaoOs}` : "sem ordem de serviço";
+  return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
 }
 
 function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
@@ -40,14 +40,16 @@ function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
   const rotulo = st === "REALIZADO" ? "Realizado" : EVENTO_STATUS_LABEL[st];
   return (
     <LinhaLink href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
-      <th scope="row" className="border-b border-line-row px-[18px] py-3.5 text-left font-normal">
+      <th scope="row" className="border-b border-line-row px-cartao py-3.5 text-left font-normal">
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-corpo font-medium text-ink">{e.nome}</span>
           <EventoStatusBadge status={st} />
           {e.reabertoVezes > 0 && <Badge tom="warning">reaberto {e.reabertoVezes}×</Badge>}
         </span>
         <span className="mt-[3px] block text-pequeno text-muted">
-          <span className="font-mono">{e.codigo}</span> · {[e.cliente, e.local].filter(Boolean).join(" · ")}
+          {/* Só junta o que existe: sem cliente/local não sobra "·" no fim. */}
+          <span className="font-mono">{e.codigo}</span>
+          {[e.cliente, e.local].filter(Boolean).map((t) => ` · ${t}`)}
         </span>
       </th>
       <td className="w-[148px] border-b border-line-row px-2.5 py-3.5">
@@ -57,7 +59,7 @@ function Linha({ e, hoje }: { e: EventoLista; hoje: string }) {
         <span className="block font-mono text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
         <span className="block text-rotulo text-muted">{marco(e)}</span>
       </td>
-      <td className="w-[130px] border-b border-line-row py-3.5 pl-2.5 pr-[18px] text-right">
+      <td className="w-[130px] border-b border-line-row py-3.5 pl-2.5 pr-cartao text-right">
         <span className={e.solicitacoesAbertas > 0 ? "block text-pequeno font-medium text-warning" : "block text-pequeno font-medium text-meta"}>
           {e.solicitacoesAbertas > 0 ? `${e.solicitacoesAbertas} aguardando` : "—"}
         </span>
@@ -111,7 +113,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         }
       />
 
-      <div className="mb-[18px] flex flex-wrap items-center gap-2.5">
+      <div className="mb-cartao flex flex-wrap items-center gap-2.5">
         <BuscaUrl placeholder="Buscar por nome, código, cliente ou local" />
         <Pills
           rotulo="Filtrar por fase"
@@ -130,6 +132,14 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
           <div className="overflow-hidden rounded-cartao border border-line bg-surface">
             <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
               <CaptionOculta>{g.titulo}</CaptionOculta>
+              <thead className="sr-only">
+                <tr>
+                  <Th>Evento</Th>
+                  <Th>Fase</Th>
+                  <Th>Período</Th>
+                  <Th>Pendências e responsável</Th>
+                </tr>
+              </thead>
               <tbody>
                 {g.lista.map((e) => (
                   <Linha key={e.id} e={e} hoje={hoje} />

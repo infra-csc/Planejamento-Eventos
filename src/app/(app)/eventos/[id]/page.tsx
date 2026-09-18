@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
 import { calcularOsAoVivo, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { slugArenaDoEvento } from "@/server/services/arenas";
 import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
 import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
@@ -12,7 +13,6 @@ import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/l
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge, ChipMono, Tag } from "@/components/ui/badge";
-import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { EmptyState, Marcador, Metric, MetricStrip, Section, type TomSemantico } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -41,13 +41,19 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const sp = await searchParams;
   const leitura: Leitura = LEITURAS.some((l) => l.chave === sp.itens) ? (sp.itens as Leitura) : "lista";
   const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
-  // As leituras por peça vêm do estado de agora (ata + o que entrou depois), igual à OS em vigor.
-  const osAgora = leitura === "lista" ? null : await calcularOsAoVivo(id);
   // O total de peças é conteúdo da OS: quem não tem a aba também não vê o número.
   const veOs = pode(usuario, "os.ver");
-  const ultimaOs = veOs && versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
-  const totalOs = ultimaOs ? totalPecas(ultimaOs) : 0;
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
+  const veArena = pode(usuario, "arena.ver");
+  // Leituras independentes em paralelo. As leituras por peça vêm do estado de agora (ata + o que
+  // entrou depois), igual à OS em vigor.
+  const [osAgora, conteudosUltimaOs, slugArena] = await Promise.all([
+    leitura === "lista" ? null : calcularOsAoVivo(id),
+    veOs && versoes[0] ? obterConteudosOs(id, [versoes[0].numero]) : null,
+    veArena ? slugArenaDoEvento(id) : null,
+  ]);
+  const ultimaOs = conteudosUltimaOs && versoes[0] ? conteudosUltimaOs.get(versoes[0].numero) : null;
+  const totalOs = ultimaOs ? totalPecas(ultimaOs) : 0;
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   const pecasSoltas = linhas.filter((l) => l.tipo === "PECA");
@@ -121,12 +127,12 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Itens marcados “depois da ata” ou “ajustado” mudaram após a reunião." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}
         >
           {linhas.length > 0 && (
-            <div className="border-b border-line-soft px-[18px] py-2.5">
+            <div className="border-b border-line-soft px-cartao py-2.5">
               <Pills rotulo="Como ver os itens" itens={LEITURAS.map((l) => ({ label: l.rotulo, ativo: leitura === l.chave, href: l.chave === "lista" ? `/eventos/${id}#itens` : `/eventos/${id}?itens=${l.chave}#itens` }))} />
             </div>
           )}
           {linhas.length === 0 ? (
-            <EmptyState compact title="Nada na ata ainda." />
+            <EmptyState compact title="Nada na ata ainda" />
           ) : osAgora ? (
             <div className="flex flex-col gap-4 bg-subtle p-4">
               <OsVisoes os={osAgora} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
@@ -147,9 +153,9 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               <tbody>
                 {itensOrdenados.map((l) => (
                   <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
-                    <th scope="row" className="border-b border-line-row px-[18px] py-2 text-left text-corpo font-normal">
+                    <th scope="row" className="border-b border-line-row px-cartao py-2 text-left text-corpo font-normal">
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <span className={"min-w-0 leading-[1.3] text-ink "+"[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"}>{l.nome}</span>
+                        <span className="line-clamp-2 min-w-0 leading-[1.3] text-ink" title={l.nome}>{l.nome}</span>
                         {l.posAta && <Tag tom="accent">depois da ata</Tag>}
                         {!l.posAta && l.registro.justificativaAjuste && <Tag tom="warning">ajustado</Tag>}
                         {l.tipo === "AVULSO" && <Tag tom="warning">fora do catálogo</Tag>}
@@ -160,7 +166,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                       {l.destino ? ` · ${l.destino}` : ""}
                     </td>
                     <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-3">{origemVisivel(l)}</td>
-                    <td className="border-b border-line-row py-2 pl-3 pr-[18px] text-right font-mono text-corpo font-medium text-ink">{l.quantidade}</td>
+                    <td className="border-b border-line-row py-2 pl-3 pr-cartao text-right font-mono text-corpo font-medium text-ink">{l.quantidade}</td>
                   </LinhaLink>
                 ))}
               </tbody>
@@ -181,16 +187,22 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         {linhas.length === 0 ? (
           <EmptyState compact title="Nada na ata ainda" description="Quando as áreas enviarem necessidades, os projetos aparecem aqui com foto." />
         ) : (
-          <div className="px-[18px] py-4">
+          <div className="px-cartao py-4">
             {galeria.length > 0 && (
               <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 xl:grid-cols-4">
                 {galeria.map((g) => (
                   <li key={g.codigo ?? g.nome} className="overflow-hidden rounded-cartao border border-line bg-surface">
                     <Link href={`/eventos/${id}/itens/${g.ids[0]}`} className="block no-underline">
-                      {g.capaId ? <ImagemZoom src={`/api/anexos/${g.capaId}`} alt={g.nome} className="aspect-[4/3] w-full bg-white" /> : <div className="grid aspect-[4/3] w-full place-items-center bg-subtle text-rotulo text-meta">sem foto</div>}
+                      {/* Dentro do link a capa é só imagem (sem botão de zoom); o zoom fica na tela do item. */}
+                      {g.capaId ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/api/anexos/${g.capaId}?w=320`} alt={g.nome} loading="lazy" decoding="async" className="block aspect-[4/3] w-full bg-white object-contain" />
+                      ) : (
+                        <div className="grid aspect-[4/3] w-full place-items-center bg-subtle text-rotulo text-meta">sem foto</div>
+                      )}
                       <div className="px-3 py-2.5">
                         <p className="m-0 flex items-start justify-between gap-2">
-                          <span className={"min-w-0 text-corpo font-medium leading-[1.3] text-ink "+"[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden"} title={g.nome}>
+                          <span className="line-clamp-2 min-w-0 text-corpo font-medium leading-[1.3] text-ink" title={g.nome}>
                             {g.nome}
                           </span>
                           <ChipMono tom="dark" className="shrink-0 text-accent-light">
@@ -219,7 +231,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                   <Link key={l.id} href={`/eventos/${id}/itens/${l.id}`} className="no-underline">
                     <Badge tom="warning" className="gap-1.5 text-ink">
                       {l.nome} <span className="font-mono text-ink-3">× {l.quantidade}</span>
-                      <span className="text-micro text-warning">fora do catálogo</span>
+                      <span className="text-rotulo text-warning">fora do catálogo</span>
                     </Badge>
                   </Link>
                 ))}
@@ -234,8 +246,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           {ev.ataFechadaEm && (
             <Section titulo="Depois da ata" sub={posAta.length ? "Entrou na OS depois da reunião: alterações atendidas e ajustes da logística." : "Nada entrou depois da reunião. A OS reflete a ata."}>
               {posAta.slice(0, 8).map((l) => (
-                <Link key={l.id} href={`/eventos/${id}/itens/${l.id}`} className="flex items-center gap-3 border-b border-line-row px-[18px] py-2.5 text-corpo no-underline last:border-b-0 hover:bg-subtle">
-                  <span className="min-w-0 flex-1 truncate text-ink">
+                <Link key={l.id} href={`/eventos/${id}/itens/${l.id}`} className="flex items-center gap-3 border-b border-line-row px-cartao py-2.5 text-corpo no-underline last:border-b-0 hover:bg-subtle">
+                  <span className="line-clamp-2 min-w-0 flex-1 text-ink" title={l.nome}>
                     {l.nome}
                     {deOutraArea(l) && (
                       <Tag className="ml-2" tom="muted">
@@ -248,16 +260,16 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                 </Link>
               ))}
               {posAta.length > 8 && (
-                <Link href="#itens" className="link block px-[18px] py-2.5 text-pequeno">
+                <Link href="#itens" className="link block px-cartao py-2.5 text-pequeno">
                   Mais {posAta.length - 8} itens
                 </Link>
               )}
             </Section>
           )}
 
-          <Section titulo="Ajustes" sub={ajustes.length ? "Mudanças de quantidade, peças de projeto, retiradas e vínculos, com quem fez." : "Nenhum ajuste até agora."}>
+          <Section titulo="Ajustes" sub={ajustes.length ? "Mudanças de quantidade, peças de projeto, retiradas e vínculos, com quem fez." : "Nenhum ajuste até agora"}>
             {ajustes.slice(0, 5).map((h) => (
-              <Link key={h.id} href={`/eventos/${id}/itens/${h.entidadeId}`} className="flex gap-3 border-b border-line-row px-[18px] py-2.5 no-underline last:border-b-0 hover:bg-subtle">
+              <Link key={h.id} href={`/eventos/${id}/itens/${h.entidadeId}`} className="flex gap-3 border-b border-line-row px-cartao py-2.5 no-underline last:border-b-0 hover:bg-subtle">
                 <span className="min-w-0 flex-1 truncate text-pequeno text-ink-2" title={h.descricao}>
                   {h.descricao}
                 </span>
@@ -275,8 +287,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               </Link>
             }
           >
-            <div className="px-[18px] py-3.5">
-              {historico.length === 0 && <p className="m-0 text-pequeno text-muted">Sem registros.</p>}
+            <div className="px-cartao py-3.5">
+              {historico.length === 0 && <p className="m-0 text-pequeno text-muted">Sem registros</p>}
               {historico.map((h) => {
                 const c = classificarHistorico(h);
                 return (
@@ -296,7 +308,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
 
         <div className="flex flex-col gap-5">
           <Section titulo="Quem está envolvido">
-            <div className="px-[18px] py-3.5">
+            <div className="px-cartao py-3.5">
               <p className="m-0 flex items-center gap-2.5 text-corpo">
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-dark text-pequeno font-semibold text-white">{ev.responsavel.nome.slice(0, 1)}</span>
                 <span>
@@ -313,13 +325,13 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                   ))}
                 </div>
               ) : (
-                <p className="mb-0 mt-3 text-pequeno text-muted">Nenhuma área enviou necessidades ainda.</p>
+                <p className="mb-0 mt-3 text-pequeno text-muted">Nenhuma área enviou necessidades ainda</p>
               )}
             </div>
           </Section>
 
           <Section titulo="Datas">
-            <ol className="m-0 list-none px-[18px] py-3">
+            <ol className="m-0 list-none px-cartao py-3">
               {[
                 { rotulo: "Reunião de OS", quando: diaMesHora(ev.dataReuniao), feito: Boolean(ev.ataFechadaEm) || ev.status === "EM_REUNIAO", atual: ev.status === "EM_REUNIAO" },
                 { rotulo: "Ata fechada", quando: ev.ataFechadaEm ? diaMesHora(ev.ataFechadaEm) : "ainda não", feito: Boolean(ev.ataFechadaEm), atual: false },
@@ -339,7 +351,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           </Section>
 
           <Section titulo="Atalhos">
-            <div className="flex flex-col gap-2 px-[18px] py-3.5">
+            <div className="flex flex-col gap-2 px-cartao py-3.5">
               {pode(usuario, "solicitacao.criar") && (ev.status === "PREPARACAO" || ev.status === "ABERTO") && (
                 <ButtonLink href={`/solicitacoes/nova?evento=${id}`} variant="primary" size="md" className="no-underline">
                   {ev.status === "PREPARACAO" ? "Enviar necessidades" : "Solicitar alteração"}
@@ -353,6 +365,11 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               <ButtonLink href={`/eventos/${id}/solicitacoes`} variant="secondary" size="md" className="no-underline">
                 Solicitações do evento
               </ButtonLink>
+              {veArena && (
+                <ButtonLink href={slugArena ? `/arena/${slugArena}` : `/arena/nova?evento=${id}`} variant="secondary" size="md" className="no-underline">
+                  {slugArena ? "Arena / mapa" : "Criar mapa da arena"}
+                </ButtonLink>
+              )}
             </div>
           </Section>
         </div>

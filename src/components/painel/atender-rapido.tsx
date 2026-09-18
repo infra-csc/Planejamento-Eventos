@@ -11,7 +11,7 @@ import { desfazerRespostaAction, responderItemAction } from "@/app/(app)/solicit
 export function AtenderRapido({ itemId, codigo, rotulo, href, sufixo }: { itemId: string; codigo: string; rotulo: string; href: string; sufixo: string }) {
   const [pendente, iniciar] = useTransition();
   return (
-    <div className="mt-[9px] flex items-center gap-2 rounded-lg border border-line-soft bg-subtle px-[11px] py-2">
+    <div className="mt-[9px] flex items-center gap-2 rounded-controle border border-line-soft bg-subtle px-[11px] py-2">
       <span className="min-w-0 flex-1 truncate text-pequeno text-ink-2">{rotulo}</span>
       <Button
         variant="atender"

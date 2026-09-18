@@ -227,7 +227,11 @@ export const anexos = pgTable(
     criadoPorId: text("criado_por_id").references(() => usuarios.id),
     criadoEm: criadoEm(),
   },
-  (t) => [index("anexos_projeto_idx").on(t.projetoId)],
+  (t) => [
+    index("anexos_projeto_idx").on(t.projetoId),
+    // Capa do projeto: primeira imagem (tipo = IMAGEM) por data, sem ler o bytea.
+    index("anexos_projeto_tipo_criado_idx").on(t.projetoId, t.tipo, t.criadoEm),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -354,6 +358,8 @@ export const eventoItens = pgTable(
     uniqueIndex("evento_itens_solicitacao_item_idx").on(t.solicitacaoItemId).where(sql`${t.solicitacaoItemId} is not null`),
     // Uso de projetos (biblioteca, versões defasadas).
     index("evento_itens_projeto_ativo_idx").on(t.projetoId).where(sql`${t.ativo}`),
+    // Linhas da área (histórico visível ao requisitante, painel da área).
+    index("evento_itens_area_idx").on(t.areaId),
     check("evento_itens_quantidade_chk", sql`${t.quantidade} >= 0`),
   ],
 );
@@ -392,6 +398,7 @@ export const solicitacaoItens = pgTable(
     index("solicitacao_itens_solicitacao_idx").on(t.solicitacaoId),
     index("solicitacao_itens_evento_item_idx").on(t.eventoItemId),
     index("solicitacao_itens_pendencia_idx").on(t.respondidoEm).where(sql`${t.pendenciaCompra}`),
+    index("solicitacao_itens_solicitacao_pendencia_idx").on(t.solicitacaoId, t.pendenciaCompra),
     check("solicitacao_itens_quantidade_chk", sql`${t.quantidadeSolicitada} >= 0`),
   ],
 );

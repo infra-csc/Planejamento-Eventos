@@ -32,7 +32,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
     throw e;
   });
   // Só contagens: este layout roda em todas as abas do evento.
-  const [resumo, pendentesPre, abertasTodas] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), solicitacoesPendentes(await getDb(), id)]);
+  const [resumo, pendentesPre, abertasTodas] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), getDb().then((db) => solicitacoesPendentes(db, id))]);
   const abertas = pode(usuario, "solicitacao.ver_todas") ? abertasTodas : abertasTodas.filter((s) => s.areaId === usuario.areaId);
   const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
@@ -112,7 +112,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
       />
 
       {ev.status === "CANCELADO" && (
-        <Aviso tom="danger" titulo="Evento cancelado" className="mb-[18px]">
+        <Aviso tom="danger" titulo="Evento cancelado" className="mb-cartao">
           {ev.canceladoMotivo ?? "Sem motivo registrado."}
         </Aviso>
       )}

@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { tokenValido } from "@/server/services/recuperacao";
-
-export const metadata: Metadata = { title: "Definir senha" };
 import { Aviso } from "@/components/ui/layout";
 import { RedefinirForm } from "./form";
+
+export const metadata: Metadata = { title: "Definir senha" };
 
 export default async function RedefinirSenhaPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!(await tokenValido(token))) {
     return (
       <>
-        <h2 className="mb-5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Link inválido</h2>
+        <h1 className="mb-5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Link inválido</h1>
         <Aviso tom="danger" titulo="Este link expirou ou já foi usado">
           Peça um novo link ao administrador ou pela recuperação de acesso.
         </Aviso>

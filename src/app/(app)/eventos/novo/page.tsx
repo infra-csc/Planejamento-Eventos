@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Novo evento" };
 export default async function NovoEventoPage() {
   await requirePermissao("evento.criar");
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <PageHeader title="Novo evento" description="O evento nasce em preparação: as áreas registram necessidades até a reunião de OS." breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: "Novo" }]} />
       <EventoForm valores={{}} cancelarHref="/eventos" />
     </div>

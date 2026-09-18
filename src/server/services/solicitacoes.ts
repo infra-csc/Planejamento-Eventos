@@ -196,8 +196,24 @@ export async function primeiraDaFila(usuario: UsuarioAtual) {
 
 /** Fila de resposta da logística: abertas, ordenadas por prazo (sem prazo por último). */
 export async function listarFila(usuario: UsuarioAtual) {
-  const lista = await listarSolicitacoes(usuario, { status: "ABERTAS" });
-  return lista.sort((a, b) => (a.prazoRespostaEm?.getTime() ?? Infinity) - (b.prazoRespostaEm?.getTime() ?? Infinity));
+  // Mesmo escopo de `listarSolicitacoes(usuario, { status: "ABERTAS" })`, sem carregar evento, área, autor e itens:
+  // quem usa a fila só navega pelos ids.
+  const veTodas = pode(usuario, "solicitacao.ver_todas");
+  if (!veTodas && !usuario.areaId) return [];
+  const db = await getDb();
+  return db
+    .select({ id: solicitacoes.id, prazoRespostaEm: solicitacoes.prazoRespostaEm })
+    .from(solicitacoes)
+    .where(
+      and(
+        eq(solicitacoes.excluida, false),
+        veTodas ? undefined : eq(solicitacoes.areaId, usuario.areaId!),
+        inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+        eq(solicitacoes.tipo, "ALTERACAO"),
+      ),
+    )
+    // Prazo mais próximo primeiro, sem prazo por último; empate na ordem da lista (mais recente primeiro).
+    .orderBy(sql`${solicitacoes.prazoRespostaEm} asc nulls last`, desc(solicitacoes.atualizadoEm));
 }
 
 /** Detalhe completo (evento, área, autor, itens com referências) de uma ou várias solicitações. */
@@ -206,11 +222,18 @@ async function consultarDetalhes(ids: string[]) {
   return db.query.solicitacoes.findMany({
     where: and(inArray(solicitacoes.id, ids), eq(solicitacoes.excluida, false)),
     with: {
-      evento: true,
+      // Só as colunas que as telas de detalhe/edição usam (evento inteiro, referências e a lista de peças da linha ficam de fora).
+      evento: { columns: { id: true, codigo: true, nome: true, status: true, dataReuniao: true } },
       area: true,
       criadoPor: { columns: { id: true, nome: true } },
       itens: {
-        with: { projeto: true, peca: true, projetoVersao: true, eventoItem: { with: { projeto: true, peca: true } }, respondidoPor: { columns: { id: true, nome: true } } },
+        with: {
+          projeto: { columns: { id: true, codigo: true, nome: true } },
+          peca: { columns: { id: true, codigo: true, nome: true } },
+          projetoVersao: { columns: { id: true, numero: true } },
+          eventoItem: { columns: { bomSnapshot: false }, with: { projeto: { columns: { id: true, codigo: true, nome: true } }, peca: { columns: { id: true, codigo: true, nome: true } } } },
+          respondidoPor: { columns: { id: true, nome: true } },
+        },
         orderBy: [asc(solicitacaoItens.ordem), asc(solicitacaoItens.criadoEm)],
       },
     },
@@ -903,7 +926,11 @@ export async function listarPendenciasCompra(usuario: UsuarioAtual) {
   exigir(usuario, "pendencias.ver");
   const db = await getDb();
   const rows = await db.query.solicitacaoItens.findMany({
-    where: eq(solicitacaoItens.pendenciaCompra, true),
+    // Solicitação excluída e evento cancelado saem já no banco (antes: filtro em memória).
+    where: and(
+      eq(solicitacaoItens.pendenciaCompra, true),
+      sql`${solicitacaoItens.solicitacaoId} in (select s.id from solicitacoes s join eventos e on e.id = s.evento_id where not s.excluida and e.status <> 'CANCELADO')`,
+    ),
     with: {
       solicitacao: { with: { evento: { columns: { id: true, codigo: true, nome: true, status: true, dataMontagem: true } }, area: true } },
       projeto: true,
@@ -912,7 +939,5 @@ export async function listarPendenciasCompra(usuario: UsuarioAtual) {
     },
     orderBy: [desc(solicitacaoItens.respondidoEm)],
   });
-  return rows
-    .filter((r) => !r.solicitacao.excluida && r.solicitacao.evento.status !== "CANCELADO")
-    .map((r) => ({ ...r, descricao: descricaoItem(r), faltante: r.quantidadeSolicitada - (r.quantidadeAtendida ?? 0) }));
+  return rows.map((r) => ({ ...r, descricao: descricaoItem(r), faltante: r.quantidadeSolicitada - (r.quantidadeAtendida ?? 0) }));
 }

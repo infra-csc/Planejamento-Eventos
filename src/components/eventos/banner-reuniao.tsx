@@ -53,7 +53,7 @@ export function BannerReuniao({
 
   return (
     <BannerEscuro
-      className="mb-[18px]"
+      className="mb-cartao"
       aria-label="Andamento da reunião"
       titulo={titulo}
       acoes={

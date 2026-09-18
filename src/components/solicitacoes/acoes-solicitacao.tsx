@@ -125,6 +125,7 @@ export function AcoesSolicitacao({
           title={`Cancelar ${codigo}`}
           description="A solicitação sai da fila da logística. Não dá para desfazer."
           confirmLabel="Cancelar solicitação"
+          cancelLabel="Voltar"
           danger
           reasonLabel="Motivo"
           reasonRequired={false}

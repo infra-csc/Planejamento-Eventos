@@ -6,9 +6,9 @@ import { cn } from "@/lib/cn";
 import { combinaBusca } from "@/lib/busca";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Tag } from "@/components/ui/badge";
-import { Field, Input, Textarea } from "@/components/ui/field";
+import { Field, FormError, Input, Textarea } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconeCheck, IconeLapis } from "@/components/ui/icons";
 import { EmptyState, RodapeTabela } from "@/components/ui/layout";
@@ -115,23 +115,42 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
             <Textarea id="motivo-ajuste" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação" className="min-h-[84px]" />
           </Field>
 
-          {erro && <p className="m-0 text-pequeno text-danger">{erro}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onFechar} disabled={pendente}>
+          <FormError message={erro} />
+        </div>
+        <DialogFooter>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+            Salvar ajuste
+          </Button>
+          <DialogClose asChild>
+            <Button variant="secondary" size="lg" disabled={pendente}>
               Cancelar
             </Button>
-            <Button variant="primary" onClick={salvar} loading={pendente}>
-              Salvar ajuste
-            </Button>
-          </div>
-        </div>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-/** Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações. */
-const COLUNAS = "grid grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_64px_118px] items-center gap-x-3";
+/**
+ * Colunas da tabela de conferência: check · item · quem pediu · destino · qtd · ações.
+ * Abaixo de md ficam três (check · item · qtd e ações): "pedido por · destino" vira a segunda linha do item.
+ */
+const COLUNAS = "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 md:grid-cols-[28px_minmax(0,2.4fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_64px_118px]";
+
+/** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
+function PedidoPor({ l }: { l: LinhaConferencia }) {
+  return l.origem ? (
+    <>
+      <span className="text-ink-2">{l.origem.solicitante}</span> ·{" "}
+      <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="font-mono text-ink-3 no-underline hover:underline">
+        {l.origem.codigo}
+      </Link>
+    </>
+  ) : (
+    <>incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>
+  );
+}
 
 function Linha({
   l,
@@ -154,7 +173,7 @@ function Linha({
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
   const dicas = [l.origem?.observacao ? `Obs.: ${l.origem.observacao}` : null, l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   return (
-    <li className={cn(COLUNAS, "min-h-[44px] border-b border-line-row px-[18px] py-1.5 last:border-b-0 hover:bg-subtle", !conferida && "bg-[color-mix(in_srgb,var(--color-warning-bg)_35%,transparent)]")}>
+    <li className={cn(COLUNAS, "min-h-[44px] border-b border-line-row px-cartao py-1.5 last:border-b-0 hover:bg-subtle", !conferida && "bg-warning-bg-suave")}>
       <span className="flex justify-center">
         {editavel ? (
           <Check l={l} eventoId={eventoId} onMudou={onMudou} />
@@ -167,53 +186,51 @@ function Linha({
 
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5">
-          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="min-w-0 text-corpo font-medium leading-[1.3] text-ink no-underline hover:text-accent hover:underline [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" title={`Detalhes, peças e histórico de ${l.nome}`}>
+          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium leading-[1.3] text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
             {l.nome}
           </Link>
           {l.tipo === "AVULSO" ? <Tag tom="warning">fora do catálogo</Tag> : <Tag tom="muted">{TIPO[l.tipo]}</Tag>}
           {l.codigo && <span className="hidden shrink-0 font-mono text-rotulo text-muted xl:inline">{l.codigo}</span>}
         </span>
         {dicas && (
-          <span title={dicas} className={cn("block truncate text-rotulo leading-[1.4]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+          <span title={dicas} className={cn("line-clamp-2 text-rotulo leading-[1.4]", l.ultimoAjuste ? "text-warning" : "text-muted")}>
             {l.ultimoAjuste && <IconeLapis />} {dicas}
           </span>
         )}
+        <span className="line-clamp-2 text-pequeno leading-[1.4] text-ink-3 md:hidden">
+          <PedidoPor l={l} />
+          {l.destino && <> · {l.destino}</>}
+        </span>
       </span>
 
-      <span className="truncate text-pequeno text-ink-3" title={l.origem ? `${l.origem.solicitante} · ${l.origem.codigo}${l.origem.titulo ? ` · ${l.origem.titulo}` : ""}` : undefined}>
-        {l.origem ? (
-          <>
-            <span className="text-ink-2">{l.origem.solicitante}</span> ·{" "}
-            <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="font-mono text-ink-3 no-underline hover:underline">
-              {l.origem.codigo}
-            </Link>
-          </>
-        ) : (
-          <>incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>
-        )}
+      <span className="hidden truncate text-pequeno text-ink-3 md:block" title={l.origem ? `${l.origem.solicitante} · ${l.origem.codigo}${l.origem.titulo ? ` · ${l.origem.titulo}` : ""}` : undefined}>
+        <PedidoPor l={l} />
       </span>
 
-      <span className="truncate text-pequeno text-ink-3" title={l.destino ?? undefined}>
+      <span className="hidden truncate text-pequeno text-ink-3 md:block" title={l.destino ?? undefined}>
         {l.destino ?? "—"}
       </span>
 
-      <span className="text-right">
-        <span className="font-mono text-secao font-medium text-ink">{l.quantidade}</span>
-        {pedidoDiferente && <span className="block font-mono text-micro leading-none text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
-      </span>
+      {/* No celular quantidade e ações dividem a última coluna; em md+ viram duas células da grade. */}
+      <span className="flex items-center justify-end gap-2 md:contents">
+        <span className="text-right">
+          <span className="font-mono text-secao font-medium text-ink">{l.quantidade}</span>
+          {pedidoDiferente && <span className="block font-mono text-rotulo leading-none text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
+        </span>
 
-      <span className="flex items-center justify-end gap-1">
-        {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
-        {editavel && (
-          <IconButton label={`Ajustar quantidade de ${l.nome}`} onClick={() => onAjustar(l)}>
-            <IconeLapis />
-          </IconButton>
-        )}
-        {l.tipo === "PROJETO" && (
-          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="shrink-0 whitespace-nowrap text-rotulo text-accent no-underline hover:underline" title={`Abrir ${l.nome}: peças do projeto, ajuste peça a peça e histórico`}>
-            Peças
-          </Link>
-        )}
+        <span className="flex items-center justify-end gap-1">
+          {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
+          {editavel && (
+            <IconButton label={`Ajustar quantidade de ${l.nome}`} onClick={() => onAjustar(l)}>
+              <IconeLapis />
+            </IconButton>
+          )}
+          {l.tipo === "PROJETO" && (
+            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="shrink-0 whitespace-nowrap text-rotulo text-accent no-underline hover:underline" title={`Abrir ${l.nome}: peças do projeto, ajuste peça a peça e histórico`}>
+              Peças
+            </Link>
+          )}
+        </span>
       </span>
     </li>
   );
@@ -258,7 +275,7 @@ export function ConferenciaAta({
 
   const conferidas = linhas.filter((l) => l.conferidoEm).length;
   const pendentes = linhas.length - conferidas;
-  const visiveis = linhas.filter((l) => (filtro === "pendentes" ? !l.conferidoEm : filtro === "conferidas" ? Boolean(l.conferidoEm) : true) && (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""}`, busca)));
+  const visiveis = useMemo(() => linhas.filter((l) => (filtro === "pendentes" ? !l.conferidoEm : filtro === "conferidas" ? Boolean(l.conferidoEm) : true) && (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""}`, busca))), [linhas, filtro, busca]);
 
   const grupos = useMemo(() => {
     const mapa = new Map<string, LinhaConferencia[]>();
@@ -271,7 +288,7 @@ export function ConferenciaAta({
 
   return (
     <section className="rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
-      <div className="flex flex-col gap-3 border-b border-line-soft px-[18px] py-3.5">
+      <div className="flex flex-col gap-3 border-b border-line-soft px-cartao py-3.5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="m-0 text-destaque font-semibold">Ata da reunião · conferência</h2>
@@ -306,24 +323,26 @@ export function ConferenciaAta({
       {linhas.length === 0 ? (
         <EmptyState compact title="A ata está vazia" description="As necessidades enviadas pelas áreas entram aqui automaticamente. Você também pode incluir linhas decididas na reunião." />
       ) : visiveis.length === 0 ? (
-        <EmptyState compact title={filtro === "pendentes" ? "Nada a conferir. Tudo certo por aqui." : "Nenhuma linha com esse filtro."} />
+        <EmptyState compact title={filtro === "pendentes" ? "Nada a conferir, tudo certo por aqui" : "Nenhuma linha com esse filtro"} />
       ) : (
         <>
-          <div className={cn(COLUNAS, "border-b border-line-soft px-[18px] py-1.5 text-rotulo font-medium text-muted")} aria-hidden>
+          <div className={cn(COLUNAS, "border-b border-line-soft px-cartao py-1.5 text-rotulo font-medium text-muted")} aria-hidden>
             <span className="flex justify-center text-success" title="Conferido">
               <IconeCheck />
             </span>
             <span>Item</span>
-            <span>Pedido por</span>
-            <span>Destino</span>
-            <span className="text-right">Qtd.</span>
-            <span />
+            <span className="hidden md:block">Pedido por</span>
+            <span className="hidden md:block">Destino</span>
+            <span className="md:contents">
+              <span className="block text-right">Qtd.</span>
+              <span className="hidden md:block" />
+            </span>
           </div>
           {grupos.map(([area, ls]) => {
             const ok = ls.filter((l) => l.conferidoEm).length;
             return (
               <div key={area}>
-                <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-[18px] py-1.5">
+                <div className="flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-cartao py-1.5">
                   <span className="text-rotulo font-semibold uppercase tracking-[0.05em] text-ink-2">{area}</span>
                   <span className={cn("font-mono text-pequeno", ok === ls.length ? "text-success" : "text-ink-3")}>
                     {ok}/{ls.length} conferidas
@@ -348,12 +367,10 @@ export function ConferenciaAta({
       <Dialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>
         {confirmarTodas && (
           <DialogContent title={`Conferir as ${pendentes} linhas restantes`} description="Elas ficam marcadas como conferidas em seu nome, com data e hora. Depois disso a ata pode ser fechada." width={460}>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setConfirmarTodas(false)}>
-                Cancelar
-              </Button>
+            <DialogFooter>
               <Button
                 variant="primary"
+                size="lg"
                 loading={conferindo}
                 onClick={() =>
                   iniciarTodas(async () => {
@@ -366,7 +383,12 @@ export function ConferenciaAta({
               >
                 Marcar {pendentes} como conferidas
               </Button>
-            </div>
+              <DialogClose asChild>
+                <Button variant="secondary" size="lg" disabled={conferindo}>
+                  Cancelar
+                </Button>
+              </DialogClose>
+            </DialogFooter>
           </DialogContent>
         )}
       </Dialog>

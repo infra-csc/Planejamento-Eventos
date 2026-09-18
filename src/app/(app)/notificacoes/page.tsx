@@ -3,11 +3,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import { listarNotificacoes, marcarLida, marcarTodasLidas } from "@/server/services/notificacoes";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/button";
 import { EmptyState, Marcador, PageHeader } from "@/components/ui/layout";
 import { tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { destinoInterno } from "@/lib/destino";
+import { BotaoNotificacao } from "./botao-notificacao";
 
 export const metadata: Metadata = { title: "Notificações" };
 
@@ -33,16 +34,16 @@ export default async function NotificacoesPage() {
   const lista = await listarNotificacoes(usuario);
   const naoLidas = lista.filter((n) => !n.lidaEm).length;
   return (
-    <div className="max-w-[780px]">
+    <div className="max-w-3xl">
       <PageHeader
         title="Notificações"
         description={naoLidas ? `${naoLidas} ${naoLidas === 1 ? "não lida" : "não lidas"}. Só o que pede sua atenção: envios, respostas, prazos e mudanças de fase.` : "Tudo lido. Só o que pede sua atenção aparece aqui."}
         actions={
           naoLidas > 0 && (
             <form action={marcarTodasAction}>
-              <Button type="submit" variant="secondary" size="md">
+              <SubmitButton variant="secondary" size="md">
                 Marcar todas como lidas
-              </Button>
+              </SubmitButton>
             </form>
           )
         }
@@ -67,15 +68,15 @@ export default async function NotificacoesPage() {
                 {n.link && <span className="shrink-0 self-center text-pequeno text-accent">Abrir ›</span>}
               </>
             );
-            const classe = cn("flex w-full items-start gap-3.5 border-b border-line-row px-[18px] py-3.5 text-left last:border-b-0", !n.lidaEm && "bg-selected");
+            const classe = cn("flex w-full items-start gap-3.5 border-b border-line-row px-cartao py-3.5 text-left last:border-b-0", !n.lidaEm && "bg-selected");
             // A linha inteira abre o destino (e marca como lida); sem destino, é só leitura.
             return n.link ? (
               <form key={n.id} action={abrirAction} className="m-0">
                 <input type="hidden" name="id" value={n.id} />
                 <input type="hidden" name="link" value={n.link} />
-                <button type="submit" aria-label={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent hover:bg-subtle", !n.lidaEm && "bg-selected")}>
+                <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent hover:bg-subtle", !n.lidaEm && "bg-selected")}>
                   {conteudo}
-                </button>
+                </BotaoNotificacao>
               </form>
             ) : (
               <div key={n.id} className={classe}>

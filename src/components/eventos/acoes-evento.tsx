@@ -11,7 +11,7 @@ import type { EventoStatus, Perfil } from "@/server/db/schema";
 
 /**
  * Botões do cabeçalho do evento conforme perfil e fase (handoff §5.4).
- * Ações bloqueadas aparecem no estilo "bloqueado" e explicam o que falta num toast.
+ * Ações bloqueadas aparecem no estilo "bloqueado", com o motivo escrito logo abaixo (e num toast ao clicar).
  */
 export function AcoesEvento({
   evento,
@@ -51,15 +51,21 @@ export function AcoesEvento({
     if (evento.status === "ABERTO") {
       botoes.push(
         solicitacoesAbertas.length > 0 ? (
-          <Button
-            key="encerrar"
-            variant="bloqueado"
-            size="lg"
-            aria-disabled="true"
-            onClick={() => toast(`Responda ou devolva ${solicitacoesAbertas.join(", ")} antes de encerrar`)}
-          >
-            Encerrar evento
-          </Button>
+          <span key="encerrar" className="flex flex-col items-end gap-1">
+            <Button
+              variant="bloqueado"
+              size="lg"
+              aria-disabled="true"
+              aria-describedby="encerrar-bloqueado-motivo"
+              title={`Responda ou devolva ${solicitacoesAbertas.join(", ")} antes de encerrar`}
+              onClick={() => toast(`Responda ou devolva ${solicitacoesAbertas.join(", ")} antes de encerrar`)}
+            >
+              Encerrar evento
+            </Button>
+            <span id="encerrar-bloqueado-motivo" className="max-w-[260px] text-right text-pequeno leading-[1.35] text-ink-2">
+              {solicitacoesAbertas.length === 1 ? `Responda ${solicitacoesAbertas[0]} antes de encerrar` : `Responda as ${solicitacoesAbertas.length} solicitações em aberto antes de encerrar`}
+            </span>
+          </span>
         ) : (
           <Button key="encerrar" variant="primary" size="lg" onClick={() => setAcao("ENCERRAR")}>
             Encerrar evento
@@ -107,7 +113,7 @@ export function AcoesEvento({
           action={transicionarEventoAction}
           hidden={{ eventoId: evento.id, acao }}
         >
-          {acao === "ENCERRAR" && <Aviso>Depois disto nenhuma alteração entra e a ordem de serviço final fica fixada. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
+          {acao === "ENCERRAR" && <Aviso>Depois disto nenhuma alteração entra e a OS final fica fixada. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
           {acao === "FECHAR_ATA" && <Aviso>A ata é congelada e a OS de cada setor é gerada a partir dela. As áreas são notificadas.</Aviso>}
           {acao === "INICIAR_REUNIAO" && <Aviso>Os envios de necessidades ficam bloqueados enquanto a reunião acontece. Rascunhos das áreas continuam salvos.</Aviso>}
           {acao === "REABRIR" && <Aviso tom="warning">O evento volta a aceitar alterações. A reabertura fica marcada no evento e no histórico.</Aviso>}

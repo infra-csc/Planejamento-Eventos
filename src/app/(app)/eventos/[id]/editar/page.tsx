@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { obterEvento, obterLinhasAta } from "@/server/services/eventos";
+import { obterLinhasAta } from "@/server/services/eventos";
+import { obterEventoCache } from "@/server/cache";
 import { toDateTimeLocal } from "@/lib/format";
 import { NaoEncontradoError } from "@/domain/errors";
 import { EventoForm } from "@/components/eventos/evento-form";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Editar evento" };
 export default async function EditarEventoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requirePermissao("evento.editar");
   const { id } = await params;
-  const ev = await obterEvento(usuario, id).catch((e) => {
+  const ev = await obterEventoCache(usuario, id).catch((e) => {
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
@@ -20,7 +21,7 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
   // Adiar a reunião apaga as conferências: o diálogo avisa quantas.
   const conferidas = ev.status === "EM_REUNIAO" ? (await obterLinhasAta(id)).filter((l) => l.conferidoEm).length : 0;
   return (
-    <div className="flex max-w-[880px] flex-col gap-5">
+    <div className="flex max-w-3xl flex-col gap-5">
       <EventoForm
         valores={{
           id: ev.id,

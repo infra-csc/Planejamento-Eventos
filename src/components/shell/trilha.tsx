@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
+import { cn } from "@/lib/cn";
 
 export type ItemTrilha = { label: string; href?: string };
 
@@ -34,6 +35,8 @@ export function DefinirTrilha({ itens }: { itens: ItemTrilha[] }) {
 const NOMES: Record<string, string> = {
   "": "Painel",
   eventos: "Eventos",
+  calendario: "Calendário",
+  conferencia: "Eventos",
   solicitacoes: "Solicitações",
   biblioteca: "Biblioteca",
   arena: "Arena 3D",
@@ -55,24 +58,32 @@ export function Trilha() {
   );
   const itens: ItemTrilha[] = definida ?? [{ label: NOMES[pathname.split("/")[1] ?? ""] ?? "Painel" }];
   return (
-    <nav aria-label="Trilha" className="flex min-w-0 flex-1 items-center gap-[7px] text-corpo text-ink-3">
-      {itens.map((t, i) => {
-        const ultimo = i === itens.length - 1;
-        return (
-          <span key={`${t.label}-${i}`} className="flex min-w-0 items-center gap-[7px]">
-            {i > 0 && <span className="text-meta">/</span>}
-            {t.href && !ultimo ? (
-              <Link href={t.href} className="text-ink-3 no-underline hover:text-ink">
-                {t.label}
-              </Link>
-            ) : (
-              <span className={ultimo ? "truncate font-medium text-ink" : ""} aria-current={ultimo ? "page" : undefined}>
-                {t.label}
-              </span>
-            )}
-          </span>
-        );
-      })}
+    <nav aria-label="Trilha" className="min-w-0 flex-1 text-corpo text-ink-3">
+      <ol className="m-0 flex min-w-0 list-none items-center gap-[7px] p-0">
+        {itens.map((t, i) => {
+          const ultimo = i === itens.length - 1;
+          // Em telas estreitas só o primeiro e o último aparecem; os do meio encolhem com reticências.
+          const meio = i > 0 && !ultimo;
+          return (
+            <li key={`${t.label}-${i}`} className={cn("flex min-w-0 items-center gap-[7px]", ultimo ? "shrink" : "shrink-[2]", meio && "max-sm:hidden")}>
+              {i > 0 && (
+                <span aria-hidden className="text-meta">
+                  /
+                </span>
+              )}
+              {t.href && !ultimo ? (
+                <Link href={t.href} title={t.label} className="block max-w-[40vw] truncate text-ink-3 no-underline hover:text-ink">
+                  {t.label}
+                </Link>
+              ) : (
+                <span className={cn("block truncate", ultimo ? "font-medium text-ink" : "max-w-[40vw]")} title={t.label} aria-current={ultimo ? "page" : undefined}>
+                  {t.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
     </nav>
   );
 }

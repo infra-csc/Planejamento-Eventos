@@ -59,7 +59,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
 
   const vazio = {
     ABERTAS: ["Nada aguardando resposta", veTodas ? "Quando uma área enviar uma solicitação, ela entra aqui ordenada por prazo." : "O que sua área enviar aparece aqui até a logística responder."],
-    ATRASADAS: ["Nenhuma solicitação com prazo vencido", "Solicitações abertas que passarem do prazo aparecem aqui."],
+    ATRASADAS: ["Nenhuma solicitação atrasada", "Solicitações abertas que passarem do prazo aparecem aqui."],
     RASCUNHO: ["Nenhum rascunho ou devolução", "Rascunhos salvos e solicitações devolvidas para ajuste aparecem aqui."],
     RESPONDIDA: ["Nenhuma solicitação respondida", "Quando todos os itens de uma solicitação forem respondidos, ela aparece aqui."],
     TODAS: ["Nenhuma solicitação", podeCriar ? "Envie as necessidades da sua área para um evento em preparação." : "As solicitações das áreas aparecem aqui."],
@@ -86,7 +86,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         }
       />
 
-      <div className="mb-[18px] flex flex-col gap-2.5">
+      <div className="mb-cartao flex flex-col gap-2.5">
         <Pills
           rotulo="Filtrar solicitações"
           itens={FILTROS_LISTA.map((v) => ({
@@ -131,7 +131,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                   const pi = prazoInfo(s, agora);
                   return (
                     <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                      <td className="border-b border-line-row px-[18px] py-3 font-mono text-pequeno font-medium text-ink">{s.codigo}</td>
+                      <td className="border-b border-line-row px-cartao py-3 font-mono text-pequeno font-medium text-ink">{s.codigo}</td>
                       <th scope="row" className="border-b border-line-row px-2.5 py-3 text-left font-normal">
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
@@ -148,10 +148,10 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                       <td className="border-b border-line-row px-2.5 py-3">
                         <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                       </td>
-                      <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
+                      <td className="border-b border-line-row py-3 pl-2.5 pr-cartao text-right">
                         <span className="flex items-center justify-end gap-1.5 font-mono text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                           {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                          {pi.label}
+                          {pi.vencido ? "atrasada" : pi.label}
                         </span>
                         <span className="block text-rotulo text-meta">{pi.sub}</span>
                       </td>

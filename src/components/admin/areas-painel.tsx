@@ -65,7 +65,7 @@ export function AreasPainel({ areas }: { areas: A[] }) {
   return (
     <>
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-        <div className="flex items-center justify-between border-b border-line-soft px-[18px] py-3">
+        <div className="flex items-center justify-between border-b border-line-soft px-cartao py-3">
           <span className="text-pequeno text-muted">Cadastro fixo: todas as áreas ativas participam de qualquer evento.</span>
           <Button variant="primary" size="sm" onClick={() => setModal("nova")}>
             Nova área
@@ -91,16 +91,16 @@ export function AreasPainel({ areas }: { areas: A[] }) {
           <tbody>
             {areas.map((a) => (
               <tr key={a.id} className="hover:bg-subtle">
-                <th scope="row" className="border-b border-line-row px-[18px] py-3 text-left text-corpo font-normal text-ink">
+                <th scope="row" className="border-b border-line-row px-cartao py-3 text-left text-corpo font-normal text-ink">
                   {a.nome}
                 </th>
                 <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-pequeno">{a.pessoas}</td>
                 <td className="border-b border-line-row px-2.5 py-3 text-right font-mono text-pequeno">{a.solicitacoes}</td>
                 <td className="border-b border-line-row px-2.5 py-3">
-                  <Badge tom={a.ativo ? "success" : "muted"}>{a.ativo ? "ativa" : "inativa"}</Badge>
+                  <Badge tom={a.ativo ? "success" : "muted"}>{a.ativo ? "Ativa" : "Inativa"}</Badge>
                 </td>
-                <td className="border-b border-line-row py-3 pl-2.5 pr-[18px] text-right">
-                  <Button variant="link" size="xs" onClick={() => setModal(a)}>
+                <td className="border-b border-line-row py-3 pl-2.5 pr-cartao text-right">
+                  <Button variant="link" size="xs" onClick={() => setModal(a)} aria-label={`Editar ${a.nome}`}>
                     Editar
                   </Button>
                 </td>

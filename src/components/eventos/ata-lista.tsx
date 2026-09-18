@@ -6,7 +6,8 @@ import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
+import { Stepper } from "@/components/ui/stepper";
 import { Tag } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconeCheck, IconeLapis } from "@/components/ui/icons";
@@ -183,7 +184,7 @@ export function AtaLista({
             <tbody>
               {linhas.map((l) => (
                 <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
-                  <th scope="row" className="border-b border-line-row px-[18px] py-[11px] text-left font-normal">
+                  <th scope="row" className="border-b border-line-row px-cartao py-[11px] text-left font-normal">
                     {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
                     <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
                       {l.nome}
@@ -292,10 +293,21 @@ export function AtaLista({
           hidden={{ eventoId, linhaId: ajustar.id }}
         >
           <Field label="Quantidade" htmlFor="quantidade" hint="Use 0 para remover a linha.">
-            <Input id="quantidade" name="quantidade" type="number" min={0} defaultValue={ajustar.quantidade} required autoFocus className="w-[120px] font-mono" />
+            <QuantidadeAjuste inicial={ajustar.quantidade} />
           </Field>
         </ConfirmDialog>
       )}
+    </>
+  );
+}
+
+/** Quantidade do ajuste com − e +; o input oculto leva o valor no mesmo `name` que a action lê. */
+function QuantidadeAjuste({ inicial }: { inicial: number }) {
+  const [valor, setValor] = useState(inicial);
+  return (
+    <>
+      <Stepper id="quantidade" valor={valor} onChange={setValor} min={0} autoFocus />
+      <input type="hidden" name="quantidade" value={valor} />
     </>
   );
 }

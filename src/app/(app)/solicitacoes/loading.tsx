@@ -7,7 +7,7 @@ export default function Loading() {
       <div className="mb-[18px] flex items-end justify-between gap-5">
         <div>
           <Skeleton className="h-6 w-44" />
-          <Skeleton className="mt-2.5 h-4 w-[360px]" />
+          <Skeleton className="mt-2.5 h-4 w-full max-w-[360px]" />
         </div>
         <Skeleton className="h-9 w-36" />
       </div>
@@ -17,13 +17,13 @@ export default function Loading() {
         ))}
       </div>
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-        <div className="flex gap-4 border-b border-line-soft bg-subtle px-[18px] py-2.5">
+        <div className="flex gap-4 border-b border-line-soft bg-subtle px-cartao py-2.5">
           {["w-24", "w-40", "w-20", "w-16"].map((w) => (
             <Skeleton key={w} className={`h-3 ${w}`} />
           ))}
         </div>
         {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-          <div key={i} className="flex items-center gap-4 border-b border-line-row px-[18px] py-3 last:border-b-0">
+          <div key={i} className="flex items-center gap-4 border-b border-line-row px-cartao py-3 last:border-b-0">
             <Skeleton className="h-3.5 w-20" />
             <div className="flex-1">
               <Skeleton className="h-3.5 w-3/5" />

@@ -23,9 +23,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")));
     return Number(r.n);
   };
-  const real = await getUsuarioReal();
-  const ehAdminReal = real?.perfil === "ADMIN";
-  const [naoLidas, abertas, areasVerComo] = await Promise.all([contarNaoLidas(usuario), contarAbertas(), ehAdminReal ? listarAreas() : Promise.resolve([])]);
+  // "Ver como" é só do admin real (não do perfil simulado): as áreas vêm em paralelo com os contadores.
+  const verComoDoAdmin = async () => {
+    const real = await getUsuarioReal();
+    return real?.perfil === "ADMIN" ? await listarAreas() : null;
+  };
+  const [naoLidas, abertas, areasAdmin] = await Promise.all([contarNaoLidas(usuario), contarAbertas(), verComoDoAdmin()]);
+  const ehAdminReal = areasAdmin !== null;
+  const areasVerComo = areasAdmin ?? [];
 
   const nav: NavItem[] = [
     { href: "/", label: "Painel", exato: true },

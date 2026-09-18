@@ -21,29 +21,36 @@ export async function bloquearEvento(tx: Executor, eventoId: string) {
 /* Histórico / auditoria                                                */
 /* ------------------------------------------------------------------ */
 
-export async function registrarHistorico(
-  ex: Executor,
-  dados: {
-    eventoId?: string | null;
-    entidade: string;
-    entidadeId: string;
-    acao: string;
-    descricao: string;
-    usuarioId: string | null;
-    dadosAntes?: unknown;
-    dadosDepois?: unknown;
-  },
-) {
-  await ex.insert(historico).values({
-    eventoId: dados.eventoId ?? null,
-    entidade: dados.entidade,
-    entidadeId: dados.entidadeId,
-    acao: dados.acao,
-    descricao: dados.descricao,
-    usuarioId: dados.usuarioId,
-    dadosAntes: dados.dadosAntes ?? null,
-    dadosDepois: dados.dadosDepois ?? null,
-  });
+type DadosHistorico = {
+  eventoId?: string | null;
+  entidade: string;
+  entidadeId: string;
+  acao: string;
+  descricao: string;
+  usuarioId: string | null;
+  dadosAntes?: unknown;
+  dadosDepois?: unknown;
+};
+
+const linhaHistorico = (dados: DadosHistorico) => ({
+  eventoId: dados.eventoId ?? null,
+  entidade: dados.entidade,
+  entidadeId: dados.entidadeId,
+  acao: dados.acao,
+  descricao: dados.descricao,
+  usuarioId: dados.usuarioId,
+  dadosAntes: dados.dadosAntes ?? null,
+  dadosDepois: dados.dadosDepois ?? null,
+});
+
+export async function registrarHistorico(ex: Executor, dados: DadosHistorico) {
+  await ex.insert(historico).values(linhaHistorico(dados));
+}
+
+/** Vários registros de histórico num insert só (mesmos registros que chamar `registrarHistorico` para cada um). */
+export async function registrarHistoricos(ex: Executor, lista: DadosHistorico[]) {
+  if (lista.length === 0) return;
+  await ex.insert(historico).values(lista.map(linhaHistorico));
 }
 
 /* ------------------------------------------------------------------ */
@@ -97,7 +104,21 @@ export async function usuariosComPedidoNoEvento(ex: Executor, eventoId: string):
     .from(solicitacoes)
     .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA")));
   const ids = new Set(rows.map((r) => r.criadoPorId));
-  for (const areaId of new Set(rows.map((r) => r.areaId))) for (const id of await usuariosDaArea(ex, areaId)) ids.add(id);
+  const areaIds = [...new Set(rows.map((r) => r.areaId))];
+  if (areaIds.length === 0) return [...ids];
+  // Usuários de todas as áreas numa consulta só (antes: uma por área), acrescentados na mesma ordem de área.
+  const daArea = await ex
+    .select({ id: usuarios.id, areaId: usuarios.areaId })
+    .from(usuarios)
+    .where(and(inArray(usuarios.areaId, areaIds), eq(usuarios.ativo, true)));
+  const porArea = new Map<string, string[]>();
+  for (const u of daArea) {
+    if (!u.areaId) continue;
+    const lista = porArea.get(u.areaId) ?? [];
+    lista.push(u.id);
+    porArea.set(u.areaId, lista);
+  }
+  for (const areaId of areaIds) for (const id of porArea.get(areaId) ?? []) ids.add(id);
   return [...ids];
 }
 

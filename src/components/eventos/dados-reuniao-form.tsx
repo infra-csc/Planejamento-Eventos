@@ -84,7 +84,7 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
   );
 
   return (
-    <div className="space-y-3.5 px-[18px] py-3.5">
+    <div className="space-y-3.5 px-cartao py-3.5">
       <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={campos.reuniaoPresentes} hint="Obrigatório para fechar a ata. Nome e área, separados por vírgula." obrigatorio>
         <Textarea id="reuniaoPresentes" name="reuniaoPresentes" value={t.reuniaoPresentes} onChange={(e) => mudar("reuniaoPresentes", e.target.value)} onBlur={aoSair} disabled={!editavel} placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)" className="min-h-[72px]" />
       </Field>

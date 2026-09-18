@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { requirePermissao } from "@/server/auth/session";
 import { calcularOsAoVivo, complementoOs, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { EnvioOs } from "@/components/eventos/envio-os";
@@ -27,6 +28,8 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
   REABERTURA: "reabertura",
   ENCERRAMENTO: "OS final",
 };
+
+export const metadata: Metadata = { title: "Ordem de serviço" };
 
 function ChipDiff({ d }: { d: DiffLinha }) {
   const delta = d.depois - d.antes;
@@ -191,7 +194,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         />
       </div>
 
-      <div className="lg:sticky lg:top-[76px] flex flex-col gap-5">
+      <div className="lg:sticky lg:top-topo-fixo flex flex-col gap-5">
         <Section titulo="Envio ao carregamento" sub={complemento ? `Enviada: v${complemento.numero}` : "Ainda não enviada"}>
           <EnvioOs
             eventoId={id}
@@ -201,7 +204,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           />
         </Section>
         <Section titulo="Exportar">
-          <div className="px-[18px] py-3.5">
+          <div className="px-cartao py-3.5">
             <a href={`/api/os/${id}/excel${qsExport}`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
               Excel completo (.xlsx)
             </a>

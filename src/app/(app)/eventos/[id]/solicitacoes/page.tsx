@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
 import { listarSolicitacoes } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
 import { EmptyState, Section } from "@/components/ui/layout";
 import { LinhaSolicitacaoEvento } from "@/components/solicitacoes/linha-solicitacao";
+
+export const metadata: Metadata = { title: "Solicitações" };
 
 export default async function SolicitacoesEventoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();

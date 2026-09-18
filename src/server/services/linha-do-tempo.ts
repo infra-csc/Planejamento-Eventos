@@ -120,7 +120,8 @@ export async function linhaDoTempoSolicitacao(usuario: UsuarioAtual, solicitacao
 export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
-  const linha = (await obterLinhasAta(eventoId)).find((l) => l.id === linhaId);
+  // Só a linha pedida (mesmo resultado que filtrar a ata inteira).
+  const linha = (await obterLinhasAta(eventoId, { linhaId })).find((l) => l.id === linhaId);
   if (!linha) throw new NaoEncontradoError("Linha");
 
   const itemId = linha.registro.solicitacaoItemId;
@@ -160,7 +161,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
   // Quem não vê todas as áreas enxerga o detalhe completo só das linhas da própria área.
   const areaDaLinha = origem ? origem.areaId : linha.registro.areaId;
   const veTudo = pode(usuario, "solicitacao.ver_todas") || areaDaLinha == null || areaDaLinha === usuario.areaId;
-  const respondidoPor = origem?.respondidoPorId ? (await db.select({ nome: usuarios.nome }).from(usuarios).where(eq(usuarios.id, origem.respondidoPorId)))[0]?.nome ?? null : null;
+  const respondidoPorId = origem?.respondidoPorId ?? null;
 
   // Motivos e observações da logística sobre itens de outra área ficam fora da linha do tempo.
   const conds: SQL[] = [veTudo ? and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId))! : and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, linhaId), notInArray(historico.acao, ACOES_COM_MOTIVO))!];
@@ -168,7 +169,11 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     conds.push(and(eq(historico.entidade, "solicitacao_item"), eq(historico.entidadeId, origem.itemId))!);
     conds.push(and(eq(historico.entidade, "solicitacao"), eq(historico.entidadeId, origem.solicitacaoId), inArray(historico.acao, ["RASCUNHO_CRIADO", "ENVIADA", "DEVOLVIDA"]))!);
   }
-  const linhaDoTempo = await carregarEntradas(or(...conds)!, () => null);
+  // Nome de quem respondeu e a linha do tempo não dependem um do outro.
+  const [respondidoPor, linhaDoTempo] = await Promise.all([
+    respondidoPorId ? db.select({ nome: usuarios.nome }).from(usuarios).where(eq(usuarios.id, respondidoPorId)).then((r) => r[0]?.nome ?? null) : Promise.resolve(null),
+    carregarEntradas(or(...conds)!, () => null),
+  ]);
 
   return {
     id: linha.id,

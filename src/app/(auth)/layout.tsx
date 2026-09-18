@@ -27,7 +27,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           <span className="text-corpo font-semibold uppercase tracking-[0.18em] text-white">Norte Mkt</span>
         </div>
         <div className="max-w-[440px] max-lg:hidden">
-          <h1 className="mb-5 mt-0 text-4xl font-semibold leading-[1.12] tracking-[-0.03em]">Da reunião de OS ao caminhão carregado, em um só lugar.</h1>
+          <p className="mb-5 mt-0 text-4xl font-semibold leading-[1.12] tracking-[-0.03em]">Da reunião de OS ao caminhão carregado, em um só lugar.</p>
           <p className="m-0 text-base leading-[1.6] text-on-dark-3">Catálogo de peças, projetos padrão, ata da reunião, OS gerada automaticamente e solicitações respondidas item a item.</p>
         </div>
         <div className="flex gap-10 text-corpo text-on-dark-3 max-lg:hidden">

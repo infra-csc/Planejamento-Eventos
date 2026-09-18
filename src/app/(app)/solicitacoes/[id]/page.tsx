@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { descricaoItem, listarFila, obterSolicitacao } from "@/server/services/solicitacoes";
+import { descricaoItem, listarFila } from "@/server/services/solicitacoes";
+import { obterSolicitacaoCache } from "@/server/cache";
 import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const usuario = await getUsuarioAtual();
   if (!usuario) return {};
   const { id } = await params;
-  const s = await obterSolicitacao(usuario, id).catch(() => null);
+  const s = await obterSolicitacaoCache(usuario, id).catch(() => null);
   return { title: s ? `${s.codigo} · ${s.titulo || s.evento.nome}` : "Solicitação" };
 }
 
@@ -36,7 +37,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const usuario = await requireUsuario();
   const { id } = await params;
   const sp = await searchParams;
-  const s = await obterSolicitacao(usuario, id).catch((e) => {
+  const s = await obterSolicitacaoCache(usuario, id).catch((e) => {
     if (e instanceof NaoEncontradoError) notFound();
     if (e instanceof DomainError && e.code === "SEM_PERMISSAO") redirect("/sem-permissao");
     throw e;
@@ -55,11 +56,6 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const sufixo = s.tipo === "ALTERACAO" ? "nova versão da OS" : "item entrou na ata";
 
   const modoFila = sp.fila === "1" && ehLogistica;
-  const fila = modoFila ? await listarFila(usuario) : [];
-  const idx = fila.findIndex((f) => f.id === s.id);
-  const proxima = idx >= 0 ? fila[idx + 1] : fila.find((f) => f.id !== s.id);
-  const anterior = idx > 0 ? fila[idx - 1] : null;
-  const proximaHref = modoFila && proxima ? `/solicitacoes/${proxima.id}?fila=1` : null;
 
   const pi = prazoInfo(s, agora);
   const itens: ItemParaResposta[] = s.itens.map((i) => ({
@@ -84,12 +80,17 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
   const eventoAtivo = s.evento.status !== "ENCERRADO" && s.evento.status !== "CANCELADO";
   const logisticaVincula = pode(usuario, "ata.consolidar") && enviada && eventoAtivo && foraCatalogo.length > 0;
-  const [opcoesVinculo, historicoSolicitacao, evento, versoesOs] = await Promise.all([
+  const [opcoesVinculo, historicoSolicitacao, evento, versoesOs, fila] = await Promise.all([
     logisticaVincula ? opcoesReferenciasResumidas() : Promise.resolve(null),
     linhaDoTempoSolicitacao(usuario, s.id),
     obterEventoCache(usuario, s.eventoId),
     listarOsResumo(s.eventoId),
+    modoFila ? listarFila(usuario) : Promise.resolve([]),
   ]);
+  const idx = fila.findIndex((f) => f.id === s.id);
+  const proxima = idx >= 0 ? fila[idx + 1] : fila.find((f) => f.id !== s.id);
+  const anterior = idx > 0 ? fila[idx - 1] : null;
+  const proximaHref = modoFila && proxima ? `/solicitacoes/${proxima.id}?fila=1` : null;
   const rotuloItem = (itemId: string) => {
     const i = s.itens.find((x) => x.id === itemId);
     return i ? descricaoItem(i) : null;
@@ -102,7 +103,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       {modoFila && (
         <BannerEscuro
           titulo="Respondendo em sequência"
-          className="mb-[18px]"
+          className="mb-cartao"
           acoes={
             <>
               {anterior ? (
@@ -141,7 +142,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             <span className="font-mono font-medium text-ink">{s.codigo}</span>
             <SolicitacaoStatusBadge status={s.status} naAta={naAta} />
             {s.foraDaJanela && <ForaJanelaTag />}
-            {pi.vencido && <span className="font-medium text-danger">atrasada {pi.sub}</span>}
+            {pi.vencido && <span className="font-medium text-danger">Atrasada {pi.sub}</span>}
           </>
         }
         title={s.titulo || "Solicitação sem título"}
@@ -172,24 +173,24 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       />
 
       {s.foraDaJanela && (s.status === "ENVIADA" || s.status === "EM_ANALISE") && (
-        <Aviso tom="danger" titulo="Enviada fora da janela de alterações" className="mb-[18px]">
+        <Aviso tom="danger" titulo="Enviada fora da janela de alterações" className="mb-cartao">
           {ehLogistica
             ? "A janela definida para este evento já terminou. Decida item a item: atender, atender parcialmente ou não atender, com o motivo."
             : "A janela de alterações deste evento já terminou. A logística vai avaliar se ainda dá para atender."}
         </Aviso>
       )}
       {s.status === "DEVOLVIDA" && (
-        <Aviso tom="warning" titulo="Devolvida pela logística" className="mb-[18px]">
-          {s.devolvidaMotivo}. Corrija e reenvie.
+        <Aviso tom="warning" titulo="Devolvida pela logística" className="mb-cartao">
+          {s.devolvidaMotivo ? `${/[.!?…]$/.test(s.devolvidaMotivo.trim()) ? s.devolvidaMotivo.trim() : `${s.devolvidaMotivo.trim()}.`} ` : ""}Corrija e reenvie.
         </Aviso>
       )}
       {s.status === "CANCELADA" && (
-        <Aviso tom="danger" titulo="Solicitação cancelada" className="mb-[18px]">
+        <Aviso tom="danger" titulo="Solicitação cancelada" className="mb-cartao">
           {s.canceladaMotivo || "Sem motivo registrado."}
         </Aviso>
       )}
       {editavel && aceitaSolicitacao(s.evento.status, s.tipo) && (s.itens.length === 0 || !s.titulo?.trim()) && (
-        <Aviso className="mb-[18px]" titulo="Falta preencher antes de enviar">
+        <Aviso className="mb-cartao" titulo="Falta preencher antes de enviar">
           {s.itens.length === 0 ? "Adicione ao menos um item" : "Dê um título para a logística identificar a solicitação na fila"} em{" "}
           <Link href={`/solicitacoes/nova?rascunho=${s.id}`} className="link">
             Editar itens
@@ -198,12 +199,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </Aviso>
       )}
       {editavel && !aceitaSolicitacao(s.evento.status, s.tipo) && (
-        <Aviso tom="warning" titulo="O evento não aceita este envio agora" className="mb-[18px]">
+        <Aviso tom="warning" titulo="O evento não aceita este envio agora" className="mb-cartao">
           O rascunho continua salvo. {s.tipo === "PRE_REUNIAO" ? "Necessidades só entram com o evento em preparação." : "Alterações só entram com o evento aberto."}
         </Aviso>
       )}
       {ehLogistica && naAta && (
-        <Aviso className="mb-[18px]">
+        <Aviso className="mb-cartao">
           Estes itens já estão na ata. A logística confere e ajusta na{" "}
           <Link href={`/conferencia/${s.eventoId}`} className="link">
             conferência da ata
@@ -213,13 +214,13 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       )}
 
       {logisticaVincula && opcoesVinculo && (
-        <Section titulo={foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`} className="mb-[18px] border-warning-border">
-          <div className="px-[18px] py-3.5">
+        <Section titulo={foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`} className="mb-cartao border-warning-border">
+          <div className="px-cartao py-3.5">
             <Aviso tom="warning">A área descreveu à mão. Vincule a uma peça ou projeto que já existe (talvez não tenha achado) ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS.</Aviso>
           </div>
           <ul className="m-0 list-none p-0">
             {foraCatalogo.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-[18px] py-2.5">
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-cartao py-2.5">
                 <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-corpo text-ink">
                   “{i.descricaoLivre}” <ChipMono tom="control">× {i.quantidadeSolicitada}</ChipMono>
                   {i.destino ? <span className="text-pequeno text-muted">· {i.destino}</span> : null}
@@ -231,7 +232,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </Section>
       )}
       {!pode(usuario, "ata.consolidar") && enviada && foraCatalogo.length > 0 && (
-        <Aviso className="mb-[18px]">
+        <Aviso className="mb-cartao">
           {foraCatalogo.length === 1 ? "Um item foi descrito à mão" : `${foraCatalogo.length} itens foram descritos à mão`}. A logística vai vincular ao catálogo ou cadastrar a peça, e você será avisado.
         </Aviso>
       )}
@@ -240,19 +241,19 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         <div className="flex flex-col gap-5">
           {s.observacao && (
             <Section titulo="Observação do solicitante">
-              <p className="m-0 whitespace-pre-wrap px-[18px] py-3.5 text-corpo leading-[1.55] text-ink-2">{s.observacao}</p>
+              <p className="m-0 whitespace-pre-wrap px-cartao py-3.5 text-corpo leading-[1.55] text-ink-2">{s.observacao}</p>
             </Section>
           )}
           <RespostaProvider itens={itens} sufixoToast={sufixo}>
             <Section titulo={`Itens · ${s.itens.length}`} sub={respondivel ? "Cada item recebe resposta própria. Parcial e não atendido exigem motivo." : undefined} acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}>
-              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado." /> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
+              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
             </Section>
           </RespostaProvider>
           <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>
             <LinhaDoTempo entradas={historicoSolicitacao} rotuloItem={rotuloItem} />
           </Section>
         </div>
-        <div className="flex flex-col gap-5 lg:sticky lg:top-[76px]">
+        <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
         <Section titulo="Dados">
           <ListaDados
             itens={[
@@ -300,7 +301,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               { label: "Responsável", valor: evento.responsavel.nome },
             ]}
           />
-          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-[18px] py-2.5 text-pequeno">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-cartao py-2.5 text-pequeno">
             <Link href={`/eventos/${evento.id}/ata`} className="link">
               Ata
             </Link>

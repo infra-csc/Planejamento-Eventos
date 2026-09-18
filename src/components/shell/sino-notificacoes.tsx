@@ -19,6 +19,9 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
   const [lista, setLista] = useState<NotificacaoResumo[] | null>(null);
   const [carregando, iniciar] = useTransition();
   const raiz = useRef<HTMLDivElement>(null);
+  const botaoRef = useRef<HTMLButtonElement>(null);
+  const painelRef = useRef<HTMLDivElement>(null);
+  const tituloRef = useRef<HTMLSpanElement>(null);
 
   const carregar = () => iniciar(async () => setLista(await notificacoesRecentesAction()));
 
@@ -29,13 +32,17 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
     });
   };
 
-  // Fecha ao clicar fora ou apertar Esc.
+  // Fecha ao clicar fora ou apertar Esc (o Esc devolve o foco ao sino).
   useEffect(() => {
     if (!aberto) return;
     const fora = (e: PointerEvent) => {
       if (raiz.current && !raiz.current.contains(e.target as Node)) setAberto(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setAberto(false);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setAberto(false);
+      botaoRef.current?.focus();
+    };
     document.addEventListener("pointerdown", fora);
     document.addEventListener("keydown", esc);
     return () => {
@@ -43,6 +50,14 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
       document.removeEventListener("keydown", esc);
     };
   }, [aberto]);
+
+  // Ao abrir, o foco vai para a primeira notificação (ou para o título enquanto a lista carrega).
+  useEffect(() => {
+    if (!aberto) return;
+    const ativo = document.activeElement;
+    if (ativo !== botaoRef.current && ativo !== tituloRef.current && ativo !== document.body) return;
+    (painelRef.current?.querySelector<HTMLElement>("[data-notificacao]") ?? tituloRef.current)?.focus();
+  }, [aberto, lista]);
 
   const abrir = (n: NotificacaoResumo) => {
     setAberto(false);
@@ -65,11 +80,12 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
   return (
     <div ref={raiz} className="relative">
       <button
+        ref={botaoRef}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={aberto}
         onClick={alternar}
-        className={cn("flex h-[30px] cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-lg border border-transparent bg-transparent px-2.5 text-pequeno text-ink-2 hover:bg-black/[0.04]", aberto && "bg-black/[0.04]")}
+        className={cn("flex h-[30px] cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-controle border border-transparent bg-transparent px-2.5 text-pequeno text-ink-2 hover:bg-black/[0.04]", aberto && "bg-black/[0.04]")}
       >
         <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
           <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
@@ -80,9 +96,9 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
       </button>
 
       {aberto && (
-        <div role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+8px)] z-[var(--z-popover)] flex max-h-[min(560px,calc(100dvh-90px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-cartao border border-line-strong bg-surface shadow-popover animate-fade-up-rapido">
+        <div ref={painelRef} role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+8px)] z-[var(--z-popover)] flex max-h-[min(560px,calc(100dvh-90px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-cartao border border-line-strong bg-surface shadow-popover animate-fade-up-rapido">
           <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-2.5">
-            <span className="text-corpo font-semibold text-ink">
+            <span ref={tituloRef} tabIndex={-1} className="text-corpo font-semibold text-ink focus:outline-none">
               Notificações
               {pendentes > 0 && <span className="ml-2 font-normal text-pequeno text-muted">{pendentes} não {pendentes === 1 ? "lida" : "lidas"}</span>}
             </span>
@@ -102,6 +118,7 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
               lista.map((n) => (
                 <button
                   key={n.id}
+                  data-notificacao=""
                   type="button"
                   onClick={() => abrir(n)}
                   className={cn("flex w-full cursor-pointer items-start gap-3 border-0 border-b border-line-row px-4 py-3 text-left last:border-b-0 hover:bg-subtle", !n.lida ? "bg-selected" : "bg-transparent")}

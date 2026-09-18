@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento } from "@/server/services/eventos";
 import { classificarHistorico, COR_HISTORICO } from "@/domain/historico";
 import { diaMesHora } from "@/lib/format";
 import { EmptyState, Marcador, Section } from "@/components/ui/layout";
+
+export const metadata: Metadata = { title: "Histórico" };
 
 export default async function HistoricoEventoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
@@ -10,7 +13,7 @@ export default async function HistoricoEventoPage({ params }: { params: Promise<
   const historico = await obterHistoricoEvento(usuario, id);
   return (
     <Section titulo="Histórico do evento" sub="Tudo que mudou a ata ou a OS, com autor, hora e justificativa." className="max-w-[840px]">
-      <div className="px-[18px] py-4">
+      <div className="px-cartao py-4">
         {historico.length === 0 && <EmptyState compact title="Nada registrado ainda" description="Envios, respostas, ajustes na ata e mudanças de fase aparecem aqui." />}
         {historico.map((h) => {
           const c = classificarHistorico(h);

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -15,6 +15,13 @@ export function BuscaUrl({ param = "q", placeholder, ariaLabel, className, largu
   const [valor, setValor] = useState(params.get(param) ?? "");
   const [pendente, iniciar] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Sai da tela antes do debounce vencer: não navega depois de desmontado.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const aplicar = (v: string) => {
     const next = new URLSearchParams(params.toString());
@@ -38,8 +45,8 @@ export function BuscaUrl({ param = "q", placeholder, ariaLabel, className, largu
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => aplicar(v), 280);
       }}
-      className={cn("h-[34px] rounded-lg border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none", className)}
-      style={{ flex: `0 0 ${largura}px`, width: largura }}
+      className={cn("h-[34px] w-full min-w-0 rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none sm:w-[var(--busca-largura)] sm:shrink-0", className)}
+      style={{ "--busca-largura": `${largura}px` } as React.CSSProperties}
     />
   );
 }

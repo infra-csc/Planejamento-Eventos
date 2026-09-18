@@ -66,6 +66,14 @@
   /* Informativo (ex.: carga do caminhão no calendário) */
   --color-info: #2f6680;
   --color-info-bg: #e6eef2;
+  /* Véu atrás de modais, gaveta e busca; e o fundo suave de linha pendente. */
+  --color-scrim: rgba(22, 23, 26, 0.4);
+  --color-scrim-forte: rgba(22, 23, 26, 0.82);
+  --color-warning-bg-suave: color-mix(in srgb, #f7f0dd 35%, transparent);
+
+  /* Espaçamentos recorrentes: recuo lateral de cartões/tabelas e topo de painéis fixos (abaixo do header). */
+  --spacing-cartao: 18px;
+  --spacing-topo-fixo: 76px;
 
   /*
    * Papéis de tipografia, raios e sombras do handoff. Use estes nomes em código novo
@@ -172,6 +180,12 @@ button {
 }
 
 tr:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Linha clicável (LinhaLink): o foco fica no link oculto da primeira célula; o contorno vai para a linha. */
+tr:has([data-linha-link]:focus-visible) {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
 }

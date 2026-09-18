@@ -2,7 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { ChipMono } from "@/components/ui/badge";
 import { IconeLupa } from "@/components/ui/icons";
@@ -41,6 +41,7 @@ export function BuscaGlobal() {
   const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [sel, setSel] = useState(0);
+  const uid = useId();
   const listaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,20 +87,35 @@ export function BuscaGlobal() {
   };
 
   const indice = Math.min(sel, Math.max(0, resultados.length - 1));
+  const idOpcao = (i: number) => `${uid}-opcao-${i}`;
+
+  // ↑ ↓ mudam o item ativo e o trazem para a área visível da lista (o mouse não rola nada).
+  const mover = (novo: number) => {
+    setSel(novo);
+    requestAnimationFrame(() => listaRef.current?.querySelector<HTMLElement>(`[id="${idOpcao(novo)}"]`)?.scrollIntoView({ block: "nearest" }));
+  };
+
+  // Resultados em blocos contíguos por grupo, cada um com seu título (role="group" + aria-labelledby).
+  const grupos: Array<{ nome: string; itens: Array<{ r: ResultadoBusca; i: number }> }> = [];
+  resultados.forEach((r, i) => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.nome === r.grupo) ultimo.itens.push({ r, i });
+    else grupos.push({ nome: r.grupo, itens: [{ r, i }] });
+  });
 
   return (
     <DialogPrimitive.Root open={estaAberto} onOpenChange={(o) => (o ? definirAberto(true) : fechar())}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-black/40" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-scrim" />
         <DialogPrimitive.Content
           className="fixed left-1/2 top-[14vh] z-[calc(var(--z-busca)+1)] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-modal border border-line-strong bg-surface shadow-popover focus:outline-none"
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
-              setSel(resultados.length ? (indice + 1) % resultados.length : 0);
+              mover(resultados.length ? (indice + 1) % resultados.length : 0);
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
-              setSel(resultados.length ? (indice - 1 + resultados.length) % resultados.length : 0);
+              mover(resultados.length ? (indice - 1 + resultados.length) % resultados.length : 0);
             } else if (e.key === "Enter") {
               e.preventDefault();
               abrir(resultados[indice]);
@@ -119,7 +135,11 @@ export function BuscaGlobal() {
               }}
               placeholder="Buscar eventos, solicitações, peças, projetos — ou executar uma ação"
               aria-label="Buscar"
-              aria-controls="busca-resultados"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={resultados.length > 0}
+              aria-controls={`${uid}-resultados`}
+              aria-activedescendant={resultados.length > 0 ? idOpcao(indice) : undefined}
               className="flex-1 border-0 bg-transparent text-destaque text-ink outline-none placeholder:text-meta focus-visible:outline-none"
             />
             <Kbd>esc</Kbd>
@@ -135,33 +155,42 @@ export function BuscaGlobal() {
               <span className="font-mono">esc</span> fechar
             </span>
           </div>
-          <div id="busca-resultados" ref={listaRef} role="listbox" className="max-h-[52vh] overflow-y-auto p-1.5">
-            {resultados.map((r, i) => {
-              const novoGrupo = i === 0 || resultados[i - 1].grupo !== r.grupo;
-              const ativo = i === indice;
-              return (
-                <div key={`${r.href}-${i}`}>
-                  {novoGrupo && <span className="block px-2.5 pb-1 pt-[9px] text-micro font-semibold uppercase tracking-[0.1em] text-meta">{r.grupo}</span>}
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={ativo}
-                    onClick={() => abrir(r)}
-                    onMouseEnter={() => setSel(i)}
-                    className={cn("flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 px-2.5 py-[9px] text-left", ativo ? "bg-accent-bg" : "bg-transparent")}
-                  >
-                    <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
-                      {r.tag}
-                    </ChipMono>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-corpo font-medium text-ink">{r.titulo}</span>
-                      <span className="block truncate text-pequeno text-muted">{r.sub}</span>
-                    </span>
-                    <span className="font-mono text-rotulo text-meta">{ativo ? "↵" : r.atalho ?? ""}</span>
-                  </button>
-                </div>
-              );
-            })}
+          <div id={`${uid}-resultados`} ref={listaRef} role="listbox" aria-label="Resultados da busca" className="max-h-[52vh] overflow-y-auto p-1.5">
+            {grupos.map((g, gi) => (
+              <div key={`${g.nome}-${gi}`} role="group" aria-labelledby={`${uid}-grupo-${gi}`}>
+                <span id={`${uid}-grupo-${gi}`} className="block px-2.5 pb-1 pt-[9px] text-micro font-semibold uppercase tracking-[0.1em] text-meta">
+                  {g.nome}
+                </span>
+                {g.itens.map(({ r, i }) => {
+                  const ativo = i === indice;
+                  return (
+                    <button
+                      key={`${r.href}-${i}`}
+                      id={idOpcao(i)}
+                      type="button"
+                      role="option"
+                      aria-selected={ativo}
+                      // O foco fica no campo (aria-activedescendant); as opções não entram no Tab.
+                      tabIndex={-1}
+                      onClick={() => abrir(r)}
+                      onMouseEnter={() => setSel(i)}
+                      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left", ativo ? "bg-accent-bg" : "bg-transparent")}
+                    >
+                      <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
+                        {r.tag}
+                      </ChipMono>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-corpo font-medium text-ink">{r.titulo}</span>
+                        <span className="block truncate text-pequeno text-muted">{r.sub}</span>
+                      </span>
+                      <span aria-hidden className="font-mono text-rotulo text-meta">
+                        {ativo ? "↵" : (r.atalho ?? "")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
             {carregado && termo.trim() && resultados.length === 0 && <EmptyState compact title={`Nada encontrado para “${termo.trim()}”.`} />}
           </div>
         </DialogPrimitive.Content>

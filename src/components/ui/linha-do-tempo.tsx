@@ -15,9 +15,9 @@ const COR: Record<TomLinhaTempo, string> = {
  * `rotuloItem` marca a que item da solicitação a entrada se refere.
  */
 export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ainda." }: { entradas: EntradaLinhaTempo[]; rotuloItem?: (itemId: string) => string | null; vazio?: string }) {
-  if (entradas.length === 0) return <p className="m-0 px-[18px] py-6 text-center text-pequeno text-muted">{vazio}</p>;
+  if (entradas.length === 0) return <p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">{vazio}</p>;
   return (
-    <ol className="m-0 list-none px-[18px] py-3">
+    <ol className="m-0 list-none px-cartao py-3">
       {entradas.map((e, i) => {
         const item = e.itemId && rotuloItem ? rotuloItem(e.itemId) : null;
         return (
