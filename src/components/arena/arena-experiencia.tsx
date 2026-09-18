@@ -115,7 +115,6 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   const [salvando, iniciarSalvar] = useTransition();
   const [editando, setEditando] = useState(false);
   const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
-  const vistaAntesDaEdicao = useRef<VistaMapa | null>(null);
   const [menuItens, setMenuItens] = useState(false);
   /** Última mudança feita nesta sessão de edição, para o botão "Desfazer". */
   const [ultima, setUltima] = useState<{ chave: string; nome: string; anterior: { x: number; z: number } | null } | null>(null);
@@ -147,7 +146,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   /** Clique no chão do 3D: no modo edição com item escolhido, posiciona ali. */
   const aoClicarChaoRef = useRef<(x: number, z: number) => boolean>(() => false);
   /** Arraste de marcador no 3D (modo edição). */
-  const arraste3d = useRef<{ id: string; x0: number; y0: number; moveu: boolean; ultimo: [number, number] | null } | null>(null);
+  const arraste3d = useRef<{ id: string; x0: number; y0: number; moveu: boolean; ultimo: [number, number] | null; dx: number; dy: number } | null>(null);
   const ignorarClique = useRef(false);
   const vistaRef = useRef<VistaMapa>("perspectiva");
 
@@ -266,11 +265,6 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
 
   const escolherVista = (v: VistaMapa) => {
     if (v === vistaMapa) return;
-    // Posicionar em perspectiva é impreciso (o clique cai no chão "de lado"): a edição acontece na planta.
-    if (editando && v !== "planta") {
-      toast("A edição acontece na planta, vista de cima. Conclua a edição para ver em 3D.");
-      return;
-    }
     if (vistaMapa === "planta") {
       setEstado("carregando");
       setErro(null);
@@ -353,7 +347,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
 
   useEffect(() => {
     if (estado === "pronto") motorRef.current?.atualizarPontos(arena.pontos);
-  }, [arena.pontos, estado]);
+    if (estado === "pronto") motorRef.current?.modoEdicao(editando);
+  }, [arena.pontos, estado, editando]);
 
   useEffect(() => {
     motorRef.current?.definirSelecao(selecionado);
@@ -535,19 +530,9 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       setMenuItens(false);
       setFormEdicao(null);
       setUltima(null);
-      // Volta para a vista que a pessoa usava antes de editar.
-      const antes = vistaAntesDaEdicao.current;
-      vistaAntesDaEdicao.current = null;
-      if (antes && antes !== "planta") {
-        setEstado("carregando");
-        setErro(null);
-        setVistaMapa(antes);
-      }
       return;
     }
-    // Entrar em edição: planta vista de cima (arrastar e clicar com precisão), sem painel aberto por cima.
-    vistaAntesDaEdicao.current = vistaMapa;
-    if (vistaMapa !== "planta") setVistaMapa("planta");
+    // Edita na vista em que a pessoa está (planta, de cima ou perspectiva), sem painel aberto por cima.
     setEditando(true);
     setPainelEsquerdo(null);
     setSelecionado(null);
@@ -853,14 +838,16 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                       if (!editando || colocando || e.button !== 0) return;
                       e.currentTarget.setPointerCapture(e.pointerId);
                       motorRef.current?.travarCamera(true);
-                      arraste3d.current = { id: p.id, x0: e.clientX, y0: e.clientY, moveu: false, ultimo: null };
+                      // O canto do botão é o ponto no chão; guardamos onde, em relação a ele, a pessoa pegou.
+                      const base = e.currentTarget.getBoundingClientRect();
+                      arraste3d.current = { id: p.id, x0: e.clientX, y0: e.clientY, moveu: false, ultimo: null, dx: e.clientX - base.left, dy: e.clientY - base.top };
                     }}
                     onPointerMove={(e) => {
                       const a = arraste3d.current;
                       if (!a || a.id !== p.id) return;
                       if (!a.moveu && Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 5) return;
                       a.moveu = true;
-                      const chao = motorRef.current?.chaoEm(e.clientX, e.clientY);
+                      const chao = motorRef.current?.chaoEm(e.clientX - a.dx, e.clientY - a.dy);
                       if (!chao) return;
                       a.ultimo = chao;
                       setLocais((l) => ({ ...l, [p.id]: chao }));

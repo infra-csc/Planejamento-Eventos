@@ -396,7 +396,7 @@ export class MotorArena {
     overlay.querySelectorAll<HTMLElement>("[data-ponto-id]").forEach((el) => {
       const ponto = this.pontoPorId.get(el.dataset.pontoId ?? "");
       if (!ponto) return;
-      v.set(ponto.posicao[0], ponto.alturaMarcador, ponto.posicao[1]).project(this.camera);
+      v.set(ponto.posicao[0], this.pinoNoChao ? 0.3 : ponto.alturaMarcador, ponto.posicao[1]).project(this.camera);
       const fora = v.z > 1 || v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.1;
       el.style.visibility = fora ? "hidden" : "visible";
       if (fora) return;
@@ -627,6 +627,16 @@ export class MotorArena {
       if (base) alvo.hit.position.set(base.x + dx, base.y, base.z + dz);
       alvo.hit.updateMatrixWorld(true);
     }
+    this.sujo = true;
+  }
+
+  /**
+   * Modo edição: o pino é desenhado rente ao chão, no ponto exato. Fora dele, flutua na altura do
+   * marcador (acima da estrutura). Assim, ao editar, o clique e o arraste caem onde o pino está.
+   */
+  private pinoNoChao = false;
+  modoEdicao(ativo: boolean) {
+    this.pinoNoChao = ativo;
     this.sujo = true;
   }
 

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/layout";
 import { logoutAction } from "@/app/(auth)/actions";
 import { sairVerComoAction, verComoAction } from "@/app/(app)/ver-como/actions";
+import { SinoNotificacoes } from "./sino-notificacoes";
 import { Trilha } from "./trilha";
 import { BuscaGlobal, abrirBuscaGlobal } from "./busca-global";
 
@@ -233,14 +234,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             </svg>
           </button>
           <Trilha />
-          <Link href="/notificacoes" className="flex h-[30px] items-center gap-[7px] whitespace-nowrap rounded-lg border border-transparent px-2.5 text-pequeno text-ink-2 no-underline hover:bg-black/[0.04]">
-            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
-              <path d="M10 20a2 2 0 0 0 4 0" />
-            </svg>
-            <span className="max-sm:sr-only">Notificações</span>
-            {naoLidas > 0 && <ChipMono tom="accent">{naoLidas}</ChipMono>}
-          </Link>
+          {/* Painel no próprio cabeçalho: ver as notificações sem sair da página. */}
+          <SinoNotificacoes naoLidas={naoLidas} />
           <div aria-hidden className="h-[22px] w-px bg-line max-sm:hidden" />
           <Dropdown>
             <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 hover:bg-black/[0.04]" aria-label={`Menu de ${usuario.nome}`}>
