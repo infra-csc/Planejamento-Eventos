@@ -94,7 +94,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
       });
     }
     if (e.dataCarga && e.dataCarga >= hoje && e.dataCarga <= limite14) {
-      agenda.push({ chave: `c-${e.id}`, ordem: new Date(`${e.dataCarga}T09:00:00Z`).getTime(), dia: diaMesISO(e.dataCarga), titulo: `Carga do caminhão · ${e.nome}`, sub: pode(usuario, "os.ver") ? "OS final precisa estar estável" : "o que estiver no evento até aqui é o que embarca", tipo: "carga", href: `/eventos/${e.id}` });
+      agenda.push({ chave: `c-${e.id}`, ordem: new Date(`${e.dataCarga}T09:00:00Z`).getTime(), dia: diaMesISO(e.dataCarga), titulo: `Carga do caminhão · ${e.nome}`, sub: "OS final precisa estar estável", tipo: "carga", href: `/eventos/${e.id}` });
     }
     if (e.dataMontagem >= hoje && e.dataMontagem <= limite14) {
       agenda.push({ chave: `m-${e.id}`, ordem: new Date(`${e.dataMontagem}T10:00:00Z`).getTime(), dia: diaMesISO(e.dataMontagem), titulo: `Montagem · ${e.nome}`, sub: e.local || "—", tipo: "montagem", href: `/eventos/${e.id}` });

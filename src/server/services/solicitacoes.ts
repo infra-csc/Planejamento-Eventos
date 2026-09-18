@@ -74,14 +74,32 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
 
 export type SolicitacaoLista = Awaited<ReturnType<typeof listarSolicitacoes>>[number];
 
-export const FILTROS_LISTA = ["ABERTAS", "ATRASADAS", "RASCUNHO", "RESPONDIDA", "TODAS"] as const;
+export const FILTROS_LISTA = ["TODAS", "ABERTAS", "ATRASADAS", "RASCUNHO", "RESPONDIDA"] as const;
 export type FiltroLista = (typeof FILTROS_LISTA)[number];
 
 /**
  * Página da lista de solicitações com filtro, ordenação e paginação no banco, e a contagem de cada
  * filtro numa consulta só. Substitui carregar todas as solicitações com itens e fatiar em memória.
  */
-export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number }) {
+/** Eventos que têm solicitação visível para este usuário (para o filtro da lista). */
+export async function eventosComSolicitacoes(usuario: UsuarioAtual) {
+  const db = await getDb();
+  const escopo = [eq(solicitacoes.excluida, false)];
+  if (!pode(usuario, "solicitacao.ver_todas")) {
+    if (!usuario.areaId) return [];
+    escopo.push(eq(solicitacoes.areaId, usuario.areaId));
+  } else if (usuario.perfil !== "ADMIN") escopo.push(ne(solicitacoes.status, "RASCUNHO"));
+  const rows = await db
+    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataInicio: eventos.dataInicio, n: sql<number>`count(*)` })
+    .from(solicitacoes)
+    .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
+    .where(and(...escopo))
+    .groupBy(eventos.id, eventos.codigo, eventos.nome, eventos.dataInicio)
+    .orderBy(asc(eventos.dataInicio));
+  return rows.map((r) => ({ ...r, n: Number(r.n) }));
+}
+
+export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number; eventoId?: string | null }) {
   const db = await getDb();
   const agora = sql`${new Date().toISOString()}::timestamptz`;
   const vazio = { itens: [] as SolicitacaoLista[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
@@ -93,6 +111,8 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     // Rascunho ainda não enviado é da área (a tela promete que "a logística nunca chegou a vê-lo").
     base.push(ne(solicitacoes.status, "RASCUNHO"));
   }
+  // Filtro por evento vale para a lista e para as contagens de cada aba.
+  if (opcoes.eventoId) base.push(eq(solicitacoes.eventoId, opcoes.eventoId));
   // Aguardando resposta = alterações; necessidade pré-reunião não passa por avaliação (já está na ata).
   const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE') and ${solicitacoes.tipo} = 'ALTERACAO'`;
   const condicoes: Record<FiltroLista, SQL> = {
@@ -131,7 +151,9 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     prazo: [prazo],
   };
   // `hasOwn`: a chave também vem da URL ("__proto__" acharia Object.prototype).
-  const ordem = (opcoes.ordem && Object.hasOwn(ordens, opcoes.ordem) && ordens[opcoes.ordem]) || [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
+  // Sem ordem escolhida: em "Todas", o mais recente primeiro; nas filas, o prazo mais próximo primeiro.
+  const ordemPadrao = opcoes.filtro === "TODAS" || opcoes.filtro === "RESPONDIDA" ? [desc(solicitacoes.atualizadoEm)] : [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
+  const ordem = (opcoes.ordem && Object.hasOwn(ordens, opcoes.ordem) && ordens[opcoes.ordem]) || ordemPadrao;
   const ids = (
     await db
       .select({ id: solicitacoes.id })

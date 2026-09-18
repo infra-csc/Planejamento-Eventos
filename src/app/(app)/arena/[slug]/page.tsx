@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireUsuario } from "@/server/auth/session";
+import { requirePermissao } from "@/server/auth/session";
 import { obterArenaPorSlug } from "@/domain/arena/eco-run-sp-2026";
 import { aplicarPosicoes } from "@/domain/arena/posicoes";
 import { pode } from "@/domain/permissions";
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function ArenaPage({ params }: { params: Promise<{ slug: string }> }) {
-  const usuario = await requireUsuario();
+  const usuario = await requirePermissao("arena.ver");
   const { slug } = await params;
   const base = obterArenaPorSlug(slug);
   if (!base) notFound();

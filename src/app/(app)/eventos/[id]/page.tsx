@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
-import { listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { calcularOsAoVivo, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
+import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
 import { pode } from "@/domain/permissions";
 import { totalPecas } from "@/domain/os";
@@ -25,10 +27,22 @@ type Grupo = { nome: string; codigo: string | null; capaId: string | null; quant
  * o que vai ser montado e quem está envolvido). A parte de gestão (mudanças, ajustes, atividade)
  * fica abaixo, sem competir com a leitura rápida.
  */
-export default async function EventoVisaoGeralPage({ params }: { params: Promise<{ id: string }> }) {
+const LEITURAS = [
+  { chave: "lista", rotulo: "Itens e projetos" },
+  { chave: "projetos", rotulo: "Por projeto, com as peças" },
+  { chave: "totais", rotulo: "Todas as peças somadas" },
+  { chave: "individuais", rotulo: "Peças soltas e fora do catálogo" },
+] as const;
+type Leitura = (typeof LEITURAS)[number]["chave"];
+
+export default async function EventoVisaoGeralPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ itens?: string }> }) {
   const usuario = await requireUsuario();
   const { id } = await params;
+  const sp = await searchParams;
+  const leitura: Leitura = LEITURAS.some((l) => l.chave === sp.itens) ? (sp.itens as Leitura) : "lista";
   const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
+  // As leituras por peça vêm do estado de agora (ata + o que entrou depois), igual à OS em vigor.
+  const osAgora = leitura === "lista" ? null : await calcularOsAoVivo(id);
   // O total de peças é conteúdo da OS: quem não tem a aba também não vê o número.
   const veOs = pode(usuario, "os.ver");
   const ultimaOs = veOs && versoes[0] ? (await obterConteudosOs(id, [versoes[0].numero])).get(versoes[0].numero) : null;
@@ -106,8 +120,17 @@ export default async function EventoVisaoGeralPage({ params }: { params: Promise
           titulo={ev.ataFechadaEm ? "Todos os itens que vão para o evento" : "Todos os itens já na ata"}
           sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois. Itens marcados “depois da ata” ou “ajustado” mudaram após a reunião." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}
         >
+          {linhas.length > 0 && (
+            <div className="border-b border-line-soft px-[18px] py-2.5">
+              <Pills rotulo="Como ver os itens" itens={LEITURAS.map((l) => ({ label: l.rotulo, ativo: leitura === l.chave, href: l.chave === "lista" ? `/eventos/${id}#itens` : `/eventos/${id}?itens=${l.chave}#itens` }))} />
+            </div>
+          )}
           {linhas.length === 0 ? (
             <EmptyState compact title="Nada na ata ainda." />
+          ) : osAgora ? (
+            <div className="flex flex-col gap-4 bg-subtle p-4">
+              <OsVisoes os={osAgora} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
+            </div>
           ) : (
             <table className="w-full border-collapse [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
               <CaptionOculta>Todos os itens do evento</CaptionOculta>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
+import { eventosComSolicitacoes, FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, type FiltroLista } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
 import { aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
@@ -25,16 +25,22 @@ const ROTULO_FILTRO: Record<FiltroLista, string> = {
   TODAS: "Todas",
 };
 
-export default async function SolicitacoesPage({ searchParams }: { searchParams: Promise<{ filtro?: string; ordem?: string; dir?: string; pagina?: string }> }) {
+export default async function SolicitacoesPage({ searchParams }: { searchParams: Promise<{ filtro?: string; ordem?: string; dir?: string; pagina?: string; evento?: string }> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const agora = new Date();
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   const ehLogistica = pode(usuario, "solicitacao.responder");
   const podeCriar = pode(usuario, "solicitacao.criar");
-  const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : "ABERTAS";
-  const [pag, primeiraFila] = await Promise.all([paginarSolicitacoes(usuario, { filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, porPagina: POR_PAGINA }), ehLogistica ? primeiraDaFila(usuario) : Promise.resolve(null)]);
-  const params = { filtro: sp.filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
+  // "Todas" é a porta de entrada: o resto são recortes dela.
+  const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : "TODAS";
+  const eventoId = sp.evento && /^[\w-]{1,64}$/.test(sp.evento) ? sp.evento : null;
+  const [pag, primeiraFila, eventosFiltro] = await Promise.all([
+    paginarSolicitacoes(usuario, { filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, porPagina: POR_PAGINA, eventoId }),
+    ehLogistica ? primeiraDaFila(usuario) : Promise.resolve(null),
+    eventosComSolicitacoes(usuario),
+  ]);
+  const params = { filtro: sp.filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, evento: sp.evento };
 
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
@@ -79,16 +85,25 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         }
       />
 
-      <div className="mb-[18px]">
+      <div className="mb-[18px] flex flex-col gap-2.5">
         <Pills
           rotulo="Filtrar solicitações"
           itens={FILTROS_LISTA.map((v) => ({
             label: ROTULO_FILTRO[v],
             n: pag.contagens[v],
-            href: hrefCom("/solicitacoes", params, { filtro: v === "ABERTAS" ? null : v, pagina: null }),
+            href: hrefCom("/solicitacoes", params, { filtro: v === "TODAS" ? null : v, pagina: null }),
             ativo: filtro === v,
           }))}
         />
+        {eventosFiltro.length > 1 && (
+          <Pills
+            rotulo="Filtrar por evento"
+            itens={[
+              { label: "Todos os eventos", href: hrefCom("/solicitacoes", params, { evento: null, pagina: null }), ativo: !eventoId },
+              ...eventosFiltro.map((e) => ({ label: e.nome, n: e.n, title: e.codigo, href: hrefCom("/solicitacoes", params, { evento: e.id, pagina: null }), ativo: eventoId === e.id })),
+            ]}
+          />
+        )}
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">

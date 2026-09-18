@@ -6,7 +6,7 @@ import { pode } from "@/domain/permissions";
 import type { EventoStatus } from "@/server/db/schema";
 import { hora, isoSP } from "@/lib/format";
 
-export type TipoCalendario = "reuniao" | "evento" | "janela" | "montagem" | "desmontagem" | "carga" | "prazo";
+export type TipoCalendario = "reuniao" | "evento" | "janela" | "montagem" | "carga" | "prazo";
 
 export type ItemCalendario = {
   chave: string;
@@ -24,7 +24,7 @@ export type ItemCalendario = {
 
 /**
  * Tudo que tem data no período: reuniões de OS, dias de evento, fim da janela de alterações,
- * montagem/desmontagem/carga (só quando diferem do dia do evento) e, para a logística,
+ * montagem e carga (só quando diferem do dia do evento) e, para a logística,
  * prazos de resposta de alterações pendentes.
  */
 export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fim: string, opcoes: { incluirCancelados?: boolean } = {}): Promise<ItemCalendario[]> {
@@ -49,7 +49,6 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
   const itens: ItemCalendario[] = [];
   const noPeriodo = (d: string) => d >= inicio && d <= fim;
   const conferir = pode(usuario, "ata.consolidar");
-  const veOs = pode(usuario, "os.ver");
 
   for (const e of evs) {
     const evento = { id: e.id, codigo: e.codigo, nome: e.nome, status: e.status, cliente: e.cliente, local: e.local };
@@ -91,10 +90,9 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
     if (e.janelaAlteracoesAte && noPeriodo(e.janelaAlteracoesAte)) {
       itens.push({ chave: `j-${e.id}`, tipo: "janela", dia: e.janelaAlteracoesAte, hora: null, titulo: `Fim da janela de alterações · ${e.nome}`, detalhe: "depois disso, alterações chegam marcadas “fora da janela”", href: `/eventos/${e.id}`, evento });
     }
-    // Montagem, desmontagem e carga só aparecem quando foram informadas diferentes do dia do evento.
+    // Montagem e carga só aparecem quando foram informadas diferentes do dia do evento.
     if (e.dataMontagem !== e.dataInicio && noPeriodo(e.dataMontagem)) itens.push({ chave: `m-${e.id}`, tipo: "montagem", dia: e.dataMontagem, hora: null, titulo: `Montagem · ${e.nome}`, detalhe: e.local || null, href: `/eventos/${e.id}`, evento });
-    if (e.dataDesmontagem !== e.dataFim && noPeriodo(e.dataDesmontagem)) itens.push({ chave: `d-${e.id}`, tipo: "desmontagem", dia: e.dataDesmontagem, hora: null, titulo: `Desmontagem · ${e.nome}`, detalhe: e.local || null, href: `/eventos/${e.id}`, evento });
-    if (e.dataCarga && noPeriodo(e.dataCarga)) itens.push({ chave: `c-${e.id}`, tipo: "carga", dia: e.dataCarga, hora: null, titulo: `Carga do caminhão · ${e.nome}`, detalhe: veOs ? "OS final precisa estar estável" : "o que estiver no evento até aqui é o que embarca", href: veOs ? `/eventos/${e.id}/os` : `/eventos/${e.id}`, evento });
+    if (e.dataCarga && noPeriodo(e.dataCarga)) itens.push({ chave: `c-${e.id}`, tipo: "carga", dia: e.dataCarga, hora: null, titulo: `Carga do caminhão · ${e.nome}`, detalhe: "OS final precisa estar estável", href: `/eventos/${e.id}/os`, evento });
   }
 
   if (pode(usuario, "solicitacao.responder") || pode(usuario, "solicitacao.ver_todas")) {
@@ -119,6 +117,6 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
     }
   }
 
-  const ordemTipo: Record<TipoCalendario, number> = { evento: 0, reuniao: 1, prazo: 2, janela: 3, montagem: 4, carga: 5, desmontagem: 6 };
+  const ordemTipo: Record<TipoCalendario, number> = { evento: 0, reuniao: 1, prazo: 2, janela: 3, montagem: 4, carga: 5 };
   return itens.sort((a, b) => a.dia.localeCompare(b.dia) || ordemTipo[a.tipo] - ordemTipo[b.tipo] || (a.hora ?? "").localeCompare(b.hora ?? "") || a.titulo.localeCompare(b.titulo, "pt-BR"));
 }

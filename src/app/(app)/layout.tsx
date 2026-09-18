@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/eventos", label: "Eventos" },
     { href: "/calendario", label: "Calendário" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
-    { href: "/arena", label: "Arena 3D", secao: "Operação" },
+    ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
     ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),

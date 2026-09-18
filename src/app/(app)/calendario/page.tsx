@@ -23,7 +23,6 @@ const TIPO: Record<TipoCalendario, { rotulo: string; ponto: string; fundo: strin
   janela: { rotulo: "Fim da janela de alterações", ponto: "bg-warning", fundo: "bg-warning-bg", texto: "text-warning" },
   montagem: { rotulo: "Montagem", ponto: "bg-success", fundo: "bg-success-bg", texto: "text-success" },
   carga: { rotulo: "Carga do caminhão", ponto: "bg-info", fundo: "bg-info-bg", texto: "text-info" },
-  desmontagem: { rotulo: "Desmontagem", ponto: "bg-muted", fundo: "bg-control", texto: "text-ink-3" },
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -39,24 +38,26 @@ function Compromisso({ i, compacto }: { i: ItemCalendario; compacto?: boolean })
       <Link
         href={i.href}
         title={`${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`}
-        className={cn("block truncate px-1.5 py-[3px] text-rotulo font-medium no-underline hover:brightness-110", t.fundo, t.texto, i.faixa?.inicio ? "ml-0.5 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-0.5 rounded-r-chip" : "-mr-px")}
+        className={cn("block break-words px-1.5 py-[3px] text-rotulo font-medium leading-[1.25] no-underline hover:brightness-110", t.fundo, t.texto, i.faixa?.inicio ? "ml-0.5 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-0.5 rounded-r-chip" : "-mr-px")}
       >
         {i.faixa?.inicio || compacto ? i.titulo : " "}
       </Link>
     );
   }
   return (
-    <Link href={i.href} title={`${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`} className={cn("mx-0.5 flex items-center gap-1 truncate rounded-chip px-1.5 py-[3px] text-rotulo no-underline hover:brightness-95", t.fundo, t.texto)}>
-      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", t.ponto)} />
-      {i.hora && <span className="shrink-0 font-mono text-micro opacity-80">{i.hora}</span>}
-      <span className="truncate">{i.titulo.replace(/^(Reunião de OS|Prazo de resposta|Fim da janela de alterações|Montagem|Desmontagem|Carga do caminhão) · /, "")}</span>
+    <Link href={i.href} title={`${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`} className={cn("mx-0.5 flex items-start gap-1 rounded-chip px-1.5 py-[3px] text-rotulo leading-[1.25] no-underline hover:brightness-95", t.fundo, t.texto)}>
+      <span aria-hidden className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", t.ponto)} />
+      <span className="min-w-0 break-words">
+        {i.hora && <span className="mr-1 font-mono text-micro opacity-80">{i.hora}</span>}
+        {i.titulo.replace(/^(Reunião de OS|Prazo de resposta|Fim da janela de alterações|Montagem|Carga do caminhão) · /, "")}
+      </span>
     </Link>
   );
 }
 
 /**
- * Calendário mensal de tudo que tem data: evento (faixa), reunião de OS, fim da janela, montagem,
- * desmontagem, carga e prazos de resposta (logística). Ao lado, a agenda dos próximos dias.
+ * Calendário mensal: dias de evento (faixa), reunião de OS, fim da janela de alterações, montagem,
+ * carga do caminhão e prazos de resposta (logística e gestão). Ao lado, a agenda dos próximos dias.
  */
 export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ mes?: string; tipo?: string; evento?: string }> }) {
   const usuario = await requireUsuario();
@@ -162,10 +163,14 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                 <div key={c.dia} className={cn("flex min-h-[112px] flex-col border-b border-r border-line-row [&:nth-child(7n)]:border-r-0", !c.doMes && "bg-subtle/60", fimDeSemana && c.doMes && "bg-subtle/30")}>
                   <div className="flex items-center justify-between px-2 pt-1.5">
                     <span className={cn("inline-flex size-6 items-center justify-center rounded-full font-mono text-pequeno", ehHoje ? "bg-accent font-semibold text-white" : c.doMes ? "text-ink" : "text-meta")}>{c.numero}</span>
-                    {itens.length > 3 && <span className="text-micro text-meta">+{itens.length - 3}</span>}
+                    {itens.length > 4 && (
+                      <span className="text-micro text-meta" title={itens.slice(3).map((x) => x.titulo).join("\n")}>
+                        +{itens.length - 3}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-col gap-[3px] pb-1.5">
-                    {itens.slice(0, 3).map((it) => (
+                    {itens.slice(0, itens.length > 4 ? 3 : 4).map((it) => (
                       <Compromisso key={it.chave} i={it} />
                     ))}
                   </div>
@@ -192,11 +197,11 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                     <Link key={it.chave} href={it.href} className="flex gap-2.5 px-[18px] py-1.5 no-underline hover:bg-subtle">
                       <span aria-hidden className={cn("mt-[7px] size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-corpo text-ink">
+                        <span className="block text-corpo leading-[1.35] text-ink">
                           {it.hora && <span className="mr-1.5 font-mono text-pequeno text-ink-3">{it.hora}</span>}
                           {it.titulo}
                         </span>
-                        {it.detalhe && <span className="block truncate text-rotulo text-muted">{it.detalhe}</span>}
+                        {it.detalhe && <span className="block text-rotulo text-muted">{it.detalhe}</span>}
                       </span>
                     </Link>
                   ))}

@@ -43,6 +43,7 @@ const LIMITE = 5000; // metros a partir do marco: bem além de qualquer planta
 
 /** Salva (cria ou substitui) a posição de um ponto da arena. Logística e administrador. */
 export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, dados: DadosPosicao) {
+  exigir(usuario, "arena.ver");
   exigir(usuario, "ata.consolidar");
   if (!dados.chave?.trim() || (dados.tipo !== "MOVER" && dados.tipo !== "NOVO")) throw new ValidacaoError("Ponto inválido.");
   if (![dados.x, dados.z].every((n) => Number.isFinite(n) && Math.abs(n) <= LIMITE)) throw new ValidacaoError("Posição fora da área do mapa.");
@@ -82,6 +83,7 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
 
 /** Desfaz a edição: ponto movido volta ao lugar da planta; ponto novo volta para "sem posição". */
 export async function removerPosicaoArena(usuario: UsuarioAtual, slug: string, chave: string) {
+  exigir(usuario, "arena.ver");
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   const [r] = await db.delete(arenaPosicoes).where(and(eq(arenaPosicoes.arenaSlug, slug), eq(arenaPosicoes.chave, chave))).returning({ tipo: arenaPosicoes.tipo, nome: arenaPosicoes.nome });
@@ -101,6 +103,7 @@ export async function removerPosicaoArena(usuario: UsuarioAtual, slug: string, c
  * "sem posição"). Fica registro de quem restaurou e de quantos pontos foram descartados.
  */
 export async function restaurarPlantaArena(usuario: UsuarioAtual, slug: string) {
+  exigir(usuario, "arena.ver");
   exigir(usuario, "ata.consolidar");
   if (!obterArenaPorSlug(slug)) throw new NaoEncontradoError("Arena");
   const db = await getDb();

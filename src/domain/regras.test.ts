@@ -89,7 +89,12 @@ describe("resposta por item", () => {
 
 describe("permissões", () => {
   it("matriz básica", () => {
-    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "os.ver")).toBe(false);
+    // Todo mundo vê a OS; ajustar e enviar continua só com a logística. Arena e demanda de peças só o administrador.
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "os.ver")).toBe(true);
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "ata.ajustar")).toBe(false);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "arena.ver")).toBe(false);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "consolidacao.ver")).toBe(false);
+    expect(pode({ perfil: "ADMIN", areaId: null }, "arena.ver")).toBe(true);
     expect(pode({ perfil: "CENOGRAFIA", areaId: "a" }, "projeto.gerenciar")).toBe(true);
     expect(pode({ perfil: "LOGISTICA", areaId: null }, "projeto.gerenciar")).toBe(false);
     expect(pode({ perfil: "GESTAO", areaId: null }, "evento.reabrir")).toBe(true);

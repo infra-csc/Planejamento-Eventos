@@ -30,7 +30,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
     <>
       <PageHeader
         title="Demanda de peças"
-        description="Peças que todos os eventos do período vão precisar, de montagem a desmontagem. Eventos simultâneos disputam a mesma peça: o pico mostra o pior dia."
+        description="Peças que todos os eventos do período vão precisar, da montagem ao fim do evento. Eventos simultâneos disputam a mesma peça: o pico mostra o pior dia."
       />
 
       <div className="mb-[18px] flex items-center gap-3">

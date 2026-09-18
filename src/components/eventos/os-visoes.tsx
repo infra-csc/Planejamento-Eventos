@@ -23,6 +23,7 @@ export function OsVisoes({
   csvHref,
   titulo,
   composicao,
+  semNavegacao = false,
 }: {
   os: OsConteudo;
   visao: VisaoOs;
@@ -31,9 +32,12 @@ export function OsVisoes({
   titulo: string;
   /** Quarta aba: os itens que compõem a OS (onde a logística ajusta depois da ata fechada). */
   composicao?: { n: number; conteudo: React.ReactNode; ajustavel?: boolean };
+  /** Quem embute estas leituras com a própria navegação (visão geral do evento). */
+  semNavegacao?: boolean;
 }) {
   return (
     <>
+      {!semNavegacao && (
       <Pills
         rotulo="Visão da OS"
         itens={(
@@ -45,6 +49,7 @@ export function OsVisoes({
           ] as const
         ).map(([chave, rotulo, n]) => ({ label: rotulo, n: n >= 0 ? n : undefined, ativo: visao === chave, href: hrefVisao(chave) }))}
       />
+      )}
 
       {visao === "projetos" && (
         <>
