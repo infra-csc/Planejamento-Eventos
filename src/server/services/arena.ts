@@ -4,7 +4,7 @@ import { arenaPosicoes, usuarios } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { CATEGORIAS } from "@/domain/arena/categorias";
-import type { PosicaoEditada } from "@/domain/arena/posicoes";
+import { descreverGiro, normalizarAngulo, type PosicaoEditada } from "@/domain/arena/posicoes";
 import { registrarHistorico } from "./support";
 import { arenaExiste } from "./arenas";
 
@@ -20,6 +20,7 @@ export async function listarPosicoesArena(slug: string): Promise<PosicaoEditada[
       itemAta: arenaPosicoes.itemAta,
       x: arenaPosicoes.x,
       z: arenaPosicoes.z,
+      rotacao: arenaPosicoes.rotacao,
       atualizadoPor: usuarios.nome,
       atualizadoEm: arenaPosicoes.atualizadoEm,
     })
@@ -37,6 +38,8 @@ export type DadosPosicao = {
   nome?: string | null;
   categoria?: string | null;
   itemAta?: string | null;
+  /** Giro em radianos em relação à planta. Ausente: mantém o que já estava salvo (arrastar não zera o giro). */
+  rotacao?: number | null;
 };
 
 const LIMITE = 5000; // metros a partir do marco: bem além de qualquer planta
@@ -49,6 +52,7 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
   if (![dados.x, dados.z].every((n) => Number.isFinite(n) && Math.abs(n) <= LIMITE)) throw new ValidacaoError("Posição fora da área do mapa.");
   if (dados.tipo === "NOVO" && !dados.nome?.trim()) throw new ValidacaoError("Informe o nome do item.");
   if (dados.categoria && !Object.hasOwn(CATEGORIAS, dados.categoria)) throw new ValidacaoError("Categoria inválida.");
+  if (dados.rotacao != null && (!Number.isFinite(dados.rotacao) || Math.abs(dados.rotacao) > 100)) throw new ValidacaoError("Giro inválido.");
   if (!(await arenaExiste(slug))) throw new NaoEncontradoError("Arena");
   const db = await getDb();
   const valores = {
@@ -61,6 +65,7 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
     itemAta: dados.itemAta ?? null,
     x: Math.round(dados.x * 10) / 10,
     z: Math.round(dados.z * 10) / 10,
+    rotacao: dados.rotacao == null ? null : normalizarAngulo(dados.rotacao),
     atualizadoPorId: usuario.id,
     atualizadoEm: new Date(),
   };
@@ -69,13 +74,21 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
     .values(valores)
     .onConflictDoUpdate({
       target: [arenaPosicoes.arenaSlug, arenaPosicoes.chave],
-      set: { x: valores.x, z: valores.z, atualizadoPorId: usuario.id, atualizadoEm: valores.atualizadoEm, ...(dados.categoria ? { categoria: dados.categoria } : {}), ...(valores.nome ? { nome: valores.nome } : {}) },
+      set: {
+        x: valores.x,
+        z: valores.z,
+        atualizadoPorId: usuario.id,
+        atualizadoEm: valores.atualizadoEm,
+        ...(dados.categoria ? { categoria: dados.categoria } : {}),
+        ...(valores.nome ? { nome: valores.nome } : {}),
+        ...(dados.rotacao !== undefined ? { rotacao: valores.rotacao } : {}),
+      },
     });
   await registrarHistorico(db, {
     entidade: "arena",
     entidadeId: `${slug}:${dados.chave}`,
     acao: dados.tipo === "NOVO" ? "ARENA_POSICIONADO" : "ARENA_MOVIDO",
-    descricao: `${dados.tipo === "NOVO" ? `“${dados.nome}” posicionado` : `“${dados.nome ?? dados.chave}” ajustado`} na Arena 3D (${valores.x}, ${valores.z})${dados.categoria ? ` · categoria ${dados.categoria}` : ""}`,
+    descricao: `${dados.tipo === "NOVO" ? `“${dados.nome}” posicionado` : `“${dados.nome ?? dados.chave}” ajustado`} na Arena 3D (${valores.x}, ${valores.z})${descreverGiro(valores.rotacao) ? ` · giro ${descreverGiro(valores.rotacao)}` : ""}${dados.categoria ? ` · categoria ${dados.categoria}` : ""}`,
     usuarioId: usuario.id,
     dadosDepois: valores,
   });

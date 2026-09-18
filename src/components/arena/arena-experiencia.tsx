@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Arena } from "@/domain/arena/tipos";
-import { CAMADAS, CATEGORIAS, COR_PERCURSO, GRUPOS_CAMADAS, camadasEssenciais, camadasPadrao, camadasTudo, type Camada } from "@/domain/arena/categorias";
+import type { Arena, PontoArena, Vec2 } from "@/domain/arena/tipos";
+import { CAMADAS, CATEGORIAS, COR_PERCURSO, GRUPOS_CAMADAS, camadasEssenciais, camadasPadrao, camadasTudo, prioridadeRotulo, type Camada } from "@/domain/arena/categorias";
+import { chaveItemAta, descreverGiro, distancia, distanciaPrecisa, normalizarAngulo, quantidadeAta, rotuloDistancia } from "@/domain/arena/posicoes";
 import { divergenciasDaArena } from "@/domain/arena/conferencia";
 import { buscarPontos, itensNaoPosicionados } from "@/domain/arena/geometria";
 import { cn } from "@/lib/cn";
@@ -16,6 +17,7 @@ import { toast, toastErro } from "@/components/ui/toast";
 import { Badge, ChipMono } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { Input, Select } from "@/components/ui/field";
 import { IconeLapis } from "@/components/ui/icons";
 import { EmptyState, Kbd, Meta, PageHeader, RotuloGrupo } from "@/components/ui/layout";
@@ -24,7 +26,7 @@ import { PainelConferencia } from "./painel-conferencia";
 import { Plano2D } from "./plano-2d";
 import { IndicePontos } from "./indice-pontos";
 import { Minimapa } from "./minimapa";
-import { IconeBusca, IconeCamadas, IconeEnquadrar, IconeLista, IconeMais, IconeMenos, IconeNorte, IconeSairTelaCheia, IconeTelaCheia } from "./icones";
+import { IconeBusca, IconeCamadas, IconeEnquadrar, IconeImprimir, IconeLista, IconeMais, IconeMenos, IconeNorte, IconeRegua, IconeSairTelaCheia, IconeTelaCheia } from "./icones";
 
 type VistaMapa = "perspectiva" | "superior" | "planta";
 type PainelEsquerdo = "indice" | "conferencia" | null;
@@ -51,12 +53,13 @@ const ATALHOS: Array<[string, string]> = [
   ["P", "Índice de pontos"],
   ["/", "Buscar ponto"],
   ["F", "Tela cheia"],
-  ["Esc", "Fechar painel"],
+  ["M", "Medir distância"],
+  ["Q  E", "Girar o ponto selecionado (edição)"],
+  ["Ctrl Z", "Desfazer (edição)"],
+  ["Esc", "Fechar painel ou parar de medir"],
 ];
 
 const cartao = "rounded-cartao border border-line bg-surface/95 shadow-pill backdrop-blur";
-/** Botão de canto (Editar, sem posição, origem): secundário com estado "pressionado" em accent. */
-const botaoCanto = "shadow-pill aria-pressed:border-accent aria-pressed:bg-accent-bg aria-pressed:text-accent";
 
 function BotaoMapa({
   rotulo,
@@ -110,29 +113,73 @@ const ATALHOS_ITEM: Array<{ nome: string; categoria: string }> = [
   { nome: "Ponto de energia", categoria: "operacao" },
 ];
 
-export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, editadas = [] }: { arena: Arena; podeEditar?: boolean; editadas?: string[] }) {
+/** Ajuste salvo agora e ainda não refletido pelo servidor. */
+type Ajuste = { posicao?: [number, number]; rotacao?: number };
+/** Registro de arena_posicoes como a interface consegue recriá-lo (inclusive de um ponto excluído). */
+type Registro = { tipo: "MOVER" | "NOVO"; x: number; z: number; nome: string; categoria: string; itemAta: string | null; rotacao: number | null };
+/** Ação desta sessão de edição. Desfazer = devolver o registro do ponto ao que era antes (ou apagá-lo, se não havia). */
+type AcaoEdicao = { rotulo: string; chave: string; antes: Registro | null };
+
+const LIMITE_DESFAZER = 30;
+const PASSO_GIRO = Math.PI / 12;
+const tipoRegistro = (chave: string) => (chave.startsWith("novo:") ? "NOVO" : "MOVER");
+const itemAtaDe = (p: PontoArena) => (p.itensAta[0] ? chaveItemAta(p.itensAta[0]) : null);
+
+export function ArenaExperiencia({
+  arena: arenaServidor,
+  podeEditar = false,
+  editadas = [],
+  plantaImagemUrl = null,
+}: {
+  arena: Arena;
+  podeEditar?: boolean;
+  editadas?: string[];
+  /** Imagem da planta do evento: fundo da Planta 2D e textura no chão do 3D, no retângulo `arena.area`. */
+  plantaImagemUrl?: string | null;
+}) {
   const router = useRouter();
   const [salvando, iniciarSalvar] = useTransition();
   const [editando, setEditando] = useState(false);
   const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
   const [menuItens, setMenuItens] = useState(false);
-  /** Última mudança feita nesta sessão de edição, para o botão "Desfazer". */
-  const [ultima, setUltima] = useState<{ chave: string; nome: string; anterior: { x: number; z: number } | null } | null>(null);
+  /** Ações desta sessão de edição, da mais antiga à mais recente, para o "Desfazer". */
+  const [pilha, setPilha] = useState<AcaoEdicao[]>([]);
   const [colocando, setColocando] = useState<PosicionarItem | null>(null);
   // Formulário do banner de edição: item novo (fora da planta) ou nome/categoria do ponto selecionado.
   const [formEdicao, setFormEdicao] = useState<{ modo: "novo" | "info"; nome: string; categoria: string } | null>(null);
-  // Posições salvas agora e ainda não refletidas pelo servidor: o ponto não "pula de volta" enquanto recarrega.
-  const [locais, setLocais] = useState<Record<string, [number, number]>>({});
+  // Posições e giros salvos agora e ainda não refletidos pelo servidor: o ponto não "pula de volta" enquanto recarrega.
+  const [locais, setLocais] = useState<Record<string, Ajuste>>({});
+  // Registros criados (true) ou apagados (false) nesta sessão e ainda não refletidos em `editadas`.
+  const [registrosLocais, setRegistrosLocais] = useState<Record<string, boolean>>({});
+  // Arraste em andamento no 3D: só desenho, nada salvo ainda.
+  const [previa, setPrevia] = useState<{ id: string; posicao: [number, number] } | null>(null);
   const [baseServidor, setBaseServidor] = useState(arenaServidor);
   if (baseServidor !== arenaServidor) {
     setBaseServidor(arenaServidor);
     setLocais({});
+    setRegistrosLocais({});
   }
+  const arenaSalva = useMemo(() => {
+    if (Object.keys(locais).length === 0) return arenaServidor;
+    return {
+      ...arenaServidor,
+      pontos: arenaServidor.pontos.map((p) => {
+        const l = locais[p.id];
+        return l ? { ...p, posicao: l.posicao ?? p.posicao, rotacao: l.rotacao ?? p.rotacao } : p;
+      }),
+    };
+  }, [arenaServidor, locais]);
   const arena = useMemo(
-    () => (Object.keys(locais).length === 0 ? arenaServidor : { ...arenaServidor, pontos: arenaServidor.pontos.map((p) => (locais[p.id] ? { ...p, posicao: locais[p.id] } : p)) }),
-    [arenaServidor, locais],
+    () => (previa ? { ...arenaSalva, pontos: arenaSalva.pontos.map((p) => (p.id === previa.id ? { ...p, posicao: previa.posicao } : p)) } : arenaSalva),
+    [arenaSalva, previa],
   );
   const idsEditados = useMemo(() => new Set(editadas), [editadas]);
+  const temRegistro = (chave: string) => (chave in registrosLocais ? registrosLocais[chave] : idsEditados.has(chave));
+  /** A cena 3D nasce com a arena do momento; depois as edições chegam por `atualizarPontos`, sem remontar a cada arraste. */
+  const arenaCenaRef = useRef(arena);
+  useLayoutEffect(() => {
+    arenaCenaRef.current = arena;
+  });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -172,6 +219,12 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [indiceBusca, setIndiceBusca] = useState(0);
+  const [plantaFundo, setPlantaFundo] = useState(true);
+  // Régua: `a` e `b` em metros; `cursorMedida` é a prévia da segunda ponta sob o ponteiro.
+  const [medindo, setMedindo] = useState(false);
+  const [medida, setMedida] = useState<{ a: Vec2 | null; b: Vec2 | null }>({ a: null, b: null });
+  const [cursorMedida, setCursorMedida] = useState<Vec2 | null>(null);
+  const cursorRaf = useRef(0);
 
   const modo = vistaMapa === "planta" ? "2d" : "3d";
   const ponto = arena.pontos.find((p) => p.id === selecionado) ?? null;
@@ -197,6 +250,38 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   const fichaAberta = painelDireito === "ficha" && Boolean(ponto);
   const direitaAberta = fichaAberta || painelDireito === "sem-posicao" || painelDireito === "ata";
   const opcaoAtiva = buscaAberta ? resultados[indiceBusca] : undefined;
+  const quantidades = useMemo(() => new Map(arena.pontos.map((p) => [p.id, quantidadeAta(p)])), [arena.pontos]);
+  const distanciaMedida = medida.a && medida.b ? distancia(medida.a, medida.b) : null;
+  const pontaMedida = medida.b ?? (medida.a ? cursorMedida : null);
+
+  /* ------------------------------------------------------------------ */
+  /* Régua: dois cliques (no chão ou num ponto), o terceiro recomeça      */
+  /* ------------------------------------------------------------------ */
+
+  const pararMedicao = () => {
+    cancelAnimationFrame(cursorRaf.current);
+    setMedindo(false);
+    setMedida({ a: null, b: null });
+    setCursorMedida(null);
+  };
+  const alternarMedicao = () => {
+    if (medindo) return pararMedicao();
+    // Medir não convive com posicionar item: o clique seria disputado pelos dois.
+    setMedindo(true);
+    setMedida({ a: null, b: null });
+    setColocando(null);
+    setMenuItens(false);
+    setFormEdicao(null);
+  };
+  const marcarMedida = (x: number, z: number) => {
+    setCursorMedida(null);
+    setMedida((m) => (!m.a || m.b ? { a: [x, z], b: null } : { a: m.a, b: [x, z] }));
+  };
+  /** Prévia sob o ponteiro, no máximo uma por quadro. */
+  const moverCursorMedida = (p: Vec2 | null) => {
+    cancelAnimationFrame(cursorRaf.current);
+    cursorRaf.current = requestAnimationFrame(() => setCursorMedida(p));
+  };
 
   /* ------------------------------------------------------------------ */
   /* Painéis: um de cada lado, e conferência nunca junto da ficha         */
@@ -291,7 +376,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         motor = new MotorArena({
           container: host,
           overlay,
-          arena,
+          arena: arenaCenaRef.current,
           qualidade: qualidade ?? qualidadeSugerida(),
           camadas: camadasRef.current,
           reduzirMovimento: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -328,12 +413,14 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       motorRef.current = null;
       motor?.dispose();
     };
-  }, [modo, qualidade, tentativa, arena]);
+  }, [modo, qualidade, tentativa]);
 
   // Clique num ponto do mapa sempre significa "quero ver este ponto"; no vazio, fecha a ficha.
   useEffect(() => {
     vistaRef.current = vistaMapa;
     aoSelecionarNoMapa.current = (id) => {
+      // Medindo, o clique é da régua (o motor já entrega o chão; este é o caso do clique no céu).
+      if (medindo) return;
       if (id) abrirPonto(id);
       else if (painelDireito === "ficha") fecharDireito();
     };
@@ -358,6 +445,14 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   useEffect(() => {
     motorRef.current?.definirRealce(conferenciaAtiva ? idsDivergentes : null);
   }, [conferenciaAtiva, idsDivergentes, estado]);
+
+  useEffect(() => {
+    if (estado === "pronto") motorRef.current?.definirMedida(medida.a, pontaMedida);
+  }, [medida.a, pontaMedida, estado]);
+
+  useEffect(() => {
+    if (estado === "pronto") motorRef.current?.definirPlantaFundo(plantaImagemUrl, plantaFundo);
+  }, [plantaImagemUrl, plantaFundo, estado]);
 
   // A cena sempre nasce em perspectiva; se a vista escolhida era "de cima", aplica quando fica pronta.
   useEffect(() => {
@@ -436,7 +531,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       const alvo = e.target as HTMLElement | null;
       const digitando = alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.isContentEditable);
       if (e.key === "Escape") {
-        if (buscaAberta) setBuscaAberta(false);
+        if (medindo && !digitando) pararMedicao();
+        else if (buscaAberta) setBuscaAberta(false);
         else if (ajudaAberta) setAjudaAberta(false);
         else if (fontesAbertas) setFontesAbertas(false);
         else if (painelCamadas) setPainelCamadas(false);
@@ -462,6 +558,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         p: alternarIndice,
         f: () => void alternarTelaCheia(),
         "?": () => setAjudaAberta((v) => !v),
+        m: alternarMedicao,
         "/": () => buscaRef.current?.focus(),
         ArrowUp: () => motor?.mover(1, 0),
         ArrowDown: () => motor?.mover(-1, 0),
@@ -488,6 +585,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   /* ------------------------------------------------------------------ */
 
   const salvarPosicao = (dados: Parameters<typeof salvarPosicaoArenaAction>[1], rotulo: string, silencioso = false) => {
+    const tinha = temRegistro(dados.chave);
+    setRegistrosLocais((r) => ({ ...r, [dados.chave]: true }));
     iniciarSalvar(async () => {
       const r = await salvarPosicaoArenaAction(arena.slug, dados);
       if (!r.ok) {
@@ -497,6 +596,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           delete n[dados.chave];
           return n;
         });
+        setRegistrosLocais((x) => ({ ...x, [dados.chave]: tinha }));
         return;
       }
       // Arrastar salva a cada solta: um aviso por arrasto viraria ruído. O estado aparece na barra.
@@ -505,11 +605,15 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
     });
   };
 
-  /** Guarda onde o ponto estava antes desta mudança, para o "Desfazer" da barra de edição. */
-  const registrarDesfazer = (chave: string, nome: string) => {
-    const antes = idsEditados.has(chave) ? arena.pontos.find((p) => p.id === chave) : null;
-    setUltima({ chave, nome, anterior: antes ? { x: antes.posicao[0], z: antes.posicao[1] } : null });
+  /** Registro do ponto como está salvo agora (sem a prévia de arraste); null se ele segue a planta. */
+  const registroDe = (chave: string): Registro | null => {
+    if (!temRegistro(chave)) return null;
+    const p = arenaSalva.pontos.find((q) => q.id === chave);
+    if (!p) return null;
+    return { tipo: tipoRegistro(chave), x: p.posicao[0], z: p.posicao[1], nome: p.nome, categoria: p.categoria, itemAta: itemAtaDe(p), rotacao: p.rotacao ?? null };
   };
+  /** Guarda o estado anterior do ponto antes de cada mudança, para o "Desfazer" em vários passos. */
+  const empilhar = (rotulo: string, chave: string) => setPilha((p) => [...p, { rotulo, chave, antes: registroDe(chave) }].slice(-LIMITE_DESFAZER));
 
   // Esc sai do modo "clique no mapa" sem ter de achar o botão Cancelar.
   useEffect(() => {
@@ -529,7 +633,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       setColocando(null);
       setMenuItens(false);
       setFormEdicao(null);
-      setUltima(null);
+      setPilha([]);
       return;
     }
     // Edita na vista em que a pessoa está (planta, de cima ou perspectiva), sem painel aberto por cima.
@@ -543,17 +647,18 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         colocando: colocando?.chave ?? null,
         editadas: idsEditados,
         onMover: (id: string, x: number, z: number) => {
-          const p = arena.pontos.find((q) => q.id === id);
+          const p = arenaSalva.pontos.find((q) => q.id === id);
+          setPrevia(null);
           if (!p) return;
-          registrarDesfazer(id, p.nome);
-          setLocais((l) => ({ ...l, [id]: [x, z] }));
-          salvarPosicao({ chave: id, tipo: id.startsWith("novo:") ? "NOVO" : "MOVER", x, z, nome: p.nome, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null }, "", true);
+          empilhar(`mover ${p.nome}`, id);
+          setLocais((l) => ({ ...l, [id]: { ...l[id], posicao: [x, z] } }));
+          salvarPosicao({ chave: id, tipo: tipoRegistro(id), x, z, nome: p.nome, itemAta: itemAtaDe(p) }, "", true);
         },
         onColocar: (x: number, z: number) => {
           if (!colocando) return;
           const item = colocando;
           setColocando(null);
-          registrarDesfazer(item.chave, item.nome);
+          empilhar(`posicionar ${item.nome}`, item.chave);
           setSelecionado(item.chave);
           salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} entrou no mapa — arraste para acertar o lugar`);
         },
@@ -563,13 +668,17 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   // Atualizado depois de cada render: o motor chama a versão com o item escolhido mais recente.
   useEffect(() => {
     aoClicarChaoRef.current = (x, z) => {
+      if (medindo) {
+        marcarMedida(x, z);
+        return true;
+      }
       if (!edicaoPlano || !colocando) return false;
       edicaoPlano.onColocar(x, z);
       return true;
     };
   });
 
-  const pontoEditado = editando && selecionado && idsEditados.has(selecionado) ? arena.pontos.find((p) => p.id === selecionado) : null;
+  const pontoEditado = editando && selecionado && temRegistro(selecionado) ? arena.pontos.find((p) => p.id === selecionado) : null;
   const pontoSelecionadoEdicao = editando && selecionado ? arena.pontos.find((p) => p.id === selecionado) ?? null : null;
 
   const confirmarFormEdicao = () => {
@@ -583,42 +692,88 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
     }
     const p = pontoSelecionadoEdicao;
     if (!p) return setFormEdicao(null);
-    salvarPosicao(
-      { chave: p.id, tipo: p.id.startsWith("novo:") ? "NOVO" : "MOVER", x: p.posicao[0], z: p.posicao[1], nome, categoria: formEdicao.categoria, itemAta: p.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null },
-      `${nome}: dados salvos`,
-    );
+    empilhar(`renomear ${p.nome}`, p.id);
+    salvarPosicao({ chave: p.id, tipo: tipoRegistro(p.id), x: p.posicao[0], z: p.posicao[1], nome, categoria: formEdicao.categoria, itemAta: itemAtaDe(p) }, `${nome}: dados salvos`);
     setFormEdicao(null);
   };
-  const desfazerUltima = () => {
-    if (!ultima) return;
-    const alvo = ultima;
-    setUltima(null);
-    if (!alvo.anterior) {
-      // Não havia edição antes: apagar o registro devolve o ponto à planta (ou tira o item novo do mapa).
-      return desfazerPosicao(alvo.chave, alvo.nome);
-    }
-    const p = arena.pontos.find((q) => q.id === alvo.chave);
-    setLocais((l) => ({ ...l, [alvo.chave]: [alvo.anterior!.x, alvo.anterior!.z] }));
-    salvarPosicao(
-      { chave: alvo.chave, tipo: alvo.chave.startsWith("novo:") ? "NOVO" : "MOVER", x: alvo.anterior.x, z: alvo.anterior.z, nome: p?.nome ?? alvo.nome, itemAta: p?.itensAta[0] ? `${p.itensAta[0].secao}|${p.itensAta[0].item}` : null },
-      `${alvo.nome}: mudança desfeita`,
-    );
+
+  /** Giro do ponto selecionado em torno dele mesmo; positivo é anti-horário visto de cima. */
+  const girar = (delta: number) => {
+    const p = pontoSelecionadoEdicao;
+    if (!p || medindo) return;
+    const rotacao = normalizarAngulo((p.rotacao ?? 0) + delta);
+    empilhar(`girar ${p.nome}`, p.id);
+    setLocais((l) => ({ ...l, [p.id]: { ...l[p.id], rotacao } }));
+    salvarPosicao({ chave: p.id, tipo: tipoRegistro(p.id), x: p.posicao[0], z: p.posicao[1], nome: p.nome, itemAta: itemAtaDe(p), rotacao }, "", true);
   };
+
+  /** Apaga o registro: ponto movido volta à planta, item novo sai do mapa (o da ata volta para "sem posição"). */
+  const removerRegistro = (id: string, aviso: string, limparSelecao = true) => {
+    const tinha = temRegistro(id);
+    setRegistrosLocais((r) => ({ ...r, [id]: false }));
+    iniciarSalvar(async () => {
+      const r = await removerPosicaoArenaAction(arena.slug, id);
+      if (!r.ok) {
+        setRegistrosLocais((x) => ({ ...x, [id]: tinha }));
+        return toastErro(r.erro);
+      }
+      toast(aviso);
+      if (limparSelecao) setSelecionado(null);
+      else if (id.startsWith("novo:")) setSelecionado((sel) => (sel === id ? null : sel));
+      router.refresh();
+    });
+  };
+
+  const excluirDoMapa = (p: PontoArena) => {
+    const livre = p.id.startsWith("novo:livre:");
+    const novo = p.id.startsWith("novo:");
+    empilhar(livre ? `excluir ${p.nome}` : novo ? `tirar ${p.nome} do mapa` : `voltar ${p.nome} ao lugar original`, p.id);
+    removerRegistro(p.id, livre ? `${p.nome} excluído do mapa` : novo ? `${p.nome} voltou para "sem posição"` : `${p.nome} voltou ao lugar da planta`);
+  };
+
+  const desfazer = () => {
+    const acao = pilha[pilha.length - 1];
+    if (!acao || salvando) return;
+    setPilha((p) => p.slice(0, -1));
+    const aviso = `Desfeito: ${acao.rotulo}`;
+    if (!acao.antes) return removerRegistro(acao.chave, aviso, false);
+    const a = acao.antes;
+    setLocais((l) => ({ ...l, [acao.chave]: { posicao: [a.x, a.z], rotacao: a.rotacao ?? 0 } }));
+    salvarPosicao({ chave: acao.chave, tipo: a.tipo, x: a.x, z: a.z, nome: a.nome, categoria: a.categoria, itemAta: a.itemAta, rotacao: a.rotacao }, aviso);
+  };
+
+  // Atalhos da edição: Ctrl+Z desfaz, Q/E giram o selecionado. Fora de campos de texto.
+  const atalhosEdicaoRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
+  useEffect(() => {
+    atalhosEdicaoRef.current = (e: KeyboardEvent) => {
+      if (!editando || !wrapperRef.current?.isConnected) return;
+      const alvo = e.target as HTMLElement | null;
+      if (alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.tagName === "SELECT" || alvo.isContentEditable)) return;
+      const tecla = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && tecla === "z") {
+        e.preventDefault();
+        desfazer();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey || !pontoSelecionadoEdicao || colocando || medindo) return;
+      if (tecla === "q" || tecla === "e") {
+        e.preventDefault();
+        girar(tecla === "q" ? PASSO_GIRO : -PASSO_GIRO);
+      }
+    };
+  });
+  useEffect(() => {
+    const ouvir = (e: KeyboardEvent) => atalhosEdicaoRef.current(e);
+    window.addEventListener("keydown", ouvir);
+    return () => window.removeEventListener("keydown", ouvir);
+  }, []);
 
   // Mapa inteiro de volta à planta do evento: usado quando a edição saiu do controle.
   const aposRestaurar = () => {
     setConfirmarRestaurar(false);
+    setPilha([]);
     // A cena 3D guarda as posições que já desenhou: só recarregando ela volta limpa, igual à planta.
     window.location.reload();
-  };
-  const desfazerPosicao = (id: string, nome: string) => {
-    iniciarSalvar(async () => {
-      const r = await removerPosicaoArenaAction(arena.slug, id);
-      if (!r.ok) return toastErro(r.erro);
-      toast(id.startsWith("novo:") ? `${nome} voltou para "sem posição"` : `${nome} voltou ao lugar da planta`);
-      setSelecionado(null);
-      router.refresh();
-    });
   };
 
   return (
@@ -630,15 +785,16 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         eyebrow={<span className="font-mono">{arena.evento.sku}</span>}
         meta={
           <>
-            <Meta rotulo="Prova" valor={DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))} mono />
-            <Meta rotulo="Largadas" valor={arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")} mono />
+            {arena.evento.data && <Meta rotulo={arena.evento.largadas.length > 0 ? "Prova" : "Data"} valor={DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))} mono />}
+            {arena.evento.largadas.length > 0 && <Meta rotulo="Largadas" valor={arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")} mono />}
+            {arena.evento.largadas.length === 0 && arena.evento.local && <Meta rotulo="Local" valor={arena.evento.local} />}
             {arena.evento.publicoEsperado && <Meta rotulo="Público" valor={<span className="tabular-nums">{arena.evento.publicoEsperado.toLocaleString("pt-BR")}</span>} mono />}
             {arena.evento.diretorProva && <Meta rotulo="Direção" valor={arena.evento.diretorProva} />}
           </>
         }
         actions={
           totalDivergencias === 0 ? (
-            <Badge tom="success">Planta e ata conferidas</Badge>
+            arena.pontos.length > 0 && <Badge tom="success">Planta e ata conferidas</Badge>
           ) : (
             <Button variant="parcial" size="sm" aria-pressed={conferenciaAtiva} onClick={alternarConferencia} className="aria-pressed:border-warning aria-pressed:bg-warning aria-pressed:text-white">
               <span aria-hidden className={cn("block size-1.5 animate-pulse-dot rounded-full", conferenciaAtiva ? "bg-warning-bg" : "bg-danger")} />
@@ -662,11 +818,19 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         )}
         {editando && (
           <>
-            <Button variant="secondary" size="sm" aria-expanded={menuItens} disabled={Boolean(colocando)} onClick={() => setMenuItens((v) => !v)}>
+            <Button variant="secondary" size="sm" aria-expanded={menuItens} disabled={Boolean(colocando) || medindo} onClick={() => setMenuItens((v) => !v)}>
               + Adicionar ao mapa
             </Button>
-            <Button variant="ghost" size="sm" disabled={!ultima || salvando || Boolean(colocando)} title={ultima ? `Desfazer: ${ultima.nome}` : "Nada para desfazer nesta sessão"} onClick={desfazerUltima}>
-              Desfazer
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pilha.length === 0 || salvando || Boolean(colocando)}
+              title={pilha.length ? `Desfazer: ${pilha[pilha.length - 1].rotulo} (Ctrl+Z)` : "Nada para desfazer nesta sessão"}
+              aria-keyshortcuts="Control+Z"
+              onClick={desfazer}
+              className="tabular-nums"
+            >
+              Desfazer{pilha.length > 0 && ` (${pilha.length})`}
             </Button>
             <span aria-hidden className="mx-1 h-6 w-px bg-line" />
           </>
@@ -674,13 +838,33 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
 
         {/* Área de contexto: uma frase só, trocada conforme o momento. */}
         <div role="status" className="flex min-w-0 flex-1 items-center gap-2 text-pequeno text-ink-3">
-          {colocando ? (
+          {medindo ? (
+            <>
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-white">
+                <IconeRegua className="size-3" />
+              </span>
+              <span className="min-w-0 truncate">
+                {distanciaMedida != null ? (
+                  <>
+                    Distância: <span className="font-medium tabular-nums text-ink">{distanciaPrecisa(distanciaMedida)}</span> · clique de novo para outra medida
+                  </>
+                ) : medida.a ? (
+                  <>
+                    Clique no segundo ponto{pontaMedida && <span className="tabular-nums"> · {distanciaPrecisa(distancia(medida.a, pontaMedida))}</span>}
+                  </>
+                ) : (
+                  "Régua: clique no primeiro ponto, no chão ou num pino"
+                )}
+              </span>
+              <Kbd>Esc</Kbd>
+            </>
+          ) : colocando ? (
             <>
               <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-micro font-semibold text-white">2</span>
               <span className="min-w-0 truncate">
                 Clique no mapa onde fica <span className="font-medium text-ink">{colocando.nome}</span>
               </span>
-              <Button size="xs" onClick={() => setColocando(null)}>
+              <Button size="xs" className="shrink-0" onClick={() => setColocando(null)}>
                 Cancelar <Kbd>Esc</Kbd>
               </Button>
             </>
@@ -688,15 +872,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
             <>
               <span className="min-w-0 truncate">
                 <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span> · arraste para mover
+                {descreverGiro(pontoSelecionadoEdicao.rotacao) && <span className="tabular-nums"> · girado {descreverGiro(pontoSelecionadoEdicao.rotacao)}</span>}
               </span>
-              <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
-                Renomear
-              </Button>
-              {pontoEditado && (
-                <Button size="xs" variant="recusar" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
-                  {pontoEditado.id.startsWith("novo:livre:") ? "Excluir" : pontoEditado.id.startsWith("novo:") ? "Tirar do mapa" : "Voltar ao lugar original"}
-                </Button>
-              )}
             </>
           ) : editando ? (
             <span className="min-w-0 truncate">{salvando ? "Salvando…" : "Arraste um ponto para mover, ou use “Adicionar ao mapa”."}</span>
@@ -705,20 +882,39 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           )}
         </div>
 
-        <Button size="sm" variant="ghost" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao}>
+        <Button size="sm" variant="ghost" aria-pressed={medindo} aria-keyshortcuts="M" title={medindo ? "Parar de medir (Esc)" : "Medir a distância entre dois pontos (M)"} onClick={alternarMedicao} className="shrink-0 aria-pressed:bg-accent-bg aria-pressed:text-accent">
+          <IconeRegua />
+          {medindo ? "Parar" : "Medir"}
+        </Button>
+        <Button size="sm" variant="ghost" className="shrink-0 tabular-nums" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao}>
           {foraDoMapa} sem posição
         </Button>
-        <Button size="sm" variant="ghost" aria-expanded={fontesAbertas} title="De onde vêm os dados deste mapa" onClick={() => setFontesAbertas((v) => !v)}>
-          Fontes
-        </Button>
-        {podeEditar && (
-          <Button size="sm" variant="dangerOutline" disabled={salvando || idsEditados.size === 0} title={idsEditados.size === 0 ? "O mapa já está igual à planta original" : "Descartar todas as mudanças e voltar à planta do evento"} onClick={() => setConfirmarRestaurar(true)}>
-            Restaurar original
-          </Button>
-        )}
+        {/* Ações de vez em quando ficam num menu: a barra mostra só o que se usa editando. */}
+        <Dropdown>
+          <DropdownTrigger asChild>
+            <Button size="sm" variant="ghost" className="shrink-0" aria-label="Mais ações do mapa" title="Imprimir, fontes dos dados e restaurar">
+              <span aria-hidden className="text-destaque leading-none">⋯</span>
+            </Button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownItem onSelect={() => window.open(`/impressao/arena/${arena.slug}`, "_blank", "noopener,noreferrer")}>
+              <IconeImprimir />
+              Imprimir mapa (PDF)
+            </DropdownItem>
+            <DropdownItem onSelect={() => setFontesAbertas(true)}>De onde vêm os dados</DropdownItem>
+            {podeEditar && (
+              <>
+                <DropdownSeparator />
+                <DropdownItem danger disabled={salvando || idsEditados.size === 0} onSelect={() => setConfirmarRestaurar(true)}>
+                  {idsEditados.size === 0 ? "Já está igual à planta original" : "Restaurar planta original…"}
+                </DropdownItem>
+              </>
+            )}
+          </DropdownContent>
+        </Dropdown>
 
         {/* Passo 1: escolher o que pôr no mapa. Flutua sob a barra. */}
-        {editando && menuItens && !colocando && (
+        {editando && menuItens && !colocando && !medindo && (
           <div role="dialog" aria-label="Adicionar ao mapa" className="absolute left-3 top-[calc(100%+6px)] z-30 w-[min(560px,calc(100%-24px))] rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido">
             <p className="m-0 flex items-center gap-2 text-pequeno font-medium text-ink">
               <span className="grid size-5 place-items-center rounded-full bg-accent text-micro font-semibold text-white">1</span>
@@ -797,6 +993,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
 
       <div
         ref={wrapperRef}
+        onPointerMove={usar3D && medindo && medida.a && !medida.b ? (e) => moverCursorMedida(motorRef.current?.chaoEm(e.clientX, e.clientY) ?? null) : undefined}
         className={cn(
           "overflow-hidden border border-line bg-[#e6e2dc]",
           telaCheia ? "fixed inset-0 z-[var(--z-tela-cheia)] h-[100dvh] w-screen rounded-none border-0" : "relative h-[calc(100dvh-250px)] min-h-[520px] rounded-modal",
@@ -815,18 +1012,20 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                 const divergente = conferenciaAtiva && idsDivergentes.has(p.id);
                 const apagado = conferenciaAtiva && !divergente;
                 const rotulo = conferenciaAtiva ? divergente && (camadas.rotulos || emFoco) : camadas.rotulos || emFoco;
+                const qtd = quantidades.get(p.id);
                 return (
                   <button
                     key={p.id}
                     type="button"
                     data-ponto-id={p.id}
-                    aria-label={`${p.nome}, ${p.tipo}${divergente ? ", com divergência entre planta e ata" : ""}`}
+                    aria-label={`${p.nome}, ${p.tipo}${qtd != null ? `, quantidade ${qtd}` : ""}${divergente ? ", com divergência entre planta e ata" : ""}`}
                     aria-pressed={ativo}
                     onClick={(e) => {
                       if (ignorarClique.current) {
                         ignorarClique.current = false;
                         return;
                       }
+                      if (medindo) return marcarMedida(p.posicao[0], p.posicao[1]);
                       if (editando && colocando) {
                         const chao = motorRef.current?.chaoEm(e.clientX, e.clientY);
                         if (chao) edicaoPlano?.onColocar(chao[0], chao[1]);
@@ -835,7 +1034,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                       abrirPonto(p.id);
                     }}
                     onPointerDown={(e) => {
-                      if (!editando || colocando || e.button !== 0) return;
+                      if (!editando || colocando || medindo || e.button !== 0) return;
                       e.currentTarget.setPointerCapture(e.pointerId);
                       motorRef.current?.travarCamera(true);
                       // O canto do botão é o ponto no chão; guardamos onde, em relação a ele, a pessoa pegou.
@@ -850,7 +1049,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                       const chao = motorRef.current?.chaoEm(e.clientX - a.dx, e.clientY - a.dy);
                       if (!chao) return;
                       a.ultimo = chao;
-                      setLocais((l) => ({ ...l, [p.id]: chao }));
+                      setPrevia({ id: p.id, posicao: chao });
                     }}
                     onPointerUp={() => {
                       const a = arraste3d.current;
@@ -864,15 +1063,18 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                     onMouseLeave={() => setHover(null)}
                     onFocus={() => setHover(p.id)}
                     onBlur={() => setHover(null)}
-                    data-prioridade={ativo ? 3 : emFoco ? 2 : divergente || p.principal ? 1 : 0}
-                    className={cn("group/pin pointer-events-auto absolute left-0 top-0 border-0 bg-transparent p-0 will-change-transform", editando && !colocando ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer")}
+                    data-prioridade={prioridadeRotulo({ selecionado: ativo, foco: emFoco, principal: divergente || p.principal })}
+                    className={cn(
+                      "group/pin pointer-events-auto absolute left-0 top-0 border-0 bg-transparent p-0 will-change-transform",
+                      medindo ? "cursor-crosshair" : editando && !colocando ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer",
+                    )}
                     style={{ visibility: "hidden", zIndex: emFoco ? 3 : divergente || p.principal ? 2 : 1 }}
                   >
                     <span className="flex -translate-x-1/2 -translate-y-full flex-col items-center">
                       <span
                         data-rotulo
                         className={cn(
-                          "mb-1 whitespace-nowrap rounded-chip border px-1.5 py-[3px] text-rotulo font-medium leading-none shadow-pill transition-[opacity,transform] duration-150 group-data-[oculto=1]/pin:opacity-0",
+                          "mb-1 whitespace-nowrap rounded-chip border px-1.5 py-[3px] text-rotulo font-medium leading-none shadow-pill transition-[opacity,transform] duration-150 group-data-[oculto=1]/pin:invisible group-data-[oculto=1]/pin:opacity-0",
                           ativo ? "border-accent bg-accent text-white" : divergente ? "border-danger-border bg-surface/95 text-danger" : "border-line bg-surface/95 text-ink",
                           !rotulo && "hidden",
                           !emFoco && !p.principal && !divergente && "group-data-[zoom=longe]/mapa:hidden",
@@ -880,6 +1082,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                       >
                         {p.legenda && !emFoco && <span className="mr-1 font-mono text-micro opacity-60">{p.legenda.split(" ")[0]}</span>}
                         {p.nome}
+                        {qtd != null && <span className={cn("ml-1 font-mono text-micro font-normal tabular-nums", ativo ? "text-white/75" : "text-muted")}>× {qtd.toLocaleString("pt-BR")}</span>}
                         {emFoco && !ativo && <span className="ml-1.5 font-normal text-muted">· {p.tipo}</span>}
                       </span>
                       <span className="relative grid place-items-center">
@@ -894,6 +1097,24 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                   </button>
                 );
               })}
+          {usar3D && estado === "pronto" && medida.a && (
+            <>
+              {[medida.a, medida.b].map((q, i) =>
+                q ? (
+                  <span key={i} aria-hidden data-chao={`${q[0]},${q[1]}`} className="absolute left-0 top-0 z-[4]" style={{ visibility: "hidden" }}>
+                    <span className="block size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] border-accent bg-surface shadow-pill" />
+                  </span>
+                ) : null,
+              )}
+              {pontaMedida && distancia(medida.a, pontaMedida) > 0 && (
+                <span aria-hidden data-chao={`${(medida.a[0] + pontaMedida[0]) / 2},${(medida.a[1] + pontaMedida[1]) / 2}`} className="absolute left-0 top-0 z-[4]" style={{ visibility: "hidden" }}>
+                  <span className={cn("block -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-white bg-accent px-2 py-0.5 text-rotulo font-semibold tabular-nums text-white shadow-pill", !medida.b && "opacity-80")}>
+                    {rotuloDistancia(distancia(medida.a, pontaMedida))}
+                  </span>
+                </span>
+              )}
+            </>
+          )}
         </div>
 
         {mostrarPlano && (
@@ -905,6 +1126,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
             recuoDireita={direitaAberta && !estreito}
             onSelecionar={(id) => aoSelecionarNoMapa.current(id)}
             edicao={edicaoPlano}
+            medicao={medindo ? { a: medida.a, b: medida.b, cursor: cursorMedida, onClicar: marcarMedida, onCursor: moverCursorMedida } : null}
+            fundo={plantaImagemUrl && plantaFundo ? plantaImagemUrl : null}
           />
         )}
 
@@ -1021,10 +1244,10 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                     <span className="flex-1 [&>div]:mb-0">
                       <RotuloGrupo>O que aparece no mapa</RotuloGrupo>
                     </span>
-                    <Button size="xs" onClick={() => setCamadas(camadasTudo())}>
+                    <Button size="xs" className="shrink-0" onClick={() => setCamadas(camadasTudo())}>
                       Tudo
                     </Button>
-                    <Button size="xs" onClick={() => setCamadas(camadasEssenciais())} title="Padrões sem o público: para conferir implantação">
+                    <Button size="xs" className="shrink-0" onClick={() => setCamadas(camadasEssenciais())} title="Padrões sem o público: para conferir implantação">
                       Essencial
                     </Button>
                   </div>
@@ -1055,6 +1278,18 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
                           })}
                       </fieldset>
                     ))}
+                    {plantaImagemUrl && (
+                      <fieldset className="m-0 mt-0.5 border-0 border-t border-line-faint p-0 pt-0.5">
+                        <legend className="px-2 pb-[3px] pt-1.5 text-rotulo font-medium text-ink-2">Referência</legend>
+                        <label htmlFor="camada-planta-fundo" className="flex cursor-pointer items-start gap-2.5 rounded-controle px-2 py-[5px] hover:bg-subtle">
+                          <input id="camada-planta-fundo" type="checkbox" checked={plantaFundo} onChange={(e) => setPlantaFundo(e.target.checked)} className="mt-0.5 size-4 accent-accent" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-corpo text-ink">Planta de fundo</span>
+                            <span className="block text-rotulo leading-[1.4] text-muted">Imagem da planta do evento sob o mapa</span>
+                          </span>
+                        </label>
+                      </fieldset>
+                    )}
                   </div>
                   {modo === "3d" && (
                     <div className="border-t border-line-soft px-3 pb-2.5 pt-2.5">
@@ -1211,10 +1446,30 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
             </Button>
           </div>
         )}
-        {arena.pontos.length === 0 && (
-          <div className="absolute inset-0 z-10 grid place-items-center">
-            <div className="rounded-cartao border border-line bg-surface">
-              <EmptyState compact title="Arena sem pontos cadastrados" description="Importe a planta ou a ata do evento para posicionar estruturas." />
+        {/* Ações do ponto escolhido (editando): flutuam no canto do mapa (a legenda some ao editar) em vez de espremer a barra. */}
+        {editando && pontoSelecionadoEdicao && !colocando && !medindo && (
+          <div role="toolbar" aria-label={`Ações de ${pontoSelecionadoEdicao.nome}`} className="absolute bottom-3 left-3 z-20 flex max-w-[calc(100%-24px)] items-center gap-1.5 overflow-x-auto rounded-cartao border border-line-strong bg-surface px-2 py-1.5 shadow-popover">
+            <span className="max-w-[180px] shrink truncate px-1 text-pequeno font-medium text-ink">{pontoSelecionadoEdicao.nome}</span>
+            <Button size="xs" className="shrink-0" aria-label="Girar 15° no sentido anti-horário" title="Girar 15° no sentido anti-horário (Q)" aria-keyshortcuts="Q" onClick={() => girar(PASSO_GIRO)}>
+              ↺ 15°
+            </Button>
+            <Button size="xs" className="shrink-0" aria-label="Girar 15° no sentido horário" title="Girar 15° no sentido horário (E)" aria-keyshortcuts="E" onClick={() => girar(-PASSO_GIRO)}>
+              ↻ 15°
+            </Button>
+            <Button size="xs" className="shrink-0" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
+              Renomear
+            </Button>
+            {pontoEditado && (
+              <Button size="xs" className="shrink-0" variant="recusar" onClick={() => excluirDoMapa(pontoEditado)}>
+                {pontoEditado.id.startsWith("novo:livre:") ? "Excluir" : pontoEditado.id.startsWith("novo:") ? "Tirar do mapa" : "Voltar ao lugar original"}
+              </Button>
+            )}
+          </div>
+        )}
+        {arena.pontos.length === 0 && !editando && (
+          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+            <div className="pointer-events-auto rounded-cartao border border-line bg-surface">
+              <EmptyState compact title="Nada posicionado ainda" description={podeEditar ? "Clique em Editar mapa e use + Adicionar ao mapa para posicionar estruturas, obstáculos e os itens da ata." : "A logística ainda não posicionou estruturas neste mapa."} />
             </div>
           </div>
         )}
@@ -1268,7 +1523,17 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
             arena={arena}
             estreito={estreito}
             onFechar={fecharDireito}
-            edicao={editando ? { colocando: colocando?.chave ?? null, onPosicionar: (item) => setColocando((c) => (c?.chave === item.chave ? null : item)) } : null}
+            edicao={
+              editando
+                ? {
+                    colocando: colocando?.chave ?? null,
+                    onPosicionar: (item) => {
+                      if (medindo) pararMedicao();
+                      setColocando((c) => (c?.chave === item.chave ? null : item));
+                    },
+                  }
+                : null
+            }
           />
         )}
         {confirmarRestaurar && (

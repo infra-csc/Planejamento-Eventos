@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { Modelo } from "@/domain/arena/tipos";
+import type { FormaItem } from "@/domain/arena/categorias";
 import { Materiais, PALETA, sombrear } from "./materiais";
 
 /**
@@ -354,6 +355,123 @@ export function construirModelo(modelo: Modelo, m: Materiais, rotulo: string): T
   if (modelo.tipo !== "veiculo" && modelo.tipo !== "espaco" && modelo.tipo !== "totem") g.add(...pisoSob(g, m));
   g.position.set(modelo.posicao[0], 0, modelo.posicao[1]);
   g.rotation.y = "rotacao" in modelo ? (modelo.rotacao ?? 0) : 0;
+  sombrear(g, m.qualidade);
+  return g;
+}
+
+/** Mancha de contato sob uma forma pequena: sem ela o item parece pousado em cima do gramado. */
+function manchaSob(g: THREE.Group, m: Materiais, escala = 1.6) {
+  const b = new THREE.Box3().setFromObject(g);
+  const lado = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * escala;
+  const geo = new THREE.PlaneGeometry(lado, lado);
+  geo.rotateX(-Math.PI / 2);
+  const mancha = new THREE.Mesh(geo, m.contato());
+  mancha.position.set((b.min.x + b.max.x) / 2, 0.03, (b.min.z + b.max.z) / 2);
+  mancha.name = "contato";
+  mancha.userData.semSombra = true;
+  mancha.userData.semRealce = true;
+  g.add(mancha);
+}
+
+/**
+ * Formas genéricas dos itens acrescentados no mapa pela logística (sem modelo da planta): poucas
+ * peças, escala real, construídas na origem. O motor leva cada uma ao ponto e aplica o giro.
+ */
+export function construirForma(forma: FormaItem, m: Materiais, cor: string): THREE.Group {
+  const partes: Partes = new Map();
+  const metal = m.solido(PALETA.metal, { rugosidade: 0.4, metal: 0.6 });
+  let g: THREE.Group;
+  switch (forma) {
+    case "arvore": {
+      const tronco = new THREE.CylinderGeometry(0.18, 0.3, 3.2, 7);
+      tronco.translate(0, 1.6, 0);
+      adicionar(partes, m.solido(PALETA.tronco, { rugosidade: 1 }), tronco);
+      const copa = new THREE.IcosahedronGeometry(2.3, 1);
+      copa.scale(1, 0.85, 1);
+      copa.translate(0, 4.7, 0);
+      adicionar(partes, m.solido(PALETA.copa, { rugosidade: 1 }), copa);
+      g = montar(partes, "arvore");
+      manchaSob(g, m, 1.4);
+      break;
+    }
+    case "bueiro": {
+      const tampa = new THREE.CylinderGeometry(0.45, 0.45, 0.04, 20);
+      tampa.translate(0, 0.03, 0);
+      adicionar(partes, m.solido(0x2b2829, { rugosidade: 0.8 }), tampa);
+      const aro = new THREE.TorusGeometry(0.5, 0.07, 6, 24);
+      aro.rotateX(Math.PI / 2);
+      aro.translate(0, 0.05, 0);
+      adicionar(partes, m.solido(0x6f6a66, { rugosidade: 0.5, metal: 0.5 }), aro);
+      g = montar(partes, "bueiro");
+      break;
+    }
+    case "poste": {
+      const mastro = new THREE.CylinderGeometry(0.08, 0.13, 7.5, 8);
+      mastro.translate(0, 3.75, 0);
+      const base = new THREE.CylinderGeometry(0.22, 0.26, 0.4, 8);
+      base.translate(0, 0.2, 0);
+      const cinza = m.solido(0x5d5f61, { rugosidade: 0.6, metal: 0.5 });
+      adicionar(partes, cinza, mastro);
+      adicionar(partes, cinza, base);
+      adicionar(partes, cinza, caixa(1.2, 0.08, 0.08, 0.55, 7.42, 0));
+      adicionar(partes, m.solido(0xf1eee9, { rugosidade: 0.4 }), caixa(0.5, 0.14, 0.26, 1.1, 7.34, 0));
+      g = montar(partes, "poste");
+      manchaSob(g, m, 1.2);
+      break;
+    }
+    case "rampa": {
+      // Cunha de 3 × 4 m subindo 50 cm para o norte (lado da faixa amarela) antes de girar.
+      const perfil = new THREE.Shape([new THREE.Vector2(-2, 0), new THREE.Vector2(2, 0), new THREE.Vector2(2, 0.5)]);
+      const cunha = new THREE.ExtrudeGeometry(perfil, { depth: 3, bevelEnabled: false });
+      cunha.rotateY(Math.PI / 2);
+      cunha.translate(-1.5, 0, 0);
+      adicionar(partes, m.solido(0xb9b2a8, { rugosidade: 1 }), cunha);
+      adicionar(partes, m.solido(0xd9b43a, { rugosidade: 0.8 }), caixa(3, 0.03, 0.25, 0, 0.5, -1.88));
+      g = montar(partes, "rampa");
+      manchaSob(g, m, 1.2);
+      break;
+    }
+    case "grade": {
+      // Gradil de contenção de 3 m: montantes, travessas, barras a cada 15 cm e pés.
+      for (const x of [-1.5, 1.5]) {
+        adicionar(partes, metal, caixa(0.05, 1.1, 0.05, x, 0.55, 0));
+        adicionar(partes, metal, caixa(0.08, 0.04, 0.7, x, 0.02, 0));
+      }
+      adicionar(partes, metal, caixa(3, 0.04, 0.04, 0, 0.12, 0));
+      adicionar(partes, metal, caixa(3, 0.04, 0.04, 0, 1.08, 0));
+      for (let x = -1.35; x <= 1.36; x += 0.15) adicionar(partes, metal, caixa(0.02, 0.96, 0.02, x, 0.6, 0));
+      g = montar(partes, "grade");
+      manchaSob(g, m, 1.1);
+      break;
+    }
+    case "tenda":
+      g = tendas(m, 3, 1, 1, false);
+      manchaSob(g, m, 1.3);
+      break;
+    case "banheiro":
+      adicionar(partes, m.solido(0x3e5f86, { rugosidade: 0.6 }), caixa(1.15, 2.3, 1.15, 0, 1.15, 0));
+      adicionar(partes, m.solido(0x4f73a0, { rugosidade: 0.6 }), caixa(0.62, 1.9, 0.02, 0, 1.0, 0.585));
+      adicionar(partes, m.solido(0xeeeae4, { rugosidade: 0.7 }), caixa(1.2, 0.1, 1.2, 0, 2.35, 0));
+      g = montar(partes, "banheiro");
+      manchaSob(g, m);
+      break;
+    case "energia":
+      adicionar(partes, m.solido(0xd9b43a, { rugosidade: 0.6 }), caixa(1, 0.8, 0.6, 0, 0.5, 0));
+      adicionar(partes, m.solido(PALETA.gerador, { rugosidade: 0.8 }), caixa(1.1, 0.1, 0.7, 0, 0.05, 0));
+      g = montar(partes, "energia");
+      manchaSob(g, m);
+      break;
+    case "marcador": {
+      const corpo = new THREE.CylinderGeometry(0.6, 0.6, 0.35, 20);
+      corpo.translate(0, 0.175, 0);
+      adicionar(partes, m.solido(new THREE.Color(cor).getHex(), { rugosidade: 0.8 }), corpo);
+      const topo = new THREE.CylinderGeometry(0.32, 0.32, 0.02, 20);
+      topo.translate(0, 0.36, 0);
+      adicionar(partes, m.solido(0xf4f1ec, { rugosidade: 0.8 }), topo);
+      g = montar(partes, "marcador");
+      break;
+    }
+  }
   sombrear(g, m.qualidade);
   return g;
 }

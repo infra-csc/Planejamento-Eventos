@@ -128,3 +128,145 @@ describe("posições editadas na Arena 3D", () => {
     expect(nova.semPosicaoNaPlanta.some((s) => s.item === item.item)).toBe(false);
   });
 });
+
+describe("giro na edição do mapa", () => {
+  it("MOVER com giro gira as estruturas em torno do ponto e soma a rotação dos modelos", async () => {
+    const { aplicarPosicoes, girarVec } = await import("./posicoes");
+    const p = arena.pontos.find((x) => x.modelos.length > 1 && x.modelos.some((m) => m.posicao[0] !== x.posicao[0] || m.posicao[1] !== x.posicao[1]))!;
+    const giro = Math.PI / 2;
+    const nova = aplicarPosicoes(arena, [{ chave: p.id, tipo: "MOVER", nome: null, categoria: null, rotuloTipo: null, itemAta: null, x: p.posicao[0] + 20, z: p.posicao[1], rotacao: giro }]);
+    const girado = nova.pontos.find((x) => x.id === p.id)!;
+    expect(girado.rotacao).toBe(giro);
+    girado.modelos.forEach((m, i) => {
+      const antes = p.modelos[i];
+      const [rx, rz] = girarVec([antes.posicao[0] - p.posicao[0], antes.posicao[1] - p.posicao[1]], giro);
+      expect(m.posicao[0]).toBeCloseTo(girado.posicao[0] + rx, 0);
+      expect(m.posicao[1]).toBeCloseTo(girado.posicao[1] + rz, 0);
+      // Distância ao ponto preservada: gira junto, não deforma.
+      expect(Math.hypot(m.posicao[0] - girado.posicao[0], m.posicao[1] - girado.posicao[1])).toBeCloseTo(Math.hypot(antes.posicao[0] - p.posicao[0], antes.posicao[1] - p.posicao[1]), 0);
+      if (m.tipo !== "espaco" && antes.tipo !== "espaco") {
+        const esperado = (antes.rotacao ?? 0) + giro;
+        expect(Math.cos(m.rotacao ?? 0)).toBeCloseTo(Math.cos(esperado), 5);
+        expect(Math.sin(m.rotacao ?? 0)).toBeCloseTo(Math.sin(esperado), 5);
+      }
+    });
+    expect(girado.observacoes.some((o) => o.includes("90° anti-horário"))).toBe(true);
+    expect(p.rotacao).toBeUndefined();
+  });
+
+  it("sem giro, mover não mexe na orientação dos modelos", async () => {
+    const { aplicarPosicoes } = await import("./posicoes");
+    const p = arena.pontos.find((x) => x.modelos.some((m) => m.tipo !== "espaco"))!;
+    for (const rotacao of [null, undefined, 0]) {
+      const nova = aplicarPosicoes(arena, [{ chave: p.id, tipo: "MOVER", nome: null, categoria: null, rotuloTipo: null, itemAta: null, x: p.posicao[0], z: p.posicao[1] + 3, rotacao }]);
+      const movido = nova.pontos.find((x) => x.id === p.id)!;
+      expect(movido.modelos.map((m) => ("rotacao" in m ? m.rotacao : undefined))).toEqual(p.modelos.map((m) => ("rotacao" in m ? m.rotacao : undefined)));
+    }
+  });
+
+  it("NOVO guarda o giro no ponto", async () => {
+    const { aplicarPosicoes } = await import("./posicoes");
+    const nova = aplicarPosicoes(arena, [{ chave: "novo:livre:abc", tipo: "NOVO", nome: "Grade / barreira", categoria: "operacao", rotuloTipo: null, itemAta: null, x: 5, z: 6, rotacao: -0.5 }]);
+    expect(nova.pontos.find((x) => x.id === "novo:livre:abc")!.rotacao).toBe(-0.5);
+  });
+
+  it("gira no mesmo sentido do three.js e normaliza o ângulo", async () => {
+    const { girarVec, normalizarAngulo, descreverGiro } = await import("./posicoes");
+    // rotation.y positivo leva o leste (+x) para o norte (−z): anti-horário visto de cima.
+    const [x, z] = girarVec([1, 0], Math.PI / 2);
+    expect(x).toBeCloseTo(0, 9);
+    expect(z).toBeCloseTo(-1, 9);
+    expect(normalizarAngulo(Math.PI * 2 + 0.25)).toBeCloseTo(0.25, 6);
+    expect(normalizarAngulo(-Math.PI - 0.1)).toBeCloseTo(Math.PI - 0.1, 6);
+    // 24 passos de 15° dão a volta sem resíduo.
+    let a = 0;
+    for (let i = 0; i < 24; i++) a = normalizarAngulo(a + Math.PI / 12);
+    expect(Math.abs(a)).toBeLessThan(1e-5);
+    expect(descreverGiro(Math.PI / 6)).toBe("30° anti-horário");
+    expect(descreverGiro(-Math.PI / 12)).toBe("15° horário");
+    expect(descreverGiro(0)).toBeNull();
+  });
+});
+
+describe("régua e quantidades", () => {
+  it("formata a distância: inteira no mapa (uma casa abaixo de 10 m) e com uma casa na barra", async () => {
+    const { distancia, distanciaPrecisa, rotuloDistancia } = await import("./posicoes");
+    expect(distancia([0, 0], [30, 40])).toBe(50);
+    expect(rotuloDistancia(38.2)).toBe("38 m");
+    expect(rotuloDistancia(7.46)).toBe("7,5 m");
+    expect(rotuloDistancia(9.97)).toBe("10 m");
+    expect(rotuloDistancia(1234.4)).toBe("1.234 m");
+    expect(distanciaPrecisa(38.24)).toBe("38,2 m");
+    expect(distanciaPrecisa(1234.56)).toBe("1.234,6 m");
+  });
+
+  it("soma as quantidades da ata do ponto e ignora linhas sem quantidade", async () => {
+    const { quantidadeAta } = await import("./posicoes");
+    const item = (quantidade: number | null) => ({ secao: "X", item: `i${quantidade}`, quantidade });
+    expect(quantidadeAta({ itensAta: [item(40), item(3), item(null)] })).toBe(43);
+    expect(quantidadeAta({ itensAta: [item(null)] })).toBeNull();
+    expect(quantidadeAta({ itensAta: [] })).toBeNull();
+  });
+});
+
+describe("formas dos itens acrescentados", () => {
+  it("cada atalho de Adicionar ao mapa tem forma; o resto vira marcador ou fica só no pino", async () => {
+    const { formaDoPonto, formaPeloNome } = await import("./categorias");
+    const esperado: Record<string, string> = {
+      Árvore: "arvore",
+      Bueiro: "bueiro",
+      Poste: "poste",
+      "Desnível / rampa": "rampa",
+      "Grade / barreira": "grade",
+      "Tenda extra": "tenda",
+      "Banheiro químico": "banheiro",
+      "Ponto de energia": "energia",
+    };
+    for (const [nome, forma] of Object.entries(esperado)) expect(formaPeloNome(nome)).toBe(forma);
+    const base = { modelos: [], categoria: "operacao" as const };
+    expect(formaDoPonto({ ...base, id: "novo:livre:1", nome: "Caixa de concreto da prefeitura" })).toBe("marcador");
+    expect(formaDoPonto({ ...base, id: "novo:ata:X|y", nome: "Cochos para água", categoria: "obstaculo" })).toBe("marcador");
+    expect(formaDoPonto({ ...base, id: "novo:ata:X|y", nome: "Cochos para água" })).toBeNull();
+    // Ponto da planta nunca ganha forma genérica: o que ele tem é o modelo (ou só o pino).
+    expect(formaDoPonto({ ...base, id: "palco", nome: "Árvore" })).toBeNull();
+    const comModelo = arena.pontos.find((p) => p.modelos.length > 0)!;
+    expect(formaDoPonto({ ...comModelo, id: "novo:livre:2", nome: "Árvore" })).toBeNull();
+  });
+});
+
+describe("rótulos sem sobreposição", () => {
+  it("fica o de maior prioridade, respeita a margem e não cobre pino alheio", async () => {
+    const { rotulosSemSobreposicao, PRIORIDADE_ROTULO: P } = await import("./categorias");
+    const caixa = (id: string, x0: number, prioridade: number, desempate = 0) => ({ id, x0, y0: 0, x1: x0 + 50, y1: 14, prioridade, desempate });
+    // Selecionado entra sempre; o comum que encosta nele (dentro da margem) sai.
+    expect([...rotulosSemSobreposicao([caixa("a", 0, P.comum), caixa("b", 53, P.selecionado)])]).toEqual(["b"]);
+    // Longe o bastante, os dois ficam.
+    expect(rotulosSemSobreposicao([caixa("a", 0, P.comum), caixa("b", 60, P.comum)]).size).toBe(2);
+    // Foco vence principal; entre iguais, o mais perto (menor desempate).
+    expect([...rotulosSemSobreposicao([caixa("p", 0, P.principal), caixa("f", 20, P.foco)])]).toEqual(["f"]);
+    expect([...rotulosSemSobreposicao([caixa("longe", 0, P.comum, 0.9), caixa("perto", 20, P.comum, 0.1)])]).toEqual(["perto"]);
+    // Rótulo em cima do pino de outro ponto não aparece; o próprio pino não conta.
+    const pinos = [
+      { id: "a", x0: -8, y0: 10, x1: 8, y1: 30 },
+      { id: "c", x0: 20, y0: 5, x1: 36, y1: 25 },
+    ];
+    expect(rotulosSemSobreposicao([caixa("a", 0, P.principal)], pinos).size).toBe(0);
+    expect(rotulosSemSobreposicao([caixa("a", 0, P.principal)], pinos.slice(0, 1)).size).toBe(1);
+    expect(rotulosSemSobreposicao([caixa("a", 0, P.selecionado)], pinos).size).toBe(1);
+  });
+
+  it("nenhum par de rótulos aceitos se sobrepõe, com qualquer disposição", async () => {
+    const { rotulosSemSobreposicao } = await import("./categorias");
+    let semente = 7;
+    const rnd = () => ((semente = (semente * 16807) % 2147483647) - 1) / 2147483646;
+    const rotulos = Array.from({ length: 120 }, (_, i) => {
+      const x0 = rnd() * 600;
+      const y0 = rnd() * 400;
+      return { id: String(i), x0, y0, x1: x0 + 30 + rnd() * 80, y1: y0 + 14, prioridade: 1 + Math.floor(rnd() * 3) };
+    });
+    const aceitos = rotulosSemSobreposicao(rotulos);
+    const lista = rotulos.filter((r) => aceitos.has(r.id));
+    expect(lista.length).toBeGreaterThan(10);
+    for (const a of lista) for (const b of lista) if (a !== b) expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0).toBe(false);
+  });
+});

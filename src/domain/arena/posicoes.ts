@@ -12,6 +12,8 @@ export type PosicaoEditada = {
   itemAta: string | null;
   x: number;
   z: number;
+  /** Giro em radianos em relação à planta (null/ausente = como está na planta). */
+  rotacao?: number | null;
   atualizadoPor?: string | null;
   atualizadoEm?: string | null;
 };
@@ -33,16 +35,46 @@ export function categoriaSugerida(secao: string | null): CategoriaPonto {
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const deslocar = ([x, z]: Vec2, dx: number, dz: number): Vec2 => [r1(x + dx), r1(z + dz)];
 
-function moverModelo(m: Modelo, dx: number, dz: number): Modelo {
-  return { ...m, posicao: deslocar(m.posicao, dx, dz) } as Modelo;
+/** Giro no chão no mesmo sentido do three.js (rotation.y): positivo é anti-horário visto de cima (norte para cima). */
+export function girarVec([x, z]: Vec2, angulo: number): Vec2 {
+  const c = Math.cos(angulo);
+  const s = Math.sin(angulo);
+  return [x * c + z * s, -x * s + z * c];
+}
+
+/** Ângulo em [-π, π), arredondado para não acumular resíduo de ponto flutuante a cada 15°. */
+export function normalizarAngulo(a: number): number {
+  const volta = Math.PI * 2;
+  const r = a - volta * Math.floor((a + Math.PI) / volta);
+  return Math.round(r * 1e6) / 1e6;
+}
+
+export const emGraus = (rad: number) => Math.round((rad * 180) / Math.PI);
+
+/** "30° anti-horário" / "15° horário" (visto de cima, norte para cima); null sem giro. */
+export function descreverGiro(rad: number | null | undefined): string | null {
+  const g = emGraus(rad ?? 0);
+  if (!g) return null;
+  return g > 0 ? `${g}° anti-horário` : `${-g}° horário`;
+}
+
+/**
+ * Leva as estruturas do ponto junto: gira cada modelo em torno do ponto original (posição e
+ * orientação) e depois desloca até o novo lugar.
+ */
+function reposicionarModelo(m: Modelo, [ox, oz]: Vec2, [nx, nz]: Vec2, giro: number): Modelo {
+  const [rx, rz] = girarVec([m.posicao[0] - ox, m.posicao[1] - oz], giro);
+  const posicao: Vec2 = [r1(nx + rx), r1(nz + rz)];
+  if (!giro || m.tipo === "espaco") return { ...m, posicao } as Modelo;
+  return { ...m, posicao, rotacao: normalizarAngulo((m.rotacao ?? 0) + giro) } as Modelo;
 }
 
 /**
  * Arena final = planta + posições editadas. Pura: não muda a arena de entrada.
- * MOVER desloca o ponto e as estruturas dele juntos. NOVO cria um ponto de marcação
- * (sem modelo 3D próprio) e tira o item das listas de "sem posição".
+ * MOVER desloca o ponto e as estruturas dele juntos (e gira todas em torno do ponto, se houver
+ * giro). NOVO cria um ponto de marcação (sem modelo 3D próprio; a cena desenha uma forma
+ * genérica pelo nome) e tira o item das listas de "sem posição".
  */
 export function aplicarPosicoes(arena: Arena, posicoes: PosicaoEditada[]): Arena {
   if (posicoes.length === 0) return arena;
@@ -51,15 +83,20 @@ export function aplicarPosicoes(arena: Arena, posicoes: PosicaoEditada[]): Arena
   const pontos: PontoArena[] = arena.pontos.map((p) => {
     const e = porChave.get(p.id);
     if (!e || e.tipo !== "MOVER") return p;
-    const dx = e.x - p.posicao[0];
-    const dz = e.z - p.posicao[1];
+    const giro = e.rotacao ?? 0;
+    const posicao: Vec2 = [r1(e.x), r1(e.z)];
     return {
       ...p,
       nome: e.nome?.trim() || p.nome,
       categoria: e.categoria && e.categoria in CATEGORIAS ? (e.categoria as CategoriaPonto) : p.categoria,
-      posicao: [r1(e.x), r1(e.z)],
-      modelos: p.modelos.map((m) => moverModelo(m, dx, dz)),
-      observacoes: [...p.observacoes, `Posição ajustada na Arena 3D${e.atualizadoPor ? ` por ${e.atualizadoPor}` : ""}.`],
+      posicao,
+      ...(e.rotacao != null ? { rotacao: e.rotacao } : {}),
+      modelos: p.modelos.map((m) => reposicionarModelo(m, p.posicao, posicao, giro)),
+      observacoes: [
+        ...p.observacoes,
+        `Posição ajustada na Arena 3D${e.atualizadoPor ? ` por ${e.atualizadoPor}` : ""}.`,
+        ...(descreverGiro(giro) ? [`Girado ${descreverGiro(giro)} em relação à planta.`] : []),
+      ],
     };
   });
 
@@ -77,6 +114,7 @@ export function aplicarPosicoes(arena: Arena, posicoes: PosicaoEditada[]): Arena
       categoria,
       tipo: e.rotuloTipo ?? (item ? item.secao.toLowerCase() : livre ? "Item adicionado" : "Item da planta"),
       posicao: [r1(e.x), r1(e.z)],
+      ...(e.rotacao != null ? { rotacao: e.rotacao } : {}),
       alturaMarcador: 3,
       zonaId: null,
       modelos: [],
@@ -97,4 +135,30 @@ export function aplicarPosicoes(arena: Arena, posicoes: PosicaoEditada[]): Arena
     pontos,
     semPosicaoNaPlanta: arena.semPosicaoNaPlanta.filter((s) => !nomesPlanta.has(s.item)),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Leitura do mapa: régua e quantidades                                 */
+/* ------------------------------------------------------------------ */
+
+export const distancia = (a: Vec2, b: Vec2) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+const umaCasa = (m: number) => (Math.round(m * 10) / 10).toFixed(1).replace(".", ",");
+
+/** Rótulo da régua no mapa: "38 m"; abaixo de 10 m, com uma casa ("7,5 m"). */
+export function rotuloDistancia(m: number): string {
+  if (Math.round(m * 10) / 10 < 10) return `${umaCasa(m)} m`;
+  return `${Math.round(m).toLocaleString("pt-BR")} m`;
+}
+
+/** Na barra de contexto, sempre com uma casa: "38,2 m". */
+export function distanciaPrecisa(m: number): string {
+  const [inteiro, decimal] = umaCasa(m).split(",");
+  return `${Number(inteiro).toLocaleString("pt-BR")},${decimal} m`;
+}
+
+/** Soma das quantidades das linhas da ata do ponto ("× 43" junto ao rótulo); null se nenhuma informa. */
+export function quantidadeAta(p: Pick<PontoArena, "itensAta">): number | null {
+  const comQuantidade = p.itensAta.filter((i) => i.quantidade != null);
+  return comQuantidade.length ? comQuantidade.reduce((t, i) => t + (i.quantidade ?? 0), 0) : null;
 }

@@ -74,3 +74,16 @@ export const IconeSuperior = (p: P) => (
     <path d="M4 12h16M12 4v16" />
   </svg>
 );
+export const IconeRegua = (p: P) => (
+  <svg {...base} width={14} height={14} className={p.className}>
+    <path d="M3 16.5L16.5 3 21 7.5 7.5 21z" />
+    <path d="M7 12.5l1.8 1.8M10 9.5l1.8 1.8M13 6.5l1.8 1.8" />
+  </svg>
+);
+export const IconeImprimir = (p: P) => (
+  <svg {...base} width={14} height={14} className={p.className}>
+    <path d="M7 9V4h10v5" />
+    <rect x="3.5" y="9" width="17" height="8" rx="1.5" />
+    <path d="M7 14h10v6H7z" />
+  </svg>
+);

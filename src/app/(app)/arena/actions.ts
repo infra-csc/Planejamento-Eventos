@@ -11,7 +11,12 @@ export async function salvarPosicaoArenaAction(slug: string, dados: DadosPosicao
   const texto = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const chave = texto(dados.chave, 120);
   if (!chave || (dados.tipo !== "MOVER" && dados.tipo !== "NOVO") || !Number.isFinite(Number(dados.x)) || !Number.isFinite(Number(dados.z))) return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => salvarPosicaoArena(usuario, slug, { chave, tipo: dados.tipo, x: Number(dados.x), z: Number(dados.z), nome: texto(dados.nome, 120) || null, categoria: texto(dados.categoria, 60) || null, itemAta: texto(dados.itemAta, 120) || null }));
+  // Giro: ausente mantém o salvo; null volta à orientação da planta; número precisa ser finito.
+  const rotacao = dados.rotacao === undefined || dados.rotacao === null ? dados.rotacao : typeof dados.rotacao === "number" && Number.isFinite(dados.rotacao) ? dados.rotacao : Number.NaN;
+  if (Number.isNaN(rotacao)) return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() =>
+    salvarPosicaoArena(usuario, slug, { chave, tipo: dados.tipo, x: Number(dados.x), z: Number(dados.z), nome: texto(dados.nome, 120) || null, categoria: texto(dados.categoria, 60) || null, itemAta: texto(dados.itemAta, 120) || null, rotacao }),
+  );
   revalidatePath(`/arena/${slug}`);
   return r;
 }

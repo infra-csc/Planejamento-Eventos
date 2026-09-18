@@ -4,11 +4,11 @@ import { Line2 } from "three/addons/lines/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import type { Arena, PontoArena, Vec2 } from "@/domain/arena/tipos";
-import { CATEGORIAS, type Camada } from "@/domain/arena/categorias";
+import { CATEGORIAS, formaDoPonto, rotulosSemSobreposicao, type Camada, type CaixaRotulo, type CaixaTela } from "@/domain/arena/categorias";
 import { limitesArena } from "@/domain/arena/geometria";
 import { COR_HORIZONTE, Materiais, PALETA, type Qualidade } from "./materiais";
 import { construirAmbiente } from "./ambiente";
-import { construirModelo } from "./estruturas";
+import { construirForma, construirModelo } from "./estruturas";
 import { construirFluxo, construirPercurso, construirPublico, type Fluxo } from "./percurso";
 import { fita } from "./fita";
 
@@ -36,7 +36,28 @@ type OpcoesMotor = {
   eventos: EventosMotor;
 };
 
-type Alvo = { id: string; camada: Camada; caixa: THREE.Box3; hit: THREE.Mesh; grupo: THREE.Group; contorno: THREE.Vector3[] };
+/**
+ * Ponto clicável da cena. `caixa`, `contorno` e `hitBase` ficam nas coordenadas do grupo; a
+ * transformação do grupo (deslocar e girar em torno do ponto) leva tudo ao lugar atual.
+ */
+type Alvo = {
+  id: string;
+  camada: Camada;
+  caixa: THREE.Box3;
+  hit: THREE.Mesh;
+  grupo: THREE.Group;
+  contorno: THREE.Vector3[];
+  /** Posição e giro do ponto quando o alvo foi montado: base da transformação do grupo. */
+  origem: [number, number];
+  giroOrigem: number;
+  hitBase: THREE.Vector3;
+  /** Muda quando o ponto precisa ser remontado (outra camada, outra forma). */
+  assinatura: string;
+  alturaPino: number;
+};
+
+const EIXO_Y = new THREE.Vector3(0, 1, 0);
+const assinatura = (p: PontoArena) => `${CATEGORIAS[p.categoria].camada}|${formaDoPonto(p) ?? ""}|${p.modelos.length}`;
 
 /** Envoltória convexa (cadeia monótona) para o contorno de seleção acompanhar estruturas giradas. */
 function envoltoria(pontos: Array<[number, number]>): Array<[number, number]> {
@@ -71,9 +92,12 @@ export class MotorArena {
   private hits: THREE.Mesh[] = [];
   private alvoPorHit = new Map<THREE.Object3D, Alvo>();
   private pontoPorId: Map<string, PontoArena>;
-  /** Posição de cada ponto quando a cena foi montada: base para deslocar estruturas editadas. */
-  private origem = new Map<string, [number, number]>();
-  private hitBase = new Map<string, THREE.Vector3>();
+  private alvoPorId = new Map<string, Alvo>();
+  private hitMat = new THREE.MeshBasicMaterial({ visible: false });
+  private idsRealce: Set<string> | null = null;
+  private medida: { linha: Line2; mat: LineMaterial } | null = null;
+  private fundo: { url: string | null; visivel: boolean; mesh: THREE.Mesh | null } = { url: null, visivel: true, mesh: null };
+  private descartado = false;
   private objetosCamada = new Map<Camada, THREE.Object3D[]>();
   /** Objetos que só aparecem de longe (linha do percurso): lista fixa, sem varrer a cena por quadro. */
   private lodLonge: THREE.Object3D[] = [];
@@ -104,7 +128,6 @@ export class MotorArena {
     this.camadas = { ...o.camadas };
     this.limites = limitesArena(o.arena, 80);
     this.pontoPorId = new Map(o.arena.pontos.map((p) => [p.id, p]));
-    for (const p of o.arena.pontos) this.origem.set(p.id, [p.posicao[0], p.posicao[1]]);
   }
 
   iniciar() {
@@ -242,41 +265,7 @@ export class MotorArena {
       this.registrar("patrocinio", corredor);
     }
 
-    const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-    for (const ponto of arena.pontos) {
-      const camada = CATEGORIAS[ponto.categoria].camada;
-      const grupo = new THREE.Group();
-      grupo.name = ponto.id;
-      for (const modelo of ponto.modelos) grupo.add(construirModelo(modelo, m, ponto.nome));
-      this.registrar(camada, grupo);
-      const caixa = new THREE.Box3();
-      if (ponto.modelos.length) caixa.setFromObject(grupo);
-      else caixa.setFromCenterAndSize(new THREE.Vector3(ponto.posicao[0], 1.5, ponto.posicao[1]), new THREE.Vector3(16, 3, 12));
-      caixa.expandByScalar(1.2);
-      const tamanho = caixa.getSize(new THREE.Vector3());
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(tamanho.x, Math.max(tamanho.y, ponto.alturaMarcador), tamanho.z), hitMat);
-      hit.position.copy(caixa.getCenter(new THREE.Vector3()));
-      hit.userData.pontoId = ponto.id;
-      this.scene.add(hit);
-      this.hits.push(hit);
-      grupo.updateMatrixWorld(true);
-      const cantos: Array<[number, number]> = [];
-      grupo.traverse((o) => {
-        if (o.name !== "piso") return;
-        const mesh = o as THREE.Mesh;
-        mesh.geometry.computeBoundingBox();
-        const b = mesh.geometry.boundingBox!;
-        for (const [x, z] of [[b.min.x, b.min.z], [b.max.x, b.min.z], [b.max.x, b.max.z], [b.min.x, b.max.z]]) {
-          const w = new THREE.Vector3(x, 0, z).applyMatrix4(mesh.matrixWorld);
-          cantos.push([w.x, w.z]);
-        }
-      });
-      const contorno = cantos.length >= 3 ? envoltoria(cantos).map(([x, z]) => new THREE.Vector3(x, 0.25, z)) : [];
-      const alvo: Alvo = { id: ponto.id, camada, caixa, hit, grupo, contorno };
-      this.hitBase.set(ponto.id, hit.position.clone());
-      this.alvos.push(alvo);
-      this.alvoPorHit.set(hit, alvo);
-    }
+    for (const ponto of arena.pontos) this.adicionarAlvo(ponto);
 
     const matHover = new LineMaterial({ color: 0x2a1418, linewidth: 2, transparent: true, opacity: 0.55, depthTest: false });
     const matSel = new LineMaterial({ color: PALETA.acento, linewidth: 3, depthTest: false });
@@ -288,8 +277,102 @@ export class MotorArena {
     this.realce = { hover, selecao, matHover, matSel };
   }
 
+  /**
+   * Monta o que a cena desenha para um ponto. Estruturas da planta vêm em coordenadas do mundo;
+   * item sem modelo (pino ou forma genérica) nasce na origem e vai ao ponto pela transformação.
+   */
+  private criarAlvo(ponto: PontoArena): Alvo {
+    const m = this.materiais;
+    const camada = CATEGORIAS[ponto.categoria].camada;
+    const forma = formaDoPonto(ponto);
+    const local = ponto.modelos.length === 0;
+    const grupo = new THREE.Group();
+    grupo.name = ponto.id;
+    for (const modelo of ponto.modelos) grupo.add(construirModelo(modelo, m, ponto.nome));
+    if (forma) grupo.add(construirForma(forma, m, CATEGORIAS[ponto.categoria].cor));
+    const caixa = new THREE.Box3();
+    if (grupo.children.length) caixa.setFromObject(grupo);
+    else caixa.setFromCenterAndSize(new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(16, 3, 12));
+    caixa.expandByScalar(1.2);
+    const tamanho = caixa.getSize(new THREE.Vector3());
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(tamanho.x, Math.max(tamanho.y, ponto.alturaMarcador), tamanho.z), this.hitMat);
+    const hitBase = caixa.getCenter(new THREE.Vector3());
+    hit.userData.pontoId = ponto.id;
+    grupo.updateMatrixWorld(true);
+    const cantos: Array<[number, number]> = [];
+    grupo.traverse((o) => {
+      if (o.name !== "piso") return;
+      const mesh = o as THREE.Mesh;
+      mesh.geometry.computeBoundingBox();
+      const b = mesh.geometry.boundingBox!;
+      for (const [x, z] of [[b.min.x, b.min.z], [b.max.x, b.min.z], [b.max.x, b.max.z], [b.min.x, b.max.z]]) {
+        const w = new THREE.Vector3(x, 0, z).applyMatrix4(mesh.matrixWorld);
+        cantos.push([w.x, w.z]);
+      }
+    });
+    const contorno = cantos.length >= 3 ? envoltoria(cantos).map(([x, z]) => new THREE.Vector3(x, 0.25, z)) : [];
+    return {
+      id: ponto.id,
+      camada,
+      caixa,
+      hit,
+      grupo,
+      contorno,
+      origem: local ? [0, 0] : [ponto.posicao[0], ponto.posicao[1]],
+      giroOrigem: local ? 0 : (ponto.rotacao ?? 0),
+      hitBase,
+      assinatura: assinatura(ponto),
+      // Pino acima da copa da árvore ou do poste, não enterrado nela.
+      alturaPino: forma ? Math.max(ponto.alturaMarcador, caixa.max.y) : ponto.alturaMarcador,
+    };
+  }
+
+  private adicionarAlvo(ponto: PontoArena) {
+    const alvo = this.criarAlvo(ponto);
+    this.registrar(alvo.camada, alvo.grupo);
+    alvo.grupo.visible = this.camadas[alvo.camada];
+    this.scene.add(alvo.hit);
+    this.hits.push(alvo.hit);
+    this.alvos.push(alvo);
+    this.alvoPorHit.set(alvo.hit, alvo);
+    this.alvoPorId.set(alvo.id, alvo);
+    if (this.idsRealce) this.realcarAlvo(alvo, this.idsRealce);
+    this.posicionarAlvo(alvo, ponto, true);
+  }
+
+  private removerAlvo(alvo: Alvo) {
+    this.scene.remove(alvo.grupo, alvo.hit);
+    const lista = this.objetosCamada.get(alvo.camada);
+    if (lista) this.objetosCamada.set(alvo.camada, lista.filter((o) => o !== alvo.grupo));
+    this.hits = this.hits.filter((h) => h !== alvo.hit);
+    this.alvos = this.alvos.filter((a) => a !== alvo);
+    this.alvoPorHit.delete(alvo.hit);
+    this.alvoPorId.delete(alvo.id);
+    // Materiais ficam: são do cache compartilhado e saem no dispose do motor.
+    alvo.grupo.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    alvo.hit.geometry.dispose();
+  }
+
+  /** Desloca e gira o grupo em torno do ponto (giro relativo ao de quando o alvo foi montado). */
+  private posicionarAlvo(alvo: Alvo, ponto: PontoArena, forcar = false): boolean {
+    const giro = (ponto.rotacao ?? 0) - alvo.giroOrigem;
+    const o = new THREE.Vector3(alvo.origem[0], 0, alvo.origem[1]).applyAxisAngle(EIXO_Y, giro);
+    const x = ponto.posicao[0] - o.x;
+    const z = ponto.posicao[1] - o.z;
+    const g = alvo.grupo;
+    if (!forcar && g.position.x === x && g.position.z === z && g.rotation.y === giro) return false;
+    g.position.set(x, 0, z);
+    g.rotation.y = giro;
+    g.updateMatrix();
+    g.updateMatrixWorld(true);
+    alvo.hit.position.copy(alvo.hitBase).applyMatrix4(g.matrix);
+    alvo.hit.rotation.y = giro;
+    alvo.hit.updateMatrixWorld(true);
+    return true;
+  }
+
   private contorno(linha: Line2, id: string | null) {
-    const alvo = id ? this.alvos.find((a) => a.id === id) : null;
+    const alvo = id ? this.alvoPorId.get(id) : null;
     if (!alvo || !this.camadas[alvo.camada]) {
       linha.visible = false;
       return;
@@ -300,7 +383,13 @@ export class MotorArena {
     const pts = alvo.contorno.length
       ? [...alvo.contorno, alvo.contorno[0]]
       : [new THREE.Vector3(min.x, y, min.z), new THREE.Vector3(max.x, y, min.z), new THREE.Vector3(max.x, y, max.z), new THREE.Vector3(min.x, y, max.z), new THREE.Vector3(min.x, y, min.z)];
-    geo.setPositions(pts.flatMap((p) => [p.x, y, p.z]));
+    const mundo = alvo.grupo.matrix;
+    geo.setPositions(
+      pts.flatMap((p) => {
+        const w = p.clone().applyMatrix4(mundo);
+        return [w.x, y, w.z];
+      }),
+    );
     linha.geometry.dispose();
     linha.geometry = geo;
     linha.computeLineDistances();
@@ -392,36 +481,56 @@ export class MotorArena {
     const w = overlay.clientWidth;
     const h = overlay.clientHeight;
     const v = new THREE.Vector3();
-    const visiveis: Array<{ el: HTMLElement; x: number; y: number; prioridade: number }> = [];
+    const naTela = (x: number, y: number, z: number) => {
+      v.set(x, y, z).project(this.camera);
+      if (v.z > 1 || v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.1) return null;
+      return [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h, v.z] as const;
+    };
+    const visiveis: Array<{ el: HTMLElement; id: string; x: number; y: number; profundidade: number }> = [];
     overlay.querySelectorAll<HTMLElement>("[data-ponto-id]").forEach((el) => {
-      const ponto = this.pontoPorId.get(el.dataset.pontoId ?? "");
+      const id = el.dataset.pontoId ?? "";
+      const ponto = this.pontoPorId.get(id);
       if (!ponto) return;
-      v.set(ponto.posicao[0], this.pinoNoChao ? 0.3 : ponto.alturaMarcador, ponto.posicao[1]).project(this.camera);
-      const fora = v.z > 1 || v.x < -1.1 || v.x > 1.1 || v.y < -1.1 || v.y > 1.1;
-      el.style.visibility = fora ? "hidden" : "visible";
-      if (fora) return;
-      const x = ((v.x + 1) / 2) * w;
-      const y = ((1 - v.y) / 2) * h;
-      el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      visiveis.push({ el, x, y, prioridade: Number(el.dataset.prioridade ?? 0) - v.z * 0.01 });
+      const t = naTela(ponto.posicao[0], this.pinoNoChao ? 0.3 : (this.alvoPorId.get(id)?.alturaPino ?? ponto.alturaMarcador), ponto.posicao[1]);
+      el.style.visibility = t ? "visible" : "hidden";
+      if (!t) return;
+      el.style.transform = `translate3d(${t[0]}px, ${t[1]}px, 0)`;
+      visiveis.push({ el, id, x: t[0], y: t[1], profundidade: t[2] });
     });
-    // Rótulos não se sobrepõem: ficam os mais importantes (selecionado, em foco, principais, mais próximos).
-    visiveis.sort((a, b) => b.prioridade - a.prioridade);
-    const ocupados: Array<[number, number, number, number]> = [];
-    for (const { el, x, y } of visiveis) {
+    // Elementos presos a um lugar do chão (régua): data-chao="x,z", em metros.
+    overlay.querySelectorAll<HTMLElement>("[data-chao]").forEach((el) => {
+      const [x, z] = (el.dataset.chao ?? "").split(",").map(Number);
+      const t = Number.isFinite(x) && Number.isFinite(z) ? naTela(x, 0.3, z) : null;
+      el.style.visibility = t ? "visible" : "hidden";
+      if (t) el.style.transform = `translate3d(${t[0]}px, ${t[1]}px, 0)`;
+    });
+    // Caixas medidas pelo layout (offset*, que ignora o transform): o pino fica embaixo da coluna
+    // e o rótulo em cima. Nenhum rótulo cobre outro rótulo nem o pino de outro ponto.
+    const rotulos: CaixaRotulo[] = [];
+    const pinos: CaixaTela[] = [];
+    const comRotulo = new Map<string, HTMLElement>();
+    for (const { el, id, x, y, profundidade } of visiveis) {
       const rotulo = el.querySelector<HTMLElement>("[data-rotulo]");
+      const coluna = rotulo?.parentElement ?? (el.firstElementChild as HTMLElement | null);
+      const H = coluna?.offsetHeight ?? 0;
+      const W = coluna?.offsetWidth ?? 0;
       const lw = rotulo?.offsetWidth ?? 0;
       if (!rotulo || lw === 0) {
         delete el.dataset.oculto;
+        pinos.push({ id, x0: x - 8, y0: y - H, x1: x + 8, y1: y });
         continue;
       }
       const lh = rotulo.offsetHeight;
-      const r: [number, number, number, number] = [x - lw / 2 - 3, y - lh - 16, x + lw / 2 + 3, y - 12];
-      if (ocupados.some((o) => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) el.dataset.oculto = "1";
-      else {
-        delete el.dataset.oculto;
-        ocupados.push(r);
-      }
+      const x0 = x - W / 2 + rotulo.offsetLeft;
+      const y0 = y - H + rotulo.offsetTop;
+      pinos.push({ id, x0: x - 8, y0: y0 + lh + 4, x1: x + 8, y1: y });
+      rotulos.push({ id, x0, y0, x1: x0 + lw, y1: y0 + lh, prioridade: Number(el.dataset.prioridade ?? 0), desempate: profundidade });
+      comRotulo.set(id, el);
+    }
+    const aceitos = rotulosSemSobreposicao(rotulos, pinos);
+    for (const [id, el] of comRotulo) {
+      if (aceitos.has(id)) delete el.dataset.oculto;
+      else el.dataset.oculto = "1";
     }
   }
 
@@ -509,28 +618,31 @@ export class MotorArena {
    * O material original fica guardado na própria malha.
    */
   definirRealce(ids: Set<string> | null) {
-    const esmaecido = this.materiais.solido(0xc3bcbc, { rugosidade: 1 });
-    for (const alvo of this.alvos) {
-      const apagar = ids !== null && !ids.has(alvo.id);
-      alvo.grupo.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh || mesh.userData.semRealce) return;
-        if (apagar) {
-          if (!mesh.userData.materialOriginal) mesh.userData.materialOriginal = mesh.material;
-          mesh.material = esmaecido;
-        } else if (mesh.userData.materialOriginal) {
-          mesh.material = mesh.userData.materialOriginal as THREE.Material;
-          delete mesh.userData.materialOriginal;
-        }
-      });
-    }
+    this.idsRealce = ids;
+    for (const alvo of this.alvos) this.realcarAlvo(alvo, ids);
     this.sujo = true;
   }
 
+  private realcarAlvo(alvo: Alvo, ids: Set<string> | null) {
+    const esmaecido = this.materiais.solido(0xc3bcbc, { rugosidade: 1 });
+    const apagar = ids !== null && !ids.has(alvo.id);
+    alvo.grupo.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh || mesh.userData.semRealce) return;
+      if (apagar) {
+        if (!mesh.userData.materialOriginal) mesh.userData.materialOriginal = mesh.material;
+        mesh.material = esmaecido;
+      } else if (mesh.userData.materialOriginal) {
+        mesh.material = mesh.userData.materialOriginal as THREE.Material;
+        delete mesh.userData.materialOriginal;
+      }
+    });
+  }
+
   focar(id: string) {
-    const alvo = this.alvos.find((a) => a.id === id);
+    const alvo = this.alvoPorId.get(id);
     if (!alvo) return;
-    const centro = alvo.caixa.getCenter(new THREE.Vector3());
+    const centro = alvo.caixa.getCenter(new THREE.Vector3()).applyMatrix4(alvo.grupo.matrix);
     centro.y = 0;
     const tamanho = alvo.caixa.getSize(new THREE.Vector3());
     const dist = THREE.MathUtils.clamp(Math.max(tamanho.x, tamanho.z) * 3.2, 70, 320);
@@ -594,7 +706,7 @@ export class MotorArena {
     this.renderer.domElement.style.height = "100%";
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    for (const mat of [this.trilho, this.realce?.matHover, this.realce?.matSel]) mat?.resolution.set(w, h);
+    for (const mat of [this.trilho, this.realce?.matHover, this.realce?.matSel, this.medida?.mat]) mat?.resolution.set(w, h);
     this.sujo = true;
   }
 
@@ -611,23 +723,115 @@ export class MotorArena {
   }
 
   /**
-   * Posições editadas (arrastar, posicionar, item novo): os marcadores seguem a nova posição e as
-   * estruturas 3D do ponto se deslocam junto, sem remontar a cena.
+   * Pontos editados (arrastar, girar, posicionar, excluir, renomear): as estruturas se deslocam e
+   * giram junto, sem remontar a cena. Ponto que não existia ganha alvo (forma genérica, pino
+   * clicável); ponto que sumiu sai; ponto que mudou de camada ou de forma é remontado.
    */
   atualizarPontos(pontos: PontoArena[]) {
     this.pontoPorId = new Map(pontos.map((p) => [p.id, p]));
-    for (const alvo of this.alvos) {
+    let mudou = false;
+    for (const alvo of [...this.alvos]) {
       const p = this.pontoPorId.get(alvo.id);
-      const o = this.origem.get(alvo.id);
-      const base = this.hitBase.get(alvo.id);
-      if (!p || !o) continue;
-      const dx = p.posicao[0] - o[0];
-      const dz = p.posicao[1] - o[1];
-      alvo.grupo.position.set(dx, 0, dz);
-      if (base) alvo.hit.position.set(base.x + dx, base.y, base.z + dz);
-      alvo.hit.updateMatrixWorld(true);
+      if (!p || alvo.assinatura !== assinatura(p)) {
+        this.removerAlvo(alvo);
+        mudou = true;
+      } else if (this.posicionarAlvo(alvo, p)) mudou = true;
+    }
+    for (const p of pontos) {
+      if (this.alvoPorId.has(p.id)) continue;
+      this.adicionarAlvo(p);
+      mudou = true;
+    }
+    if (mudou) {
+      if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
+      if (this.realce) {
+        this.contorno(this.realce.selecao, this.selecaoId);
+        this.contorno(this.realce.hover, this.hoverId && this.hoverId !== this.selecaoId ? this.hoverId : null);
+      }
     }
     this.sujo = true;
+  }
+
+  /** Régua: linha tracejada no chão entre dois pontos (metros). O rótulo é HTML, no overlay. */
+  definirMedida(a: Vec2 | null, b: Vec2 | null) {
+    if (!a || !b || !this.renderer) {
+      if (this.medida) this.medida.linha.visible = false;
+      this.sujo = true;
+      return;
+    }
+    if (!this.medida) {
+      const mat = new LineMaterial({ color: PALETA.acento, linewidth: 2.5, dashed: true, dashSize: 2, gapSize: 1.4, depthTest: false, transparent: true });
+      const tamanho = this.renderer.getSize(new THREE.Vector2());
+      mat.resolution.set(tamanho.x, tamanho.y);
+      const linha = new Line2(new LineGeometry(), mat);
+      linha.renderOrder = 11;
+      this.scene.add(linha);
+      this.medida = { linha, mat };
+    }
+    const { linha, mat } = this.medida;
+    // Traço proporcional ao comprimento: 2 m fixos viram um cinza contínuo numa medida de 400 m.
+    const comprimento = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    mat.dashSize = Math.max(0.6, comprimento / 36);
+    mat.gapSize = mat.dashSize * 0.7;
+    const geo = new LineGeometry();
+    geo.setPositions([a[0], 0.3, a[1], b[0], 0.3, b[1]]);
+    linha.geometry.dispose();
+    linha.geometry = geo;
+    linha.computeLineDistances();
+    linha.visible = true;
+    this.sujo = true;
+  }
+
+  /**
+   * Imagem da planta do evento deitada no chão, esticada no retângulo `arena.area`: acima do
+   * gramado e das calçadas, abaixo das áreas e dos pisos das estruturas.
+   */
+  definirPlantaFundo(url: string | null, visivel: boolean) {
+    this.fundo.visivel = visivel;
+    if (this.fundo.mesh) this.fundo.mesh.visible = visivel;
+    this.sujo = true;
+    if (url === this.fundo.url) return;
+    this.fundo.url = url;
+    this.descartarFundo();
+    if (!url) return;
+    new THREE.TextureLoader().load(
+      url,
+      (tex) => {
+        if (this.descartado || this.fundo.url !== url) {
+          tex.dispose();
+          return;
+        }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = this.o.qualidade === "alta" ? 8 : 2;
+        const { minX, maxX, minZ, maxZ } = this.o.arena.area;
+        const geo = new THREE.PlaneGeometry(maxX - minX, maxZ - minZ);
+        geo.rotateX(-Math.PI / 2);
+        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false, roughness: 1 }));
+        mesh.position.set((minX + maxX) / 2, 0.037, (minZ + maxZ) / 2);
+        mesh.receiveShadow = this.o.qualidade === "alta";
+        // Primeiro entre os transparentes: as áreas (também transparentes) desenham por cima.
+        mesh.renderOrder = -0.5;
+        mesh.visible = this.fundo.visivel;
+        this.scene.add(mesh);
+        this.fundo.mesh = mesh;
+        this.sujo = true;
+      },
+      undefined,
+      () => {
+        // Imagem indisponível: o mapa segue sem o fundo, como antes.
+      },
+    );
+  }
+
+  private descartarFundo() {
+    const mesh = this.fundo.mesh;
+    if (!mesh) return;
+    this.scene.remove(mesh);
+    mesh.geometry.dispose();
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    mat.map?.dispose();
+    mat.dispose();
+    this.fundo.mesh = null;
   }
 
   /**
@@ -687,6 +891,7 @@ export class MotorArena {
   }
 
   dispose() {
+    this.descartado = true;
     cancelAnimationFrame(this.raf);
     this.observador?.disconnect();
     this.resize?.disconnect();
@@ -710,6 +915,9 @@ export class MotorArena {
     this.trilho?.dispose();
     this.realce?.matHover.dispose();
     this.realce?.matSel.dispose();
+    this.medida?.mat.dispose();
+    this.hitMat.dispose();
+    this.descartarFundo();
     this.materiais.dispose();
     if (this.renderer) {
       this.renderer.dispose();

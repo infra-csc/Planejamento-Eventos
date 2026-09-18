@@ -7,7 +7,7 @@ import { ChipMono } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconeFechar } from "@/components/ui/icons";
 
-const ORDEM: CategoriaPonto[] = ["largada", "atleta", "medico", "hidratacao", "estrutura", "patrocinio", "cenografia", "operacao"];
+const ORDEM: CategoriaPonto[] = ["largada", "atleta", "medico", "hidratacao", "estrutura", "patrocinio", "cenografia", "operacao", "obstaculo"];
 
 /** Índice navegável: responde "como encontro um ponto?" sem precisar saber o nome. */
 export function IndicePontos({

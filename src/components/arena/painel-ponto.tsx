@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { Arena, ItemAta, PontoArena } from "@/domain/arena/tipos";
 import { CATEGORIAS } from "@/domain/arena/categorias";
 import { itensNaoPosicionados } from "@/domain/arena/geometria";
+import { quantidadeAta } from "@/domain/arena/posicoes";
 import { cn } from "@/lib/cn";
 import { Badge, type Tom } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,7 @@ export function PainelPonto({
   const cat = CATEGORIAS[ponto.categoria];
   const zona = arena.zonas.find((z) => z.id === ponto.zonaId);
   const ref = referencia(arena, ponto);
+  const total = quantidadeAta(ponto);
   return (
     <aside aria-labelledby="ficha-titulo" className={gaveta(estreito)}>
       <header className="flex items-start gap-3 px-4 pb-3 pt-3.5">
@@ -128,6 +130,16 @@ export function PainelPonto({
           ) : (
             <table className="w-full border-collapse text-pequeno">
               <caption className="sr-only">Itens da ata de reunião de OS</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="border-b border-line-soft pb-1 text-left text-rotulo font-normal text-muted">
+                    Item
+                  </th>
+                  <th scope="col" className="w-14 border-b border-line-soft pb-1 text-right text-rotulo font-normal text-muted">
+                    Qtd.
+                  </th>
+                </tr>
+              </thead>
               <tbody>
                 {ponto.itensAta.map((i, k) => (
                   <tr key={k} className="align-top">
@@ -135,10 +147,21 @@ export function PainelPonto({
                       {i.item}
                       {(i.detalhe || i.obs) && <span className="block text-rotulo text-muted">{[i.detalhe, i.obs].filter(Boolean).join(" · ")}</span>}
                     </th>
-                    <td className="w-14 border-b border-line-row py-1.5 text-right font-mono tabular-nums text-ink">{i.quantidade ?? "—"}</td>
+                    <td className="w-14 border-b border-line-row py-1.5 text-right font-mono tabular-nums text-ink">{i.quantidade != null ? i.quantidade.toLocaleString("pt-BR") : "—"}</td>
                   </tr>
                 ))}
               </tbody>
+              {/* Mais de uma linha com quantidade: o total é o "× N" que aparece junto ao rótulo no mapa. */}
+              {total != null && ponto.itensAta.filter((i) => i.quantidade != null).length > 1 && (
+                <tfoot>
+                  <tr>
+                    <th scope="row" className="pt-1.5 text-left font-medium text-ink-2">
+                      Total
+                    </th>
+                    <td className="pt-1.5 text-right font-mono font-medium tabular-nums text-ink">{total.toLocaleString("pt-BR")}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           )}
         </Bloco>
