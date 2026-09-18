@@ -115,6 +115,7 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
   const [salvando, iniciarSalvar] = useTransition();
   const [editando, setEditando] = useState(false);
   const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
+  const vistaAntesDaEdicao = useRef<VistaMapa | null>(null);
   const [menuItens, setMenuItens] = useState(false);
   /** Última mudança feita nesta sessão de edição, para o botão "Desfazer". */
   const [ultima, setUltima] = useState<{ chave: string; nome: string; anterior: { x: number; z: number } | null } | null>(null);
@@ -265,6 +266,11 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
 
   const escolherVista = (v: VistaMapa) => {
     if (v === vistaMapa) return;
+    // Posicionar em perspectiva é impreciso (o clique cai no chão "de lado"): a edição acontece na planta.
+    if (editando && v !== "planta") {
+      toast("A edição acontece na planta, vista de cima. Conclua a edição para ver em 3D.");
+      return;
+    }
     if (vistaMapa === "planta") {
       setEstado("carregando");
       setErro(null);
@@ -529,9 +535,19 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
       setMenuItens(false);
       setFormEdicao(null);
       setUltima(null);
+      // Volta para a vista que a pessoa usava antes de editar.
+      const antes = vistaAntesDaEdicao.current;
+      vistaAntesDaEdicao.current = null;
+      if (antes && antes !== "planta") {
+        setEstado("carregando");
+        setErro(null);
+        setVistaMapa(antes);
+      }
       return;
     }
-    // Entrar em edição não abre painel nenhum: o mapa fica livre para arrastar. "Sem posição" está na barra.
+    // Entrar em edição: planta vista de cima (arrastar e clicar com precisão), sem painel aberto por cima.
+    vistaAntesDaEdicao.current = vistaMapa;
+    if (vistaMapa !== "planta") setVistaMapa("planta");
     setEditando(true);
     setPainelEsquerdo(null);
     setSelecionado(null);
@@ -647,96 +663,134 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
         }
       />
 
-      <div className="mb-3 flex flex-col gap-2 rounded-cartao border border-line bg-surface px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {podeEditar && (
-            <Button variant={editando ? "primary" : "secondary"} size="sm" aria-pressed={editando} onClick={alternarEdicao}>
-              <IconeLapis size={12} />
-              {editando ? "Concluir edição" : "Editar mapa"}
+      {/*
+        Barra de edição com ALTURA FIXA: nada nela aparece ou some empurrando o mapa (antes, selecionar
+        um ponto criava uma linha nova e o mapa pulava 44 px — o ponto parecia cair fora do clique).
+        O menu de itens e o formulário flutuam por cima, sem mexer no layout.
+      */}
+      <div className="relative mb-3 flex h-12 items-center gap-2 rounded-cartao border border-line bg-surface px-3">
+        {podeEditar && (
+          <Button variant={editando ? "primary" : "secondary"} size="sm" aria-pressed={editando} onClick={alternarEdicao}>
+            <IconeLapis size={12} />
+            {editando ? "Concluir edição" : "Editar mapa"}
+          </Button>
+        )}
+        {editando && (
+          <>
+            <Button variant="secondary" size="sm" aria-expanded={menuItens} disabled={Boolean(colocando)} onClick={() => setMenuItens((v) => !v)}>
+              + Adicionar ao mapa
             </Button>
-          )}
-          {editando && !colocando && (
+            <Button variant="ghost" size="sm" disabled={!ultima || salvando || Boolean(colocando)} title={ultima ? `Desfazer: ${ultima.nome}` : "Nada para desfazer nesta sessão"} onClick={desfazerUltima}>
+              Desfazer
+            </Button>
+            <span aria-hidden className="mx-1 h-6 w-px bg-line" />
+          </>
+        )}
+
+        {/* Área de contexto: uma frase só, trocada conforme o momento. */}
+        <div role="status" className="flex min-w-0 flex-1 items-center gap-2 text-pequeno text-ink-3">
+          {colocando ? (
             <>
-              <Button variant="secondary" size="sm" aria-expanded={menuItens} onClick={() => setMenuItens((v) => !v)}>
-                Adicionar item {menuItens ? "▴" : "▾"}
-              </Button>
-              <Button variant="ghost" size="sm" disabled={!ultima || salvando} title={ultima ? `Desfazer: ${ultima.nome}` : "Nada para desfazer nesta sessão"} onClick={desfazerUltima}>
-                Desfazer
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-micro font-semibold text-white">2</span>
+              <span className="min-w-0 truncate">
+                Clique no mapa onde fica <span className="font-medium text-ink">{colocando.nome}</span>
+              </span>
+              <Button size="xs" onClick={() => setColocando(null)}>
+                Cancelar <Kbd>Esc</Kbd>
               </Button>
             </>
-          )}
-          <span role="status" className="min-w-0 flex-1 text-pequeno text-ink-3">
-            {colocando ? (
-              <>
-                Clique no mapa para pôr <span className="font-medium text-ink">{colocando.nome}</span>. <Kbd>Esc</Kbd> cancela.
-              </>
-            ) : editando ? (
-              <>Arraste um ponto para mover. {salvando ? "Salvando…" : idsEditados.size > 0 ? `${idsEditados.size} ${idsEditados.size === 1 ? "mudança" : "mudanças"} em relação à planta.` : "Igual à planta original."}</>
-            ) : idsEditados.size > 0 ? (
-              `${idsEditados.size} ${idsEditados.size === 1 ? "ponto ajustado" : "pontos ajustados"} em relação à planta original.`
-            ) : (
-              "Planta original do evento."
-            )}
-          </span>
-          {colocando && (
-            <Button size="sm" onClick={() => setColocando(null)}>
-              Cancelar
-            </Button>
-          )}
-          <Button size="sm" variant="secondary" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao}>
-            {foraDoMapa} sem posição
-          </Button>
-          <Button size="sm" variant="ghost" aria-expanded={fontesAbertas} title="De onde vêm os dados deste mapa" onClick={() => setFontesAbertas((v) => !v)}>
-            Fontes
-          </Button>
-          {podeEditar && (
-            <Button size="sm" variant="dangerOutline" disabled={salvando || idsEditados.size === 0} title={idsEditados.size === 0 ? "O mapa já está igual à planta original" : "Descartar todas as mudanças e voltar à planta do evento"} onClick={() => setConfirmarRestaurar(true)}>
-              Restaurar planta original
-            </Button>
+          ) : editando && pontoSelecionadoEdicao ? (
+            <>
+              <span className="min-w-0 truncate">
+                <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span> · arraste para mover
+              </span>
+              <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
+                Renomear
+              </Button>
+              {pontoEditado && (
+                <Button size="xs" variant="recusar" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
+                  {pontoEditado.id.startsWith("novo:livre:") ? "Excluir" : pontoEditado.id.startsWith("novo:") ? "Tirar do mapa" : "Voltar ao lugar original"}
+                </Button>
+              )}
+            </>
+          ) : editando ? (
+            <span className="min-w-0 truncate">{salvando ? "Salvando…" : "Arraste um ponto para mover, ou use “Adicionar ao mapa”."}</span>
+          ) : (
+            <span className="min-w-0 truncate">{idsEditados.size > 0 ? `${idsEditados.size} ${idsEditados.size === 1 ? "ponto ajustado" : "pontos ajustados"} em relação à planta original.` : "Planta original do evento."}</span>
           )}
         </div>
 
-        {/* Atalhos: um clique escolhe, o próximo clique põe no mapa. */}
+        <Button size="sm" variant="ghost" aria-pressed={painelDireito === "sem-posicao"} onClick={abrirSemPosicao}>
+          {foraDoMapa} sem posição
+        </Button>
+        <Button size="sm" variant="ghost" aria-expanded={fontesAbertas} title="De onde vêm os dados deste mapa" onClick={() => setFontesAbertas((v) => !v)}>
+          Fontes
+        </Button>
+        {podeEditar && (
+          <Button size="sm" variant="dangerOutline" disabled={salvando || idsEditados.size === 0} title={idsEditados.size === 0 ? "O mapa já está igual à planta original" : "Descartar todas as mudanças e voltar à planta do evento"} onClick={() => setConfirmarRestaurar(true)}>
+            Restaurar original
+          </Button>
+        )}
+
+        {/* Passo 1: escolher o que pôr no mapa. Flutua sob a barra. */}
         {editando && menuItens && !colocando && (
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-line-soft pt-2">
-            <span className="mr-1 text-pequeno text-muted">O que já existe no local ou falta na planta:</span>
-            {ATALHOS_ITEM.map((a) => (
+          <div role="dialog" aria-label="Adicionar ao mapa" className="absolute left-3 top-[calc(100%+6px)] z-30 w-[min(560px,calc(100%-24px))] rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido">
+            <p className="m-0 flex items-center gap-2 text-pequeno font-medium text-ink">
+              <span className="grid size-5 place-items-center rounded-full bg-accent text-micro font-semibold text-white">1</span>
+              O que você quer pôr no mapa?
+            </p>
+            <p className="mb-2.5 ml-7 mt-0.5 text-rotulo text-muted">Escolha e depois clique no lugar. Dá para arrastar para acertar.</p>
+            <div className="ml-7 flex flex-wrap gap-1.5">
+              {ATALHOS_ITEM.map((a) => (
+                <Button
+                  key={a.nome}
+                  size="sm"
+                  onClick={() => {
+                    setMenuItens(false);
+                    setFormEdicao(null);
+                    setSelecionado(null);
+                    setColocando({ chave: `novo:livre:${Date.now().toString(36)}`, nome: a.nome, itemAta: null, categoria: a.categoria });
+                  }}
+                >
+                  {a.nome}
+                </Button>
+              ))}
               <Button
-                key={a.nome}
-                size="xs"
-                title={`Clique aqui e depois no mapa para pôr "${a.nome}"`}
+                size="sm"
+                variant="secondary"
                 onClick={() => {
                   setMenuItens(false);
-                  setFormEdicao(null);
-                  setColocando({ chave: `novo:livre:${Date.now().toString(36)}`, nome: a.nome, itemAta: null, categoria: a.categoria });
+                  setFormEdicao({ modo: "novo", nome: "", categoria: "obstaculo" });
                 }}
               >
-                {a.nome}
+                Outro, com nome…
               </Button>
-            ))}
-            <Button
-              size="xs"
-              variant="secondary"
-              onClick={() => {
-                setMenuItens(false);
-                setFormEdicao({ modo: "novo", nome: "", categoria: "obstaculo" });
-              }}
-            >
-              Outro…
-            </Button>
+            </div>
+            <p className="mb-0 ml-7 mt-2.5 text-rotulo text-muted">
+              Item da ata que ainda não tem lugar?{" "}
+              <button
+                type="button"
+                className="cursor-pointer border-0 bg-transparent p-0 text-rotulo text-accent underline"
+                onClick={() => {
+                  setMenuItens(false);
+                  abrirSemPosicao();
+                }}
+              >
+                Veja os {foraDoMapa} sem posição
+              </button>
+            </p>
           </div>
         )}
 
-        {/* Nome próprio para um item novo, ou renomear um ponto. */}
+        {/* Nome próprio para um item novo, ou renomear um ponto. Flutua sob a barra. */}
         {editando && formEdicao && (
           <form
-            className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-2"
+            className="absolute left-3 top-[calc(100%+6px)] z-30 flex w-[min(640px,calc(100%-24px))] flex-wrap items-center gap-2 rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido"
             onSubmit={(e) => {
               e.preventDefault();
               confirmarFormEdicao();
             }}
           >
-            <span className="text-pequeno text-ink-2">{formEdicao.modo === "novo" ? "Item que não está na planta:" : "Ponto:"}</span>
             <span className="min-w-[220px] flex-1">
               <Input autoFocus aria-label="Nome do item" value={formEdicao.nome} onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })} placeholder="Ex.: Árvore baixa em cima do acesso" className="w-full" />
             </span>
@@ -753,23 +807,6 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
               Cancelar
             </Button>
           </form>
-        )}
-
-        {/* O ponto escolhido no mapa: renomear ou desfazer só ele. */}
-        {editando && !colocando && !formEdicao && pontoSelecionadoEdicao && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-2">
-            <span className="min-w-0 flex-1 text-pequeno text-ink-2">
-              Selecionado: <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span>
-            </span>
-            <Button size="xs" onClick={() => setFormEdicao({ modo: "info", nome: pontoSelecionadoEdicao.nome, categoria: pontoSelecionadoEdicao.categoria })}>
-              Renomear
-            </Button>
-            {pontoEditado && (
-              <Button size="xs" variant="recusar" onClick={() => desfazerPosicao(pontoEditado.id, pontoEditado.nome)}>
-                {pontoEditado.id.startsWith("novo:livre:") ? "Excluir do mapa" : pontoEditado.id.startsWith("novo:") ? "Tirar do mapa" : "Voltar ao lugar da planta"}
-              </Button>
-            )}
-          </div>
         )}
       </div>
 
@@ -1108,8 +1145,8 @@ export function ArenaExperiencia({ arena: arenaServidor, podeEditar = false, edi
           )}
         </div>
 
-        {/* Minimapa e legenda: recuam quando há painel à esquerda, em vez de sumir (a orientação continua). */}
-        <div className={cn("pointer-events-none absolute bottom-3 z-10 flex items-end gap-2", painelEsquerdo && !estreito ? "left-[376px]" : "left-3", estreito && (direitaAberta || painelEsquerdo) && "hidden")}>
+        {/* Minimapa e legenda: recuam quando há painel à esquerda. Somem durante a edição (menos ruído). */}
+        <div className={cn("pointer-events-none absolute bottom-3 z-10 flex items-end gap-2", painelEsquerdo && !estreito ? "left-[376px]" : "left-3", ((estreito && (direitaAberta || painelEsquerdo)) || editando) && "hidden")}>
           {usar3D && estado === "pronto" && !estreito && <Minimapa arena={arena} camadas={camadas} selecionado={selecionado} pegadaRef={pegadaRef} onIr={(x, z) => motorRef.current?.irPara(x, z)} />}
           <div className={cn("pointer-events-auto max-w-[250px]", cartao)}>
             <button type="button" aria-expanded={legendaAberta && largo} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-pequeno font-medium text-ink-2">
