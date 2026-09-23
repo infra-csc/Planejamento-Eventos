@@ -73,6 +73,9 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             <a href={`/api/os/${id}/excel`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
               Excel da prévia (.xlsx)
             </a>
+            <a href={`/api/os/${id}/estrutura`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+              Planilha de estrutura (.xlsx)
+            </a>
             <ButtonLink href={`/impressao/os/${id}`} target="_blank" variant="secondary" size="sm" className="no-underline">
               Imprimir prévia
             </ButtonLink>
@@ -209,6 +212,10 @@ export default async function OsPage({ params, searchParams }: { params: Promise
               Excel completo (.xlsx)
             </a>
             <p className="mb-2.5 mt-1.5 text-rotulo leading-[1.45] text-muted">Abas: resumo, totais por peça, por projeto, peças soltas e itens avulsos, com coluna de separação.</p>
+            <a href={`/api/os/${id}/estrutura${qsExport}`} className={buttonClasses({ variant: "secondary", size: "md", className: "w-full no-underline" })}>
+              Planilha de estrutura (.xlsx)
+            </a>
+            <p className="mb-2.5 mt-1.5 text-rotulo leading-[1.45] text-muted">No modelo da cenografia: TOTAL (estruturas, peças, tendas por local, outros), SOMATÓRIA peça × projeto e uma aba por projeto.</p>
             <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
               Imprimir / PDF
             </ButtonLink>

@@ -25,6 +25,7 @@ import { snapshotBom } from "./eventos";
 import { aplicarAjustesBom } from "@/domain/os";
 import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "./support";
 import { descricoesParaGravar, faltamDescricoes } from "@/domain/descricoes-itens";
+import { extrasPermitidosTenda } from "@/domain/tendas";
 
 const MSG_DESCRICOES = (n: number) => (n === 1 ? "Falta a descrição de 1 item: descreva cada unidade antes de enviar." : `Faltam descrições em ${n} itens: descreva cada unidade antes de enviar.`);
 
@@ -373,10 +374,19 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
       valores.projetoId = p.id;
       valores.projetoVersaoId = snap.versaoId;
       // Ajustes só sobre peças que fazem parte do projeto; o resultado nunca fica negativo.
+      // Exceção: tenda aceita as peças por local do próprio kit (fechamento, calha) como extra.
       const ajustes: AjusteBom[] = [];
+      const extras = extrasPermitidosTenda(snap.bom.map((l) => l.codigo));
       for (const a of dados.ajustesBom ?? []) {
         if (!a.quantidade) continue;
         const linha = snap.bom.find((l) => l.pecaId === a.pecaId);
+        if (!linha && extras.length > 0 && a.quantidade > 0) {
+          const extra = await tx.query.pecas.findFirst({ where: and(eq(pecas.id, a.pecaId), eq(pecas.ativo, true)) });
+          if (extra && extras.includes(extra.codigo)) {
+            ajustes.push({ pecaId: extra.id, codigo: extra.codigo, nome: extra.nome, quantidade: a.quantidade, setor: extra.setor, unidade: extra.unidade });
+            continue;
+          }
+        }
         if (!linha) throw new ValidacaoError("Só dá para ajustar peças que fazem parte do projeto.");
         if (linha.quantidade + a.quantidade < 0) throw new ValidacaoError(`${linha.nome}: o projeto tem ${linha.quantidade}; não dá para tirar ${Math.abs(a.quantidade)}.`);
         ajustes.push({ pecaId: linha.pecaId, codigo: linha.codigo, nome: linha.nome, quantidade: a.quantidade });

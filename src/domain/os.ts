@@ -132,11 +132,19 @@ export function resumoVersaoOs(anterior: OsConteudo | null, atual: OsConteudo): 
   return resumirDiff(diffOS(anterior, atual));
 }
 
-/** Lista padrão do projeto com os ajustes da solicitação aplicados (delta por peça, nunca abaixo de zero). */
+/**
+ * Lista padrão do projeto com os ajustes da solicitação aplicados (delta por peça, nunca abaixo de zero).
+ * Peça fora do padrão só entra quando o ajuste é uma peça extra validada pelo serviço (traz setor e
+ * unidade: fechamento e calha de tenda); qualquer outra é ignorada.
+ */
 export function aplicarAjustesBom(bom: BomSnapshotLinha[], ajustes: AjusteBom[] | null | undefined): BomSnapshotLinha[] {
   if (!ajustes || ajustes.length === 0) return bom;
   const delta = new Map(ajustes.map((a) => [a.pecaId, a.quantidade]));
-  return bom.map((l) => ({ ...l, quantidade: Math.max(0, l.quantidade + (delta.get(l.pecaId) ?? 0)) })).filter((l) => l.quantidade > 0);
+  const ajustada = bom.map((l) => ({ ...l, quantidade: Math.max(0, l.quantidade + (delta.get(l.pecaId) ?? 0)) })).filter((l) => l.quantidade > 0);
+  const extras = ajustes
+    .filter((a) => a.setor && a.quantidade > 0 && !bom.some((l) => l.pecaId === a.pecaId))
+    .map((a) => ({ pecaId: a.pecaId, codigo: a.codigo, nome: a.nome, setor: a.setor!, unidade: a.unidade ?? "un", quantidade: a.quantidade }));
+  return extras.length ? [...ajustada, ...extras] : ajustada;
 }
 
 /** "+2 Praticável 2×1 · −1 Cubo" — para mostrar o que o solicitante mudou no projeto. */

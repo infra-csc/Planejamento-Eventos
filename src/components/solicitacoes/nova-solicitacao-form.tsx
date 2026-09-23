@@ -20,6 +20,8 @@ import { ComboBox } from "@/components/ui/combobox";
 import { combinaBusca } from "@/lib/busca";
 import type { ActionResult } from "@/lib/action";
 import { ajustarDescricoes, descricoesEsperadas, faltamDescricoes, MAX_DESCRICOES_POR_UNIDADE, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
+import { kitDaTenda } from "@/domain/tendas";
+import { QuadroTendas, type ItemTenda } from "./quadro-tendas";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -41,7 +43,8 @@ export type ItemNovo = {
   meta: string;
 };
 export type LinhaBom = { pecaId: string; codigo: string; nome: string; unidade: string; quantidade: number };
-type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?: LinhaBom[]; capaId?: string | null };
+/** `extras`: peças fora do padrão que o projeto aceita como ajuste (fechamento e calha de tenda, quantidade 0). */
+type Referencia = { id: string; codigo: string; nome: string; meta: string; bom?: LinhaBom[]; extras?: LinhaBom[]; capaId?: string | null };
 type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 type Modo = "projeto" | "peca" | "avulso" | "ata";
 
@@ -265,6 +268,38 @@ export function NovaSolicitacaoForm({
     });
   };
 
+  // Projeto de tenda: em vez do "Adicionar" simples, o quadro por local (Local | Tendas | Fechamentos | Calhas).
+  const [tendaAberta, setTendaAberta] = useState<string | null>(null);
+  const kitDe = (r: Referencia) => (r.bom?.length ? kitDaTenda(r.bom.map((b) => b.codigo)) : null);
+  const extraDoKit = (r: Referencia, papel: "fechamento" | "calha") => {
+    const codigo = kitDe(r)?.pecas[papel];
+    return (codigo && [...(r.bom ?? []), ...(r.extras ?? [])].find((b) => b.codigo === codigo)?.pecaId) || null;
+  };
+  const adicionarTendas = (r: Referencia, novos: ItemTenda[]) => {
+    setTendaAberta(null);
+    const total = novos.reduce((a, x) => a + x.quantidade, 0);
+    toast(`${r.nome} × ${total} adicionado à solicitação (${new Set(novos.map((x) => x.destino)).size} ${new Set(novos.map((x) => x.destino)).size === 1 ? "local" : "locais"})`);
+    setItens((l) => [
+      ...l,
+      ...novos.map((x) => ({
+        chave: novaChave(),
+        operacao: "ADICIONAR" as const,
+        projetoId: r.id,
+        pecaId: null,
+        eventoItemId: null,
+        descricaoLivre: null,
+        quantidade: x.quantidade,
+        quantidadeAtual: null,
+        destino: x.destino,
+        justificativa: "",
+        descricoes: x.descricoes,
+        ajustes: x.ajustes,
+        rotulo: r.nome,
+        meta: `${r.codigo} · projeto padrão`,
+      })),
+    ]);
+  };
+
   const adicionarAvulso = () => {
     const d = avulso.trim();
     if (!d) {
@@ -309,7 +344,11 @@ export function NovaSolicitacaoForm({
   };
   // Painel "Ajustar peças" aberto (um por vez).
   const [ajustando, setAjustando] = useState<string | null>(null);
-  const bomDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.bom ?? [] : []);
+  // Padrão do projeto + peças extras aceitas (tenda: fechamento e calha, padrão 0).
+  const bomDe = (i: ItemNovo) => {
+    const p = i.projetoId ? projetos.find((x) => x.id === i.projetoId) : undefined;
+    return p ? [...(p.bom ?? []), ...(p.extras ?? [])] : [];
+  };
   const capaDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.capaId ?? null : null);
   const resumoAjustes = (i: ItemNovo) => {
     const bom = bomDe(i);
@@ -607,6 +646,13 @@ export function NovaSolicitacaoForm({
                           {r.meta}
                         </span>
                       </span>
+                      {modo === "projeto" && kitDe(r) ? (
+                        <span className="ml-auto flex shrink-0 items-center gap-3">
+                          <Button variant="secondary" size="xs" onClick={() => setTendaAberta((t) => (t === r.id ? null : r.id))} aria-expanded={tendaAberta === r.id} aria-label={`Pedir ${r.nome} por local`}>
+                            {tendaAberta === r.id ? "Fechar quadro" : "Pedir por local"}
+                          </Button>
+                        </span>
+                      ) : (
                       <span className="ml-auto flex shrink-0 items-center gap-3">
                         <span
                           className="flex items-center"
@@ -623,6 +669,20 @@ export function NovaSolicitacaoForm({
                           Adicionar
                         </Button>
                       </span>
+                      )}
+                      {modo === "projeto" && tendaAberta === r.id && kitDe(r) && (
+                        <div className="w-full">
+                          <QuadroTendas
+                            nome={r.nome}
+                            kit={kitDe(r)!}
+                            bom={r.bom ?? []}
+                            pecaFechamentoId={extraDoKit(r, "fechamento")}
+                            pecaCalhaId={extraDoKit(r, "calha")}
+                            onConfirmar={(novos) => adicionarTendas(r, novos)}
+                            onCancelar={() => setTendaAberta(null)}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 {modo !== "ata" && restantes > 0 && (
