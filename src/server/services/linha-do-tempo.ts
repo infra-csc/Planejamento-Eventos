@@ -8,6 +8,7 @@ import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { resumirAjustes } from "@/domain/os";
 import { ACOES_COM_MOTIVO, obterLinhasAta } from "./eventos";
 import { descricaoItem, obterSolicitacao } from "./solicitacoes";
+import { observacaoDoItem } from "@/domain/descricoes-itens";
 
 export type TomLinhaTempo = "neutro" | "ok" | "atencao" | "perigo" | "info";
 
@@ -134,6 +135,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
             quantidadeAtendida: solicitacaoItens.quantidadeAtendida,
             status: solicitacaoItens.status,
             justificativa: solicitacaoItens.justificativa,
+            descricoes: solicitacaoItens.descricoes,
             observacaoLogistica: solicitacaoItens.observacaoLogistica,
             ajustesBom: solicitacaoItens.ajustesBom,
             respondidoEm: solicitacaoItens.respondidoEm,
@@ -205,7 +207,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
           quantidadeSolicitada: origem.quantidadeSolicitada,
           quantidadeAtendida: origem.quantidadeAtendida,
           status: origem.status,
-          observacaoSolicitante: veTudo ? origem.justificativa : null,
+          observacaoSolicitante: veTudo ? observacaoDoItem(origem) : null,
           observacaoSolicitacao: veTudo ? origem.observacao : null,
           ajustes: veTudo ? resumirAjustes(origem.ajustesBom) : null,
           respostaLogistica: veTudo ? origem.observacaoLogistica : null,

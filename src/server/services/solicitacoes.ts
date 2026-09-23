@@ -24,6 +24,9 @@ import { gerarOsVersao } from "./os";
 import { snapshotBom } from "./eventos";
 import { aplicarAjustesBom } from "@/domain/os";
 import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "./support";
+import { descricoesParaGravar, faltamDescricoes } from "@/domain/descricoes-itens";
+
+const MSG_DESCRICOES = (n: number) => (n === 1 ? "Falta a descrição de 1 item: descreva cada unidade antes de enviar." : `Faltam descrições em ${n} itens: descreva cada unidade antes de enviar.`);
 
 /** Uma resposta a item pode ser desfeita pelo próprio autor por este tempo (toast "Desfazer"). */
 export const JANELA_DESFAZER_MS = 10 * 60_000;
@@ -354,6 +357,7 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
     quantidadeSolicitada: dados.operacao === "REMOVER" ? 0 : dados.quantidadeSolicitada,
     destino: dados.destino ?? null,
     justificativa: dados.justificativa ?? null,
+    descricoes: descricoesParaGravar(dados.operacao, dados.quantidadeSolicitada, dados.descricoes),
     projetoId: null,
     projetoVersaoId: null,
     pecaId: null,
@@ -449,7 +453,10 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
     const campos: Record<string, string> = {};
     if (!dados.titulo) campos.titulo = MSG_TITULO_OBRIGATORIO;
     if (dados.itens.length === 0) campos.itens = "Adicione ao menos um item.";
-    if (Object.keys(campos).length) throw new ValidacaoError("Falta preencher antes de enviar.", campos);
+    const semDescricao = dados.itens.filter((i) => faltamDescricoes(i) > 0).length;
+    if (semDescricao) campos.descricoes = MSG_DESCRICOES(semDescricao);
+    const faltas = Object.values(campos);
+    if (faltas.length) throw new ValidacaoError(faltas.length === 1 ? faltas[0] : "Falta preencher antes de enviar.", campos);
   }
   dados.itens.forEach((i) => validarItem(i));
 
@@ -557,6 +564,8 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     await bloquearEvento(tx, previa.eventoId);
     const s = await carregarEditavel(tx, usuario, id);
     if (s.itens.length === 0) throw new DomainError("Adicione ao menos um item antes de enviar.");
+    const semDescricao = s.itens.filter((i) => faltamDescricoes(i) > 0).length;
+    if (semDescricao) throw new ValidacaoError(MSG_DESCRICOES(semDescricao), { descricoes: MSG_DESCRICOES(semDescricao) });
     if (!s.titulo?.trim()) throw new ValidacaoError(MSG_TITULO_OBRIGATORIO, { titulo: MSG_TITULO_OBRIGATORIO });
     if (!aceitaSolicitacao(s.evento.status, s.tipo)) {
       const motivo =

@@ -24,6 +24,7 @@ import { listarOsResumo } from "@/server/services/os";
 import { EventoStatusBadge } from "@/components/ui/badge";
 import { diaMesISO, periodoCurto } from "@/lib/format";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
+import { observacaoDoItem } from "@/domain/descricoes-itens";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -65,7 +66,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
     destino: i.destino,
-    justificativa: i.justificativa,
+    justificativa: observacaoDoItem(i),
     ajustes: resumirAjustes(i.ajustesBom),
     status: i.status,
     quantidadeAtendida: i.quantidadeAtendida,

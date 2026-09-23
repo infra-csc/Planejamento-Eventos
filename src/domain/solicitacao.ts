@@ -228,6 +228,8 @@ export type ItemRascunho = {
   destino?: string | null;
   /** Só para projeto: unidades a mais (ou a menos) por peça da lista padrão. */
   ajustesBom?: Array<{ pecaId: string; quantidade: number }> | null;
+  /** Descrição de cada unidade adicionada (ver domain/descricoes-itens). */
+  descricoes?: string[] | null;
 };
 
 /** Valida a consistência estrutural de um item de solicitação (exatamente uma referência). */

@@ -16,6 +16,7 @@ import { areas, notificacoes, pecas, solicitacoes, usuarios, type Perfil } from 
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { alterarQuantidadeLinha, conferirTodasLinhas, criarEvento, incluirLinhaAta, obterLinhasAta, salvarDadosReuniao, transicionarEvento } from "./eventos";
 import { responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
+import { descricoesIguais } from "@/domain/descricoes-itens";
 
 let logistica: UsuarioAtual;
 let producao: UsuarioAtual;
@@ -64,7 +65,7 @@ async function eventoComPedidos() {
     janelaAlteracoesAte: null,
   });
   for (const u of [producao, ativacao]) {
-    await salvarSolicitacaoCompleta(u, { eventoId: ev.id, titulo: `Pedido ${u.nome}`, observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", pecaId, quantidadeSolicitada: 2 }] });
+    await salvarSolicitacaoCompleta(u, { eventoId: ev.id, titulo: `Pedido ${u.nome}`, observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", pecaId, quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado") }] });
   }
   await transicionarEvento(logistica, ev.id, "INICIAR_REUNIAO");
   await conferirTodasLinhas(logistica, ev.id);
@@ -100,7 +101,7 @@ describe("notificações do evento", { timeout: 30_000 }, () => {
 
   it("resposta a uma alteração avisa quem pediu", async () => {
     const ev = await eventoComPedidos();
-    const s = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Mais uma tenda", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", pecaId, quantidadeSolicitada: 1 }] });
+    const s = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Mais uma tenda", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", pecaId, quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }] });
     const db = await getDb();
     await db.delete(notificacoes);
     const sol = await db.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, s.id), with: { itens: true } });

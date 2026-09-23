@@ -32,6 +32,7 @@ import { alterarAtivoUsuario, criarUsuario, editarUsuario } from "../src/server/
 import { buscar } from "../src/server/services/busca";
 import { dadosPainel } from "../src/server/services/dashboard";
 import { calcularConsolidacao } from "../src/server/services/consolidacao";
+import { descricoesIguais } from "../src/domain/descricoes-itens";
 
 let falhas = 0;
 function ok(cond: unknown, msg: string) {
@@ -139,7 +140,7 @@ async function main() {
   ok((await ev("EVT-0004")).reabertoVezes === 1 && (await ev("EVT-0004")).status === "ABERTO", "reaberto em exceção (contador 1)");
   const r4 = await criarRascunho(paulo, e4.id);
   const tenda5 = (await db.query.projetos.findFirst({ where: eq(projetos.codigo, "PRJ-0006") }))!;
-  await salvarItem(paulo, r4.id, null, { operacao: "ADICIONAR", projetoId: tenda5.id, quantidadeSolicitada: 1, destino: "Ala D" });
+  await salvarItem(paulo, r4.id, null, { operacao: "ADICIONAR", projetoId: tenda5.id, quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado"), destino: "Ala D" });
   await deveFalhar(() => enviarSolicitacao(paulo, r4.id), "enviar sem título é rejeitado", "título");
   await atualizarCabecalho(paulo, r4.id, { titulo: "Tenda extra na ala D", observacao: null });
   await enviarSolicitacao(paulo, r4.id);
@@ -158,7 +159,7 @@ async function main() {
     titulo: "Pórtico da entrada leste",
     observacao: null,
     enviar: true,
-    itens: [{ operacao: "ADICIONAR", projetoId: (await db.query.projetos.findFirst({ where: eq(projetos.codigo, "PRJ-0002") }))!.id, quantidadeSolicitada: 1, destino: "Entrada leste" }],
+    itens: [{ operacao: "ADICIONAR", projetoId: (await db.query.projetos.findFirst({ where: eq(projetos.codigo, "PRJ-0002") }))!.id, quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado"), destino: "Entrada leste" }],
   });
   ok(r1.enviada, "alteração pós-ata enviada pelo formulário completo");
   await deveFalhar(() => devolverSolicitacao(marina, r1.id, ""), "devolver sem motivo é rejeitado", "motivo");
@@ -230,8 +231,8 @@ async function main() {
     observacao: "Contexto",
     enviar: true,
     itens: [
-      { operacao: "ADICIONAR", projetoId: tenda5.id, quantidadeSolicitada: 2, destino: "Foyer" },
-      { operacao: "ADICIONAR", descricaoLivre: "Fechamento de tenda", quantidadeSolicitada: 4, destino: "GV" },
+      { operacao: "ADICIONAR", projetoId: tenda5.id, quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado"), destino: "Foyer" },
+      { operacao: "ADICIONAR", descricaoLivre: "Fechamento de tenda", quantidadeSolicitada: 4, descricoes: descricoesIguais(4, "Conforme combinado"), destino: "GV" },
     ],
   });
   const sr = await obterSolicitacao(marina, r.id);
@@ -250,7 +251,7 @@ async function main() {
   ok(!(await buscar(paulo, "")).some((x) => x.titulo.startsWith("Abrir conferência")), "requisitante não vê ação de consolidar ata");
 
   console.log("\n8. Pré-reunião antiga (de antes da regra) entra na ata e sai da fila de resposta");
-  const legado = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Pedido antigo", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem antigo", quantidadeSolicitada: 3 }] });
+  const legado = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Pedido antigo", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem antigo", quantidadeSolicitada: 3, descricoes: descricoesIguais(3, "Conforme combinado") }] });
   // Simula o estado antigo: enviada e aguardando avaliação, sem linha na ata.
   await db.update(solicitacoes).set({ status: "ENVIADA", enviadaEm: new Date(), prazoRespostaEm: new Date(Date.now() - 3_600_000) }).where(eq(solicitacoes.id, legado.id));
   const filaAntes = await listarSolicitacoes(marina, { status: "ABERTAS" });
@@ -271,7 +272,7 @@ async function main() {
   ok(linhaVinculada?.tipo === "PECA" && linhaVinculada.registro.pecaId === pecaExistente.id && linhaVinculada.registro.descricaoLivre === "Totem antigo", "linha da ata vira peça e guarda o texto original");
   ok((await obterSolicitacao(paulo, legado.id)).itens[0].pecaId === pecaExistente.id, "pedido da área também aponta para a peça");
   await deveFalhar(() => vincularAoCatalogo(marina, { solicitacaoItemId: avulsoItem.id }, { tipo: "PECA", pecaId: pecaExistente.id }), "vincular de novo é bloqueado", "já está vinculado");
-  const outroAvulso = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Totem novo", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem de LED 2 m", quantidadeSolicitada: 2 }] });
+  const outroAvulso = await salvarSolicitacaoCompleta(paulo, { eventoId: e2b.id, titulo: "Totem novo", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem de LED 2 m", quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado") }] });
   const itemNovo = (await obterSolicitacao(marina, outroAvulso.id)).itens[0];
   await vincularAoCatalogo(marina, { solicitacaoItemId: itemNovo.id }, { tipo: "NOVA_PECA", peca: { codigo: "TOTEM-LED-SMOKE", nome: "Totem de LED 2 m", setor: "MARCENARIA", familia: "", unidade: "un", descricao: null, estoqueProprio: 0, permiteEmProjeto: true } });
   ok((await listarPecas(marina)).some((p) => p.codigo === "TOTEM-LED-SMOKE") && (await obterLinhasAta(e2b.id)).some((l) => l.registro.solicitacaoItemId === itemNovo.id && l.tipo === "PECA"), "cadastrar peça nova e vincular na mesma ação");

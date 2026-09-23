@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
 import { combinaBusca } from "@/lib/busca";
 import type { ActionResult } from "@/lib/action";
+import { ajustarDescricoes, descricoesEsperadas, faltamDescricoes, MAX_DESCRICOES_POR_UNIDADE, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
 
 export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
 export type ItemNovo = {
@@ -32,6 +33,8 @@ export type ItemNovo = {
   quantidadeAtual: number | null;
   destino: string;
   justificativa: string;
+  /** Uma descrição por unidade adicionada (10 pedidas, 10 descrições); acima do limite, uma só. */
+  descricoes: string[];
   /** Projeto: delta por peça (pecaId → unidades a mais ou a menos). */
   ajustes: Record<string, number>;
   rotulo: string;
@@ -141,6 +144,7 @@ export function NovaSolicitacaoForm({
       quantidadeSolicitada: i.quantidade,
       destino: i.destino,
       justificativa: i.justificativa,
+      descricoes: ajustarDescricoes(i.descricoes, descricoesEsperadas(i.operacao, i.quantidade)),
       ajustesBom: Object.entries(i.ajustes)
         .filter(([, d]) => d !== 0)
         .map(([pecaId, quantidade]) => ({ pecaId, quantidade })),
@@ -152,7 +156,7 @@ export function NovaSolicitacaoForm({
     setCodigoRascunho(codigo);
     window.history.replaceState(null, "", `/solicitacoes/nova?rascunho=${id}`);
   };
-  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.ajustes])]);
+  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.descricoes, i.ajustes])]);
   const salvoRef = useRef(rascunho ? assinatura : "");
   const podeAutosalvar = Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
 
@@ -252,6 +256,7 @@ export function NovaSolicitacaoForm({
           quantidadeAtual: null,
           destino: "",
           justificativa: "",
+          descricoes: [],
           ajustes: {},
           rotulo: tipo === "projeto" ? r.nome : `${r.codigo} · ${r.nome}`,
           meta: tipo === "projeto" ? `${r.codigo} · projeto padrão` : "peça do catálogo",
@@ -268,7 +273,7 @@ export function NovaSolicitacaoForm({
     }
     setErroAvulso(null);
     setAvulso("");
-    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
+    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
   };
 
   const adicionarLinha = (l: LinhaAta, operacao: "ALTERAR_QUANTIDADE" | "REMOVER") => {
@@ -285,6 +290,7 @@ export function NovaSolicitacaoForm({
         quantidadeAtual: l.quantidade,
         destino: l.destino ?? "",
         justificativa: "",
+        descricoes: [],
         ajustes: {},
         rotulo: l.nome,
         meta: operacao === "REMOVER" ? "remover da ata" : `hoje ${l.quantidade} na ata`,
@@ -353,6 +359,12 @@ export function NovaSolicitacaoForm({
       setTentouEnviar(true);
       validarTitulo(titulo);
       if (!titulo.trim() || itens.length === 0) return;
+      const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes }) > 0);
+      if (semDescricao.length) {
+        setErroGeral(semDescricao.length === 1 ? `Descreva cada unidade de “${semDescricao[0].rotulo}” antes de enviar.` : `Faltam descrições em ${semDescricao.length} itens. Descreva cada unidade antes de enviar.`);
+        irPara(`descricoes-${semDescricao[0].chave}`);
+        return;
+      }
     }
     iniciar(async () => {
       if (enviar) enviandoRef.current = true;
@@ -488,6 +500,7 @@ export function NovaSolicitacaoForm({
                   Remover
                 </Button>
               </div>
+              <DescricoesItem item={i} destacarVazias={tentouEnviar} onChange={(descricoes) => mudar(i.chave, { descricoes })} />
               {ajustando === i.chave && (
                 <div className="border-t border-line-faint bg-subtle/60 px-cartao pb-3 pt-2.5">
                   <div className="mb-2 flex items-start gap-3">
@@ -728,6 +741,53 @@ export function NovaSolicitacaoForm({
           setTroca(null);
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Descrição de cada unidade adicionada: 10 pedidas, 10 campos (texto, arte, medida de cada uma).
+ * Acima de 50 unidades, um campo só vale para todas. Obrigatório para enviar.
+ */
+function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (d: string[]) => void }) {
+  const esperadas = descricoesEsperadas(item.operacao, item.quantidade);
+  if (!esperadas) return null;
+  const lista = ajustarDescricoes(item.descricoes, esperadas);
+  const vazias = lista.filter((d) => !d.trim()).length;
+  const unica = esperadas === 1;
+  const definir = (n: number, v: string) => onChange(lista.map((d, k) => (k === n ? v : d)));
+  return (
+    <div id={`descricoes-${item.chave}`} tabIndex={-1} className="border-t border-line-faint px-cartao pb-3 pt-2.5 focus:outline-none">
+      <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-pequeno font-medium text-ink-2">
+          {unica ? (item.quantidade > 1 ? `Descrição (vale para as ${item.quantidade} unidades)` : "Descrição") : `Descrição de cada unidade (${esperadas})`}
+          <span className="text-danger" aria-hidden>
+            {" "}*
+          </span>
+        </span>
+        {!unica && vazias > 0 && vazias < esperadas && <span className={cn("text-rotulo", destacarVazias ? "text-danger" : "text-muted")}>{vazias} sem descrição</span>}
+        {!unica && lista[0].trim() && vazias > 0 && (
+          <Button variant="link" size="xs" onClick={() => onChange(lista.map((d) => d.trim() ? d : lista[0]))}>
+            Repetir a 1ª nas vazias
+          </Button>
+        )}
+      </div>
+      <div className={cn("grid gap-1.5", !unica && "sm:grid-cols-2")}>
+        {lista.map((d, n) => (
+          <label key={n} className="flex items-center gap-2">
+            {!unica && <span className="w-6 shrink-0 text-right font-mono text-rotulo text-meta">{n + 1}</span>}
+            <Input
+              value={d}
+              maxLength={TAMANHO_DESCRICAO}
+              onChange={(e) => definir(n, e.target.value)}
+              aria-label={unica ? `Descrição de ${item.rotulo}` : `Descrição da unidade ${n + 1} de ${item.rotulo}`}
+              aria-invalid={destacarVazias && !d.trim() ? true : undefined}
+              placeholder={unica ? "O que é, texto/arte, medida, cor…" : `Unidade ${n + 1}: texto/arte, medida, cor…`}
+              className="min-w-0 flex-1"
+            />
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { criarProjeto, editarProjeto } from "../src/server/services/projetos";
 import { alterarQuantidadeLinha, conferirTodasLinhas, criarEvento, incluirLinhaAta, obterLinhasAta, salvarDadosReuniao, salvarObservacoesReuniao, transicionarEvento } from "../src/server/services/eventos";
 import { atualizarCabecalho, criarRascunho, devolverSolicitacao, enviarSolicitacao, obterSolicitacao, responderItem, salvarItem } from "../src/server/services/solicitacoes";
 import { marcarTodasLidas } from "../src/server/services/notificacoes";
+import { descricoesIguais } from "../src/domain/descricoes-itens";
 
 const SENHA = "norte1234";
 const HOJE = new Date();
@@ -139,6 +140,7 @@ async function main() {
         quantidadeSolicitada: i.qtd,
         destino: i.destino ?? null,
         justificativa: i.just ?? null,
+        descricoes: descricoesIguais(i.qtd, i.just ?? i.livre ?? "Conforme projeto padrão"),
       });
     }
     if (enviar) await enviarSolicitacao(usuario, s.id);

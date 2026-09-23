@@ -382,6 +382,8 @@ export const solicitacaoItens = pgTable(
     destino: text("destino"),
     /** Ajustes nas peças do projeto pedido: unidades a mais (ou a menos) por peça, em cima da lista padrão. */
     ajustesBom: jsonb("ajustes_bom").$type<AjusteBom[]>(),
+    /** Descrição de cada unidade adicionada (10 pedidas, 10 descrições); acima do limite, uma só para todas. */
+    descricoes: jsonb("descricoes").$type<string[]>(),
     justificativa: text("justificativa"),
     status: itemStatusEnum("status").notNull().default("EM_ANALISE"),
     quantidadeAtendida: integer("quantidade_atendida"),

@@ -78,6 +78,13 @@
       "when": 1789746079243,
       "tag": "0010_indices_desempenho",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789746139243,
+      "tag": "0011_descricoes_itens",
+      "breakpoints": true
     }
   ]
 }

@@ -69,6 +69,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       quantidadeAtual: i.eventoItem?.quantidade ?? null,
       destino: i.destino ?? "",
       justificativa: i.justificativa ?? "",
+      descricoes: i.descricoes ?? [],
       ajustes: Object.fromEntries((i.ajustesBom ?? []).map((a) => [a.pecaId, a.quantidade])),
       rotulo: descricaoItem(i),
       meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "fora do catálogo",

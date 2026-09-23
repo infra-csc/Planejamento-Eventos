@@ -20,6 +20,7 @@ import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, p
 import { complementoOs, listarOsResumo, marcarOsEnviada, obterConteudosOs } from "./os";
 import { buscar } from "./busca";
 import { salvarConfiguracao } from "./support";
+import { descricoesIguais } from "@/domain/descricoes-itens";
 
 let logistica: UsuarioAtual;
 let logistica2: UsuarioAtual;
@@ -145,7 +146,7 @@ describe("efeito das respostas na ata", { timeout: 30_000 }, () => {
 
   it("desfazer uma inclusão tira a linha; responder de novo reaproveita a mesma linha", async () => {
     const { ev } = await eventoAberto();
-    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Gerador extra", quantidadeSolicitada: 2 }]);
+    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Gerador extra", quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado") }]);
     const r1 = await responderItem(logistica, s.itens[0].id, { status: "ATENDIDO" });
     expect(r1.podeDesfazer).toBe(true);
     await desfazerResposta(logistica, s.itens[0].id);
@@ -160,7 +161,7 @@ describe("efeito das respostas na ata", { timeout: 30_000 }, () => {
 describe("concorrência e atomicidade", { timeout: 30_000 }, () => {
   it("duas respostas ao mesmo item ao mesmo tempo geram uma linha só", async () => {
     const { ev } = await eventoAberto();
-    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Tenda 5x5", quantidadeSolicitada: 3 }]);
+    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Tenda 5x5", quantidadeSolicitada: 3, descricoes: descricoesIguais(3, "Conforme combinado") }]);
     const resultados = await Promise.allSettled([
       responderItem(logistica, s.itens[0].id, { status: "ATENDIDO" }),
       responderItem(logistica2, s.itens[0].id, { status: "ATENDIDO" }),
@@ -173,9 +174,9 @@ describe("concorrência e atomicidade", { timeout: 30_000 }, () => {
   it("atender tudo gera uma única versão de OS", async () => {
     const { ev } = await eventoAberto();
     const s = await enviar(ev.id, [
-      { operacao: "ADICIONAR", descricaoLivre: "Item A", quantidadeSolicitada: 1 },
-      { operacao: "ADICIONAR", descricaoLivre: "Item B", quantidadeSolicitada: 2 },
-      { operacao: "ADICIONAR", descricaoLivre: "Item C", quantidadeSolicitada: 3 },
+      { operacao: "ADICIONAR", descricaoLivre: "Item A", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") },
+      { operacao: "ADICIONAR", descricaoLivre: "Item B", quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado") },
+      { operacao: "ADICIONAR", descricaoLivre: "Item C", quantidadeSolicitada: 3, descricoes: descricoesIguais(3, "Conforme combinado") },
     ]);
     const db = await getDb();
     const antes = (await db.query.osVersoes.findMany({ where: eq(osVersoes.eventoId, ev.id) })).length;
@@ -186,15 +187,27 @@ describe("concorrência e atomicidade", { timeout: 30_000 }, () => {
 });
 
 describe("fases do evento e permissões no service", { timeout: 30_000 }, () => {
+  it("enviar exige a descrição de cada unidade adicionada (rascunho salva sem)", async () => {
+    const { ev } = await eventoAberto();
+    const sem = [{ operacao: "ADICIONAR" as const, descricaoLivre: "Banner", quantidadeSolicitada: 3, descricoes: ["Logo azul", "", "Logo branco"] }];
+    await expect(salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Banners", observacao: null, enviar: true, itens: sem })).rejects.toThrow(/descri/);
+    const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Banners", observacao: null, enviar: false, itens: sem });
+    expect(r.enviada).toBe(false);
+    const ok = await salvarSolicitacaoCompleta(producao, { id: r.id, eventoId: ev.id, titulo: "Banners", observacao: null, enviar: true, itens: [{ ...sem[0], descricoes: ["Logo azul", "Logo preto", "Logo branco"] }] });
+    expect(ok.enviada).toBe(true);
+    const s = await obterSolicitacao(logistica, r.id);
+    expect(s.itens[0].descricoes).toEqual(["Logo azul", "Logo preto", "Logo branco"]);
+  });
+
   it("requisitante chamando o service de resposta é barrado", async () => {
     const { ev } = await eventoAberto();
-    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Palco", quantidadeSolicitada: 1 }]);
+    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Palco", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }]);
     await expect(responderItem(producao, s.itens[0].id, { status: "ATENDIDO" })).rejects.toThrow(/permissão/);
   });
 
   it("fechar a ata cancela necessidade pré-reunião que ficou em rascunho", async () => {
     const ev = await novoEvento();
-    const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem", quantidadeSolicitada: 1 }] });
+    const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }] });
     await incluirLinhaAta(logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId, descricaoLivre: null, quantidade: 1, destino: null, areaId: producao.areaId, justificativa: null });
     await transicionarEvento(logistica, ev.id, "INICIAR_REUNIAO");
     await conferirTodasLinhas(logistica, ev.id);
@@ -210,7 +223,7 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
     await salvarConfiguracao(db, "bloquear_encerramento_com_pendentes", "false");
     try {
       const { ev } = await eventoAberto();
-      const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Banheiro", quantidadeSolicitada: 2 }]);
+      const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Banheiro", quantidadeSolicitada: 2, descricoes: descricoesIguais(2, "Conforme combinado") }]);
       await transicionarEvento(logistica, ev.id, "ENCERRAR");
       expect((await db.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, s.id) }))?.status).toBe("CANCELADA");
     } finally {
@@ -240,7 +253,7 @@ describe("administrador com acesso total", { timeout: 30_000 }, () => {
     const admin: UsuarioAtual = { id: u.id, nome: u.nome, email: u.email, perfil: "ADMIN", areaId: null, areaNome: null };
     const { ev } = await eventoAberto();
     await expect(salvarSolicitacaoCompleta(admin, { eventoId: ev.id, titulo: "Sem área", observacao: null, enviar: false, itens: [] })).rejects.toThrow(/área/);
-    const r = await salvarSolicitacaoCompleta(admin, { eventoId: ev.id, areaId: producao.areaId, titulo: "Pedido do admin", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Tenda extra", quantidadeSolicitada: 1 }] });
+    const r = await salvarSolicitacaoCompleta(admin, { eventoId: ev.id, areaId: producao.areaId, titulo: "Pedido do admin", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Tenda extra", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }] });
     expect(r.enviada).toBe(true);
     const s = await obterSolicitacao(admin, r.id);
     expect(s.areaId).toBe(producao.areaId);
@@ -253,8 +266,8 @@ describe("administrador com acesso total", { timeout: 30_000 }, () => {
 describe("consultas otimizadas", { timeout: 30_000 }, () => {
   it("lista de solicitações pagina e conta no banco, respeitando a área", async () => {
     const { ev } = await eventoAberto();
-    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Produção", quantidadeSolicitada: 1 }]);
-    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Gráfica", quantidadeSolicitada: 1 }], grafica);
+    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Produção", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }]);
+    await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Da Gráfica", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }], grafica);
     const daLogistica = await paginarSolicitacoes(logistica, { filtro: "ABERTAS", ordem: "codigo", dir: "desc", porPagina: 1 });
     expect(daLogistica.itens).toHaveLength(1);
     expect(daLogistica.contagens.ABERTAS).toBeGreaterThanOrEqual(2);
@@ -295,7 +308,7 @@ describe("consultas otimizadas", { timeout: 30_000 }, () => {
 describe("histórico do evento por área", { timeout: 30_000 }, () => {
   it("outra área não lê o motivo de devolução; a própria área lê", async () => {
     const { ev } = await eventoAberto();
-    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Iluminação", quantidadeSolicitada: 4 }]);
+    const s = await enviar(ev.id, [{ operacao: "ADICIONAR", descricaoLivre: "Iluminação", quantidadeSolicitada: 4, descricoes: descricoesIguais(4, "Conforme combinado") }]);
     await devolverSolicitacao(logistica, s.id, "Motivo sigiloso da Produção");
     const daGrafica = await obterHistoricoEvento(grafica, ev.id);
     const daProducao = await obterHistoricoEvento(producao, ev.id);
