@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { iniciais } from "@/lib/format";
 import { PERFIL_LABEL } from "@/domain/permissions";
@@ -11,11 +11,14 @@ import { Dropdown, DropdownContent, DropdownItem, DropdownLabel, DropdownSeparat
 import { ChipMono } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/layout";
+import { Icone, Spinner, type NomeIcone } from "@/components/ui/icons";
+import { useSinalizarNavegacao } from "@/components/ui/navegacao";
 import { logoutAction } from "@/app/(auth)/actions";
 import { sairVerComoAction, verComoAction } from "@/app/(app)/ver-como/actions";
 import { SinoNotificacoes } from "./sino-notificacoes";
 import { Trilha } from "./trilha";
 import { BuscaGlobal, abrirBuscaGlobal } from "./busca-global";
+import { BarraNavegacao } from "./barra-navegacao";
 
 export type NavItem = { href: string; label: string; contagem?: number | null; secao?: string; ativoEm?: string[]; exato?: boolean };
 
@@ -41,23 +44,26 @@ function AtalhoBusca() {
   return <>{mac ? "⌘K" : "Ctrl K"}</>;
 }
 
-/** Ícones do menu (traço 1.8, 18 px) — usados também no modo recolhido, onde só eles aparecem. */
+/** Ícone de cada item do menu (20 px) — usado também no modo recolhido, onde só ele aparece. */
+const ICONE_NAV: Array<[string, NomeIcone]> = [
+  ["/eventos", "eventos"],
+  ["/calendario", "calendario"],
+  ["/solicitacoes", "solicitacoes"],
+  ["/arena", "arena"],
+  ["/consolidacao", "grafico"],
+  ["/biblioteca", "livro"],
+  ["/admin", "escudo"],
+];
+
+/** Dentro do <Link>: enquanto a página do item carrega, o ícone vira um spinner (mesmo tamanho). */
 function IconeNav({ href }: { href: string }) {
-  const d: Record<string, React.ReactNode> = {
-    "/": <path d="M3 11.5 12 4l9 7.5M5 10v10h14V10" />,
-    "/eventos": <><path d="M4 4h16v6H4zM4 14h7v6H4zM15 14h5v6h-5z" /></>,
-    "/calendario": <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><circle cx="9" cy="15" r="1" fill="currentColor" /><circle cx="15" cy="15" r="1" fill="currentColor" /></>,
-    "/solicitacoes": <><path d="M6 3h9l5 5v13H6z" /><path d="M14 3v6h6M9 13h7M9 17h7" /></>,
-    "/arena": <><path d="M3 9l9-5 9 5-9 5z" /><path d="M3 9v6l9 5 9-5V9" /></>,
-    "/consolidacao": <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
-    "/biblioteca": <><path d="M4 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z" /><path d="M20 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" /></>,
-    "/admin": <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
-  };
-  const chave = Object.keys(d).find((k) => (k === "/" ? href === "/" : href.startsWith(k))) ?? "/eventos";
+  const { pending } = useLinkStatus();
+  useSinalizarNavegacao(pending);
+  const nome: NomeIcone = href === "/" ? "casa" : (ICONE_NAV.find(([k]) => href.startsWith(k))?.[1] ?? "eventos");
   return (
-    <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-      {d[chave]}
-    </svg>
+    <span className="grid size-5 shrink-0 place-items-center">
+      {pending ? <Spinner tamanho={16} /> : <Icone nome={nome} tamanho={20} />}
+    </span>
   );
 }
 
@@ -69,9 +75,10 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
       aria-current={ativo ? "page" : undefined}
       title={compacto ? `${item.label}${temContagem ? ` (${item.contagem})` : ""}` : undefined}
       className={cn(
-        "relative flex w-full items-center gap-2.5 rounded-controle border border-transparent py-2 text-corpo no-underline",
+        "relative flex w-full items-center gap-2.5 rounded-controle border border-transparent py-2 text-corpo no-underline transition-colors duration-150 max-lg:min-h-10",
+        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
         compacto ? "justify-center px-0" : "px-2.5",
-        ativo ? "bg-control font-medium text-ink [&_svg]:text-accent" : "text-ink-2 hover:bg-subtle hover:text-ink",
+        ativo ? "bg-control font-medium text-ink [&_svg]:text-accent" : "text-ink-2 hover:bg-subtle hover:text-ink [&_svg]:text-ink-3 hover:[&_svg]:text-ink-2",
       )}
     >
       <IconeNav href={item.href} />
@@ -137,6 +144,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
 
   return (
     <div className="flex min-h-screen bg-page">
+      {/* Barra fina de progresso das navegações (lê a URL: precisa de Suspense). */}
+      <Suspense fallback={null}>
+        <BarraNavegacao />
+      </Suspense>
       <a href="#conteudo" className="no-print sr-only rounded-controle bg-dark px-3 py-2 text-corpo text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[var(--z-toast)]">
         Pular para o conteúdo
       </a>
@@ -160,7 +171,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
       >
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
-            <span aria-hidden className="block size-5 shrink-0 rounded-chip bg-accent" />
+            {/* Mesma marca do favicon (src/app/icon.svg). */}
+            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-[6px] bg-accent">
+              <span className="block size-2.5 rounded-[3px] bg-accent-bg" />
+            </span>
             <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
               <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-meta">Norte Mkt</span>
               <span className="block text-corpo font-semibold tracking-[-0.01em] text-ink">Planejamento</span>
@@ -172,11 +186,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             onClick={alternarRecolhido}
             aria-pressed={recolhido}
             title={recolhido ? "Expandir menu" : "Recolher menu"}
-            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border border-line bg-transparent text-ink-3 hover:bg-subtle hover:text-ink lg:grid"
+            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-3 transition-colors duration-150 hover:bg-subtle hover:text-ink lg:grid"
           >
-            <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", recolhido && "rotate-180")}>
-              <path d="M15 6l-6 6 6 6" />
-            </svg>
+            <Icone nome={recolhido ? "expandir" : "recolher"} />
           </button>
         </div>
 
@@ -184,12 +196,13 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           type="button"
           onClick={abrirBuscaGlobal}
           title={recolhido ? "Buscar ou executar (Ctrl K)" : undefined}
-          className={cn("mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-line bg-subtle py-2 text-corpo text-ink-3 hover:border-line-strong hover:text-ink-2", recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5")}
+          aria-label={recolhido ? "Buscar ou executar" : undefined}
+          className={cn(
+            "mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-line bg-subtle py-2 text-corpo text-ink-3 transition-colors duration-150 hover:border-line-strong hover:text-ink-2 max-lg:min-h-10",
+            recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5",
+          )}
         >
-          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
+          <Icone nome="busca" />
           <span className={cn("flex-1 text-left", recolhido && "lg:sr-only")}>Buscar ou executar</span>
           <span className={cn(recolhido && "lg:hidden")}>
             <Kbd>
@@ -220,14 +233,13 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             <Atualizado key={pathname} /> · v0.2
           </p>
           <form action={logoutAction}>
-            <button type="submit" title="Sair" className="cursor-pointer border-0 bg-transparent p-0 text-rotulo text-ink-3 hover:text-accent">
-              {recolhido ? (
-                <svg aria-label="Sair" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />
-                </svg>
-              ) : (
-                "Sair"
-              )}
+            <button
+              type="submit"
+              title="Sair"
+              className="flex cursor-pointer items-center gap-1.5 rounded-controle border-0 bg-transparent px-1.5 py-1 text-rotulo text-ink-3 transition-colors duration-150 hover:bg-subtle hover:text-ink max-lg:min-h-10"
+            >
+              <Icone nome="sair" />
+              <span className={cn(recolhido && "sr-only")}>Sair</span>
             </button>
           </form>
         </div>
@@ -242,18 +254,16 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             aria-expanded={menuAberto}
             aria-controls="menu-principal"
             onClick={() => setMenuAberto(true)}
-            className="-ml-1 grid size-9 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-2 hover:bg-black/[0.04] lg:hidden"
+            className="-ml-1 grid size-10 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-2 transition-colors duration-150 hover:bg-black/[0.04] lg:hidden"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <Icone nome="menu" tamanho={20} />
           </button>
           <Trilha />
           {/* Painel no próprio cabeçalho: ver as notificações sem sair da página. */}
           <SinoNotificacoes naoLidas={naoLidas} />
           <div aria-hidden className="h-[22px] w-px bg-line max-sm:hidden" />
           <Dropdown>
-            <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 hover:bg-black/[0.04]" aria-label={`Menu de ${usuario.nome}`}>
+            <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 transition-colors duration-150 hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] max-md:min-h-10" aria-label={`Menu de ${usuario.nome}`}>
               <span className="flex size-7 items-center justify-center rounded-full bg-accent-bg text-rotulo font-semibold text-accent">{iniciais(usuario.nome)}</span>
               <span className="text-left max-sm:hidden">
                 <span className="block text-pequeno font-medium leading-[1.25] text-ink">{usuario.nome}</span>
@@ -263,7 +273,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             <DropdownContent>
               <DropdownLabel>{usuario.email}</DropdownLabel>
               <DropdownSeparator />
-              <DropdownItem onSelect={() => router.push("/perfil")}>Meu perfil</DropdownItem>
+              <DropdownItem onSelect={() => router.push("/perfil")}>
+                <Icone nome="usuario" className="text-ink-3" />
+                Meu perfil
+              </DropdownItem>
               {verComo && (
                 <>
                   <DropdownSeparator />
@@ -274,7 +287,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
                   {vendoComo && <DropdownItem onSelect={() => void sairVerComoAction().then(() => router.refresh())}>Voltar a administrador</DropdownItem>}
                 </>
               )}
+              <DropdownSeparator />
               <DropdownItem onSelect={() => logoutAction()} danger>
+                <Icone nome="sair" />
                 Sair
               </DropdownItem>
             </DropdownContent>

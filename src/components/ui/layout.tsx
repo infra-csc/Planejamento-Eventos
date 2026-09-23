@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { DefinirTrilha, type ItemTrilha } from "@/components/shell/trilha";
+import { Icone, type NomeIcone } from "./icons";
 
 /* ------------------------------------------------------------------ */
 /* Cabeçalho de página                                                  */
 /* ------------------------------------------------------------------ */
 
-/** Um par rótulo/valor da linha de metadados do cabeçalho. */
+/** Um par rótulo/valor da linha de metadados do cabeçalho. `mono` só para códigos (EVT-0002). */
 export function Meta({ rotulo, valor, mono }: { rotulo: string; valor: React.ReactNode; mono?: boolean }) {
   return (
     <span className="inline-flex items-baseline gap-1.5">
       <span className="text-pequeno text-muted">{rotulo}</span>
-      <span className={cn("text-corpo text-ink", mono && "font-mono")}>{valor}</span>
+      <span className={cn("text-corpo text-ink", mono ? "font-mono" : "numero")}>{valor}</span>
     </span>
   );
 }
@@ -49,8 +50,8 @@ export function PageHeader({
       <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", divisor && "mb-5 border-b border-line pb-4 sm:items-center", className)}>
         <div className="min-w-0">
           {eyebrow && <div className="mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">{eyebrow}</div>}
-          <h1 className={cn("m-0 font-semibold leading-[1.2] tracking-[-0.025em]", tamanho === "sm" ? "text-titulo" : "text-pagina")}>{title}</h1>
-          {description && <p className="mt-[5px] max-w-[680px] text-secao text-ink-2">{description}</p>}
+          <h1 className={cn("m-0 font-semibold", tamanho === "sm" ? "text-titulo tracking-[-0.01em]" : "text-pagina tracking-[-0.02em]")}>{title}</h1>
+          {description && <p className="mt-1 max-w-[680px] text-corpo text-ink-2">{description}</p>}
           {meta && <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-corpo text-ink-2">{meta}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
@@ -113,18 +114,27 @@ export function RotuloGrupo({ children, contagem, className }: { children: React
   return (
     <div className={cn(!/mb-/.test(className ?? "") && "mb-[9px]", "flex items-baseline gap-[9px]", className)}>
       <h2 className="m-0 text-pequeno font-semibold uppercase tracking-[0.1em] text-muted">{children}</h2>
-      {contagem != null && <span className="font-mono text-rotulo text-meta">{contagem}</span>}
+      {contagem != null && <span className="numero text-rotulo text-meta">{contagem}</span>}
     </div>
   );
 }
 
-/** Estado vazio: título 13.5, descrição 12.5, ação quando há o que fazer. `compact` dentro de Section. */
-export function EmptyState({ title, description, action, compact, className }: { title: string; description?: React.ReactNode; action?: React.ReactNode; compact?: boolean; className?: string }) {
+/**
+ * Estado vazio: título (o que não há) + UMA frase (por que / o que fazer) + ação quando há o que fazer.
+ * `compact`: dentro de cartão/lista curta ou painel lateral — menos respiro, sem ícone.
+ * `icone`: opcional no tamanho normal (ex.: "busca" para busca sem resultado, "caixa" para lista vazia).
+ */
+export function EmptyState({ title, description, action, compact, icone, className }: { title: string; description?: React.ReactNode; action?: React.ReactNode; compact?: boolean; icone?: NomeIcone; className?: string }) {
   return (
-    <div className={cn("text-center", compact ? "px-cartao py-8" : "px-14 py-14", className)}>
+    <div className={cn("flex flex-col items-center text-center", compact ? "px-cartao py-6" : "px-6 py-12 sm:px-14", className)}>
+      {icone && !compact && (
+        <span aria-hidden className="mb-3 grid size-10 place-items-center rounded-full bg-neutral-bg text-ink-3">
+          <Icone nome={icone} tamanho={20} />
+        </span>
+      )}
       <p className="m-0 text-corpo font-medium text-ink">{title}</p>
-      {description && <p className="mx-auto mt-1 max-w-[460px] text-pequeno text-muted">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      {description && <p className={cn("mx-auto mt-1 max-w-[440px] text-pequeno text-muted", compact && "max-w-[360px]")}>{description}</p>}
+      {action && <div className={compact ? "mt-3" : "mt-4"}>{action}</div>}
     </div>
   );
 }
@@ -169,12 +179,12 @@ export type TomSemantico = "neutro" | "danger" | "warning" | "success" | "accent
 const COR_TOM_TEXTO: Record<TomSemantico, string> = { neutro: "text-ink", danger: "text-danger", warning: "text-warning", success: "text-success", accent: "text-accent" };
 const COR_TOM_FUNDO: Record<TomSemantico, string> = { neutro: "bg-dark", danger: "bg-danger", warning: "bg-warning", success: "bg-success", accent: "bg-accent" };
 
-/** Número grande (26px mono). Cor só por `tom` semântico. */
+/** Número grande (28px, algarismos tabulares na fonte normal). Cor só por `tom` semântico. */
 export function Metric({ label, valor, hint, tom = "neutro", href }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; tom?: TomSemantico; href?: string }) {
   const conteudo = (
     <>
       <span className="mb-1.5 block text-pequeno text-ink-3">{label}</span>
-      <span className={cn("block font-mono text-metrica font-medium leading-[1.1] tracking-[-0.02em]", COR_TOM_TEXTO[tom])}>{valor}</span>
+      <span className={cn("numero block text-metrica font-semibold tracking-[-0.02em]", COR_TOM_TEXTO[tom])}>{valor}</span>
       {hint && (
         <span className="mt-1 line-clamp-2 text-pequeno text-muted" title={typeof hint === "string" ? hint : undefined}>
           {hint}
@@ -184,7 +194,7 @@ export function Metric({ label, valor, hint, tom = "neutro", href }: { label: st
   );
   const cls = "block min-w-0 bg-surface px-cartao py-4 text-left no-underline";
   return href ? (
-    <Link href={href} className={cn(cls, "hover:bg-subtle")}>
+    <Link href={href} className={cn(cls, "transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent")}>
       {conteudo}
     </Link>
   ) : (
@@ -202,24 +212,34 @@ export function ListaDados({ itens }: { itens: Array<{ label: string; valor: Rea
       {itens.map((k) => (
         <div key={k.label} className="flex justify-between gap-3 border-b border-line-faint py-2 last:border-b-0">
           <span className="text-pequeno text-muted">{k.label}</span>
-          <span className={cn("text-right font-mono text-pequeno", k.alerta ? "font-medium text-danger" : k.forte ? "font-medium text-ink" : "text-ink-2")}>{k.valor}</span>
+          <span className={cn("numero text-right text-pequeno", k.alerta ? "font-medium text-danger" : k.forte ? "font-medium text-ink" : "text-ink-2")}>{k.valor}</span>
         </div>
       ))}
     </div>
   );
 }
 
-export function Aviso({ tom = "neutro", titulo, children, className }: { tom?: "neutro" | "danger" | "warning" | "success"; titulo?: React.ReactNode; children?: React.ReactNode; className?: string }) {
-  const tons = {
-    neutro: "border-line bg-subtle text-ink-2",
-    danger: "border-danger-border bg-danger-bg text-danger",
-    warning: "border-warning-border bg-warning-bg text-warning",
-    success: "border-success-border bg-success-bg text-success",
-  };
+export type TomAviso = "neutro" | "info" | "danger" | "warning" | "success";
+
+const AVISO: Record<TomAviso, { cls: string; icone: NomeIcone }> = {
+  neutro: { cls: "border-line bg-subtle text-ink-2", icone: "info" },
+  info: { cls: "border-info-border bg-info-bg text-info", icone: "info" },
+  danger: { cls: "border-danger-border bg-danger-bg text-danger", icone: "erro" },
+  warning: { cls: "border-warning-border bg-warning-bg text-warning", icone: "alerta" },
+  success: { cls: "border-success-border bg-success-bg text-success", icone: "check-circulo" },
+};
+
+/** Aviso em bloco, com ícone do tom (ou `semIcone`). `acoes` à direita (link ou botão pequeno). */
+export function Aviso({ tom = "neutro", titulo, children, acoes, semIcone, className }: { tom?: TomAviso; titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; semIcone?: boolean; className?: string }) {
+  const { cls, icone } = AVISO[tom];
   return (
-    <div className={cn("rounded-controle border px-4 py-3", tons[tom], className)}>
-      {titulo && <p className="m-0 text-corpo font-medium">{titulo}</p>}
-      {children && <div className={cn("text-pequeno leading-[1.5]", titulo ? "mt-[3px]" : undefined)}>{children}</div>}
+    <div className={cn("flex items-start gap-2.5 rounded-controle border px-4 py-3", cls, className)}>
+      {!semIcone && <Icone nome={icone} className={titulo ? "mt-0.5" : "mt-px"} />}
+      <div className="min-w-0 flex-1">
+        {titulo && <p className="m-0 text-corpo font-medium">{titulo}</p>}
+        {children && <div className={cn("text-pequeno", titulo ? "mt-0.5" : undefined)}>{children}</div>}
+      </div>
+      {acoes && <div className="flex shrink-0 items-center gap-2 self-center">{acoes}</div>}
     </div>
   );
 }
@@ -227,14 +247,32 @@ export function Aviso({ tom = "neutro", titulo, children, className }: { tom?: "
 /** Compatibilidade com telas de formulário existentes. */
 export function Notice({ tone = "info", title, children, className }: { tone?: "info" | "warning" | "danger" | "success"; title?: string; children?: React.ReactNode; className?: string }) {
   return (
-    <Aviso tom={tone === "info" ? "neutro" : tone} titulo={title} className={className}>
+    <Aviso tom={tone} titulo={title} className={className}>
       {children}
     </Aviso>
   );
 }
 
+/** Bloco de carregamento. Use a altura do texto que vai substituir (h-3.5 corpo, h-3 pequeno, h-6 título). */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-esqueleto rounded-chip bg-line", className)} />;
+  return <div aria-hidden className={cn("animate-esqueleto rounded-chip bg-line", className)} />;
+}
+
+/** Esqueleto de lista/tabela dentro de cartão: `linhas` linhas com título, subtítulo e valor à direita. */
+export function SkeletonLista({ linhas = 5, className }: { linhas?: number; className?: string }) {
+  return (
+    <div aria-busy="true" aria-label="Carregando" className={className}>
+      {Array.from({ length: linhas }, (_, i) => (
+        <div key={i} className="flex items-center gap-4 border-b border-line-row px-cartao py-3.5 last:border-b-0">
+          <div className="flex-1">
+            <Skeleton className="h-3.5 w-3/5" />
+            <Skeleton className="mt-2 h-3 w-2/5" />
+          </div>
+          <Skeleton className="h-3.5 w-16" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** Ponto de estado. `tom` semântico ou, para cores calculadas (histórico, prazo), `cor` com var(--color-*). */

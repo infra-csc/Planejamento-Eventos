@@ -5,6 +5,17 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { consolidar, type EventoConsolidacao } from "@/domain/consolidacao";
 import { calcularOS } from "@/domain/os";
 import { montarLinhasAtaDeEventos } from "./os";
+import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
+
+/** Catálogo de peças ativas (com estoque): muda só pelas telas de catálogo, que invalidam a tag. */
+const pecasAtivasEmCache = cacheDados(
+  async () => {
+    const db = await getDb();
+    return db.query.pecas.findMany({ where: eq(pecas.ativo, true) });
+  },
+  "consolidacao:pecas-ativas",
+  [TAGS_DADOS.catalogo],
+);
 
 /**
  * Demanda × estoque no período (handoff §5.13). Sem checagem de permissão:
@@ -23,7 +34,7 @@ export async function calcularConsolidacao(periodo: { inicio: string; fim: strin
       columns: { id: true, codigo: true, nome: true, dataMontagem: true, dataDesmontagem: true, status: true, ataFechadaEm: true },
       orderBy: [asc(eventos.dataMontagem)],
     }),
-    db.query.pecas.findMany({ where: eq(pecas.ativo, true) }),
+    pecasAtivasEmCache(),
   ]);
 
   // Demanda projetada: itens ainda em análise de eventos cuja ata não foi fechada.

@@ -281,19 +281,23 @@ const ACOES_MUDANCA = ["ATA_INCLUSAO", "AJUSTE_INCLUSAO", "ATA_QUANTIDADE", "ATA
 
 /** Um cartão por evento onde a área tem item ou pedido: fase, datas, quantos itens e o que mudou. */
 async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId: string, hoje: string) {
-  // Linhas ativas e pedidos da área nos eventos em curso: consultas independentes, em paralelo.
-  const [linhas, pedidos] = await Promise.all([
+  // Linhas ativas (já somadas por evento no banco) e pedidos da área nos eventos em curso: em paralelo.
+  // Antes vinha uma linha por item de ata de todos os eventos em andamento, somada em memória.
+  const daArea = sql`${eventoItens.areaId} = ${areaId}`;
+  const posAta = sql`${eventoItens.criadoEm} > coalesce((select min(criado_em) from ata_versoes av where av.evento_id = ${eventoItens.eventoId}), 'infinity')`;
+  const [totais, pedidos] = await Promise.all([
     db
       .select({
         eventoId: eventoItens.eventoId,
-        id: eventoItens.id,
-        areaId: eventoItens.areaId,
-        quantidade: eventoItens.quantidade,
-        posAta: sql<boolean>`${eventoItens.criadoEm} > coalesce((select min(criado_em) from ata_versoes av where av.evento_id = ${eventoItens.eventoId}), 'infinity')`,
+        meusItens: sql<number>`(count(*) filter (where ${daArea}))::int`,
+        minhasUnidades: sql<number>`(coalesce(sum(${eventoItens.quantidade}) filter (where ${daArea}), 0))::int`,
+        itensNoEvento: sql<number>`count(*)::int`,
+        depoisDaAta: sql<number>`(count(*) filter (where ${posAta}))::int`,
       })
       .from(eventoItens)
       .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
-      .where(and(eq(eventoItens.ativo, true), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`)),
+      .where(and(eq(eventoItens.ativo, true), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`))
+      .groupBy(eventoItens.eventoId),
     db
       .select({ eventoId: solicitacoes.eventoId, status: solicitacoes.status })
       .from(solicitacoes)
@@ -301,7 +305,8 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
       .where(and(eq(solicitacoes.areaId, areaId), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA"), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`)),
   ]);
 
-  const ids = [...new Set([...linhas.filter((l) => l.areaId === areaId).map((l) => l.eventoId), ...pedidos.map((p) => p.eventoId)])];
+  const totalDe = new Map(totais.map((t) => [t.eventoId, t]));
+  const ids = [...new Set([...totais.filter((t) => Number(t.meusItens) > 0).map((t) => t.eventoId), ...pedidos.map((p) => p.eventoId)])];
   if (ids.length === 0) return [];
   const evs = await db.query.eventos.findMany({
     where: inArray(eventos.id, ids),
@@ -309,8 +314,7 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
     orderBy: [asc(eventos.dataInicio)],
   });
   return evs.map((e) => {
-    const doEvento = linhas.filter((l) => l.eventoId === e.id);
-    const meus = doEvento.filter((l) => l.areaId === areaId);
+    const t = totalDe.get(e.id);
     return {
       id: e.id,
       codigo: e.codigo,
@@ -323,10 +327,10 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
       dataReuniao: e.dataReuniao.toISOString(),
       ataFechada: Boolean(e.ataFechadaEm),
       /** Itens da área e do evento inteiro: o solicitante vê o próprio pedido dentro do todo. */
-      meusItens: meus.length,
-      minhasUnidades: meus.reduce((a, l) => a + l.quantidade, 0),
-      itensNoEvento: doEvento.length,
-      depoisDaAta: doEvento.filter((l) => l.posAta).length,
+      meusItens: Number(t?.meusItens ?? 0),
+      minhasUnidades: Number(t?.minhasUnidades ?? 0),
+      itensNoEvento: Number(t?.itensNoEvento ?? 0),
+      depoisDaAta: Number(t?.depoisDaAta ?? 0),
       aguardando: pedidos.filter((p) => p.eventoId === e.id && (p.status === "ENVIADA" || p.status === "EM_ANALISE")).length,
       rascunhos: pedidos.filter((p) => p.eventoId === e.id && (p.status === "RASCUNHO" || p.status === "DEVOLVIDA")).length,
     };

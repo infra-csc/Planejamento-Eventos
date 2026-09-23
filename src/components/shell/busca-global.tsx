@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { ChipMono } from "@/components/ui/badge";
-import { IconeLupa } from "@/components/ui/icons";
+import { Icone, Spinner } from "@/components/ui/icons";
 import { EmptyState, Kbd } from "@/components/ui/layout";
 import type { ResultadoBusca } from "@/server/services/busca";
 
@@ -40,6 +40,7 @@ export function BuscaGlobal() {
   const [termo, setTermo] = useState("");
   const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
   const [carregado, setCarregado] = useState(false);
+  const [buscando, setBuscando] = useState(false);
   const [sel, setSel] = useState(0);
   const uid = useId();
   const listaRef = useRef<HTMLDivElement>(null);
@@ -59,11 +60,13 @@ export function BuscaGlobal() {
     if (!estaAberto) return;
     const ctrl = new AbortController();
     const t = setTimeout(() => {
+      setBuscando(true);
       fetch(`/api/busca?q=${encodeURIComponent(termo)}`, { signal: ctrl.signal })
         .then((r) => (r.ok ? r.json() : { resultados: [] }))
         .then((d: { resultados: ResultadoBusca[] }) => {
           setResultados(d.resultados);
           setCarregado(true);
+          setBuscando(false);
         })
         .catch(() => {});
     }, 120);
@@ -78,6 +81,7 @@ export function BuscaGlobal() {
     setTermo("");
     setSel(0);
     setCarregado(false);
+    setBuscando(false);
   };
 
   const abrir = (r: ResultadoBusca | undefined) => {
@@ -125,7 +129,7 @@ export function BuscaGlobal() {
           <DialogPrimitive.Title className="sr-only">Buscar ou executar</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Busque eventos, solicitações, peças e projetos, ou execute uma ação.</DialogPrimitive.Description>
           <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5">
-            <IconeLupa size={16} className="shrink-0 text-muted" />
+            <Icone nome="busca" className="text-ink-3" />
             <input
               autoFocus
               value={termo}
@@ -142,6 +146,9 @@ export function BuscaGlobal() {
               aria-activedescendant={resultados.length > 0 ? idOpcao(indice) : undefined}
               className="flex-1 border-0 bg-transparent text-destaque text-ink outline-none placeholder:text-meta focus-visible:outline-none"
             />
+            <span aria-hidden className={cn("text-ink-3 transition-opacity duration-150", buscando ? "opacity-100" : "opacity-0")}>
+              <Spinner tamanho={14} />
+            </span>
             <Kbd>esc</Kbd>
           </div>
           <div className="flex gap-4 border-b border-line-row px-4 py-[7px] text-rotulo text-meta">
@@ -174,7 +181,7 @@ export function BuscaGlobal() {
                       tabIndex={-1}
                       onClick={() => abrir(r)}
                       onMouseEnter={() => setSel(i)}
-                      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left", ativo ? "bg-accent-bg" : "bg-transparent")}
+                      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left max-md:min-h-11", ativo ? "bg-accent-bg" : "bg-transparent")}
                     >
                       <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
                         {r.tag}
@@ -191,7 +198,7 @@ export function BuscaGlobal() {
                 })}
               </div>
             ))}
-            {carregado && termo.trim() && resultados.length === 0 && <EmptyState compact title={`Nada encontrado para “${termo.trim()}”.`} />}
+            {carregado && termo.trim() && resultados.length === 0 && <EmptyState compact title={`Nada encontrado para “${termo.trim()}”`} description="Tente o código (SOL-0001, EVT-0002) ou outra palavra do nome." />}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

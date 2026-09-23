@@ -1,6 +1,9 @@
 import { and, eq, inArray, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { cookies } from "next/headers";
 import type { Db, Tx } from "@/server/db";
-import { configuracoes, historico, notificacoes, sequencias, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
+import { areas, configuracoes, historico, notificacoes, sequencias, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
+import { COOKIE_VER_COMO } from "@/server/auth/cookies";
+import { PERFIL_LABEL, PERFIS } from "@/domain/permissions";
 
 export type Executor = Db | Tx;
 
@@ -30,27 +33,111 @@ type DadosHistorico = {
   usuarioId: string | null;
   dadosAntes?: unknown;
   dadosDepois?: unknown;
+  /** Perfil assumido em "ver como". Sem o campo, é descoberto pelo cookie da requisição atual. */
+  verComo?: string | null;
 };
 
-const linhaHistorico = (dados: DadosHistorico) => ({
+const linhaHistorico = (dados: DadosHistorico, verComo: string | null) => ({
   eventoId: dados.eventoId ?? null,
   entidade: dados.entidade,
   entidadeId: dados.entidadeId,
   acao: dados.acao,
-  descricao: dados.descricao,
+  // A descrição diz quem agiu de fato: o administrador, vendo o sistema como outro perfil.
+  descricao: verComo && !dados.descricao.includes("pelo administrador") ? `${dados.descricao} (pelo administrador, vendo como ${verComo})` : dados.descricao,
   usuarioId: dados.usuarioId,
   dadosAntes: dados.dadosAntes ?? null,
   dadosDepois: dados.dadosDepois ?? null,
+  verComo,
 });
 
+/** Cookie de "ver como" da requisição atual (null fora de uma requisição: scripts, testes, jobs). */
+async function cookieVerComo(): Promise<{ perfil: Perfil; areaId: string | null } | null> {
+  let bruto: string | undefined;
+  try {
+    bruto = (await cookies()).get(COOKIE_VER_COMO)?.value;
+  } catch {
+    return null;
+  }
+  if (!bruto) return null;
+  try {
+    const { perfil, areaId } = JSON.parse(bruto) as { perfil?: string; areaId?: string | null };
+    if (!perfil || perfil === "ADMIN" || !(PERFIS as readonly string[]).includes(perfil)) return null;
+    return { perfil: perfil as Perfil, areaId: areaId || null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rótulo do perfil assumido ("Requisitante · Produção") quando quem registra é um administrador em
+ * "ver como"; null nos demais casos. O cookie só vale para administradores (como em getUsuarioAtual).
+ */
+export async function verComoAtual(ex: Executor, usuarioId: string | null): Promise<string | null> {
+  if (!usuarioId) return null;
+  const vc = await cookieVerComo();
+  if (!vc) return null;
+  const [u] = await ex.select({ perfil: usuarios.perfil }).from(usuarios).where(eq(usuarios.id, usuarioId)).limit(1);
+  if (u?.perfil !== "ADMIN") return null;
+  const [area] = vc.areaId ? await ex.select({ nome: areas.nome }).from(areas).where(eq(areas.id, vc.areaId)).limit(1) : [];
+  return `${PERFIL_LABEL[vc.perfil]}${area ? ` · ${area.nome}` : ""}`;
+}
+
+async function resolverVerComo(ex: Executor, lista: DadosHistorico[]): Promise<Map<string, string | null>> {
+  const mapa = new Map<string, string | null>();
+  for (const d of lista) {
+    if (d.verComo !== undefined || !d.usuarioId || mapa.has(d.usuarioId)) continue;
+    mapa.set(d.usuarioId, await verComoAtual(ex, d.usuarioId));
+  }
+  return mapa;
+}
+
 export async function registrarHistorico(ex: Executor, dados: DadosHistorico) {
-  await ex.insert(historico).values(linhaHistorico(dados));
+  const mapa = await resolverVerComo(ex, [dados]);
+  await ex.insert(historico).values(linhaHistorico(dados, dados.verComo !== undefined ? dados.verComo : (mapa.get(dados.usuarioId ?? "") ?? null)));
 }
 
 /** Vários registros de histórico num insert só (mesmos registros que chamar `registrarHistorico` para cada um). */
 export async function registrarHistoricos(ex: Executor, lista: DadosHistorico[]) {
   if (lista.length === 0) return;
-  await ex.insert(historico).values(lista.map(linhaHistorico));
+  const mapa = await resolverVerComo(ex, lista);
+  await ex.insert(historico).values(lista.map((d) => linhaHistorico(d, d.verComo !== undefined ? d.verComo : (mapa.get(d.usuarioId ?? "") ?? null))));
+}
+
+/** Dia no fuso de Brasília (AAAA-MM-DD): agrupa os registros de acesso por dia. */
+export function diaBrasilia(agora = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(agora);
+}
+
+/**
+ * Login no histórico, agregado por dia: um registro por pessoa (ou "e-mail desconhecido") e tipo
+ * (entrada / falha), com a contagem do dia em `dadosDepois.tentativas`. Nunca guarda senha nem o
+ * e-mail digitado quando ele não existe.
+ */
+export async function registrarAcessoDiario(ex: Executor, dados: { usuarioId: string | null; nome: string | null; sucesso: boolean }) {
+  const dia = diaBrasilia();
+  const acao = dados.sucesso ? "LOGIN" : "LOGIN_FALHA";
+  const entidadeId = dados.usuarioId ?? "desconhecido";
+  const [atual] = await ex
+    .select({ id: historico.id, dadosDepois: historico.dadosDepois })
+    .from(historico)
+    .where(and(eq(historico.entidade, "acesso"), eq(historico.entidadeId, entidadeId), eq(historico.acao, acao), sql`${historico.dadosDepois}->>'dia' = ${dia}`))
+    .limit(1);
+  const n = Number((atual?.dadosDepois as { tentativas?: number } | null)?.tentativas ?? 0) + 1;
+  const quem = dados.nome ?? "e-mail não cadastrado";
+  const descricao = dados.sucesso ? `${quem} entrou no sistema (${n}× em ${dia.split("-").reverse().join("/")})` : `Falha de login: ${quem} (${n}× em ${dia.split("-").reverse().join("/")})`;
+  if (atual) {
+    await ex.update(historico).set({ descricao, dadosDepois: { dia, tentativas: n } }).where(eq(historico.id, atual.id));
+    return;
+  }
+  await ex.insert(historico).values({
+    entidade: "acesso",
+    entidadeId,
+    acao,
+    descricao,
+    usuarioId: dados.sucesso ? dados.usuarioId : null,
+    dadosDepois: { dia, tentativas: n },
+    verComo: null,
+  });
 }
 
 /* ------------------------------------------------------------------ */

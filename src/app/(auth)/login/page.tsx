@@ -1,30 +1,21 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getUsuarioAtual } from "@/server/auth/session";
+import { existeUsuarioAtivo, getUsuarioAtual } from "@/server/auth/session";
+import { exibirDemo, SENHA_DEMO } from "@/server/auth/demo";
 import { LoginForm } from "./login-form";
 import { destinoInterno } from "@/lib/destino";
 
 export const metadata: Metadata = { title: "Entrar" };
 
-/** Senha dos usuários criados pelo seed de demonstração (scripts/seed.ts). */
-const SENHA_DEMO = "norte1234";
-
 /**
- * O bloco "Demonstração — entrar como" faz login com a senha do seed em um clique.
- * - Local (`npm run dev` fora do Replit): aparece por padrão.
- * - Replit e produção: só com EXIBIR_DEMO=true explícito. Qualquer pessoa com o link entra como
- *   qualquer perfil, inclusive Administrador — use apenas com dados de demonstração.
+ * O bloco "Demonstração — entrar como" faz login com a senha do seed em um clique (ver
+ * src/server/auth/demo.ts: local por padrão; Replit e produção só com EXIBIR_DEMO=true).
  */
-function exibirDemo() {
-  if (process.env.EXIBIR_DEMO === "true") return true;
-  if (process.env.EXIBIR_DEMO === "false") return false;
-  const exposto = Boolean(process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS || process.env.DATABASE_URL);
-  return process.env.NODE_ENV !== "production" && !exposto;
-}
-
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; redefinida?: string }> }) {
   const sp = await searchParams;
   // Sessão válida (conferida no banco): não faz sentido mostrar o login.
   if (await getUsuarioAtual()) redirect(destinoInterno(sp.next, "/"));
-  return <LoginForm next={destinoInterno(sp.next, "")} redefinida={sp.redefinida === "1"} senhaDemo={exibirDemo() ? SENHA_DEMO : null} />;
+  // Banco novo, sem nenhum usuário: a tela explica como criar o administrador.
+  const primeiroAcesso = !(await existeUsuarioAtivo().catch(() => true));
+  return <LoginForm next={destinoInterno(sp.next, "")} redefinida={sp.redefinida === "1"} senhaDemo={exibirDemo() ? SENHA_DEMO : null} primeiroAcesso={primeiroAcesso} />;
 }

@@ -7,7 +7,13 @@ import { cn } from "@/lib/cn";
 import { tempoRelativo } from "@/lib/format";
 import { ChipMono } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Icone, Spinner } from "@/components/ui/icons";
 import { marcarNotificacaoLidaAction, marcarTodasNotificacoesLidasAction, notificacoesRecentesAction, type NotificacaoResumo } from "@/app/(app)/notificacoes/actions";
+
+/** Erro de `redirect()` vindo de uma Server Action (o Next marca com o digest NEXT_REDIRECT). */
+function ehRedirecionamento(e: unknown) {
+  return typeof e === "object" && e !== null && String((e as { digest?: unknown }).digest ?? "").startsWith("NEXT_REDIRECT");
+}
 
 /**
  * Sino do cabeçalho: abre um painel com as notificações recentes ali mesmo, sem sair da página.
@@ -59,12 +65,21 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
     (painelRef.current?.querySelector<HTMLElement>("[data-notificacao]") ?? tituloRef.current)?.focus();
   }, [aberto, lista]);
 
+  // A action já devolve a tela renderizada de novo (contador incluso): nada de router.refresh() depois,
+  // que renderizaria tudo uma segunda vez. Com link, a própria action navega (uma renderização só).
   const abrir = (n: NotificacaoResumo) => {
     setAberto(false);
     iniciar(async () => {
-      if (!n.lida) await marcarNotificacaoLidaAction(n.id);
-      if (n.link) router.push(n.link);
-      else router.refresh();
+      if (n.lida) {
+        if (n.link) router.push(n.link);
+        return;
+      }
+      try {
+        await marcarNotificacaoLidaAction(n.id, n.link);
+      } catch (e) {
+        // O redirecionamento da action chega como erro, mas a navegação já foi feita.
+        if (!ehRedirecionamento(e)) throw e;
+      }
     });
   };
 
@@ -72,7 +87,6 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
     iniciar(async () => {
       await marcarTodasNotificacoesLidasAction();
       setLista((l) => (l ? l.map((n) => ({ ...n, lida: true })) : l));
-      router.refresh();
     });
 
   const pendentes = lista ? lista.filter((n) => !n.lida).length : naoLidas;
@@ -85,12 +99,12 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
         aria-haspopup="dialog"
         aria-expanded={aberto}
         onClick={alternar}
-        className={cn("flex h-[30px] cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-controle border border-transparent bg-transparent px-2.5 text-pequeno text-ink-2 hover:bg-black/[0.04]", aberto && "bg-black/[0.04]")}
+        className={cn(
+          "flex h-8 cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-controle border border-transparent bg-transparent px-2.5 text-pequeno text-ink-2 transition-colors duration-150 hover:bg-black/[0.04] hover:text-ink max-md:h-10 max-md:min-w-10 max-md:justify-center",
+          aberto && "bg-black/[0.04]",
+        )}
       >
-        <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-          <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
-          <path d="M10 20a2 2 0 0 0 4 0" />
-        </svg>
+        <Icone nome="sino" tamanho={20} />
         <span className="max-sm:sr-only">Notificações</span>
         {naoLidas > 0 && <ChipMono tom="accent">{naoLidas}</ChipMono>}
       </button>
@@ -111,7 +125,10 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
 
           <div className="min-h-0 flex-1 overflow-y-auto" aria-busy={carregando && !lista}>
             {!lista ? (
-              <p className="m-0 px-4 py-8 text-center text-pequeno text-muted">Carregando…</p>
+              <p className="m-0 flex items-center justify-center gap-2 px-4 py-8 text-center text-pequeno text-muted">
+                <Spinner tamanho={14} />
+                Carregando…
+              </p>
             ) : lista.length === 0 ? (
               <p className="m-0 px-4 py-8 text-center text-pequeno text-muted">Nenhuma notificação. Quando algo precisar de você, aparece aqui.</p>
             ) : (
@@ -121,7 +138,10 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
                   data-notificacao=""
                   type="button"
                   onClick={() => abrir(n)}
-                  className={cn("flex w-full cursor-pointer items-start gap-3 border-0 border-b border-line-row px-4 py-3 text-left last:border-b-0 hover:bg-subtle", !n.lida ? "bg-selected" : "bg-transparent")}
+                  className={cn(
+                    "flex w-full cursor-pointer items-start gap-3 border-0 border-b border-line-row px-4 py-3 text-left transition-colors duration-150 last:border-b-0 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+                    !n.lida ? "bg-selected" : "bg-transparent",
+                  )}
                 >
                   <span aria-hidden className={cn("mt-1.5 size-[7px] shrink-0 rounded-full", n.lida ? "bg-transparent" : n.prazo ? "bg-danger" : "bg-accent")} />
                   <span className="min-w-0 flex-1">
@@ -130,14 +150,14 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
                       {n.titulo}
                     </span>
                     <span className="mt-0.5 block text-pequeno leading-[1.4] text-ink-3">{n.mensagem}</span>
-                    <span className="mt-1 block font-mono text-rotulo text-meta">{tempoRelativo(n.criadoEm)}</span>
+                    <span className="numero mt-1 block text-rotulo text-meta">{tempoRelativo(n.criadoEm)}</span>
                   </span>
                 </button>
               ))
             )}
           </div>
 
-          <Link href="/notificacoes" onClick={() => setAberto(false)} className="block border-t border-line-soft bg-subtle px-4 py-2.5 text-center text-pequeno text-accent no-underline hover:underline">
+          <Link href="/notificacoes" onClick={() => setAberto(false)} className="block border-t border-line-soft bg-subtle px-4 py-2.5 text-center text-pequeno text-accent no-underline underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent max-md:py-3">
             Ver todas as notificações
           </Link>
         </div>

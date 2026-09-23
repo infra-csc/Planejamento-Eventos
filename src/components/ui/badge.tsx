@@ -1,10 +1,20 @@
 import { cn } from "@/lib/cn";
+import { Icone } from "./icons";
 import type { EventoStatus, ItemStatus, Perfil, SolicitacaoStatus } from "@/server/db/schema";
 import { EVENTO_STATUS_LABEL } from "@/domain/evento";
 import { ITEM_STATUS_LABEL, SOLICITACAO_STATUS_LABEL } from "@/domain/solicitacao";
 import { PERFIL_LABEL } from "@/domain/permissions";
 
-export type Tom = "neutral" | "rascunho" | "muted" | "accent" | "warning" | "success" | "danger" | "dark";
+/**
+ * Selos (docs/design-system.md § Selos):
+ *  - Badge    = o estado da coisa (um por linha). Fundo suave + borda sutil, cor semântica.
+ *  - Tag      = tipo/categoria/observação. Texto discreto com contorno, sem fundo colorido.
+ *  - ChipMono = contadores (fonte normal, tabular) e códigos/versões (mono).
+ * Tons: success (concluído/ok), warning (atenção/aguardando), danger (erro/atraso/recusa),
+ * info (em andamento/informativo), neutral/muted/rascunho (neutros). `accent` (marca) só para
+ * seleção e contagem do que pede ação do usuário.
+ */
+export type Tom = "neutral" | "rascunho" | "muted" | "accent" | "info" | "warning" | "success" | "danger" | "dark";
 
 /** Borda do selo (Badge): um tom mais forte que o fundo, como no template de pedidos. */
 const BORDAS: Record<Tom, string> = {
@@ -12,6 +22,7 @@ const BORDAS: Record<Tom, string> = {
   rascunho: "border-line",
   muted: "border-line",
   accent: "border-accent-border",
+  info: "border-info-border",
   warning: "border-warning-border",
   success: "border-success-border",
   danger: "border-danger-border",
@@ -23,6 +34,7 @@ const TONS: Record<Tom, string> = {
   rascunho: "bg-neutral-bg text-ink-3",
   muted: "bg-neutral-bg text-muted",
   accent: "bg-accent-bg text-accent",
+  info: "bg-info-bg text-info",
   warning: "bg-warning-bg text-warning",
   success: "bg-success-bg text-success",
   danger: "bg-danger-bg text-danger",
@@ -30,18 +42,31 @@ const TONS: Record<Tom, string> = {
 };
 
 export function Badge({ tom = "neutral", children, className }: { tom?: Tom; children: React.ReactNode; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip border px-2 py-px text-rotulo font-medium leading-[1.45]", TONS[tom], BORDAS[tom], className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-chip border px-2 py-px text-rotulo font-medium", TONS[tom], BORDAS[tom], className)}>{children}</span>;
 }
 
-/** Tag pequena usada em linhas (tipo de item, gatilho de versão). */
+/** Cor do texto da Tag: o tom só tinge a letra; o fundo fica transparente. */
+const TEXTO_TAG: Record<Tom, string> = {
+  neutral: "text-ink-2",
+  rascunho: "text-ink-3",
+  muted: "text-ink-3",
+  accent: "text-accent",
+  info: "text-info",
+  warning: "text-warning",
+  success: "text-success",
+  danger: "text-danger",
+  dark: "text-ink",
+};
+
+/** Tipo/categoria em linhas (tipo de item, gatilho de versão, "fora do catálogo"): texto discreto com contorno. */
 export function Tag({ children, tom = "muted", className }: { children: React.ReactNode; tom?: Tom; className?: string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px text-micro leading-[1.5]", TONS[tom], className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-chip border border-line bg-transparent px-1.5 text-rotulo", TEXTO_TAG[tom], className)}>{children}</span>;
 }
 
 const TOM_EVENTO: Record<EventoStatus | "REALIZADO", Tom> = {
   PREPARACAO: "neutral",
   EM_REUNIAO: "warning",
-  ABERTO: "accent",
+  ABERTO: "info",
   ENCERRADO: "success",
   REALIZADO: "muted",
   CANCELADO: "danger",
@@ -53,7 +78,7 @@ export function EventoStatusBadge({ status }: { status: EventoStatus | "REALIZAD
 
 const TOM_SOLICITACAO: Record<SolicitacaoStatus, Tom> = {
   RASCUNHO: "rascunho",
-  ENVIADA: "accent",
+  ENVIADA: "info",
   EM_ANALISE: "warning",
   RESPONDIDA: "success",
   DEVOLVIDA: "danger",
@@ -62,7 +87,7 @@ const TOM_SOLICITACAO: Record<SolicitacaoStatus, Tom> = {
 
 /** `naAta`: pré-reunião com a ata aberta — já está na ata, aguardando a conferência da reunião. */
 export function SolicitacaoStatusBadge({ status, naAta = false }: { status: SolicitacaoStatus; naAta?: boolean }) {
-  if (naAta && status === "RESPONDIDA") return <Badge tom="accent">Na ata</Badge>;
+  if (naAta && status === "RESPONDIDA") return <Badge tom="info">Na ata</Badge>;
   return <Badge tom={TOM_SOLICITACAO[status]}>{SOLICITACAO_STATUS_LABEL[status]}</Badge>;
 }
 
@@ -80,15 +105,33 @@ export const COR_ITEM: Record<ItemStatus, string> = {
   NAO_ATENDIDO: "var(--color-danger)",
 };
 
-/** Contador ou versão em mono (v3, × 4, 12): um só formato para todo número pequeno em chip. */
-export function ChipMono({ children, tom = "neutral", className, title }: { children: React.ReactNode; tom?: Tom | "control"; className?: string; title?: string }) {
-  return <span title={title} className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px font-mono text-rotulo leading-[1.5]", tom === "control" ? "bg-control text-ink-3" : TONS[tom], className)}>{children}</span>;
+/** Texto plano dos filhos (números e strings, inclusive `× {n}`), ou null quando há elementos. */
+function textoPlano(filhos: React.ReactNode): string | null {
+  if (typeof filhos === "number" || typeof filhos === "string") return String(filhos);
+  if (Array.isArray(filhos)) {
+    const partes = filhos.map(textoPlano);
+    return partes.every((p) => p !== null) ? partes.join("") : null;
+  }
+  return null;
+}
+
+/** Só número (com ×, +, −, % ou separador): vai em fonte normal tabular; o resto (v3, códigos) em mono. */
+const SO_NUMERO = /^[×x+\-−]?\s*[\d.,]+\s*%?$/;
+
+/**
+ * Chip pequeno para contadores (12, × 4, +3) e códigos/versões (v3, SOL-0001).
+ * Contador sai em fonte normal com algarismos tabulares; código sai em mono. `mono` força um dos dois.
+ */
+export function ChipMono({ children, tom = "neutral", className, title, mono }: { children: React.ReactNode; tom?: Tom | "control"; className?: string; title?: string; mono?: boolean }) {
+  const texto = textoPlano(children);
+  const emMono = mono ?? !(texto !== null && SO_NUMERO.test(texto.trim()));
+  return <span title={title} className={cn("inline-flex items-center whitespace-nowrap rounded-chip px-1.5 py-px text-rotulo", emMono ? "font-mono" : "numero font-medium", tom === "control" ? "bg-control text-ink-3" : TONS[tom], className)}>{children}</span>;
 }
 
 export function ItemStatusBadge({ status, className, naAta = false }: { status: ItemStatus; className?: string; naAta?: boolean }) {
   if (naAta && status === "ATENDIDO")
     return (
-      <Badge tom="accent" className={className}>
+      <Badge tom="info" className={className}>
         Na ata
       </Badge>
     );
@@ -100,7 +143,7 @@ export function ItemStatusBadge({ status, className, naAta = false }: { status: 
 }
 
 const TOM_PERFIL: Record<Perfil, Tom> = {
-  LOGISTICA: "accent",
+  LOGISTICA: "info",
   GESTAO: "warning",
   CENOGRAFIA: "success",
   REQUISITANTE: "neutral",
@@ -113,13 +156,14 @@ export function PerfilBadge({ perfil }: { perfil: Perfil }) {
 
 /** Alteração enviada depois da janela definida pela logística: chama a atenção para a decisão. */
 export function ForaJanelaTag({ className }: { className?: string }) {
-  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-chip bg-danger-bg px-[7px] py-px text-rotulo font-semibold text-danger", className)}>fora da janela</span>;
+  return (
+    <Tag tom="danger" className={cn("border-danger-border font-medium", className)}>
+      <Icone nome="alerta" className="size-3.5" />
+      fora da janela
+    </Tag>
+  );
 }
 
 export function TipoSolicitacaoTag({ tipo }: { tipo: "PRE_REUNIAO" | "ALTERACAO" }) {
-  return (
-    <span className={cn("inline-flex whitespace-nowrap rounded-chip px-[7px] py-px text-rotulo", tipo === "PRE_REUNIAO" ? "bg-neutral-bg text-ink-2" : "bg-accent-bg text-accent")}>
-      {tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"}
-    </span>
-  );
+  return <Tag tom={tipo === "PRE_REUNIAO" ? "muted" : "info"}>{tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"}</Tag>;
 }

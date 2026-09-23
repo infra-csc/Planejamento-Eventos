@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requirePermissao } from "@/server/auth/session";
-import { listarAreas, listarAreasComContagem, listarUsuarios, obterConfig } from "@/server/services/admin";
+import { listarAreasComContagem, listarUsuarios, obterConfig } from "@/server/services/admin";
 import { ultimoAcesso } from "@/lib/format";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { hrefCom } from "@/lib/url";
@@ -13,6 +13,7 @@ import { AreasPainel } from "@/components/admin/areas-painel";
 import { ConfigPainel } from "@/components/admin/config-painel";
 import { BotaoNovo } from "@/components/admin/novo-via-url";
 import { combinaBusca } from "@/lib/busca";
+import { listarAreasCache } from "@/server/cache";
 
 export const metadata: Metadata = { title: "Administração" };
 
@@ -64,7 +65,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   let acao: React.ReactNode = null;
   let busca: React.ReactNode = null;
   if (aba === "usuarios") {
-    const [todos, areas] = await Promise.all([listarUsuarios(usuario), listarAreas()]);
+    const [todos, areas] = await Promise.all([listarUsuarios(usuario), listarAreasCache()]);
     const agora = new Date();
     const buscados = termo ? todos.filter((u) => combinaBusca(`${u.nome} ${u.email} ${u.area?.nome ?? ""}`, termo)) : todos;
     const pag = paginar(

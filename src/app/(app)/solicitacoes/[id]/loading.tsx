@@ -8,6 +8,7 @@ export default function Loading() {
         <Skeleton className="h-3.5 w-48" />
         <Skeleton className="mt-2.5 h-6 w-full max-w-72" />
         <Skeleton className="mt-2.5 h-4 w-full max-w-[420px]" />
+        <Skeleton className="mt-2.5 h-4 w-full max-w-[280px]" />
       </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="overflow-hidden rounded-cartao border border-line bg-surface">
@@ -23,10 +24,11 @@ export default function Loading() {
                 </div>
                 <Skeleton className="h-3.5 w-10" />
               </div>
+              <Skeleton className="mt-3 h-12 w-full rounded-controle" />
               <div className="mt-3 flex gap-2">
-                {[0, 1, 2].map((j) => (
-                  <Skeleton key={j} className="h-[27px] w-20 rounded-controle" />
-                ))}
+                <Skeleton className="h-[34px] w-28 rounded-controle" />
+                <Skeleton className="h-[34px] w-20 rounded-controle" />
+                <Skeleton className="h-[34px] w-24 rounded-controle" />
               </div>
             </div>
           ))}

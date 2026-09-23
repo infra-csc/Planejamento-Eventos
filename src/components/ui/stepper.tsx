@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { IconeMais, IconeMenos } from "./icons";
+import { Icone } from "./icons";
 
 /**
  * Campo numérico com − e + (quantidades). Um só desenho para pedido, conferência e ajuste de peça.
@@ -33,11 +33,15 @@ export function Stepper({
 }) {
   const fixar = (n: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(n) ? n : min)));
   const sm = tamanho === "sm";
-  const btn = cn("flex shrink-0 cursor-pointer items-center justify-center border-0 bg-subtle text-ink-2 hover:bg-control disabled:cursor-not-allowed disabled:opacity-50", sm ? "h-[30px] w-[30px]" : "h-[34px] w-[34px]");
+  /* 30/34 px no desktop; 40 px abaixo de md (alvo de toque). */
+  const btn = cn(
+    "flex shrink-0 cursor-pointer items-center justify-center border-0 bg-subtle text-ink-2 transition-colors duration-150 hover:bg-control hover:text-ink active:bg-line disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent max-md:size-10",
+    sm ? "size-[30px]" : "size-[34px]",
+  );
   return (
-    <div className={cn("inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface", disabled && "opacity-60", className)}>
+    <div className={cn("inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-colors duration-150 focus-within:border-accent", disabled && "opacity-60", className)}>
       <button type="button" aria-label="Diminuir" disabled={disabled || valor <= min} onClick={() => onChange(fixar(valor - 1))} className={btn}>
-        <IconeMenos size={12} />
+        <Icone nome="menos" />
       </button>
       <input
         id={id}
@@ -51,10 +55,10 @@ export function Stepper({
         disabled={disabled}
         onChange={(e) => onChange(fixar(Number(e.target.value)))}
         onFocus={(e) => e.target.select()}
-        className={cn("border-0 bg-surface text-center font-mono text-corpo text-ink focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", sm ? "h-[30px] w-12" : "h-[34px] w-16")}
+        className={cn("numero border-0 bg-surface text-center text-corpo font-medium text-ink focus:outline-none max-md:h-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", sm ? "h-[30px] w-12" : "h-[34px] w-16")}
       />
       <button type="button" aria-label="Aumentar" disabled={disabled || valor >= max} onClick={() => onChange(fixar(valor + 1))} className={btn}>
-        <IconeMais size={12} />
+        <Icone nome="mais" />
       </button>
     </div>
   );

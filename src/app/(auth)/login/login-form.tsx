@@ -17,7 +17,19 @@ const PERFIS_DEMO = [
   { nome: "Administrador do Sistema", perfil: "Administrador", email: "admin@nortemkt.com.br" },
 ];
 
-export function LoginForm({ next, redefinida, senhaDemo }: { next: string; redefinida: boolean; /** Só vem preenchida com a demonstração ligada: fora dela, a senha do seed não chega ao navegador. */ senhaDemo: string | null }) {
+export function LoginForm({
+  next,
+  redefinida,
+  senhaDemo,
+  primeiroAcesso = false,
+}: {
+  next: string;
+  redefinida: boolean;
+  /** Só vem preenchida com a demonstração ligada: fora dela, a senha do seed não chega ao navegador. */
+  senhaDemo: string | null;
+  /** Nenhum usuário ativo no banco: mostra como criar o administrador. */
+  primeiroAcesso?: boolean;
+}) {
   const demo = Boolean(senhaDemo);
   const [state, action] = useActionState(loginAction, ESTADO_INICIAL);
   const formRef = useRef<HTMLFormElement>(null);
@@ -36,6 +48,11 @@ export function LoginForm({ next, redefinida, senhaDemo }: { next: string; redef
     <>
       <h1 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Entrar</h1>
       <p className="mb-7 mt-0 text-secao text-ink-3">Use o e-mail e a senha cadastrados pelo administrador.</p>
+      {primeiroAcesso && (
+        <Aviso tom="warning" className="mb-4">
+          Nenhum usuário cadastrado. Crie o administrador no Shell: <code className="font-mono">npm run admin:senha -- &lt;email&gt; &lt;senha&gt;</code>
+        </Aviso>
+      )}
       {redefinida && (
         <Aviso tom="success" className="mb-4">
           Senha definida. Entre com a nova senha.

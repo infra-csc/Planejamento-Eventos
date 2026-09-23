@@ -81,7 +81,8 @@ async function main() {
   ];
   const usersRows = await db
     .insert(usuarios)
-    .values(defs.map((u) => ({ nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.area ? area(u.area).id : null, senhaHash })))
+    // Senha de demonstração conhecida: fora do modo demonstração, cada pessoa define a sua no primeiro acesso.
+    .values(defs.map((u) => ({ nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.area ? area(u.area).id : null, senhaHash, trocarSenha: true })))
     .returning();
   const U = (email: string): UsuarioAtual => {
     const u = usersRows.find((x) => x.email === email)!;

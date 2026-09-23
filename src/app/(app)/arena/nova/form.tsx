@@ -31,7 +31,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
     return (
       <Section>
         <EmptyState
-          title="Todos os eventos já têm arena."
+          title="Todos os eventos já têm arena"
           description="Cada evento tem um mapa só. Abra a arena do evento pelo índice ou crie um evento novo antes."
           action={
             <ButtonLink href="/arena" variant="secondary" size="md" className="no-underline">
@@ -46,7 +46,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
   return (
     <ActionForm action={action} className="flex flex-col gap-5">
       <Section titulo="Evento" sub="Cada evento tem uma arena. A ata dele aparece no mapa, sempre na versão vigente.">
-        <div className="grid gap-4 px-[18px] py-4">
+        <div className="grid gap-4 px-cartao py-4">
           <Field label="Evento" htmlFor="eventoId" error={campos?.eventoId} obrigatorio>
             <ComboBox
               id="eventoId"
@@ -79,7 +79,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
       </Section>
 
       <Section titulo="Ponto de partida" sub="Zonas, vias, percurso e pontos podem ser ajustados depois, no próprio mapa.">
-        <div className="grid gap-4 px-[18px] py-4">
+        <div className="grid gap-4 px-cartao py-4">
           <div role="radiogroup" aria-label="Ponto de partida" className="grid gap-2 sm:grid-cols-2">
             {(
               [
@@ -90,15 +90,15 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
               <label
                 key={o.valor}
                 className={cn(
-                  "flex cursor-pointer gap-2.5 rounded-cartao border px-3.5 py-3",
+                  "flex cursor-pointer gap-2.5 rounded-cartao border px-cartao py-3 transition-colors duration-150 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent max-md:min-h-10",
                   partida === o.valor ? "border-accent bg-accent-bg" : "border-line bg-surface hover:bg-subtle",
-                  o.valor === "copiar" && arenas.length === 0 && "cursor-not-allowed opacity-60",
+                  o.valor === "copiar" && arenas.length === 0 && "cursor-not-allowed opacity-60 hover:bg-surface",
                 )}
               >
-                <input type="radio" name="partida" value={o.valor} checked={partida === o.valor} disabled={o.valor === "copiar" && arenas.length === 0} onChange={() => setPartida(o.valor)} className="mt-[3px] accent-accent" />
-                <span>
+                <input type="radio" name="partida" value={o.valor} checked={partida === o.valor} disabled={o.valor === "copiar" && arenas.length === 0} onChange={() => setPartida(o.valor)} className="mt-0.5 size-4 shrink-0 accent-accent focus-visible:outline-none" />
+                <span className="min-w-0">
                   <span className="block text-corpo font-medium text-ink">{o.titulo}</span>
-                  <span className="block text-pequeno text-muted">{o.texto}</span>
+                  <span className="mt-0.5 block text-pequeno text-muted">{o.valor === "copiar" && arenas.length === 0 ? "Ainda não há outra arena para copiar." : o.texto}</span>
                 </span>
               </label>
             ))}
@@ -132,7 +132,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
       </Section>
 
       <Section titulo="Planta" sub="Opcional. A imagem fica como fundo do plano 2D; dá para enviar ou trocar depois, no índice das arenas.">
-        <div className="px-[18px] py-4">
+        <div className="px-cartao py-4">
           <Field label="Imagem da planta" htmlFor="planta" error={erroPlanta ?? campos?.planta} hint="PNG, JPG ou WebP · até 8 MB." optional>
             <input
               id="planta"
@@ -152,11 +152,11 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
       </Section>
 
       <FormError message={!state.ok ? state.erro : null} />
-      <div className="flex flex-wrap items-center gap-2">
-        <SubmitButton size="lg" disabled={!eventoId}>
+      <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center">
+        <SubmitButton size="lg" disabled={!eventoId} motivoDesabilitado="Escolha o evento da arena" className="max-sm:w-full">
           Criar arena
         </SubmitButton>
-        <ButtonLink href="/arena" variant="secondary" size="lg" className="no-underline">
+        <ButtonLink href="/arena" variant="secondary" size="lg" className="no-underline max-sm:w-full">
           Cancelar
         </ButtonLink>
       </div>

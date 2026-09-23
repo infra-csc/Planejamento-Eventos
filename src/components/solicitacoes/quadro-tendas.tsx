@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { Icone } from "@/components/ui/icons";
+import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { descricoesIguais } from "@/domain/descricoes-itens";
 import { dividirPorUnidade, previaTendas, type KitTenda, type LocalTenda } from "@/domain/tendas";
 
 export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[] };
+
+/** Rótulo de coluna: visível acima do campo no celular (cada local vira um cartão); no desktop, só o cabeçalho. */
+const rotuloCls = "mb-1 block text-rotulo text-muted sm:sr-only";
 
 /**
  * Quadro "Tendas 5×5 por local", no formato da planilha da cenografia: uma linha por local com a
@@ -15,9 +23,9 @@ export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<s
  * local (projeto da tenda, destino = local, fechamentos e calhas como ajuste por unidade). Se o
  * total do local não divide igual entre as tendas, o local vira 2 ou 3 itens com a divisão
  * mais próxima — a soma sempre bate com o que foi digitado.
+ * Vive dentro de um DialogContent (o rodapé usa DialogFooter).
  */
 export function QuadroTendas({
-  nome,
   kit,
   bom,
   pecaFechamentoId,
@@ -25,7 +33,6 @@ export function QuadroTendas({
   onConfirmar,
   onCancelar,
 }: {
-  nome: string;
   kit: KitTenda;
   bom: ReadonlyArray<{ codigo: string; quantidade: number }>;
   /** Peça de fechamento/calha do kit no catálogo (null: não cadastrada, a coluna some). */
@@ -35,21 +42,30 @@ export function QuadroTendas({
   onCancelar: () => void;
 }) {
   const [locais, setLocais] = useState<LocalTenda[]>([{ local: "", quantidade: 1, fechamentos: 0, calhas: 0 }]);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<{ linha: number | null; msg: string } | null>(null);
   const temFechamento = Boolean(pecaFechamentoId);
   const temCalha = Boolean(pecaCalhaId);
-  const mudar = (n: number, patch: Partial<LocalTenda>) => setLocais((l) => l.map((x, i) => (i === n ? { ...x, ...patch } : x)));
+  const mudar = (n: number, patch: Partial<LocalTenda>) => {
+    setLocais((l) => l.map((x, i) => (i === n ? { ...x, ...patch } : x)));
+    if (erro && (erro.linha === null || erro.linha === n)) setErro(null);
+  };
   const previa = previaTendas(kit, bom, locais).filter((p) => (p.papel === "fechamento" ? temFechamento : p.papel === "calha" ? temCalha : true));
   const tendas = locais.reduce((a, l) => a + l.quantidade, 0);
+  // Colunas: Local | Tendas | (Fechamentos) | (Calhas) | remover.
+  // (`cn` só concatena: uma classe de grade por vez.)
+  const colunas =
+    temFechamento && temCalha ? "sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_36px]" : temFechamento || temCalha ? "sm:grid-cols-[minmax(0,1fr)_auto_auto_36px]" : "sm:grid-cols-[minmax(0,1fr)_auto_36px]";
 
   const confirmar = () => {
     const validos = locais.filter((l) => l.quantidade > 0);
-    if (validos.some((l) => !l.local.trim())) {
-      setErro("Diga o local de cada linha (ex.: Depósito, GV, Dispersão).");
+    const semLocal = locais.findIndex((l) => l.quantidade > 0 && !l.local.trim());
+    if (semLocal >= 0) {
+      setErro({ linha: semLocal, msg: "Diga o local desta linha (ex.: Depósito, GV, Dispersão)." });
+      document.getElementById(`tenda-local-${semLocal}`)?.focus();
       return;
     }
     if (validos.length === 0) {
-      setErro("Informe ao menos uma tenda.");
+      setErro({ linha: null, msg: "Informe ao menos uma tenda." });
       return;
     }
     const itens: ItemTenda[] = [];
@@ -66,77 +82,92 @@ export function QuadroTendas({
   };
 
   return (
-    <div className="mt-2 rounded-cartao border border-accent-border bg-selected/50 p-3">
-      <p className="m-0 text-pequeno font-medium text-ink">
-        {nome}: tendas {kit.tamanho} por local
-      </p>
-      <p className="mb-2 mt-0.5 text-rotulo text-muted">Como na planilha: quantas tendas em cada local e quantos fechamentos{temCalha ? " e calhas" : ""} no total daquele local.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-pequeno">
-          <thead>
-            <tr className="text-left text-rotulo text-muted">
-              <th className="py-1 pr-2 font-medium">Local</th>
-              <th className="py-1 pr-2 font-medium">Tendas</th>
-              {temFechamento && <th className="py-1 pr-2 font-medium">Fechamentos</th>}
-              {temCalha && <th className="py-1 pr-2 font-medium">Calhas</th>}
-              <th className="py-1" aria-label="Ações" />
-            </tr>
-          </thead>
-          <tbody>
-            {locais.map((l, n) => (
-              <tr key={n} className="border-t border-line-faint">
-                <td className="py-1 pr-2">
-                  <Input aria-label={`Local da linha ${n + 1}`} value={l.local} maxLength={60} onChange={(e) => mudar(n, { local: e.target.value })} placeholder="Ex.: Depósito" className="min-w-[120px]" />
-                </td>
-                <td className="py-1 pr-2">
-                  <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${l.local || `linha ${n + 1}`}`} />
-                </td>
-                {temFechamento && (
-                  <td className="py-1 pr-2">
-                    <Stepper tamanho="sm" valor={l.fechamentos} min={0} onChange={(v) => mudar(n, { fechamentos: v })} label={`Fechamentos em ${l.local || `linha ${n + 1}`}`} />
-                  </td>
-                )}
-                {temCalha && (
-                  <td className="py-1 pr-2">
-                    <Stepper tamanho="sm" valor={l.calhas} min={0} onChange={(v) => mudar(n, { calhas: v })} label={`Calhas em ${l.local || `linha ${n + 1}`}`} />
-                  </td>
-                )}
-                <td className="py-1 text-right">
-                  {locais.length > 1 && (
-                    <Button variant="link" size="xs" onClick={() => setLocais((ls) => ls.filter((_, i) => i !== n))} aria-label={`Tirar a linha ${n + 1}`}>
-                      Tirar
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <>
+      <div className={cn("hidden gap-3 border-b border-line-soft pb-1.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted sm:grid", colunas)}>
+        <span>Local</span>
+        <span>Tendas</span>
+        {temFechamento && <span>Fechamentos</span>}
+        {temCalha && <span>Calhas</span>}
+        <span className="sr-only">Remover</span>
       </div>
-      <Button variant="link" size="xs" onClick={() => setLocais((ls) => [...ls, { local: "", quantidade: 1, fechamentos: 0, calhas: 0 }])}>
-        + local
+      <ol className="m-0 list-none p-0">
+        {locais.map((l, n) => {
+          const nomeLinha = l.local || `linha ${n + 1}`;
+          const erroLinha = erro?.linha === n;
+          return (
+            <li key={n} className={cn("grid grid-cols-2 items-end gap-x-3 gap-y-2 border-b border-line-row py-3 last:border-b-0 sm:py-2", colunas)}>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
+                <label htmlFor={`tenda-local-${n}`} className={rotuloCls}>
+                  Local
+                </label>
+                <Input
+                  id={`tenda-local-${n}`}
+                  value={l.local}
+                  maxLength={60}
+                  onChange={(e) => mudar(n, { local: e.target.value })}
+                  placeholder="Ex.: Depósito"
+                  aria-label={`Local da linha ${n + 1}`}
+                  aria-invalid={erroLinha || undefined}
+                  aria-describedby={erroLinha ? "tenda-erro" : undefined}
+                />
+              </div>
+              <div>
+                <span className={rotuloCls}>Tendas</span>
+                <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${nomeLinha}`} />
+              </div>
+              {temFechamento && (
+                <div>
+                  <span className={rotuloCls}>Fechamentos</span>
+                  <Stepper tamanho="sm" valor={l.fechamentos} min={0} onChange={(v) => mudar(n, { fechamentos: v })} label={`Fechamentos em ${nomeLinha}`} />
+                </div>
+              )}
+              {temCalha && (
+                <div>
+                  <span className={rotuloCls}>Calhas</span>
+                  <Stepper tamanho="sm" valor={l.calhas} min={0} onChange={(v) => mudar(n, { calhas: v })} label={`Calhas em ${nomeLinha}`} />
+                </div>
+              )}
+              <div className="flex justify-end max-sm:col-span-2">
+                {locais.length > 1 && (
+                  <IconButton label={`Tirar ${nomeLinha}`} onClick={() => setLocais((ls) => ls.filter((_, i) => i !== n))}>
+                    <Icone nome="lixeira" />
+                  </IconButton>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <Button variant="ghost" size="sm" className="mt-1 self-start" onClick={() => setLocais((ls) => [...ls, { local: "", quantidade: 1, fechamentos: 0, calhas: 0 }])}>
+        <Icone nome="mais" />
+        Outro local
       </Button>
-      <div className="mt-2 rounded-controle border border-line bg-surface px-2.5 py-2">
-        <p className="m-0 text-rotulo text-muted">
-          Total: <span className="font-mono text-ink">{tendas}</span> {tendas === 1 ? "tenda" : "tendas"}
-        </p>
-        <p className="m-0 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-rotulo text-ink-2">
-          {previa.map((p) => (
-            <span key={p.papel}>
-              {p.rotulo} <span className="font-mono text-ink">{p.total}</span>
-            </span>
-          ))}
-        </p>
+
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 text-pequeno text-ink-2">
+        <span>
+          Total <Numero valor={tendas} className="font-semibold text-ink" /> {tendas === 1 ? "tenda" : "tendas"}
+        </span>
+        {previa.map((p) => (
+          <span key={p.papel}>
+            {p.rotulo} <Numero valor={p.total} className="font-medium text-ink" />
+          </span>
+        ))}
       </div>
-      {erro && <p className="mb-0 mt-1.5 text-pequeno text-danger">{erro}</p>}
-      <div className="mt-2.5 flex gap-2">
-        <Button variant="primary" size="xs" onClick={confirmar}>
-          Adicionar tendas
+      {erro && (
+        <p id="tenda-erro" role="alert" className="mb-0 mt-2 flex items-start gap-1 text-pequeno text-danger">
+          <Icone nome="erro" className="mt-px" />
+          {erro.msg}
+        </p>
+      )}
+
+      <DialogFooter>
+        <Button variant="primary" size="lg" onClick={confirmar} disabled={tendas === 0} motivoDesabilitado="Informe ao menos uma tenda.">
+          {tendas === 1 ? "Adicionar 1 tenda" : `Adicionar ${tendas} tendas`}
         </Button>
-        <Button variant="secondary" size="xs" onClick={onCancelar}>
+        <Button variant="secondary" size="lg" onClick={onCancelar}>
           Cancelar
         </Button>
-      </div>
-    </div>
+      </DialogFooter>
+    </>
   );
 }

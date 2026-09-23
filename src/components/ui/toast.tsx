@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
+import { Icone, type NomeIcone } from "./icons";
+import { useNavegacaoPendente } from "./navegacao";
 
-type TipoToast = "info" | "erro";
-type ItemToast = { id: number; mensagem: string; tipo: TipoToast; desfazer?: () => void | Promise<void>; restante: number; inicio: number | null };
+/** sucesso = algo foi feito; info = aviso neutro; erro = falhou (role=alert). */
+export type TipoToast = "info" | "sucesso" | "erro";
+type AcaoToast = { rotulo: string; onClick: () => void | Promise<void> };
+type ItemToast = { id: number; mensagem: string; tipo: TipoToast; desfazer?: () => void | Promise<void>; acao?: AcaoToast; restante: number; inicio: number | null };
+
+const ICONE: Record<TipoToast, { nome: NomeIcone; cor: string }> = {
+  sucesso: { nome: "check-circulo", cor: "text-success-light" },
+  info: { nome: "info", cor: "text-on-dark-2" },
+  erro: { nome: "erro", cor: "text-white" },
+};
 
 const MAXIMO = 3;
 let lista: ItemToast[] = [];
@@ -55,16 +65,17 @@ function retomar() {
 }
 
 /**
- * Toast escuro do handoff (§6): canto inferior direito, com "Desfazer" opcional.
+ * Toast escuro do handoff (§6): canto inferior direito, com ícone por tipo, "Desfazer" ou uma ação opcional.
  * Empilha até 3 (um novo não apaga o "Desfazer" do anterior), pausa no hover/foco e aceita Ctrl+Z.
  */
-export function toast(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; duracao?: number; tipo?: TipoToast }) {
+export function toast(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast; duracao?: number; tipo?: TipoToast }) {
   const item: ItemToast = {
     id: ++seq,
     mensagem,
     tipo: opcoes?.tipo ?? "info",
     desfazer: opcoes?.desfazer,
-    restante: opcoes?.duracao ?? (opcoes?.desfazer ? 8000 : 5000),
+    acao: opcoes?.acao,
+    restante: opcoes?.duracao ?? (opcoes?.desfazer || opcoes?.acao ? 8000 : 5000),
     inicio: null,
   };
   lista = [...lista, item];
@@ -80,6 +91,10 @@ export function toastErro(mensagem: string) {
   toast(mensagem, { tipo: "erro", duracao: 7000 });
 }
 
+export function toastSucesso(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast }) {
+  toast(mensagem, { ...opcoes, tipo: "sucesso" });
+}
+
 export function fecharToast() {
   for (const t of lista) remover(t.id);
 }
@@ -88,6 +103,30 @@ async function executarDesfazer(t: ItemToast) {
   const f = t.desfazer;
   remover(t.id);
   await f?.();
+}
+
+async function executarAcao(t: ItemToast) {
+  const f = t.acao?.onClick;
+  remover(t.id);
+  await f?.();
+}
+
+/**
+ * "Carregando…" para leitor de tela quando uma navegação passa de 600 ms (barra do topo, abas,
+ * paginação, linhas). Fica na mesma região aria-live dos toasts.
+ */
+function AnuncioNavegacao() {
+  const pendente = useNavegacaoPendente();
+  const [anunciar, setAnunciar] = useState(false);
+  useEffect(() => {
+    if (!pendente) {
+      const t = setTimeout(() => setAnunciar(false), 0);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setAnunciar(true), 600);
+    return () => clearTimeout(t);
+  }, [pendente]);
+  return <span className="sr-only">{anunciar ? "Carregando…" : ""}</span>;
 }
 
 export function Toaster() {
@@ -113,34 +152,50 @@ export function Toaster() {
 
   return (
     <div aria-live="polite" role="status" className="no-print">
+      <AnuncioNavegacao />
       {itens.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end gap-2" onMouseEnter={pausar} onMouseLeave={retomar} onFocus={pausar} onBlur={retomar}>
-          {itens.map((t) => (
-            <div
-              key={t.id}
-              className={cn(
-                "flex animate-fade-up-rapido items-center gap-2.5 rounded-cartao px-4 py-3 text-white shadow-toast",
-                t.tipo === "erro" ? "bg-danger" : "bg-dark",
-              )}
-              role={t.tipo === "erro" ? "alert" : undefined}
-            >
-              <span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", t.tipo === "erro" ? "bg-white" : "bg-accent-light")} />
-              <span className="text-corpo">{t.mensagem}</span>
-              {t.desfazer && (
+        <div
+          className="fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end gap-2 max-sm:inset-x-3 max-sm:bottom-3 max-sm:max-w-none"
+          onMouseEnter={pausar}
+          onMouseLeave={retomar}
+          onFocus={pausar}
+          onBlur={retomar}
+        >
+          {itens.map((t) => {
+            const icone = ICONE[t.tipo];
+            const botaoAcao = cn(
+              "ml-1 shrink-0 cursor-pointer rounded-chip border-0 bg-transparent px-1.5 py-0.5 text-corpo font-medium underline-offset-2 transition-colors duration-150 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 max-md:min-h-10",
+              t.tipo === "erro" ? "text-white focus-visible:outline-white" : "text-accent-light focus-visible:outline-accent-light",
+            );
+            return (
+              <div
+                key={t.id}
+                className={cn("flex w-full animate-fade-up-rapido items-center gap-2.5 rounded-cartao py-2.5 pl-4 pr-2 text-white shadow-toast sm:w-auto", t.tipo === "erro" ? "bg-danger" : "bg-dark")}
+                role={t.tipo === "erro" ? "alert" : undefined}
+              >
+                <Icone nome={icone.nome} className={icone.cor} />
+                <span className="min-w-0 flex-1 text-corpo">{t.mensagem}</span>
+                {t.desfazer && (
+                  <button type="button" onClick={() => void executarDesfazer(t)} className={botaoAcao} title="Desfazer (Ctrl+Z)">
+                    Desfazer
+                  </button>
+                )}
+                {t.acao && (
+                  <button type="button" onClick={() => void executarAcao(t)} className={botaoAcao}>
+                    {t.acao.rotulo}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => void executarDesfazer(t)}
-                  className={cn("ml-1.5 cursor-pointer border-0 bg-transparent p-0 text-corpo font-medium underline", t.tipo === "erro" ? "text-white" : "text-accent-light")}
-                  title="Desfazer (Ctrl+Z)"
+                  onClick={() => remover(t.id)}
+                  aria-label="Fechar aviso"
+                  className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white max-md:size-10"
                 >
-                  Desfazer
+                  <Icone nome="fechar" />
                 </button>
-              )}
-              <button type="button" onClick={() => remover(t.id)} aria-label="Fechar aviso" className="-mr-1 ml-1 cursor-pointer border-0 bg-transparent px-1 text-destaque leading-none text-white/60 hover:text-white">
-                ×
-              </button>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -24,6 +24,7 @@ export const ACOES = [
   "projeto.gerenciar",
   "consolidacao.ver",
   "pendencias.ver",
+  "pendencias.resolver", // marcar pendência de compra/locação como resolvida
   "arena.ver",
   "historico.ver_tudo",
   "admin.usuarios",
@@ -64,6 +65,7 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "consolidacao.ver": ["ADMIN"],
   "arena.ver": ["ADMIN"],
   "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
+  "pendencias.resolver": ["LOGISTICA", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],
   "admin.usuarios": ["ADMIN"],
   "admin.areas": ["ADMIN"],

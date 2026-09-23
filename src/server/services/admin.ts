@@ -6,6 +6,8 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { hashSenha, verificarSenha } from "@/server/auth/password";
+import { exigirDentroDoLimite, liberarTentativas } from "@/server/auth/limite";
+import { exibirDemo, SENHA_DEMO } from "@/server/auth/demo";
 import { gerarLinkAcesso, invalidarLinksPendentes, VALIDADE_CONVITE_MS } from "./recuperacao";
 import { obterConfiguracoes, registrarHistorico, salvarConfiguracao, type ChaveConfig } from "./support";
 
@@ -92,10 +94,12 @@ export async function criarUsuario(usuario: UsuarioAtual, dados: DadosUsuario) {
   const senha = dados.senha ?? randomBytes(24).toString("base64url");
   const [u] = await db
     .insert(usuarios)
-    .values({ nome: dados.nome, email, perfil: dados.perfil, areaId: perfilUsaArea(dados.perfil) ? dados.areaId : null, ativo: dados.ativo, senhaHash: await hashSenha(senha) })
+    // Senha definida pelo administrador é provisória: a pessoa troca no primeiro acesso.
+    .values({ nome: dados.nome, email, perfil: dados.perfil, areaId: perfilUsaArea(dados.perfil) ? dados.areaId : null, ativo: dados.ativo, senhaHash: await hashSenha(senha), trocarSenha: Boolean(dados.senha) })
     .returning();
   await registrarHistorico(db, { entidade: "usuario", entidadeId: u.id, acao: "CRIADO", descricao: `Usuário ${u.nome} criado — ${PERFIL_LABEL[u.perfil]}`, usuarioId: usuario.id });
   const linkAcesso = dados.senha ? null : await gerarLinkAcesso(u.id, VALIDADE_CONVITE_MS);
+  if (linkAcesso) await registrarHistorico(db, { entidade: "usuario", entidadeId: u.id, acao: "LINK_ACESSO_GERADO", descricao: `Link de acesso gerado para ${u.nome}`, usuarioId: usuario.id });
   return { ...u, linkAcesso };
 }
 
@@ -117,7 +121,12 @@ export async function editarUsuario(usuario: UsuarioAtual, id: string, dados: Da
     areaId: perfilUsaArea(dados.perfil) ? dados.areaId : null,
     ativo: dados.ativo,
   };
-  if (dados.senha) patch.senhaHash = await hashSenha(dados.senha);
+  if (dados.senha) {
+    await exigirDentroDoLimite([{ chave: `senha-admin:${usuario.id}`, maximo: LIMITE_ADMIN_POR_HORA }], HORA_MS, "Muitas redefinições de senha em pouco tempo. Aguarde alguns minutos.");
+    patch.senhaHash = await hashSenha(dados.senha);
+    // Senha escolhida pelo administrador é provisória: a pessoa define a própria no próximo acesso.
+    patch.trocarSenha = true;
+  }
   await db.update(usuarios).set(patch).where(eq(usuarios.id, id));
   if (!dados.ativo || dados.senha) await db.delete(sessoes).where(eq(sessoes.usuarioId, id));
   const mudancas: string[] = [];
@@ -166,15 +175,31 @@ export async function gerarNovoLinkAcesso(usuario: UsuarioAtual, id: string) {
   const db = await getDb();
   const atual = await db.query.usuarios.findFirst({ where: and(eq(usuarios.id, id), ne(usuarios.ativo, false)) });
   if (!atual) throw new DomainError("Usuário inexistente ou inativo.");
-  return gerarLinkAcesso(id, VALIDADE_CONVITE_MS);
+  await exigirDentroDoLimite([{ chave: `senha-admin:${usuario.id}`, maximo: LIMITE_ADMIN_POR_HORA }], HORA_MS, "Muitos links gerados em pouco tempo. Aguarde alguns minutos.");
+  const link = await gerarLinkAcesso(id, VALIDADE_CONVITE_MS);
+  // O link em si nunca vai para o histórico (é uma credencial).
+  await registrarHistorico(db, { entidade: "usuario", entidadeId: id, acao: "LINK_ACESSO_GERADO", descricao: `Link de acesso gerado para ${atual.nome}`, usuarioId: usuario.id });
+  return link;
 }
 
+const HORA_MS = 60 * 60 * 1000;
+/** Redefinições de senha e links de acesso gerados por um mesmo administrador, por hora. */
+const LIMITE_ADMIN_POR_HORA = 30;
+/** Tentativas de troca da própria senha (senha atual errada) por usuário, a cada 15 minutos. */
+const LIMITE_TROCA_PROPRIA = 5;
+
 export async function alterarPropriaSenha(usuario: UsuarioAtual, senhaAtual: string, nova: string) {
+  // Limite por usuário: uma sessão roubada não serve para testar senhas atuais à vontade.
+  const reservas = await exigirDentroDoLimite([{ chave: `senha:usuario:${usuario.id}`, maximo: LIMITE_TROCA_PROPRIA }], 15 * 60_000, "Muitas tentativas de troca de senha. Aguarde 15 minutos.");
   const db = await getDb();
   const u = await db.query.usuarios.findFirst({ where: eq(usuarios.id, usuario.id) });
   if (!u || !(await verificarSenha(senhaAtual, u.senhaHash))) throw new ValidacaoError("Senha atual incorreta.", { senhaAtual: "Senha incorreta." });
-  await db.update(usuarios).set({ senhaHash: await hashSenha(nova) }).where(eq(usuarios.id, usuario.id));
+  if (nova === senhaAtual) throw new ValidacaoError("A nova senha precisa ser diferente da atual.", { senha: "Escolha uma senha diferente da atual." });
+  if (nova === SENHA_DEMO && !exibirDemo()) throw new ValidacaoError("Esta é a senha de demonstração. Escolha outra.", { senha: "Senha de demonstração não é permitida." });
+  await db.update(usuarios).set({ senhaHash: await hashSenha(nova), trocarSenha: false }).where(eq(usuarios.id, usuario.id));
   await invalidarLinksPendentes(db, usuario.id);
+  await liberarTentativas(reservas);
+  await registrarHistorico(db, { entidade: "usuario", entidadeId: usuario.id, acao: "SENHA_ALTERADA", descricao: `${u.nome} alterou a própria senha`, usuarioId: usuario.id });
 }
 
 /* ------------------------------------------------------------------ */

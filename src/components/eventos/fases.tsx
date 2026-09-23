@@ -22,28 +22,45 @@ export function BarrasFase({ status, rotuloStatus }: { status: EventoStatus; rot
 
 export type PassoLinhaTempo = { titulo: string; quando: string; detalhe: string };
 
-/** Linha do tempo de 4 fases no topo do evento (handoff §5.4). */
+/**
+ * Fases do evento sob o cabeçalho: um trilho segmentado (feita · atual · futura) com o nome e a data
+ * de cada fase. Só a fase atual mostra o detalhe; nas outras ele fica no `title`.
+ * No celular sobra o trilho e uma linha com a fase atual (quatro colunas de texto não cabem em 375 px).
+ */
 export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: PassoLinhaTempo[] }) {
   const idx = indiceFase(status);
+  const cancelado = status === "CANCELADO";
+  const atual = idx >= 0 ? passos[idx] : null;
   return (
-    <section aria-label="Fases do evento" className="mb-cartao rounded-cartao border border-line bg-surface px-cartao py-4">
-      <ol className="m-0 grid list-none grid-cols-2 gap-y-4 p-0 sm:flex sm:items-stretch">
+    <section aria-label="Fases do evento" className="mb-4">
+      <ol className="m-0 grid list-none grid-cols-4 gap-1.5 p-0 sm:gap-3">
         {passos.map((p, i) => {
-          const feito = i < idx;
-          const atual = i === idx;
+          const feito = !cancelado && i < idx;
+          const agora = !cancelado && i === idx;
           return (
-            <li key={p.titulo} className="min-w-0 pr-4 sm:flex-1" aria-current={atual ? "step" : undefined}>
-              <div className="mb-2 flex items-center gap-2">
-                <span aria-hidden className={cn("block shrink-0 rounded-full", atual ? "size-[11px] bg-dark ring-4 ring-accent-bg" : "size-[9px]", feito && "bg-accent", !feito && !atual && "bg-line-strong")} />
-                <span aria-hidden className={cn("block h-0.5 flex-1", feito ? "bg-accent" : "bg-line-soft")} />
-              </div>
-              <p className={cn("m-0 text-corpo", atual ? "font-semibold" : "font-medium", atual || feito ? "text-dark" : "text-muted")}>{p.titulo}</p>
-              <p className="mt-0.5 font-mono text-pequeno text-muted">{p.quando}</p>
-              <p className={cn("mt-[5px] text-pequeno leading-[1.45]", atual ? "text-ink-2" : "text-ink-3")}>{p.detalhe}</p>
+            <li key={p.titulo} className="min-w-0" aria-current={agora ? "step" : undefined} title={agora ? undefined : `${p.titulo} · ${p.quando} · ${p.detalhe}`}>
+              <span aria-hidden className={cn("block h-1 rounded-full", feito ? "bg-ink-3" : agora ? "bg-accent" : "bg-line-strong")} />
+              <span className="sr-only">{feito ? "Fase concluída: " : agora ? "Fase atual: " : "Próxima fase: "}</span>
+              <span className="mt-2 hidden sm:block">
+                <span className={cn("block truncate text-pequeno", agora ? "font-semibold text-ink" : feito ? "font-medium text-ink-2" : "text-muted")}>{p.titulo}</span>
+                <span className="numero block truncate text-rotulo text-muted">{p.quando}</span>
+                {agora && <span className="mt-0.5 block truncate text-rotulo text-ink-2">{p.detalhe}</span>}
+              </span>
+              <span className="sr-only sm:hidden">
+                {p.titulo}, {p.quando}, {p.detalhe}
+              </span>
             </li>
           );
         })}
       </ol>
+      {atual && (
+        <p aria-hidden className="mb-0 mt-2 flex min-w-0 items-baseline gap-1.5 text-pequeno sm:hidden">
+          <span className="font-semibold text-ink">{atual.titulo}</span>
+          <span className="numero truncate text-muted">
+            · {atual.quando} · {atual.detalhe}
+          </span>
+        </p>
+      )}
     </section>
   );
 }

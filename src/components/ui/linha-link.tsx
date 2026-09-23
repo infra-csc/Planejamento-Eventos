@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Children, cloneElement, Fragment, isValidElement, useTransition, type ReactElement, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { useSinalizarNavegacao } from "./navegacao";
 
 function deveIgnorar(alvo: EventTarget | null) {
   return alvo instanceof HTMLElement && Boolean(alvo.closest("a,button,input,select,textarea,label"));
@@ -44,6 +45,8 @@ export function LinhaLink({ href, rotulo, className, children, scroll = true }: 
   // Em dev a rota pode levar segundos para compilar: a linha mostra que está abrindo.
   const [abrindo, iniciar] = useTransition();
   const abrir = () => iniciar(() => router.push(href, { scroll }));
+  // A barra fina do topo (e o anúncio "Carregando…") acompanham a abertura da linha.
+  useSinalizarNavegacao(abrindo);
   // A linha não é <a>: ao passar o mouse ou focar, a rota já começa a vir.
   const prefetch = () => router.prefetch(href);
 

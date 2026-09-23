@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento } from "./support";
+import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
 
 export type DadosProjeto = {
   nome: string;
@@ -13,8 +14,18 @@ export type DadosProjeto = {
   itens: Array<{ pecaId: string; quantidade: number }>;
 };
 
-export async function listarProjetos(usuario: UsuarioAtual, filtro: { busca?: string; incluirInativos?: boolean } = {}) {
+type FiltroProjetos = { busca?: string; incluirInativos?: boolean };
+
+export async function listarProjetos(usuario: UsuarioAtual, filtro: FiltroProjetos = {}) {
   exigir(usuario, "projeto.ver");
+  // Busca livre vai sempre ao banco; a lista sem busca fica em cache até uma action mexer nos projetos.
+  if (filtro.busca) return consultarProjetos(filtro);
+  return projetosEmCache(Boolean(filtro.incluirInativos));
+}
+
+const projetosEmCache = cacheDados((incluirInativos: boolean) => consultarProjetos({ incluirInativos }), "projetos:lista", [TAGS_DADOS.projetos]);
+
+async function consultarProjetos(filtro: FiltroProjetos) {
   const db = await getDb();
   const conds = [];
   if (!filtro.incluirInativos) conds.push(eq(projetos.ativo, true));
@@ -233,16 +244,12 @@ export async function historicoProjeto(id: string) {
 /** Quantos eventos (não cancelados) usam cada projeto na ata — coluna "uso" da Biblioteca. */
 export async function contarUsoProjetos() {
   const db = await getDb();
+  // Uma linha por projeto, contada no banco (antes: todas as linhas de ata do histórico).
   const rows = await db
-    .select({ projetoId: eventoItens.projetoId, eventoId: eventoItens.eventoId })
+    .select({ projetoId: eventoItens.projetoId, n: sql<number>`count(distinct ${eventoItens.eventoId})::int` })
     .from(eventoItens)
     .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
-    .where(and(eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"])));
-  const mapa = new Map<string, Set<string>>();
-  for (const r of rows) {
-    if (!r.projetoId) continue;
-    if (!mapa.has(r.projetoId)) mapa.set(r.projetoId, new Set());
-    mapa.get(r.projetoId)!.add(r.eventoId);
-  }
-  return new Map([...mapa].map(([k, v]) => [k, v.size]));
+    .where(and(eq(eventoItens.ativo, true), isNotNull(eventoItens.projetoId), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"])))
+    .groupBy(eventoItens.projetoId);
+  return new Map(rows.map((r) => [r.projetoId!, Number(r.n)]));
 }

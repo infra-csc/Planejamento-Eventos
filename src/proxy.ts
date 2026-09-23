@@ -1,11 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { COOKIE_SESSAO, HEADER_CAMINHO } from "@/server/auth/cookies";
+import { gerarNonce, montarCsp } from "@/server/auth/csp";
 
-const COOKIE = "npe_sessao";
-const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha"];
+/** Sem sessão, abrem só estas. /api/cron se protege sozinha (Authorization: Bearer CRON_SECRET). */
+const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha", "/api/cron"];
 
 /**
  * Verificação otimista: só checa a presença do cookie de sessão. A validação real
  * acontece no servidor (requireUsuario) em cada página e action.
+ *
+ * Também monta a Content-Security-Policy com nonce novo a cada requisição (o Next lê o nonce do
+ * cabeçalho da requisição e o aplica aos próprios scripts) e informa ao servidor o caminho pedido
+ * (troca de senha obrigatória: requireUsuario só libera /perfil).
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,7 +25,7 @@ export function proxy(request: NextRequest) {
       console.warn(`[origem-action] origin=${origem ?? "(ausente)"} x-forwarded-host=${hostEncaminhado ?? "(ausente)"} host=${host ?? "(ausente)"}`);
     }
   }
-  const temCookie = Boolean(request.cookies.get(COOKIE)?.value);
+  const temCookie = Boolean(request.cookies.get(COOKIE_SESSAO)?.value);
   const publica = PUBLICAS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (!temCookie && !publica) {
@@ -30,9 +36,25 @@ export function proxy(request: NextRequest) {
   // Não redireciona /login → / só porque existe cookie: o proxy não sabe se a sessão ainda vale
   // (expirada, revogada na troca de senha, banco recarregado) e isso criava um loop /login ↔ /.
   // A própria página de login valida a sessão no banco e manda para dentro quem já está logado.
-  return NextResponse.next();
+  const cabecalhos = new Headers(request.headers);
+  // Rotas de API não são documentos: sem CSP daqui (as que servem arquivos, como a planta da
+  // arena e os anexos, mandam a própria CSP com sandbox, que não pode ser sobrescrita).
+  if (pathname.startsWith("/api/")) {
+    cabecalhos.set(HEADER_CAMINHO, pathname);
+    return NextResponse.next({ request: { headers: cabecalhos } });
+  }
+  const nonce = gerarNonce();
+  const csp = montarCsp(nonce);
+  cabecalhos.set("x-nonce", nonce);
+  cabecalhos.set("Content-Security-Policy", csp);
+  // Sobrescreve o que o cliente mandar: o servidor confia neste valor.
+  cabecalhos.set(HEADER_CAMINHO, pathname);
+  const resposta = NextResponse.next({ request: { headers: cabecalhos } });
+  resposta.headers.set("Content-Security-Policy", csp);
+  return resposta;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/anexos|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
+  // /api/anexos fica de fora: responde com a própria CSP (sandbox) e é validado na rota.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/anexos|.*\.(?:png|jpg|svg|ico|webp)$).*)"],
 };

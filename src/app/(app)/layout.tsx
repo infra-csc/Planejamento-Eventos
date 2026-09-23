@@ -1,13 +1,13 @@
 import { after } from "next/server";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { getUsuarioReal, requireUsuario } from "@/server/auth/session";
-import { listarAreas } from "@/server/services/admin";
 import { contarNaoLidas } from "@/server/services/notificacoes";
 import { executarVerificacoesSeNecessario } from "@/server/jobs/verificacoes";
 import { getDb } from "@/server/db";
 import { solicitacoes } from "@/server/db/schema";
 import { pode } from "@/domain/permissions";
 import { AppShell, type NavItem } from "@/components/shell/app-shell";
+import { listarAreasCache } from "@/server/cache";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const usuario = await requireUsuario();
@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // "Ver como" é só do admin real (não do perfil simulado): as áreas vêm em paralelo com os contadores.
   const verComoDoAdmin = async () => {
     const real = await getUsuarioReal();
-    return real?.perfil === "ADMIN" ? await listarAreas() : null;
+    return real?.perfil === "ADMIN" ? await listarAreasCache() : null;
   };
   const [naoLidas, abertas, areasAdmin] = await Promise.all([contarNaoLidas(usuario), contarAbertas(), verComoDoAdmin()]);
   const ehAdminReal = areasAdmin !== null;
@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
     ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
+    ...(pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
   ];

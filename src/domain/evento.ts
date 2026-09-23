@@ -87,6 +87,18 @@ export function acoesDisponiveis(status: EventoStatus, perfil: Perfil): AcaoEven
   });
 }
 
+/**
+ * Por que o evento não pode ser encerrado agora, ou `null`. Com a configuração
+ * "bloquear encerramento com pendentes" ligada, solicitações sem resposta impedem o encerramento;
+ * desligada, o encerramento resolve as pendentes (sem resposta: canceladas; parciais: resto não atendido).
+ * Mesma mensagem no botão e no servidor.
+ */
+export function motivoBloqueioEncerramento(abertas: readonly string[], bloquear: boolean): string | null {
+  if (!bloquear || abertas.length === 0) return null;
+  if (abertas.length === 1) return `${abertas[0]} está sem resposta. Responda antes de encerrar.`;
+  return `Existem ${abertas.length} solicitações sem resposta (${abertas.join(", ")}). Responda todas antes de encerrar.`;
+}
+
 /** Em qual estado do evento cada tipo de solicitação pode ser criada/enviada. */
 export function aceitaSolicitacao(status: EventoStatus, tipo: "PRE_REUNIAO" | "ALTERACAO"): boolean {
   if (tipo === "PRE_REUNIAO") return status === "PREPARACAO";

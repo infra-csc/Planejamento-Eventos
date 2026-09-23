@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { arenaPosicoes, arenas, eventos } from "@/server/db/schema";
@@ -37,7 +38,13 @@ function avisarMigracao<T>(padrao: T) {
   };
 }
 
-export async function obterArenaBase(slug: string): Promise<ArenaCarregada | null> {
+/**
+ * Memoizada por requisição (React `cache`): `generateMetadata` e a página pedem a mesma arena, e a
+ * leitura (arena + ata do evento) acontece uma vez só. Fora de uma renderização, chama direto.
+ */
+export const obterArenaBase = cache(carregarArenaBase);
+
+async function carregarArenaBase(slug: string): Promise<ArenaCarregada | null> {
   const fixa = obterArenaPorSlug(slug);
   if (fixa) return { arena: fixa, origem: "fixa", eventoId: null, temPlanta: false, versao: null };
   const db = await getDb();

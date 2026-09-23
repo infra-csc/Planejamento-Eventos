@@ -64,7 +64,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
 
       <div className="grid grid-cols-[120px_1fr] gap-3">
         <Field label="Quantidade" htmlFor="quantidade" error={campos?.quantidade}>
-          <Input id="quantidade" name="quantidade" type="number" min={1} defaultValue={1} required className="font-mono" />
+          <Input id="quantidade" name="quantidade" type="number" min={1} defaultValue={1} required className="numero" />
         </Field>
         <Field label="Destino" htmlFor="destino" optional>
           <Input id="destino" name="destino" maxLength={60} placeholder="Ex.: Palco principal" />

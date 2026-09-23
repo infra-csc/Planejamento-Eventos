@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ChipMono } from "@/components/ui/badge";
-import { toast, toastErro } from "@/components/ui/toast";
+import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
+import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { cn } from "@/lib/cn";
 import { marcarOsEnviadaAction } from "@/app/(app)/eventos/actions";
 
 type Diferenca = { codigo: string; nome: string; antes: number; depois: number };
@@ -37,7 +39,7 @@ export function EnvioOs({
     iniciar(async () => {
       const r = await marcarOsEnviadaAction(eventoId);
       if (!r.ok) return toastErro(r.erro);
-      toast(r.mensagem ?? "OS marcada como enviada");
+      toastSucesso(r.mensagem ?? "OS marcada como enviada");
       setConfirmar(false);
       router.refresh();
     });
@@ -46,41 +48,62 @@ export function EnvioOs({
     <div className="px-cartao py-3.5">
       {!enviada ? (
         <>
-          <p className="m-0 text-pequeno leading-[1.5] text-ink-2">Quando a OS for para o galpão, marque aqui. O que entrar depois vira um complemento separado, em vez de sumir dentro de uma versão nova.</p>
+          <p className="m-0 flex items-start gap-2 text-pequeno text-ink-2">
+            <Icone nome="info" className="mt-px shrink-0 text-ink-3" />
+            <span>Marque quando a OS for para o galpão: o que entrar depois vira um complemento separado.</span>
+          </p>
           {podeEnviar && (
             <Button variant="primary" size="md" className="mt-3 w-full" onClick={() => setConfirmar(true)}>
-              Marcar OS v{versaoAtual} como enviada
+              Marcar v{versaoAtual} como enviada
             </Button>
           )}
         </>
       ) : (
         <>
           <p className="m-0 text-pequeno text-ink-2">
-            <span className="font-medium text-ink">OS v{enviada.numero}</span> enviada em {enviada.enviadaEm}
+            <Codigo className="font-medium text-ink">v{enviada.numero}</Codigo> enviada em <span className="numero">{enviada.enviadaEm}</span>
             {enviada.enviadaPor ? ` por ${enviada.enviadaPor}` : ""}.
           </p>
-          {mudou === 0 ? (
-            <p className="mb-0 mt-1.5 text-pequeno text-success">Nada mudou desde o envio: o galpão está com a versão certa.</p>
-          ) : (
+          <p className={cn("mb-0 mt-2 flex items-start gap-2 text-pequeno font-medium", mudou === 0 ? "text-success" : "text-warning")}>
+            <Icone nome={mudou === 0 ? "check-circulo" : "alerta"} className="mt-px shrink-0" />
+            {mudou === 0 ? "Nada mudou desde o envio: o galpão está com a versão certa." : `${mudou} ${mudou === 1 ? "mudança" : "mudanças"} desde o envio`}
+          </p>
+          {mudou > 0 && (
             <>
-              <p className="mb-0 mt-1.5 text-pequeno text-warning">
-                {mudou} {mudou === 1 ? "mudança" : "mudanças"} desde o envio. Escolha: mandar só o complemento ou incorporar numa OS nova.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {enviada.diff.slice(0, 6).map((d) => (
-                  <ChipMono key={d.codigo} tom={d.depois > d.antes ? "success" : "danger"} title={d.nome}>
-                    {d.codigo} {d.antes} → {d.depois}
-                  </ChipMono>
-                ))}
-                {enviada.diff.length > 6 && <ChipMono tom="control">+{enviada.diff.length - 6}</ChipMono>}
-              </div>
-              <div className="mt-3 flex flex-col gap-2">
+              {enviada.diff.length > 0 && (
+                <ul className="m-0 mt-2 list-none rounded-controle border border-line p-0">
+                  {enviada.diff.slice(0, 6).map((d) => {
+                    const delta = d.depois - d.antes;
+                    return (
+                      <li key={d.codigo} className="flex items-baseline gap-2 border-b border-line-row px-2.5 py-1.5 text-pequeno last:border-b-0" title={d.nome}>
+                        <Codigo className="min-w-0 flex-1 truncate text-ink-2">{d.codigo}</Codigo>
+                        <span className="numero text-muted">
+                          {d.antes} → <span className="text-ink">{d.depois}</span>
+                        </span>
+                        <span className={cn("numero w-10 text-right font-medium", delta > 0 ? "text-success" : "text-danger")}>
+                          {delta > 0 ? "+" : "−"}
+                          {Math.abs(delta)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {enviada.diff.length > 6 && <li className="px-2.5 py-1.5 text-rotulo text-muted">e mais {enviada.diff.length - 6} peças</li>}
+                </ul>
+              )}
+              {enviada.avulsosNovos > 0 && (
+                <p className="mb-0 mt-1.5 text-rotulo text-muted">
+                  + {enviada.avulsosNovos} {enviada.avulsosNovos === 1 ? "item fora do catálogo" : "itens fora do catálogo"}
+                </p>
+              )}
+              <p className="mb-0 mt-3 text-pequeno text-muted">Mande só o complemento ao galpão ou incorpore tudo numa OS nova.</p>
+              <div className="mt-2 flex flex-col gap-2">
                 <a href={`/api/os/${eventoId}/complemento`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
-                  Exportar só o complemento (.xlsx)
+                  <Icone nome="download" />
+                  Complemento (.xlsx)
                 </a>
                 {podeEnviar && (
                   <Button variant="secondary" size="md" className="w-full" onClick={() => setConfirmar(true)}>
-                    Incorporar: nova OS enviada
+                    Incorporar numa OS nova
                   </Button>
                 )}
               </div>
@@ -100,14 +123,16 @@ export function EnvioOs({
             }
             width={480}
           >
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setConfirmar(false)} disabled={pendente}>
-                Cancelar
-              </Button>
-              <Button variant="primary" loading={pendente} onClick={marcar}>
+            <DialogFooter className="!mt-0">
+              <Button variant="primary" size="lg" loading={pendente} onClick={marcar}>
                 {incorporar ? "Incorporar e marcar como enviada" : "Marcar como enviada"}
               </Button>
-            </div>
+              <DialogClose asChild>
+                <Button variant="secondary" size="lg" disabled={pendente}>
+                  Cancelar
+                </Button>
+              </DialogClose>
+            </DialogFooter>
           </DialogContent>
         )}
       </Dialog>

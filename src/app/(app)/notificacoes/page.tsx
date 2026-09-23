@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
-import { listarNotificacoes, marcarLida, marcarTodasLidas } from "@/server/services/notificacoes";
+import { listarNotificacoesComTotal, marcarLida, marcarTodasLidas } from "@/server/services/notificacoes";
 import { SubmitButton } from "@/components/ui/button";
-import { EmptyState, Marcador, PageHeader } from "@/components/ui/layout";
+import { Icone, type NomeIcone } from "@/components/ui/icons";
+import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { Paginacao } from "@/components/ui/tabela";
 import { tempoRelativo } from "@/lib/format";
@@ -17,18 +19,32 @@ export const metadata: Metadata = { title: "Notificações" };
 
 const POR_PAGINA = 25;
 
+/** Ícone e cor do ícone pelo tipo da notificação. Só prazo vencido ganha cor de erro. */
+function aparencia(tipo: string): { icone: NomeIcone; cor: string } {
+  if (/SLA|VENCID/.test(tipo)) return { icone: "relogio", cor: "text-danger" };
+  if (/PRAZO/.test(tipo)) return { icone: "relogio", cor: "text-warning" };
+  if (/REUNIAO/.test(tipo)) return { icone: "calendario", cor: "text-info" };
+  if (/DEVOLVIDA|CANCELADA/.test(tipo)) return { icone: "alerta", cor: "text-ink-3" };
+  if (/RESPONDID|RESOLVIDA/.test(tipo)) return { icone: "check-circulo", cor: "text-success" };
+  if (/SOLICITACAO|PRE_REUNIAO|AVULSO/.test(tipo)) return { icone: "solicitacoes", cor: "text-ink-3" };
+  if (/EVENTO|ATA/.test(tipo)) return { icone: "eventos", cor: "text-ink-3" };
+  if (/PROJETO|PECA|CATALOGO|VINCULADO/.test(tipo)) return { icone: "caixa", cor: "text-ink-3" };
+  if (/SENHA/.test(tipo)) return { icone: "escudo", cor: "text-ink-3" };
+  return { icone: "sino", cor: "text-ink-3" };
+}
+
 async function marcarTodasAction() {
   "use server";
   const u = await requireUsuario();
   await marcarTodasLidas(u);
-  revalidatePath("/", "layout");
+  revalidatePath("/notificacoes");
 }
 
 async function abrirAction(formData: FormData) {
   "use server";
   const u = await requireUsuario();
   await marcarLida(u, String(formData.get("id")));
-  revalidatePath("/", "layout");
+  revalidatePath("/notificacoes");
   const link = String(formData.get("link") ?? "");
   // Só links internos: a notificação é gerada pelo sistema, mas não seguimos URLs externas.
   redirect(destinoInterno(link, "/notificacoes"));
@@ -37,8 +53,7 @@ async function abrirAction(formData: FormData) {
 export default async function NotificacoesPage({ searchParams }: { searchParams: Promise<{ filtro?: string; pagina?: string }> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
-  const lista = await listarNotificacoes(usuario);
-  const naoLidas = lista.filter((n) => !n.lidaEm).length;
+  const { itens: lista, total: totalGeral, naoLidas, limite, truncada } = await listarNotificacoesComTotal(usuario);
   const soNaoLidas = sp.filtro === "nao-lidas";
   const visiveis = soNaoLidas ? lista.filter((n) => !n.lidaEm) : lista;
 
@@ -58,6 +73,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
           naoLidas > 0 && (
             <form action={marcarTodasAction}>
               <SubmitButton variant="secondary" size="lg">
+                <Icone nome="check" />
                 Marcar todas como lidas
               </SubmitButton>
             </form>
@@ -75,43 +91,59 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
         />
         {itens.length === 0 ? (
           soNaoLidas ? (
-            <EmptyState title="Tudo lido" description="Só o que pede sua atenção aparece aqui: envios, respostas, prazos e mudanças de fase." />
+            <EmptyState
+              icone="check-circulo"
+              title="Tudo lido"
+              description="Nada novo por aqui."
+              action={
+                lista.length > 0 ? (
+                  <Link href={hrefCom("/notificacoes", params, { filtro: null, pagina: null })} className="link text-corpo">
+                    Ver todas
+                  </Link>
+                ) : undefined
+              }
+            />
           ) : (
-            <EmptyState title="Nenhuma notificação" description="Quando algo precisar da sua ação, aparece aqui." />
+            <EmptyState
+              icone="sino"
+              title="Nenhuma notificação"
+              description="Envios, respostas, prazos e mudanças de fase aparecem aqui."
+              action={
+                <Link href="/" className="link text-corpo">
+                  Ir para o painel
+                </Link>
+              }
+            />
           )
         ) : (
           <>
-            <div aria-hidden className="flex gap-3.5 border-b border-line-soft bg-subtle px-cartao py-2.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted">
-              <span className="flex-1 pl-[21px]">Notificação</span>
-              <span className="hidden w-28 text-right sm:block">Quando</span>
-              <span className="w-7" />
-            </div>
             <ul className="m-0 list-none p-0">
               {itens.map((n) => {
-                const prazo = /PRAZO|SLA/.test(n.tipo);
+                const { icone, cor } = aparencia(n.tipo);
+                const naoLida = !n.lidaEm;
                 const quando = tempoRelativo(n.criadoEm);
                 const conteudo = (
                   <>
-                    <Marcador tom={n.lidaEm ? undefined : prazo ? "danger" : "accent"} className={cn(n.lidaEm && "bg-transparent")} />
-                    <span className="min-w-0 flex-1">
-                      <span className={cn("block text-corpo text-ink", !n.lidaEm && "font-medium")}>
-                        {!n.lidaEm && <span className="sr-only">Não lida: </span>}
-                        {n.titulo}
-                      </span>
-                      <span className="mt-0.5 block text-pequeno leading-[1.45] text-ink-3">{n.mensagem}</span>
-                      <span className="mt-1 block font-mono text-rotulo text-meta sm:hidden">{quando}</span>
+                    <span aria-hidden className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-neutral-bg">
+                      <Icone nome={icone} className={cor} />
+                      {naoLida && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-selected bg-accent" />}
                     </span>
-                    <span className="hidden w-28 shrink-0 text-right font-mono text-pequeno text-meta sm:block">{quando}</span>
-                    <span aria-hidden className="grid w-7 shrink-0 place-items-center self-center text-ink-3">
-                      {n.link && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 6l6 6-6 6" />
-                        </svg>
-                      )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-3">
+                        <span className={cn("min-w-0 flex-1 text-corpo text-ink", naoLida && "font-semibold")}>
+                          {naoLida && <span className="sr-only">Não lida: </span>}
+                          {n.titulo}
+                        </span>
+                        <span className="numero shrink-0 text-pequeno text-meta">{quando}</span>
+                      </span>
+                      <span className="mt-0.5 line-clamp-2 text-pequeno text-ink-2">{n.mensagem}</span>
+                    </span>
+                    <span aria-hidden className="grid w-4 shrink-0 place-items-center self-center text-ink-3">
+                      {n.link && <Icone nome="chevron-direita" />}
                     </span>
                   </>
                 );
-                const classe = cn("flex w-full items-start gap-3.5 border-b border-line-row px-cartao py-3 text-left", !n.lidaEm && "bg-selected");
+                const classe = cn("flex w-full items-start gap-3 border-b border-line-row px-cartao py-3 text-left", naoLida && "bg-selected");
                 // A linha inteira abre o destino (e marca como lida); sem destino, é só leitura.
                 return (
                   <li key={n.id} className="[&:last-child>*]:border-b-0 [&:last-child_button]:border-b-0">
@@ -119,7 +151,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                       <form action={abrirAction} className="m-0">
                         <input type="hidden" name="id" value={n.id} />
                         <input type="hidden" name="link" value={n.link} />
-                        <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent hover:bg-subtle", !n.lidaEm && "bg-selected")}>
+                        <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent transition-colors hover:bg-subtle", naoLida && "bg-selected")}>
                           {conteudo}
                         </BotaoNotificacao>
                       </form>
@@ -130,6 +162,11 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                 );
               })}
             </ul>
+            {truncada && (
+              <p className="m-0 border-t border-line-soft px-cartao py-2.5 text-pequeno text-muted">
+                Mostrando as <span className="numero">{limite}</span> mais recentes de <span className="numero">{totalGeral}</span>.
+              </p>
+            )}
             <Paginacao total={total} pagina={pagina} paginas={paginas} de={de} porPagina={POR_PAGINA} hrefPagina={(p) => hrefCom("/notificacoes", params, { pagina: p === 1 ? null : p })} />
           </>
         )}

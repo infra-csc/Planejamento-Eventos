@@ -22,6 +22,8 @@ import {
   salvarItem,
   registrarPreReunioesPendentes,
   salvarSolicitacaoCompleta,
+  listarPendenciasCompra,
+  resolverPendenciaCompra,
 } from "../src/server/services/solicitacoes";
 import { listarOsVersoes } from "../src/server/services/os";
 import { ajustarLinhaNaConferencia, obterConferencia } from "../src/server/services/conferencia";
@@ -277,6 +279,18 @@ async function main() {
   const itemNovo = (await obterSolicitacao(marina, outroAvulso.id)).itens[0];
   await vincularAoCatalogo(marina, { solicitacaoItemId: itemNovo.id }, { tipo: "NOVA_PECA", peca: { codigo: "TOTEM-LED-SMOKE", nome: "Totem de LED 2 m", setor: "MARCENARIA", familia: "", unidade: "un", descricao: null, estoqueProprio: 0, permiteEmProjeto: true } });
   ok((await listarPecas(marina)).some((p) => p.codigo === "TOTEM-LED-SMOKE") && (await obterLinhasAta(e2b.id)).some((l) => l.registro.solicitacaoItemId === itemNovo.id && l.tipo === "PECA"), "cadastrar peça nova e vincular na mesma ação");
+
+  console.log("\n10. Pendências de compra: a logística resolve com observação");
+  const pendencias = await listarPendenciasCompra(marina);
+  await deveFalhar(() => listarPendenciasCompra(paulo), "requisitante não vê a lista de pendências", "permissão");
+  if (pendencias.length) {
+    const alvoPend = pendencias[0];
+    await deveFalhar(() => resolverPendenciaCompra(helena, alvoPend.id, "x"), "gestão vê mas não resolve pendência", "permissão");
+    await resolverPendenciaCompra(marina, alvoPend.id, "Locação confirmada com o fornecedor.");
+    ok(!(await listarPendenciasCompra(marina)).some((p) => p.id === alvoPend.id), "pendência resolvida sai da lista");
+  } else {
+    ok(false, "seed sem pendência de compra para testar a resolução");
+  }
 
   console.log(`\n${falhas === 0 ? "Todos os cenários passaram." : `${falhas} cenário(s) falharam.`}`);
   await conn.close();

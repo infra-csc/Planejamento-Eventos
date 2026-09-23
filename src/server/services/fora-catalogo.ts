@@ -4,7 +4,7 @@ import { areas, eventoItens, eventos, pecas, projetos, solicitacaoItens, solicit
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { pode } from "@/domain/permissions";
-import { criarPeca, type DadosPeca } from "./catalogo";
+import { criarPecaNaTransacao, type DadosPeca } from "./catalogo";
 import { snapshotBom } from "./eventos";
 import { gerarOsVersao } from "./os";
 import { bloquearEvento, notificar, registrarHistorico, usuariosDaArea } from "./support";
@@ -79,40 +79,36 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
   if (!ref.linhaId && !ref.solicitacaoItemId) throw new ValidacaoError("Item não informado.");
   const db = await getDb();
 
-  // Confere antes de cadastrar peça nova: não deixa peça órfã se o item não puder ser vinculado.
+  // Confere antes de travar o evento (e de cadastrar peça nova): o item precisa existir e estar sem vínculo.
   const previa = await resolverVinculo(db, ref);
   if (!previa.eventoId) throw new NaoEncontradoError("Item");
   if (!previa.linhaPendente && !previa.itemPendente) throw new DomainError("Este item já está vinculado ao catálogo.");
 
-  let pecaId: string | null = null;
-  let projetoId: string | null = null;
-  if (alvo.tipo === "NOVA_PECA") {
-    if (!pode(usuario, "catalogo.gerenciar")) throw new DomainError("Seu perfil não cadastra peças. Vincule a uma peça ou projeto existente.");
-    pecaId = (await criarPeca(usuario, alvo.peca)).id;
-  } else if (alvo.tipo === "PECA") {
-    pecaId = alvo.pecaId;
-  } else {
-    projetoId = alvo.projetoId;
-  }
-  if (!pecaId && !projetoId) throw new ValidacaoError("Escolha a peça ou o projeto.");
+  if (alvo.tipo === "NOVA_PECA" && !pode(usuario, "catalogo.gerenciar")) throw new DomainError("Seu perfil não cadastra peças. Vincule a uma peça ou projeto existente.");
+  const projetoId: string | null = alvo.tipo === "PROJETO" ? alvo.projetoId : null;
+  if (alvo.tipo !== "NOVA_PECA" && !(alvo.tipo === "PECA" ? alvo.pecaId : projetoId)) throw new ValidacaoError("Escolha a peça ou o projeto.");
   const eventoId = previa.eventoId;
-  const pecaNovaId = alvo.tipo === "NOVA_PECA" ? pecaId : null;
 
-  const vincular = () => db.transaction(async (tx) => {
+  // Uma transação só: a peça nova é cadastrada junto com o vínculo (se o vínculo falhar, ela não fica solta no catálogo).
+  return db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
     const { linha, item, sol, linhaPendente, itemPendente } = await resolverVinculo(tx, ref);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (ev.status === "ENCERRADO" || ev.status === "CANCELADO") throw new DomainError("O evento está encerrado; não aceita mudanças.");
     if (!linhaPendente && !itemPendente) throw new DomainError("Este item já está vinculado ao catálogo.");
+    const pecaId: string | null = alvo.tipo === "NOVA_PECA" ? (await criarPecaNaTransacao(tx, usuario, alvo.peca)).id : alvo.tipo === "PECA" ? alvo.pecaId : null;
 
     let rotulo: string;
+    let projetoVersaoId: string | null = null;
     if (projetoId) {
       const pr = await tx.query.projetos.findFirst({ where: and(eq(projetos.id, projetoId), eq(projetos.ativo, true)) });
       if (!pr) throw new NaoEncontradoError("Projeto padrão");
       rotulo = `${pr.codigo} · ${pr.nome}`;
+      // A versão vigente no vínculo fica gravada na linha e no pedido (como num pedido feito já pelo catálogo).
+      const snap = await snapshotBom(tx, projetoId);
+      projetoVersaoId = snap.versaoId;
       if (linhaPendente && linha) {
-        const snap = await snapshotBom(tx, projetoId);
         await tx.update(eventoItens).set({ tipo: "PROJETO", projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom }).where(eq(eventoItens.id, linha.id));
       }
     } else {
@@ -121,7 +117,7 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
       rotulo = `${pc.codigo} · ${pc.nome}`;
       if (linhaPendente && linha) await tx.update(eventoItens).set({ tipo: "PECA", pecaId: pc.id }).where(eq(eventoItens.id, linha.id));
     }
-    if (itemPendente && item) await tx.update(solicitacaoItens).set(projetoId ? { projetoId } : { pecaId }).where(eq(solicitacaoItens.id, item.id));
+    if (itemPendente && item) await tx.update(solicitacaoItens).set(projetoId ? { projetoId, projetoVersaoId } : { pecaId }).where(eq(solicitacaoItens.id, item.id));
 
     const original = linha?.descricaoLivre ?? item?.descricaoLivre ?? "item";
     const texto = `“${original}” vinculado a ${rotulo}${alvo.tipo === "NOVA_PECA" ? " (peça cadastrada agora)" : ""}`;
@@ -133,7 +129,7 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
       descricao: sol ? `${sol.codigo} · ${texto}` : texto,
       usuarioId: usuario.id,
       dadosAntes: { tipo: "AVULSO", descricaoLivre: original },
-      dadosDepois: { tipo: projetoId ? "PROJETO" : "PECA", projetoId, pecaId },
+      dadosDepois: { tipo: projetoId ? "PROJETO" : "PECA", projetoId, projetoVersaoId, pecaId },
     });
     if (linhaPendente && linha?.ativo && ev.status === "ABERTO") await gerarOsVersao(tx, ev.id, "AJUSTE_LOGISTICA", usuario.id, texto);
     if (sol) {
@@ -148,14 +144,6 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
     }
     return { rotulo };
   });
-
-  try {
-    return await vincular();
-  } catch (e) {
-    // A peça foi criada fora da transação: se o vínculo falhou, ela não pode ficar solta no catálogo.
-    if (pecaNovaId) await db.update(pecas).set({ ativo: false }).where(eq(pecas.id, pecaNovaId)).catch(() => undefined);
-    throw e;
-  }
 }
 
 /** Contagem para o menu/painel: quantos itens aguardam cadastro ou vínculo. */

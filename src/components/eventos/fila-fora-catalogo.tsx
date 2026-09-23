@@ -66,7 +66,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                     {i.eventoNome}
                   </span>
                 </td>
-                <td className="border-b border-line-row px-3 py-3 text-right font-mono text-pequeno font-medium text-ink">{i.quantidade}</td>
+                <td className="border-b border-line-row px-3 py-3 numero text-right text-pequeno font-medium text-ink">{i.quantidade}</td>
                 <td className="border-b border-line-row px-3 py-3">{i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}</td>
                 <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right">
                   <VincularCatalogo linha={{ linhaId: i.id, descricao: i.descricao ?? "item", quantidade: i.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />

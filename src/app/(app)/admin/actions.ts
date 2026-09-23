@@ -5,10 +5,16 @@ import { requireUsuario } from "@/server/auth/session";
 import { alterarAtivoUsuario, criarUsuario, editarUsuario, gerarNovoLinkAcesso, salvarArea, salvarConfig } from "@/server/services/admin";
 import { areaSchema, configuracoesSchema, usuarioSchema } from "@/lib/schemas";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
+import { invalidarDados, TAGS_DADOS, type TagDados } from "@/server/cache-dados";
 
-function revalidarAdmin() {
+/**
+ * Qualquer revalidação numa action já devolve a tela atual renderizada de novo desde o layout raiz
+ * (contadores do menu e do sino inclusos) e limpa o cache de navegação do cliente. Revalidar "/" com
+ * "layout" também derrubava o cache de dados de todas as páginas; aqui só as tags que mudaram.
+ */
+function revalidarAdmin(...tags: TagDados[]) {
   revalidatePath("/admin");
-  revalidatePath("/", "layout");
+  invalidarDados(...tags);
 }
 
 export async function salvarUsuarioAction(payload: { id?: string | null; nome: string; email: string; perfil: string; areaId: string | null; ativo: boolean }) {
@@ -51,7 +57,7 @@ export async function salvarAreaAction(payload: { id?: string | null; nome: stri
   try {
     const d = areaSchema.parse(payload);
     const r = await executar(() => salvarArea(usuario, payload.id ?? null, d), payload.id ? "Área atualizada" : "Área criada");
-    revalidarAdmin();
+    revalidarAdmin(TAGS_DADOS.areas);
     return r;
   } catch (e) {
     return tratarErro(e);
@@ -73,7 +79,7 @@ export async function salvarConfigAction(payload: Record<string, string | number
         }),
       "Configurações salvas",
     );
-    revalidarAdmin();
+    revalidarAdmin(TAGS_DADOS.config);
     return r;
   } catch (e) {
     return tratarErro(e);

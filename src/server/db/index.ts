@@ -33,13 +33,20 @@ export function getDataDir() {
   return process.env.PGLITE_DATA_DIR ?? path.join(process.cwd(), ".data", "pglite");
 }
 
+/** DB_POOL_MAX: inteiro positivo; ausente ou inválido, 10. */
+function tamanhoPool(): number {
+  const n = Number(process.env.DB_POOL_MAX);
+  return Number.isInteger(n) && n > 0 ? n : 10;
+}
+
 async function connect(): Promise<Conn> {
   const url = process.env.DATABASE_URL?.trim();
   if (url) {
     const { drizzle } = await import("drizzle-orm/node-postgres");
     const { Pool } = await import("pg");
-    // Pool pequeno: o deployment Autoscale sobe várias instâncias e cada uma abre o seu.
-    const pool = new Pool({ connectionString: url, max: Number(process.env.DB_POOL_MAX) || 5, idleTimeoutMillis: 30_000 });
+    // Conexões por instância: DB_POOL_MAX (padrão 10). O Autoscale sobe várias instâncias e cada uma
+    // abre o seu pool: instâncias × DB_POOL_MAX precisa caber no limite de conexões do Postgres.
+    const pool = new Pool({ connectionString: url, max: tamanhoPool(), idleTimeoutMillis: 30_000 });
     const db = drizzle(pool, { schema, logger }) as unknown as Db;
     return { db, kind: "postgres", close: () => pool.end() };
   }

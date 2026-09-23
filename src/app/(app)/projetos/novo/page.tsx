@@ -11,7 +11,12 @@ export default async function NovoProjetoPage() {
   const pecas = await listarPecas(usuario);
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Novo projeto padrão" breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca" }, { label: "Novo" }]} />
+      <PageHeader
+        eyebrow="Biblioteca · projeto padrão"
+        title="Novo projeto padrão"
+        description="Um conjunto de peças que as áreas pedem de uma vez. O código é gerado ao salvar."
+        breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca" }, { label: "Novo" }]}
+      />
       <ProjetoForm valores={{ itens: [] }} pecas={pecas} cancelarHref="/biblioteca" />
     </div>
   );

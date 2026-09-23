@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { toast, toastErro } from "./toast";
+import { toastErro, toastSucesso } from "./toast";
 import type { ActionResult } from "@/lib/action";
 
 /** Mostra o toast de sucesso/erro quando o resultado de uma action muda. */
@@ -13,7 +13,7 @@ export function useActionFeedback(state: ActionResult, onSuccess?: () => void) {
     prev.current = state;
     if (primeiro) return;
     if (state.ok && state.mensagem) {
-      toast(state.mensagem);
+      toastSucesso(state.mensagem);
       onSuccess?.();
     } else if (!state.ok && state.erro && !state.campos) {
       toastErro(state.erro);

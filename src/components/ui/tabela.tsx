@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
+import { Icone } from "./icons";
+import { IndicadorLink } from "./indicador-link";
 
 /** Caption visualmente oculta, exigida pelo handoff (§8) em toda tabela. */
 export function CaptionOculta({ children }: { children: React.ReactNode }) {
@@ -9,6 +11,7 @@ export function CaptionOculta({ children }: { children: React.ReactNode }) {
 /**
  * Cabeçalho ordenável (handoff §5.9): aria-sort no <th> e um controle real dentro dele.
  * O estado vive na URL (?ordem=&dir=), então a ordenação sobrevive a recarregar e compartilhar o link.
+ * Enquanto a nova ordem carrega, um spinner ocupa o lugar da seta (sem mudar a largura).
  */
 export function ThOrdenavel({
   label,
@@ -32,13 +35,17 @@ export function ThOrdenavel({
         href={href}
         scroll={false}
         className={cn(
-          "flex w-full items-center gap-[5px] whitespace-nowrap px-3 py-2.5 text-micro font-semibold uppercase tracking-[0.06em] no-underline",
+          "group flex w-full items-center gap-[5px] whitespace-nowrap px-3 py-2.5 text-micro font-semibold uppercase tracking-[0.06em] no-underline transition-colors duration-150 max-md:min-h-10",
+          "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
           ativo ? "text-ink" : "text-muted hover:text-ink",
           alinhar === "right" ? "justify-end" : "justify-start",
         )}
       >
         {label}
-        <span className="font-mono">{ativo ? (dir === "desc" ? "↓" : "↑") : ""}</span>
+        <span className="relative inline-grid size-3.5 place-items-center">
+          {ativo ? <Icone nome={dir === "desc" ? "seta-baixo" : "seta-cima"} className="size-3.5" /> : <Icone nome="seta-baixo" className="size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />}
+          <IndicadorLink lugar="sobre" fundo="bg-subtle" />
+        </span>
       </Link>
     </th>
   );
@@ -64,24 +71,25 @@ export function paginasVisiveis(pagina: number, paginas: number): Array<number |
   return lista;
 }
 
-/** Rodapé de paginação: "Mostrando 1 a 25 de 97" + páginas numeradas com anterior/próxima. */
+/**
+ * Rodapé de paginação: "Mostrando 1 a 25 de 97" + páginas numeradas com anterior/próxima.
+ * Caixas de 32 px no desktop e 40 px abaixo de md; a página clicada mostra um spinner enquanto carrega.
+ */
 export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }: { total: number; pagina: number; paginas: number; de: number; porPagina: number; hrefPagina: (p: number) => string }) {
   if (total <= porPagina) return null;
-  const caixa = "grid h-8 min-w-8 place-items-center border-l border-line-strong px-2 text-pequeno tabular-nums no-underline first:border-l-0";
-  const seta = (dir: "ant" | "prox") => (
-    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d={dir === "ant" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
-    </svg>
-  );
+  const caixa =
+    "relative grid h-8 min-w-8 place-items-center border-l border-line-strong px-2 text-pequeno numero no-underline transition-colors duration-150 first:border-l-0 max-md:h-10 max-md:min-w-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent";
+  const seta = (dir: "ant" | "prox") => <Icone nome={dir === "ant" ? "chevron-esquerda" : "chevron-direita"} />;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-cartao py-3">
-      <span className="text-pequeno text-muted">
+      <span className="numero text-pequeno text-muted">
         Mostrando <span className="font-medium text-ink">{de + 1}</span> a <span className="font-medium text-ink">{Math.min(de + porPagina, total)}</span> de <span className="font-medium text-ink">{total}</span>
       </span>
       <nav aria-label="Paginação" className="flex overflow-hidden rounded-controle border border-line-strong bg-surface">
         {pagina > 1 ? (
           <Link href={hrefPagina(pagina - 1)} scroll={false} aria-label="Página anterior" className={cn(caixa, "text-ink-2 hover:bg-subtle")}>
             {seta("ant")}
+            <IndicadorLink lugar="sobre" />
           </Link>
         ) : (
           <span aria-disabled="true" className={cn(caixa, "cursor-not-allowed text-meta")}>
@@ -100,12 +108,14 @@ export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }:
           ) : (
             <Link key={p} href={hrefPagina(p)} scroll={false} aria-label={"Página " + p} className={cn(caixa, "text-ink-2 hover:bg-subtle")}>
               {p}
+              <IndicadorLink lugar="sobre" />
             </Link>
           ),
         )}
         {pagina < paginas ? (
           <Link href={hrefPagina(pagina + 1)} scroll={false} aria-label="Próxima página" className={cn(caixa, "text-ink-2 hover:bg-subtle")}>
             {seta("prox")}
+            <IndicadorLink lugar="sobre" />
           </Link>
         ) : (
           <span aria-disabled="true" className={cn(caixa, "cursor-not-allowed text-meta")}>

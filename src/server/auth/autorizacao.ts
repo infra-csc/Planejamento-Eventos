@@ -11,6 +11,8 @@ export type UsuarioAtual = {
   areaNome: string | null;
   /** Administrador vendo o app como outro perfil: permissões e área seguem o perfil visto; o id (e o histórico) continuam sendo do administrador. */
   verComo?: { perfilReal: Perfil } | null;
+  /** Senha provisória: enquanto true, só a página de perfil (troca de senha) abre. */
+  trocarSenha?: boolean;
 };
 
 /** Para services e server actions: lança erro de domínio quando o perfil não tem a ação. */

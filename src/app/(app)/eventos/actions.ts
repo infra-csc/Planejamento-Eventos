@@ -24,9 +24,18 @@ import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto } from "@/server/servic
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { pecaSchema } from "@/lib/schemas";
+import { invalidarDados, revalidarTelasOperacao, TAGS_DADOS } from "@/server/cache-dados";
 
+/** Fase, ata e OS mudam painel, listas e contadores: a tela atual volta renderizada (ver revalidarTelasOperacao). */
 function revalidarTudo() {
-  revalidatePath("/", "layout");
+  revalidarTelasOperacao();
+}
+
+/** Inteiro >= 0 vindo de um campo oculto do formulário, ou `null` se ausente ou inválido. */
+function quantidadeDoForm(v: FormDataEntryValue | null): number | null {
+  if (typeof v !== "string" || v.trim() === "") return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
 export async function salvarEventoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -116,7 +125,12 @@ export async function alterarQuantidadeLinhaAction(_prev: ActionResult, formData
   let r: ActionResult;
   try {
     const dados = parseForm(ataAlterarQuantidadeSchema, formData);
-    r = await executar(() => alterarQuantidadeLinha(usuario, eventoId, linhaId, dados.quantidade, dados.justificativa), dados.quantidade === 0 ? "Linha removida da ata" : "Quantidade alterada — OS regerada");
+    // Quantidade que a tela mostrava: se a linha mudou enquanto a pessoa editava, o serviço recusa.
+    const quantidadeEsperada = quantidadeDoForm(formData.get("quantidadeEsperada"));
+    r = await executar(
+      () => alterarQuantidadeLinha(usuario, eventoId, linhaId, dados.quantidade, dados.justificativa, { quantidadeEsperada }),
+      dados.quantidade === 0 ? "Linha removida da ata" : "Quantidade alterada — OS regerada",
+    );
   } catch (e) {
     r = tratarErro(e);
   }
@@ -193,11 +207,13 @@ export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: stri
   return r;
 }
 
-export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: string, quantidade: number, motivo: string) {
+/** `quantidadeEsperada`: a quantidade que a tela mostrava (controle de concorrência). */
+export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: string, quantidade: number, motivo: string, quantidadeEsperada?: number | null) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: "Dados inválidos." } as const;
   if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
-  const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo));
+  const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo, { quantidadeEsperada }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;
@@ -220,7 +236,9 @@ export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
     destino = { tipo: "NOVA_PECA", peca: r.data };
   } else return { ok: false, erro: "Escolha a peça ou o projeto." } as const;
   const res = await executar(() => vincularAoCatalogo(usuario, referencia, destino));
-  revalidatePath("/", "layout");
+  revalidarTelasOperacao("/biblioteca");
+  // Peça nova entra no catálogo em cache (listas e opções dos formulários).
+  if (destino.tipo === "NOVA_PECA") invalidarDados(TAGS_DADOS.catalogo);
   return res;
 }
 

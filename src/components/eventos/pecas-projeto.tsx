@@ -6,7 +6,8 @@ import { ComboBox } from "@/components/ui/combobox";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Field, FormError, Label, Textarea } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconeLapis } from "@/components/ui/icons";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
 import { RodapeTabela } from "@/components/ui/layout";
 import { Stepper } from "@/components/ui/stepper";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
@@ -75,12 +76,12 @@ export function PecasProjeto({
           <CaptionOculta>Peças do projeto nesta linha</CaptionOculta>
           <thead>
             <tr className="bg-subtle">
-              <Th>Código</Th>
-              <Th className="px-2">Peça</Th>
-              <Th largura={90} alinhar="right" className="px-2">
+              <Th largura={120}>Código</Th>
+              <Th>Peça</Th>
+              <Th largura={90} alinhar="right">
                 Por un.
               </Th>
-              <Th largura={80} alinhar="right" className="px-2">
+              <Th largura={96} alinhar="right">
                 Total
               </Th>
               {editavel && (
@@ -93,16 +94,18 @@ export function PecasProjeto({
           <tbody>
             {pecas.map((p) => (
               <tr key={p.pecaId} className="border-b border-line-row last:border-b-0 hover:bg-subtle">
-                <td className="px-cartao py-1.5 font-mono text-pequeno text-ink-2">{p.codigo}</td>
-                <td className="px-2 py-1.5 text-ink">{p.nome}</td>
-                <td className="px-2 py-1.5 text-right font-mono text-ink-2">{p.porUnidade}</td>
-                <td className="px-2 py-1.5 text-right font-mono font-medium text-ink">
+                <td className="py-2 pl-cartao pr-2 text-pequeno text-ink-2">
+                  <Codigo>{p.codigo}</Codigo>
+                </td>
+                <td className="px-2 py-2 text-ink">{p.nome}</td>
+                <td className="numero px-2 py-2 text-right text-ink-2">{p.porUnidade}</td>
+                <td className="numero px-2 py-2 text-right font-medium text-ink">
                   {p.total} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
                 </td>
                 {editavel && (
                   <td className="py-1 pr-cartao text-right">
                     <IconButton label={`Ajustar ${p.nome}`} onClick={() => abrir({ pecaId: p.pecaId, codigo: p.codigo, nome: p.nome, porUnidade: p.porUnidade })}>
-                      <IconeLapis size={13} />
+                      <Icone nome="lapis" />
                     </IconButton>
                   </td>
                 )}
@@ -115,12 +118,13 @@ export function PecasProjeto({
         direita={
           editavel && (
             <Button variant="link" size="sm" onClick={() => abrir({ pecaId: null, codigo: "", nome: "", porUnidade: 0 })}>
-              + Incluir peça
+              <Icone nome="mais" />
+              Incluir peça
             </Button>
           )
         }
       >
-        {pecas.length} {pecas.length === 1 ? "tipo de peça" : "tipos de peça"} · <span className="font-mono">{totalUnidades}</span> unidades para × {quantidadeProjeto}
+        {pecas.length} {pecas.length === 1 ? "tipo de peça" : "tipos de peça"} · <span className="numero">{totalUnidades.toLocaleString("pt-BR")}</span> unidades para <span className="numero">× {quantidadeProjeto}</span>
       </RodapeTabela>
 
       {edicao && (
@@ -151,7 +155,7 @@ export function PecasProjeto({
                   <Stepper id="qtd-peca" valor={qtd} onChange={setQtd} min={0} />
                 </Field>
                 <p className="m-0 pb-2 text-pequeno text-muted">
-                  × {quantidadeProjeto} = <span className="font-mono text-ink">{qtd * quantidadeProjeto}</span>
+                  × {quantidadeProjeto} = <span className="numero font-medium text-ink">{qtd * quantidadeProjeto}</span>
                   {edicao.codigo ? ` (era ${edicao.porUnidade * quantidadeProjeto})` : ""}
                   {qtd === 0 && edicao.codigo ? " · retira a peça" : ""}
                 </p>

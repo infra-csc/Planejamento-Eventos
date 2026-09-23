@@ -600,8 +600,8 @@ export function ArenaExperiencia({
         return;
       }
       // Arrastar salva a cada solta: um aviso por arrasto viraria ruído. O estado aparece na barra.
+      // Sem router.refresh(): a action revalida a página e a resposta já traz a arena atualizada.
       if (!silencioso) toast(rotulo);
-      router.refresh();
     });
   };
 

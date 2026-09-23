@@ -3,14 +3,14 @@
 import { ActionForm } from "@/components/ui/action-form";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { anexarArquivoAction, removerAnexoAction } from "@/app/(app)/projetos/actions";
-import { Button, SubmitButton } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconeFechar } from "@/components/ui/icons";
+import { Icone } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/layout";
 import { FormError } from "@/components/ui/field";
-import { toast } from "@/components/ui/toast";
+import { toastSucesso } from "@/components/ui/toast";
 import { ESTADO_INICIAL } from "@/lib/action";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 
@@ -46,7 +46,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
     if (ultimo.current === state) return;
     ultimo.current = state;
     if (state.ok && state.mensagem) {
-      toast(state.mensagem);
+      toastSucesso(state.mensagem);
       if (inputRef.current) inputRef.current.value = "";
     }
   }, [state]);
@@ -64,7 +64,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
               <figcaption className="mt-1 truncate text-rotulo text-muted">{a.nomeArquivo}</figcaption>
               {podeGerenciar && (
                 <IconButton label={`Remover ${a.nomeArquivo}`} onClick={() => setRemover(a)} className="absolute right-1.5 top-1.5 border-line bg-surface/95 text-danger shadow-pill sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                  <IconeFechar />
+                  <Icone nome="lixeira" />
                 </IconButton>
               )}
             </figure>
@@ -76,12 +76,13 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
           {pdfs.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-3 px-cartao py-2.5 text-corpo">
               <a href={`/api/anexos/${a.id}`} target="_blank" rel="noopener" className="link flex min-w-0 items-center gap-2">
-                <span className="truncate">{a.nomeArquivo}</span> <span className="text-rotulo text-muted">{tamanho(a.tamanho)}</span>
+                <Icone nome="link-externo" className="text-ink-3" />
+                <span className="truncate">{a.nomeArquivo}</span> <span className="numero shrink-0 text-rotulo text-muted">{tamanho(a.tamanho)}</span>
               </a>
               {podeGerenciar && (
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => setRemover(a)}>
-                  Remover
-                </Button>
+                <IconButton label={`Remover ${a.nomeArquivo}`} className="hover:text-danger" onClick={() => setRemover(a)}>
+                  <Icone nome="lixeira" />
+                </IconButton>
               )}
             </li>
           ))}

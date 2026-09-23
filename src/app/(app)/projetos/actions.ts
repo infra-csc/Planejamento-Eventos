@@ -8,6 +8,7 @@ import { alterarAtivoProjeto, anexarArquivo, criarProjeto, editarProjeto, remove
 import { projetoSchema } from "@/lib/schemas";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import { destinoInterno } from "@/lib/destino";
+import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
 
 export async function salvarProjetoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
@@ -34,6 +35,8 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
   }
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
+  // Projetos e BOM da versão atual em cache (listas e opções dos formulários): expiram já.
+  invalidarDados(TAGS_DADOS.projetos);
   // Formulário dentro de um modal (Biblioteca) pede para voltar ao mesmo lugar.
   const voltarPara = String(formData.get("voltarPara") ?? "");
   // Só caminho interno: "//site" também começa com "/" e levaria para fora do app.
@@ -48,6 +51,7 @@ export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: F
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
   revalidatePath(`/projetos/${id}`);
+  invalidarDados(TAGS_DADOS.projetos);
   return r;
 }
 
@@ -59,6 +63,8 @@ export async function anexarArquivoAction(_prev: ActionResult, formData: FormDat
   const r = await executar(() => anexarArquivo(usuario, projetoId, file), "Anexo adicionado.");
   revalidatePath(`/projetos/${projetoId}`);
   revalidatePath("/biblioteca");
+  // A capa do projeto (primeira imagem) entra nas listas em cache.
+  invalidarDados(TAGS_DADOS.projetos);
   return r;
 }
 
@@ -69,5 +75,6 @@ export async function removerAnexoAction(_prev: ActionResult, formData: FormData
   if (r.ok && r.dados) revalidatePath(`/projetos/${r.dados}`);
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
+  invalidarDados(TAGS_DADOS.projetos);
   return r;
 }

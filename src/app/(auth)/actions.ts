@@ -14,8 +14,10 @@ export async function loginAction(_prev: ActionResult, formData: FormData): Prom
     destino = destinoInterno(String(formData.get("next") ?? ""), "/");
     const r = await autenticar(dados.email, dados.senha);
     if (!r.ok) return { ok: false, erro: r.erro };
+    // Senha provisória: primeiro a pessoa define a própria senha.
+    if (r.usuario.trocarSenha) destino = "/perfil?trocar=1";
   } catch (e) {
-    return tratarErro(e);
+    return tratarErro(e, { acao: "login" });
   }
   redirect(destino);
 }
@@ -31,7 +33,7 @@ export async function recuperarSenhaAction(_prev: ActionResult, formData: FormDa
     await solicitarRecuperacao(dados.email);
     return { ok: true, mensagem: "Pedido registrado. Se o e-mail estiver cadastrado, o administrador vai entrar em contato com um novo link de acesso." };
   } catch (e) {
-    return tratarErro(e);
+    return tratarErro(e, { acao: "recuperarSenha" });
   }
 }
 
@@ -43,7 +45,7 @@ export async function redefinirSenhaAction(_prev: ActionResult, formData: FormDa
     // para entrar com a senha recém-definida, em vez de ser mandado de volta ao painel.
     await encerrarSessao();
   } catch (e) {
-    return tratarErro(e);
+    return tratarErro(e, { acao: "redefinirSenha" });
   }
   redirect("/login?redefinida=1");
 }

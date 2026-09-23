@@ -5,12 +5,16 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Aviso, EmptyState } from "@/components/ui/layout";
-import { Badge, Tag } from "@/components/ui/badge";
+import { ChipMono, Tag } from "@/components/ui/badge";
 import { TabsControladas } from "@/components/ui/tabs-nav";
 import { Stepper } from "@/components/ui/stepper";
 import { Field, Input, Label, Textarea } from "@/components/ui/field";
-import { toast } from "@/components/ui/toast";
+import { IconButton } from "@/components/ui/icon-button";
+import { Icone } from "@/components/ui/icons";
+import { Codigo, Numero } from "@/components/ui/numero";
+import { toast, toastSucesso } from "@/components/ui/toast";
 import { hora } from "@/lib/format";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import type { ItemOperacao } from "@/server/db/schema";
@@ -19,7 +23,7 @@ import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
 import { combinaBusca } from "@/lib/busca";
 import type { ActionResult } from "@/lib/action";
-import { ajustarDescricoes, descricoesEsperadas, faltamDescricoes, MAX_DESCRICOES_POR_UNIDADE, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
+import { ajustarDescricoes, descricoesEsperadas, faltamDescricoes, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
 import { kitDaTenda } from "@/domain/tendas";
 import { QuadroTendas, type ItemTenda } from "./quadro-tendas";
 
@@ -50,25 +54,54 @@ type Modo = "projeto" | "peca" | "avulso" | "ata";
 
 let seq = 0;
 const novaChave = () => `n${Date.now()}-${seq++}`;
-/** Resultados de busca exibidos por vez: o catálogo inteiro (imagem + stepper por linha) pesa no celular. */
-const POR_PAGINA = 50;
+/** Cartões de resultado exibidos por vez: poucos o bastante para a lista de itens (passo 3) ficar perto. */
+const POR_PAGINA = 12;
 /** Confirmação só do lado do cliente (trocar de evento): o ConfirmDialog espera uma action. */
 const confirmarLocal = async (): Promise<ActionResult> => ({ ok: true });
 /** Evita ".." quando o motivo já termina em pontuação. */
 const comPontoFinal = (t: string) => (/[.!?…]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
+/** Leva até um campo (rolagem suave) e põe o foco nele. */
+const irPara = (id: string) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: reduzir ? "auto" : "smooth", block: "center" });
+  window.setTimeout(() => el.focus({ preventScroll: true }), reduzir ? 0 : 350);
+};
 
-function Passo({ n, titulo, sub, children }: { n: number; titulo: string; sub?: string; children: React.ReactNode }) {
+/** Cartão de um passo: número (ou check quando concluído), título, uma linha de apoio e ações à direita. */
+function Passo({ n, titulo, sub, feito, acoes, children, className }: { n: number; titulo: string; sub?: React.ReactNode; feito?: boolean; acoes?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  const idTitulo = `passo-${n}`;
   return (
-    <section className="rounded-cartao border border-line bg-surface">
-      <div className="flex items-start gap-3 rounded-t-cartao border-b border-line-soft px-cartao py-3.5">
-        <span className="flex size-[22px] shrink-0 items-center justify-center rounded-controle bg-dark font-mono text-rotulo text-accent-light">{n}</span>
-        <div>
-          <h2 className="m-0 text-secao font-semibold">{titulo}</h2>
+    <section aria-labelledby={idTitulo} className={cn("rounded-cartao border border-line bg-surface", className)}>
+      <header className="flex items-start gap-3 rounded-t-cartao border-b border-line-soft px-cartao py-3.5">
+        <span
+          aria-hidden
+          className={cn("mt-px grid size-6 shrink-0 place-items-center rounded-full text-rotulo font-semibold transition-colors duration-150", feito ? "bg-success-bg text-success" : "bg-control text-ink-2")}
+        >
+          {feito ? <Icone nome="check" className="size-3.5" /> : <span className="numero">{n}</span>}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id={idTitulo} className="m-0 text-secao font-semibold tracking-[-0.01em]">
+            {titulo}
+            {feito && <span className="sr-only"> (concluído)</span>}
+          </h2>
           {sub && <p className="mb-0 mt-0.5 text-pequeno text-muted">{sub}</p>}
         </div>
-      </div>
+        {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}
+      </header>
       {children}
     </section>
+  );
+}
+
+/** Mensagem de erro no padrão do Field (ícone + texto), para blocos que não são um campo só. */
+function ErroCampo({ id, children, className }: { id?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <p id={id} className={cn("m-0 flex items-start gap-1 text-pequeno text-danger", className)}>
+      <Icone nome="erro" className="mt-px size-4" />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -98,6 +131,7 @@ export function NovaSolicitacaoForm({
 }) {
   const router = useRouter();
   const [eventoId, setEventoId] = useState<string | null>(eventoInicial);
+  const [trocandoEvento, setTrocandoEvento] = useState(false);
   const [areaId, setAreaId] = useState<string | null>(areaInicial);
   const [itens, setItens] = useState<ItemNovo[]>(itensIniciais);
   const [modo, setModo] = useState<Modo>("projeto");
@@ -114,6 +148,7 @@ export function NovaSolicitacaoForm({
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
+  const eventosAceitando = eventos.filter((e) => e.aceita).length;
 
   /*
    * Rascunho salvo automaticamente (briefing, slide 7: "a área digita aos poucos, sem perder o que já
@@ -215,6 +250,11 @@ export function NovaSolicitacaoForm({
     return () => window.removeEventListener("beforeunload", avisar);
   }, []);
 
+  // Erro vindo do servidor: no celular o resumo fica abaixo dos passos, então rola até a mensagem.
+  useEffect(() => {
+    if (erroGeral) document.getElementById("erro-geral")?.scrollIntoView({ block: "nearest" });
+  }, [erroGeral]);
+
   const escolherEvento = (e: EventoOpcao) => {
     if (rascunhoIdRef.current && e.id !== eventoId) {
       toast("Para trocar de evento, exclua este rascunho e crie outro");
@@ -231,25 +271,26 @@ export function NovaSolicitacaoForm({
   const aplicarTroca = (e: EventoOpcao, mantidos: ItemNovo[]) => {
     setEventoId(e.id);
     setItens(mantidos);
+    setTrocandoEvento(false);
     if (e.tipo === "PRE_REUNIAO" && modo === "ata") setModo("projeto");
   };
   // Troca de evento que descartaria itens da ata anterior: aguarda confirmação no diálogo.
   const [troca, setTroca] = useState<{ evento: EventoOpcao; mantidos: ItemNovo[]; descartados: number } | null>(null);
 
-  // Quantidade escolhida na própria lista de busca, antes de "Adicionar" (padrão 1).
+  // Quantidade escolhida no próprio cartão de resultado, antes de "Adicionar" (padrão 1).
   const [qtdNova, setQtdNova] = useState<Record<string, number>>({});
   const mudarQtdNova = (id: string, v: number) => setQtdNova((m) => ({ ...m, [id]: Math.max(1, Math.floor(v)) }));
   const adicionarRef = (tipo: "projeto" | "peca", r: Referencia, qtd = 1) => {
-    toast(`${r.nome} × ${qtd} adicionado à solicitação`);
+    const chaveRef = tipo === "projeto" ? "projetoId" : "pecaId";
+    const existente = itens.find((i) => i.operacao === "ADICIONAR" && i[chaveRef] === r.id);
+    const chave = existente?.chave ?? novaChave();
     setQtdNova((m) => ({ ...m, [r.id]: 1 }));
     setItens((l) => {
-      const chaveRef = tipo === "projeto" ? "projetoId" : "pecaId";
-      const existente = l.find((i) => i.operacao === "ADICIONAR" && i[chaveRef] === r.id);
-      if (existente) return l.map((i) => (i === existente ? { ...i, quantidade: i.quantidade + qtd } : i));
+      if (l.some((i) => i.chave === chave)) return l.map((i) => (i.chave === chave ? { ...i, quantidade: i.quantidade + qtd } : i));
       return [
         ...l,
         {
-          chave: novaChave(),
+          chave,
           operacao: "ADICIONAR",
           projetoId: tipo === "projeto" ? r.id : null,
           pecaId: tipo === "peca" ? r.id : null,
@@ -266,6 +307,7 @@ export function NovaSolicitacaoForm({
         },
       ];
     });
+    toastSucesso(`${r.nome} × ${qtd} ${existente ? "somado ao item" : "adicionado"}`, { acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
   };
 
   // Projeto de tenda: em vez do "Adicionar" simples, o quadro por local (Local | Tendas | Fechamentos | Calhas).
@@ -278,7 +320,8 @@ export function NovaSolicitacaoForm({
   const adicionarTendas = (r: Referencia, novos: ItemTenda[]) => {
     setTendaAberta(null);
     const total = novos.reduce((a, x) => a + x.quantidade, 0);
-    toast(`${r.nome} × ${total} adicionado à solicitação (${new Set(novos.map((x) => x.destino)).size} ${new Set(novos.map((x) => x.destino)).size === 1 ? "local" : "locais"})`);
+    const nLocais = new Set(novos.map((x) => x.destino)).size;
+    toastSucesso(`${r.nome} × ${total} adicionado (${nLocais} ${nLocais === 1 ? "local" : "locais"})`);
     setItens((l) => [
       ...l,
       ...novos.map((x) => ({
@@ -306,9 +349,11 @@ export function NovaSolicitacaoForm({
       setErroAvulso("Descreva o item antes de adicionar.");
       return;
     }
+    const chave = novaChave();
     setErroAvulso(null);
     setAvulso("");
-    setItens((l) => [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
+    setItens((l) => [...l, { chave, operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
+    toastSucesso(`${d} adicionado`, { acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
   };
 
   const adicionarLinha = (l: LinhaAta, operacao: "ALTERAR_QUANTIDADE" | "REMOVER") => {
@@ -331,6 +376,7 @@ export function NovaSolicitacaoForm({
         meta: operacao === "REMOVER" ? "remover da ata" : `hoje ${l.quantidade} na ata`,
       },
     ]);
+    toastSucesso(operacao === "REMOVER" ? `${l.nome}: pedido para remover da ata` : `${l.nome}: pedido de nova quantidade`);
   };
 
   const mudar = (chave: string, patch: Partial<ItemNovo>) => setItens((l) => l.map((i) => (i.chave === chave ? { ...i, ...patch } : i)));
@@ -349,7 +395,7 @@ export function NovaSolicitacaoForm({
     const p = i.projetoId ? projetos.find((x) => x.id === i.projetoId) : undefined;
     return p ? [...(p.bom ?? []), ...(p.extras ?? [])] : [];
   };
-  const capaDe = (i: ItemNovo) => (i.projetoId ? projetos.find((p) => p.id === i.projetoId)?.capaId ?? null : null);
+  const capaDe = (i: ItemNovo) => (i.projetoId ? (projetos.find((p) => p.id === i.projetoId)?.capaId ?? null) : null);
   const resumoAjustes = (i: ItemNovo) => {
     const bom = bomDe(i);
     const partes = Object.entries(i.ajustes)
@@ -357,6 +403,18 @@ export function NovaSolicitacaoForm({
       .map(([pecaId, d]) => `${d > 0 ? "+" : "−"}${Math.abs(d)} ${bom.find((b) => b.pecaId === pecaId)?.nome ?? "peça"}`);
     return partes.length ? partes.join(" · ") : null;
   };
+  /** Nome sem o código na frente (peça), para o título sugerido. */
+  const nomeCurto = (i: ItemNovo) => (i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? i.rotulo) : i.rotulo);
+  // Quanto de cada referência já está na lista (selo "na lista" no cartão de resultado).
+  const naLista = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of itens) {
+      if (i.operacao !== "ADICIONAR") continue;
+      const id = i.projetoId ?? i.pecaId;
+      if (id) m.set(id, (m.get(id) ?? 0) + i.quantidade);
+    }
+    return m;
+  }, [itens]);
 
   const resultados = useMemo(() => {
     // Lista completa (sem corte) e busca sem acento: "po" acha "Pórtico" e "Posto".
@@ -375,33 +433,49 @@ export function NovaSolicitacaoForm({
 
   const validarTitulo = (v: string) => setErroTitulo(v.trim() ? null : "Dê um título para a logística identificar a solicitação na fila.");
 
+  const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes }) > 0);
+  // Título sugerido a partir dos itens: só placeholder e um atalho "Usar sugestão"; nunca preenche sozinho.
+  const sugestaoTitulo = (() => {
+    const nomes = itens.map(nomeCurto);
+    if (nomes.length === 0) return null;
+    const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
+    return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
+  })();
+  // O que ainda falta para enviar, na ordem da tela. Cada linha leva ao campo.
+  const pendencias = [
+    areas && !areaId ? { alvo: "area-solicitante", texto: "Escolher a área solicitante" } : null,
+    !evento ? { alvo: "evento", texto: "Escolher o evento" } : null,
+    itens.length === 0 ? { alvo: "busca-itens", texto: "Adicionar ao menos um item" } : null,
+    semDescricao.length > 0 ? { alvo: `descricoes-${semDescricao[0].chave}`, texto: semDescricao.length === 1 ? "Descrever as unidades de 1 item" : `Descrever as unidades de ${semDescricao.length} itens` } : null,
+    !titulo.trim() ? { alvo: "titulo", texto: "Dar um título" } : null,
+  ].filter((p) => p !== null);
+
   const salvar = (enviar: boolean) => {
     setErroGeral(null);
-    const irPara = (id: string) => {
-      const el = document.getElementById(id);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      window.setTimeout(() => el?.focus(), 350);
-    };
     if (areas && !areaId) {
       setTentouEnviar(true);
-      setErroGeral("Escolha a área que está pedindo (passo 1).");
       irPara("area-solicitante");
       return;
     }
     if (!eventoId) {
       setTentouEnviar(true);
-      setErroGeral("Escolha o evento no passo 1. Os itens já adicionados continuam na lista.");
+      setTrocandoEvento(true);
       irPara("evento");
       return;
     }
     if (enviar) {
       setTentouEnviar(true);
       validarTitulo(titulo);
-      if (!titulo.trim() || itens.length === 0) return;
-      const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes }) > 0);
+      if (itens.length === 0) {
+        irPara("busca-itens");
+        return;
+      }
       if (semDescricao.length) {
-        setErroGeral(semDescricao.length === 1 ? `Descreva cada unidade de “${semDescricao[0].rotulo}” antes de enviar.` : `Faltam descrições em ${semDescricao.length} itens. Descreva cada unidade antes de enviar.`);
         irPara(`descricoes-${semDescricao[0].chave}`);
+        return;
+      }
+      if (!titulo.trim()) {
+        irPara("titulo");
         return;
       }
     }
@@ -418,7 +492,8 @@ export function NovaSolicitacaoForm({
       if (!r.ok || !r.dados?.enviada) enviandoRef.current = false;
       if (!r.ok) {
         if (r.campos?.titulo) setErroTitulo(r.campos.titulo);
-        setErroGeral(r.campos ? (Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? r.erro) : r.erro);
+        setErroGeral(r.campos ? (Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? (r.campos.titulo ? null : r.erro)) : r.erro);
+        if (r.campos?.titulo) irPara("titulo");
         return;
       }
       const d = r.dados;
@@ -427,23 +502,42 @@ export function NovaSolicitacaoForm({
       pendenteSalvarRef.current = false;
       lembrarRascunho(d.id, d.codigo);
       if (d.enviada) {
-        toast(`${d.codigo} enviada para a logística`);
+        toastSucesso(`${d.codigo} enviada para a logística`);
         router.push(`/solicitacoes/${d.id}`);
       } else if (d.erroEnvio) {
         toast(`${d.codigo} salva como rascunho — ${d.erroEnvio}`);
         router.push(`/solicitacoes/${d.id}`);
       } else {
-        toast(`Rascunho ${d.codigo} salvo`);
+        toastSucesso(`Rascunho ${d.codigo} salvo`);
         setEstadoSalvo({ tipo: "salvo", em: new Date() });
       }
     });
   };
 
-  const abas: Array<[Modo, string]> = [["projeto", "Projeto padrão"], ["peca", "Peça do catálogo"], ["avulso", "Outro item (fora do catálogo)"], ...(ehAlteracao ? ([["ata", "Alterar linha da ata"]] as Array<[Modo, string]>) : [])];
-  const faltaTudo = tentouEnviar && (itens.length === 0 || !titulo.trim());
+  const abas: Array<[Modo, string, number | null]> = [
+    ["projeto", "Projeto padrão", projetos.length],
+    ["peca", "Peça do catálogo", pecas.length],
+    ["avulso", "Outro item", null],
+    ...(ehAlteracao ? ([["ata", "Linha da ata", linhas.length]] as Array<[Modo, string, number | null]>) : []),
+  ];
+  const mostrarSeletorEvento = !evento || trocandoEvento;
+  const bloqueadoEnvio = Boolean(evento) && !evento?.aceita;
+  const textoSalvo =
+    estadoSalvo.tipo === "salvando"
+      ? "Salvando rascunho…"
+      : estadoSalvo.tipo === "salvo"
+        ? `Rascunho ${codigoRascunho ?? ""} salvo às ${hora(estadoSalvo.em)}`
+        : estadoSalvo.tipo === "erro"
+          ? `Rascunho não salvo: ${estadoSalvo.msg}`
+          : evento?.aceita
+            ? "O rascunho é salvo automaticamente enquanto você preenche."
+            : "";
+  const tendaAtual = tendaAberta ? (projetos.find((p) => p.id === tendaAberta) ?? null) : null;
+  const kitAtual = tendaAtual ? kitDe(tendaAtual) : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    // No celular a barra de envio fica fixa no rodapé: o respiro embaixo evita que ela cubra o fim do formulário.
+    <div className="flex flex-col gap-4 max-lg:pb-24">
       {rascunho?.devolvidaMotivo && (
         <Aviso tom="warning" titulo="Devolvida pela logística">
           {comPontoFinal(rascunho.devolvidaMotivo)} Corrija e reenvie.
@@ -451,338 +545,568 @@ export function NovaSolicitacaoForm({
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-4">
-      <Passo n={1} titulo="Evento" sub="Só aparecem eventos em preparação ou abertos a alterações.">
-        {areas && (
-          <div className="border-b border-line-soft px-cartao py-3.5">
-            <Label htmlFor="area-solicitante">
-              Área solicitante <span className="text-muted">você está pedindo como administrador</span>
-            </Label>
-            <Select id="area-solicitante" value={areaId ?? ""} disabled={Boolean(rascunho)} onValueChange={(v) => setAreaId(v || null)} invalid={tentouEnviar && !areaId} placeholder="Selecione a área" className="max-w-[320px]" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
-          </div>
-        )}
-        {eventos.length === 0 ? (
-          <EmptyState compact title="Nenhum evento aceitando solicitações agora" description="Solicitações entram enquanto o evento está em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece." />
-        ) : (
-          <div className="flex flex-col gap-3 p-cartao">
-            <ComboBox
-              id="evento"
-              value={eventoId}
-              disabled={Boolean(rascunho)}
-              invalid={tentouEnviar && !evento}
-              placeholder="Buscar evento por nome, código ou cliente"
-              onChange={(id) => {
-                const e = eventos.find((x) => x.id === id);
-                if (e) escolherEvento(e);
-              }}
-              opcoes={eventos.map((e) => ({
-                value: e.id,
-                label: e.nome,
-                descricao: `${e.codigo} · ${e.cliente} · ${e.periodo} · ${e.marco}`,
-                selo: e.tipo === "PRE_REUNIAO" ? "até a reunião" : "alterações",
-                seloTom: e.tipo === "PRE_REUNIAO" ? "accent" : "warning",
-                disabled: !e.aceita && e.id !== eventoId,
-              }))}
-            />
-            {evento && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-cartao border border-accent-border bg-selected px-3.5 py-2.5 text-pequeno">
-                <span className="font-medium text-ink">{evento.nome}</span>
-                <span className="text-muted">
-                  <span className="font-mono">{evento.codigo}</span> · {evento.cliente} · <span className="font-mono">{evento.periodo}</span> · {evento.marco}
-                </span>
-                <Badge tom={ehAlteracao ? "warning" : "accent"}>{ehAlteracao ? "ata fechada · aceita alterações" : "aceita pedidos até a reunião"}</Badge>
-                {rascunho && <span className="text-meta">para trocar de evento, exclua este rascunho e crie outro</span>}
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* 1 · Evento ------------------------------------------------------------------ */}
+          <Passo
+            n={1}
+            titulo="Evento"
+            feito={Boolean(evento) && (!areas || Boolean(areaId))}
+            sub={evento && !trocandoEvento ? undefined : "Só aparecem eventos em preparação ou abertos a alterações."}
+            acoes={
+              evento && !rascunho && eventosAceitando > 1 ? (
+                trocandoEvento ? (
+                  <Button variant="link" size="sm" onClick={() => setTrocandoEvento(false)}>
+                    Manter este
+                  </Button>
+                ) : (
+                  <Button variant="link" size="sm" onClick={() => setTrocandoEvento(true)}>
+                    Trocar evento
+                  </Button>
+                )
+              ) : undefined
+            }
+          >
+            {areas && (
+              <div className="border-b border-line-soft px-cartao py-3.5">
+                <Field label="Área solicitante" htmlFor="area-solicitante" obrigatorio hint="Você está pedindo como administrador, em nome desta área." error={tentouEnviar && !areaId ? "Escolha a área que está pedindo." : null}>
+                  <Select id="area-solicitante" value={areaId ?? ""} disabled={Boolean(rascunho)} onValueChange={(v) => setAreaId(v || null)} invalid={tentouEnviar && !areaId} placeholder="Selecione a área" className="sm:max-w-[320px]" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
+                </Field>
               </div>
             )}
-          </div>
-        )}
-      </Passo>
-
-      <Passo n={2} titulo="Itens" sub={!evento ? "Já pode montar a lista. Antes de enviar, escolha o evento no passo 1." : ehAlteracao ? "Adicione itens novos ou peça mudança em uma linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}>
-        {itens.length === 0 ? (
-          <div className={cn("mx-3.5 mt-3.5 rounded-cartao border border-dashed", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
-            <EmptyState compact title="Nenhum item ainda" description="Busque abaixo e use “Adicionar”. Cada item recebe resposta separada da logística." />
-          </div>
-        ) : (
-          <div className="border-b border-line-soft">
-            {itens.map((i) => (
-              <div key={i.chave} className="border-b border-line-row last:border-b-0">
-              <div className="flex flex-wrap items-center gap-3 px-cartao py-2.5">
-                {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />}
-                <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 break-words text-corpo text-ink" title={i.rotulo}>
-                    {i.rotulo}
-                  </span>
-                  <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-rotulo text-muted">
-                    <Tag>{i.meta}</Tag>
-                    {resumoAjustes(i) && <span className="text-accent">{resumoAjustes(i)}</span>}
-                  </span>
-                </span>
-                {i.projetoId && bomDe(i).length > 0 && (
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))}
-                    aria-expanded={ajustando === i.chave}
-                    className={cn(ajustando === i.chave && "border-accent bg-accent-bg text-accent")}
-                  >
-                    {ajustando === i.chave ? "Fechar peças" : "Ajustar peças"}
-                  </Button>
+            {eventos.length === 0 ? (
+              <EmptyState compact title="Nenhum evento aceitando solicitações agora" description="Solicitações entram com o evento em preparação (antes da reunião) ou depois que a ata é fechada. Fale com a logística se o seu evento não aparece." />
+            ) : (
+              <div className="flex flex-col gap-3 px-cartao py-3.5">
+                {mostrarSeletorEvento && (
+                  <Field label="Evento" htmlFor="evento" obrigatorio error={tentouEnviar && !evento ? "Escolha o evento para enviar. Os itens já adicionados continuam na lista." : null}>
+                    <ComboBox
+                      id="evento"
+                      value={eventoId}
+                      disabled={Boolean(rascunho)}
+                      invalid={tentouEnviar && !evento}
+                      placeholder="Buscar evento por nome, código ou cliente"
+                      onChange={(id) => {
+                        const e = eventos.find((x) => x.id === id);
+                        if (e) escolherEvento(e);
+                      }}
+                      opcoes={eventos.map((e) => ({
+                        value: e.id,
+                        label: e.nome,
+                        descricao: `${e.codigo} · ${e.cliente} · ${e.periodo} · ${e.marco}`,
+                        selo: e.tipo === "PRE_REUNIAO" ? "até a reunião" : "alterações",
+                        seloTom: e.tipo === "PRE_REUNIAO" ? "muted" : "warning",
+                        disabled: !e.aceita && e.id !== eventoId,
+                      }))}
+                    />
+                  </Field>
                 )}
-                <Input aria-label={`Destino de ${i.rotulo}`} value={i.destino} onChange={(e) => mudar(i.chave, { destino: e.target.value })} placeholder="Onde vai ficar" maxLength={60} className="w-[130px]" />
-                {i.operacao === "REMOVER" ? (
-                  <span className="w-[112px] text-center text-pequeno font-medium text-danger">remover da ata</span>
-                ) : (
-                  <Stepper tamanho="sm" valor={i.quantidade} min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1} onChange={(v) => mudar(i.chave, { quantidade: v })} label={`Quantidade de ${i.rotulo}`} />
-                )}
-                <Button variant="link" size="xs" onClick={() => removerItem(i)} aria-label={`Remover ${i.rotulo}`}>
-                  Remover
-                </Button>
-              </div>
-              <DescricoesItem item={i} destacarVazias={tentouEnviar} onChange={(descricoes) => mudar(i.chave, { descricoes })} />
-              {ajustando === i.chave && (
-                <div className="border-t border-line-faint bg-subtle/60 px-cartao pb-3 pt-2.5">
-                  <div className="mb-2 flex items-start gap-3">
-                    {capaDe(i) && <ImagemZoom src={`/api/anexos/${capaDe(i)}`} alt={i.rotulo} className="h-[72px] w-24 shrink-0 overflow-hidden rounded-controle border border-line" />}
-                    <p className="m-0 text-pequeno text-muted">
-                      Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
-                      {capaDe(i) && <span className="block text-meta">Clique na imagem para ver o desenho em tamanho grande.</span>}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
-                    {bomDe(i).map((b) => {
-                      const delta = i.ajustes[b.pecaId] ?? 0;
-                      const pedir = b.quantidade + delta;
-                      const definir = (v: number) => mudar(i.chave, { ajustes: { ...i.ajustes, [b.pecaId]: Math.max(0, v) - b.quantidade } });
-                      return (
-                        <div key={b.pecaId} className="flex items-center gap-2 py-1">
-                          <span className="min-w-0 flex-1">
-                            <span className="line-clamp-2 break-words text-pequeno text-ink" title={b.nome}>
-                              {b.nome}
-                            </span>
-                            <span className="block font-mono text-rotulo text-meta">
-                              {b.codigo} · padrão {b.quantidade} {b.unidade}
-                            </span>
-                          </span>
-                          <Stepper tamanho="sm" valor={pedir} min={0} onChange={definir} label={`Quantidade de ${b.nome}`} className={cn(delta !== 0 && "border-accent")} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="p-3.5">
-          <TabsControladas
-            compacta
-            rotulo="Tipo de item"
-            abas={abas.map(([chave, label]) => ({ chave, label }))}
-            valor={modo}
-            onChange={(m) => {
-              setModo(m);
-              setBusca("");
-              setLimite(POR_PAGINA);
-            }}
-          />
-
-          {modo === "avulso" ? (
-            <div>
-              <div className="flex gap-2">
-                <Input
-                  aria-label="Descrição do item fora do catálogo"
-                  value={avulso}
-                  onChange={(e) => setAvulso(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      adicionarAvulso();
-                    }
-                  }}
-                  placeholder="Ex.: Fechamento lateral de tenda 10×10"
-                  maxLength={160}
-                  aria-invalid={Boolean(erroAvulso)}
-                />
-                <Button variant="secondary" size="md" onClick={adicionarAvulso}>
-                  Adicionar
-                </Button>
-              </div>
-              {erroAvulso && <p className="mb-0 mt-1.5 text-pequeno text-danger">{erroAvulso}</p>}
-              <p className="mb-0 mt-2 text-pequeno text-muted">Um item descrito à mão não soma peças na OS automaticamente; a logística separa manualmente.</p>
-            </div>
-          ) : (
-            <>
-              <Input aria-label="Buscar" value={busca} onChange={(e) => {
-                  setBusca(e.target.value);
-                  setLimite(POR_PAGINA);
-                }}
-                placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"} />
-              {modo !== "ata" && (
-                <p className="mb-0 mt-2 text-pequeno text-muted">
-                  {resultados.length} {modo === "projeto" ? (resultados.length === 1 ? "projeto" : "projetos") : resultados.length === 1 ? "peça" : "peças"}
-                  {busca.trim() ? ` para “${busca.trim()}”` : " no catálogo"}
-                </p>
-              )}
-              <div className="mt-1">
-                {modo !== "ata" &&
-                  visiveis.map((r) => (
-                    <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-faint px-1 py-2 last:border-b-0">
-                      {modo === "projeto" &&
-                        (r.capaId ? (
-                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />
-                        ) : (
-                          <span aria-hidden className="h-9 w-12 shrink-0 rounded-chip border border-dashed border-line-strong" />
-                        ))}
-                      <span className="hidden w-[92px] shrink-0 font-mono text-pequeno text-ink-2 sm:block">{r.codigo}</span>
-                      <span className="min-w-[140px] flex-1">
-                        <span className="line-clamp-2 break-words text-corpo text-ink" title={r.nome}>
-                          {r.nome}
-                        </span>
-                        <span className="block text-rotulo text-muted">
-                          <span className="font-mono sm:hidden">{r.codigo} · </span>
-                          {r.meta}
-                        </span>
-                      </span>
-                      {modo === "projeto" && kitDe(r) ? (
-                        <span className="ml-auto flex shrink-0 items-center gap-3">
-                          <Button variant="secondary" size="xs" onClick={() => setTendaAberta((t) => (t === r.id ? null : r.id))} aria-expanded={tendaAberta === r.id} aria-label={`Pedir ${r.nome} por local`}>
-                            {tendaAberta === r.id ? "Fechar quadro" : "Pedir por local"}
-                          </Button>
+                {evento && (
+                  <div className={cn("flex flex-wrap items-start gap-x-4 gap-y-2", trocandoEvento && "rounded-controle border border-line-soft bg-subtle px-3 py-2.5")}>
+                    <div className="min-w-0 flex-1">
+                      <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-corpo font-medium text-ink">
+                        {evento.nome}
+                        <Tag tom={ehAlteracao ? "warning" : "muted"}>{ehAlteracao ? "alteração pós-ata" : "pré-reunião"}</Tag>
+                      </p>
+                      <p className="mb-0 mt-0.5 text-pequeno text-muted">
+                        <Codigo>{evento.codigo}</Codigo> · {evento.cliente} · <span className="numero">{evento.periodo}</span> · <span className="numero">{evento.marco}</span>
+                      </p>
+                    </div>
+                    <p className="m-0 flex items-center gap-1.5 text-pequeno text-ink-2">
+                      <Icone nome="relogio" className="text-ink-3" />
+                      {ehAlteracao ? (
+                        <span>
+                          Resposta em até <span className="numero font-medium">{slaHoras}h</span> após o envio
                         </span>
                       ) : (
-                      <span className="ml-auto flex shrink-0 items-center gap-3">
-                        <span
-                          className="flex items-center"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && evento && e.target instanceof HTMLInputElement) {
-                              e.preventDefault();
-                              adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
-                            }
-                          }}
-                        >
-                          <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
-                        </span>
-                        <Button variant="secondary" size="xs" onClick={() => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1)} aria-label={`Adicionar ${r.nome}`}>
-                          Adicionar
-                        </Button>
-                      </span>
+                        "Pedidos até a reunião começar"
                       )}
-                      {modo === "projeto" && tendaAberta === r.id && kitDe(r) && (
-                        <div className="w-full">
-                          <QuadroTendas
-                            nome={r.nome}
-                            kit={kitDe(r)!}
-                            bom={r.bom ?? []}
-                            pecaFechamentoId={extraDoKit(r, "fechamento")}
-                            pecaCalhaId={extraDoKit(r, "calha")}
-                            onConfirmar={(novos) => adicionarTendas(r, novos)}
-                            onCancelar={() => setTendaAberta(null)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                {modo !== "ata" && restantes > 0 && (
-                  <div className="pt-2.5">
-                    <Button variant="secondary" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="w-full">
-                      Mostrar mais ({restantes})
-                    </Button>
+                    </p>
+                    {rascunho && <p className="m-0 basis-full text-pequeno text-meta">Para trocar de evento, exclua este rascunho e crie outro.</p>}
                   </div>
                 )}
-                {modo === "ata" &&
-                  linhasFiltradas.map((l) => (
-                    <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-faint px-1 py-2 last:border-b-0">
-                      <span className="min-w-[140px] flex-1">
-                        <span className="line-clamp-2 break-words text-corpo text-ink" title={l.nome}>
-                          {l.nome}
-                        </span>
-                        <span className="block text-rotulo text-muted">{[`${l.quantidade} na ata`, l.destino, l.areaNome].filter(Boolean).join(" · ")}</span>
-                      </span>
-                      <Button variant="secondary" size="xs" onClick={() => adicionarLinha(l, "ALTERAR_QUANTIDADE")}>
-                        Alterar quantidade
-                      </Button>
-                      <Button variant="secondary" size="xs" className="text-danger" onClick={() => adicionarLinha(l, "REMOVER")}>
-                        Remover
+              </div>
+            )}
+          </Passo>
+
+          {/* 2 · Adicionar itens --------------------------------------------------------- */}
+          <Passo
+            n={2}
+            titulo="Adicione o que precisa"
+            feito={itens.length > 0}
+            sub={ehAlteracao ? "Itens novos do catálogo, outro item descrito à mão ou mudança numa linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}
+          >
+            <div className="px-cartao pb-4 pt-3">
+              <TabsControladas
+                compacta
+                rotulo="Tipo de item"
+                abas={abas.map(([chave, label, n]) => ({ chave, label, n }))}
+                valor={modo}
+                onChange={(m) => {
+                  setModo(m);
+                  setBusca("");
+                  setLimite(POR_PAGINA);
+                }}
+              />
+
+              {modo === "avulso" ? (
+                <div className="flex flex-col gap-3">
+                  <Field label="Descreva o item" htmlFor="busca-itens" error={erroAvulso} hint="Um item descrito à mão não soma peças na OS automaticamente: a logística vincula ao catálogo ou separa manualmente.">
+                    <div className="flex gap-2">
+                      <Input
+                        id="busca-itens"
+                        value={avulso}
+                        onChange={(e) => {
+                          setAvulso(e.target.value);
+                          if (erroAvulso && e.target.value.trim()) setErroAvulso(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            adicionarAvulso();
+                          }
+                        }}
+                        placeholder="Ex.: Fechamento lateral de tenda 10×10"
+                        maxLength={160}
+                        aria-invalid={Boolean(erroAvulso) || undefined}
+                      />
+                      <Button variant="secondary" size="md" onClick={adicionarAvulso}>
+                        <Icone nome="mais" />
+                        Adicionar
                       </Button>
                     </div>
-                  ))}
-                {((modo !== "ata" && resultados.length === 0) || (modo === "ata" && linhasFiltradas.length === 0)) && (
-                  <EmptyState compact title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas" : `Nada encontrado${busca ? ` para “${busca}”` : ""}`} />
-                )}
+                  </Field>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Icone nome="busca" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+                    <Input
+                      id="busca-itens"
+                      type="search"
+                      aria-label={modo === "projeto" ? "Buscar projeto padrão" : modo === "peca" ? "Buscar peça do catálogo" : "Buscar linha da ata"}
+                      value={busca}
+                      onChange={(e) => {
+                        setBusca(e.target.value);
+                        setLimite(POR_PAGINA);
+                      }}
+                      placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"}
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="mb-2 mt-2 text-pequeno text-muted" aria-live="polite">
+                    <Numero valor={modo === "ata" ? linhasFiltradas.length : resultados.length} />{" "}
+                    {modo === "projeto"
+                      ? resultados.length === 1
+                        ? "projeto"
+                        : "projetos"
+                      : modo === "peca"
+                        ? resultados.length === 1
+                          ? "peça"
+                          : "peças"
+                        : linhasFiltradas.length === 1
+                          ? "linha"
+                          : "linhas"}
+                    {busca.trim() ? ` para “${busca.trim()}”` : modo === "ata" ? " na ata" : " no catálogo"}
+                  </p>
+
+                  {modo !== "ata" && visiveis.length > 0 && (
+                    <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 2xl:grid-cols-3">
+                      {visiveis.map((r) => {
+                        const kit = modo === "projeto" ? kitDe(r) : null;
+                        const jaNaLista = naLista.get(r.id) ?? 0;
+                        const adicionar = () => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
+                        return (
+                          <li key={r.id} className="flex min-w-0 flex-col rounded-cartao border border-line bg-surface p-3 transition-colors duration-150 hover:border-line-strong">
+                            <div className="flex min-w-0 gap-3">
+                              {modo === "projeto" &&
+                                (r.capaId ? (
+                                  <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-12 w-16 shrink-0 overflow-hidden rounded-controle border border-line" />
+                                ) : (
+                                  <span aria-hidden className="grid h-12 w-16 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-meta">
+                                    <Icone nome="camadas" />
+                                  </span>
+                                ))}
+                              <div className="min-w-0 flex-1">
+                                <p className="m-0 line-clamp-2 break-words text-corpo font-medium text-ink" title={r.nome}>
+                                  {r.nome}
+                                </p>
+                                <p className="mb-0 mt-0.5 line-clamp-2 text-pequeno text-muted">
+                                  <Codigo className="text-ink-3">{r.codigo}</Codigo>
+                                  {r.meta ? ` · ${r.meta}` : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
+                              {jaNaLista > 0 ? (
+                                <span className="inline-flex items-center gap-1 text-pequeno font-medium text-success">
+                                  <Icone nome="check" className="size-3.5" />
+                                  <Numero valor={jaNaLista} /> na lista
+                                </span>
+                              ) : (
+                                <span aria-hidden />
+                              )}
+                              {kit ? (
+                                <Button variant="secondary" size="sm" onClick={() => setTendaAberta(r.id)} aria-label={`Pedir ${r.nome} por local`}>
+                                  Pedir por local
+                                </Button>
+                              ) : (
+                                <span
+                                  className="flex items-center gap-2"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+                                      e.preventDefault();
+                                      adicionar();
+                                    }
+                                  }}
+                                >
+                                  <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
+                                  <Button variant="secondary" size="sm" onClick={adicionar} aria-label={`Adicionar ${r.nome}`}>
+                                    Adicionar
+                                  </Button>
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {modo !== "ata" && restantes > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="mt-2 w-full">
+                      Mostrar mais <span className="numero text-muted">({restantes})</span>
+                    </Button>
+                  )}
+
+                  {modo === "ata" && linhasFiltradas.length > 0 && (
+                    <ul className="m-0 list-none overflow-hidden rounded-cartao border border-line p-0">
+                      {linhasFiltradas.map((l) => (
+                        <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-row px-3 py-2.5 last:border-b-0">
+                          <span className="min-w-[160px] flex-1">
+                            <span className="line-clamp-2 break-words text-corpo text-ink" title={l.nome}>
+                              {l.nome}
+                            </span>
+                            <span className="block text-pequeno text-muted">
+                              <Numero valor={l.quantidade} /> na ata
+                              {[l.destino, l.areaNome].filter(Boolean).map((x) => ` · ${x}`)}
+                            </span>
+                          </span>
+                          <span className="flex gap-2">
+                            <Button variant="secondary" size="sm" onClick={() => adicionarLinha(l, "ALTERAR_QUANTIDADE")}>
+                              Mudar quantidade
+                            </Button>
+                            <Button variant="dangerOutline" size="sm" onClick={() => adicionarLinha(l, "REMOVER")}>
+                              Remover da ata
+                            </Button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {((modo !== "ata" && resultados.length === 0) || (modo === "ata" && linhasFiltradas.length === 0)) && (
+                    <div className="rounded-cartao border border-dashed border-line-strong">
+                      <EmptyState
+                        compact
+                        title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas" : `Nada encontrado${busca.trim() ? ` para “${busca.trim()}”` : ""}`}
+                        description={modo === "ata" && linhas.length === 0 ? undefined : "Confira o código ou tente outra palavra. Não achou? Use “Outro item” e descreva."}
+                        action={
+                          modo !== "ata" ? (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => {
+                                setModo("avulso");
+                                setAvulso(busca.trim());
+                                setBusca("");
+                              }}
+                            >
+                              Descrever como outro item
+                            </Button>
+                          ) : undefined
+                        }
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </Passo>
+
+          {/* 3 · Detalhar itens ---------------------------------------------------------- */}
+          <Passo
+            n={3}
+            titulo="Detalhe cada item"
+            feito={itens.length > 0 && semDescricao.length === 0}
+            sub="Quantidade, onde vai ficar e a descrição de cada unidade (texto, arte, medida)."
+            acoes={itens.length > 0 ? <ChipMono tom="control">{itens.length}</ChipMono> : undefined}
+          >
+            {itens.length === 0 ? (
+              <div className="px-cartao py-3.5">
+                <div className={cn("rounded-cartao border border-dashed", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
+                  <EmptyState compact title="Nenhum item ainda" description="Busque no passo 2 e use “Adicionar”. Cada item recebe resposta separada da logística." />
+                </div>
+                {tentouEnviar && <ErroCampo className="mt-2">Adicione ao menos um item para enviar.</ErroCampo>}
               </div>
-            </>
-          )}
+            ) : (
+              <ul className="m-0 list-none p-0">
+                {itens.map((i) => {
+                  const capa = capaDe(i);
+                  const bom = bomDe(i);
+                  const ajustes = resumoAjustes(i);
+                  const abertoAjuste = ajustando === i.chave;
+                  return (
+                    <li key={i.chave} id={`item-${i.chave}`} tabIndex={-1} className="scroll-mt-24 border-b border-line-row px-cartao py-3.5 last:border-b-0 focus:outline-none">
+                      <div className="flex items-start gap-3">
+                        {capa ? (
+                          <ImagemZoom src={`/api/anexos/${capa}`} alt={i.rotulo} className="h-12 w-16 shrink-0 overflow-hidden rounded-controle border border-line" />
+                        ) : (
+                          <span aria-hidden className="grid h-12 w-16 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-meta max-sm:hidden">
+                            <Icone nome={i.projetoId ? "camadas" : "caixa"} />
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="m-0 line-clamp-2 break-words text-corpo font-medium text-ink" title={i.rotulo}>
+                            {i.rotulo}
+                          </p>
+                          <p className="mb-0 mt-1 flex flex-wrap items-center gap-1.5 text-pequeno text-muted">
+                            <Tag tom={i.operacao === "REMOVER" ? "danger" : i.meta === "fora do catálogo" ? "warning" : "muted"}>{i.meta}</Tag>
+                            {ajustes && <span className="text-ink-2">{ajustes}</span>}
+                          </p>
+                        </div>
+                        <IconButton label={`Remover ${i.rotulo} da solicitação`} onClick={() => removerItem(i)}>
+                          <Icone nome="lixeira" />
+                        </IconButton>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-3 sm:pl-[76px]">
+                        {i.operacao === "REMOVER" ? (
+                          <p className="m-0 flex items-center gap-1.5 text-pequeno font-medium text-danger">
+                            <Icone nome="lixeira" className="size-3.5" />
+                            Sai da ata (hoje <Numero valor={i.quantidadeAtual} />)
+                          </p>
+                        ) : (
+                          <div>
+                            <Label htmlFor={`qtd-${i.chave}`}>{i.operacao === "ALTERAR_QUANTIDADE" ? "Nova quantidade" : "Quantidade"}</Label>
+                            <Stepper id={`qtd-${i.chave}`} tamanho="sm" valor={i.quantidade} min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1} onChange={(v) => mudar(i.chave, { quantidade: v })} />
+                          </div>
+                        )}
+                        <div className="min-w-[160px] max-w-[280px] flex-1">
+                          <Label htmlFor={`destino-${i.chave}`} optional>
+                            Onde vai ficar
+                          </Label>
+                          <Input id={`destino-${i.chave}`} value={i.destino} onChange={(e) => mudar(i.chave, { destino: e.target.value })} placeholder="Ex.: Palco, Dispersão" maxLength={60} />
+                        </div>
+                        {i.projetoId && bom.length > 0 && (
+                          <Button variant={abertoAjuste ? "secondary" : "ghost"} size="sm" onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))} aria-expanded={abertoAjuste} aria-controls={`ajuste-${i.chave}`}>
+                            <Icone nome={abertoAjuste ? "chevron-cima" : "chevron-baixo"} />
+                            {abertoAjuste ? "Fechar peças" : "Ajustar peças"}
+                          </Button>
+                        )}
+                      </div>
+
+                      <DescricoesItem item={i} destacarVazias={tentouEnviar} onChange={(descricoes) => mudar(i.chave, { descricoes })} />
+
+                      {abertoAjuste && (
+                        <div id={`ajuste-${i.chave}`} className="mt-3 animate-fade-up-rapido rounded-controle border border-line-soft bg-subtle px-3 pb-3 pt-2.5 sm:ml-[76px]">
+                          <p className="mb-2 mt-0 text-pequeno text-muted">
+                            Peças de <span className="text-ink">{i.rotulo}</span> por unidade do projeto. Mude só o que precisa a mais ou a menos; o resto segue o padrão.
+                          </p>
+                          <ul className="m-0 grid list-none grid-cols-1 gap-x-6 p-0 md:grid-cols-2">
+                            {bom.map((b) => {
+                              const delta = i.ajustes[b.pecaId] ?? 0;
+                              const pedir = b.quantidade + delta;
+                              const definir = (v: number) => mudar(i.chave, { ajustes: { ...i.ajustes, [b.pecaId]: Math.max(0, v) - b.quantidade } });
+                              return (
+                                <li key={b.pecaId} className="flex items-center gap-2 border-b border-line-faint py-2 last:border-b-0 md:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                                  <span className="min-w-0 flex-1">
+                                    <span className="line-clamp-2 break-words text-pequeno text-ink" title={b.nome}>
+                                      {b.nome}
+                                    </span>
+                                    <span className="block text-rotulo text-meta">
+                                      <Codigo>{b.codigo}</Codigo> · padrão <Numero valor={b.quantidade} unidade={b.unidade} />
+                                    </span>
+                                  </span>
+                                  <Stepper tamanho="sm" valor={pedir} min={0} onChange={definir} label={`Quantidade de ${b.nome}`} className={cn(delta !== 0 && "border-accent")} />
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Passo>
         </div>
-      </Passo>
+
+        {/* 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
+          <Passo
+            n={4}
+            titulo="Resumo e envio"
+            feito={pendencias.length === 0}
+            sub={
+              evento ? (
+                <>
+                  <Numero valor={itens.length} /> {itens.length === 1 ? "item" : "itens"} para {evento.nome}
+                </>
+              ) : (
+                "Escolha o evento e adicione itens."
+              )
+            }
+          >
+            {itens.length > 0 && (
+              <ul className="m-0 max-h-[200px] list-none overflow-y-auto border-b border-line-soft p-0">
+                {itens.map((i) => {
+                  const falta = semDescricao.some((x) => x.chave === i.chave);
+                  return (
+                    <li key={i.chave}>
+                      <button
+                        type="button"
+                        onClick={() => irPara(`item-${i.chave}`)}
+                        className="flex w-full cursor-pointer items-center gap-2 border-0 border-b border-line-faint bg-transparent px-cartao py-2 text-left text-pequeno transition-colors duration-150 last:border-b-0 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                      >
+                        {falta && <Icone nome="alerta" className="size-3.5 text-warning" title="Faltam descrições" />}
+                        <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
+                          {i.rotulo}
+                        </span>
+                        <span className="numero shrink-0 text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="flex flex-col gap-3.5 px-cartao py-3.5">
+              <Field
+                label="Título"
+                htmlFor="titulo"
+                obrigatorio
+                error={erroTitulo}
+                hint={
+                  !titulo.trim() && sugestaoTitulo ? (
+                    <>
+                      É o que a logística vê na fila.{" "}
+                      <Button
+                        variant="link"
+                        size="xs"
+                        onClick={() => {
+                          setTitulo(sugestaoTitulo);
+                          setErroTitulo(null);
+                        }}
+                      >
+                        Usar a sugestão
+                      </Button>
+                    </>
+                  ) : (
+                    "É o que a logística vê na fila."
+                  )
+                }
+              >
+                <Input
+                  id="titulo"
+                  value={titulo}
+                  maxLength={120}
+                  onChange={(e) => {
+                    setTitulo(e.target.value);
+                    if (erroTitulo && e.target.value.trim()) setErroTitulo(null);
+                  }}
+                  onBlur={(e) => {
+                    if (tentouEnviar) validarTitulo(e.target.value);
+                  }}
+                  placeholder={sugestaoTitulo ?? "Ex.: Estrutura do palco principal"}
+                />
+              </Field>
+              <Field label="Observação" htmlFor="observacao" optional>
+                <Textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[64px]" />
+              </Field>
+
+              {pendencias.length > 0 ? (
+                <div>
+                  <p className="mb-1 mt-0 text-pequeno font-medium text-ink-2">Para enviar, falta:</p>
+                  <ul className="m-0 flex list-none flex-col p-0">
+                    {pendencias.map((p) => (
+                      <li key={p.alvo}>
+                        <button
+                          type="button"
+                          onClick={() => irPara(p.alvo)}
+                          className={cn(
+                            "-mx-1.5 flex w-[calc(100%+12px)] cursor-pointer items-center gap-2 rounded-controle border-0 bg-transparent px-1.5 py-1 text-left text-pequeno transition-colors duration-150 hover:bg-subtle max-md:min-h-10",
+                            tentouEnviar ? "text-danger" : "text-ink-2",
+                          )}
+                        >
+                          <span aria-hidden className={cn("block size-1.5 shrink-0 rounded-full", tentouEnviar ? "bg-danger" : "bg-line-strong")} />
+                          {p.texto}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="m-0 flex items-center gap-1.5 text-pequeno font-medium text-success">
+                  <Icone nome="check-circulo" />
+                  Pronto para enviar
+                </p>
+              )}
+
+              {erroGeral && (
+                <div id="erro-geral">
+                  <Aviso tom="danger">{erroGeral}</Aviso>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 max-lg:hidden">
+                <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={bloqueadoEnvio} motivoDesabilitado="O evento não aceita solicitações agora." className="w-full">
+                  Enviar solicitação
+                </Button>
+                <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
+                  Salvar rascunho
+                </Button>
+              </div>
+              {textoSalvo && (
+                <p className={cn("m-0 flex items-center gap-1.5 text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
+                  {estadoSalvo.tipo === "salvo" && <Icone nome="check" className="size-3.5" />}
+                  {textoSalvo}
+                </p>
+              )}
+            </div>
+          </Passo>
+        </aside>
       </div>
 
-      {/* Coluna de envio: acompanha a rolagem, resume o pedido e fecha com título + botões. */}
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
-      <Passo n={3} titulo="Resumo e envio" sub={evento ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} para ${evento.nome}` : itens.length ? `${itens.length} ${itens.length === 1 ? "item" : "itens"} · falta escolher o evento` : "Escolha o evento e adicione itens."}>
-        {itens.length > 0 && (
-          <ul className="m-0 max-h-[220px] list-none overflow-y-auto border-b border-line-soft p-0">
-            {itens.map((i) => (
-              <li key={i.chave} className="flex items-center gap-2 border-b border-line-faint px-cartao py-2 text-pequeno last:border-b-0">
-                <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
-                  {i.rotulo}
-                </span>
-                <span className="shrink-0 font-mono text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex flex-col gap-3.5 p-cartao">
-          <Field label="Título" htmlFor="titulo" obrigatorio error={erroTitulo}>
-            <Input
-              id="titulo"
-              value={titulo}
-              maxLength={120}
-              onChange={(e) => {
-                setTitulo(e.target.value);
-                if (erroTitulo && e.target.value.trim()) setErroTitulo(null);
-              }}
-              onBlur={(e) => validarTitulo(e.target.value)}
-              placeholder="Ex.: Estrutura do palco principal"
+      {/* Barra de envio fixa no celular e tablet: contagem, o que falta e a ação principal sempre à mão. */}
+      <div className="fixed inset-x-0 bottom-0 z-[var(--z-header)] border-t border-line bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-popover lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-corpo font-medium text-ink">
+              <Numero valor={itens.length} /> {itens.length === 1 ? "item" : "itens"}
+            </p>
+            <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : "text-muted")}>{pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : "Pronto para enviar"}</p>
+          </div>
+          <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)}>
+            Salvar
+          </Button>
+          <Button variant="primary" size="md" loading={pendente} onClick={() => salvar(true)} disabled={bloqueadoEnvio} motivoDesabilitado="O evento não aceita solicitações agora.">
+            Enviar
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={tendaAtual !== null && kitAtual !== null} onOpenChange={(o) => !o && setTendaAberta(null)}>
+        {tendaAtual && kitAtual && (
+          <DialogContent title={`${tendaAtual.nome} por local`} description={`Quantas tendas ${kitAtual.tamanho} em cada local e os fechamentos e calhas do local. Cada local vira um item.`} size="lg">
+            <QuadroTendas
+              kit={kitAtual}
+              bom={tendaAtual.bom ?? []}
+              pecaFechamentoId={extraDoKit(tendaAtual, "fechamento")}
+              pecaCalhaId={extraDoKit(tendaAtual, "calha")}
+              onConfirmar={(novos) => adicionarTendas(tendaAtual, novos)}
+              onCancelar={() => setTendaAberta(null)}
             />
-          </Field>
-          <Field label="Observação" htmlFor="observacao" optional>
-            <Textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." />
-          </Field>
-        </div>
-      </Passo>
-
-      {faltaTudo && (
-        <Aviso tom="warning">
-          {itens.length === 0 && !titulo.trim() ? "Para enviar, adicione ao menos um item e dê um título." : itens.length === 0 ? "Para enviar, adicione ao menos um item." : "Para enviar, dê um título à solicitação."}
-        </Aviso>
-      )}
-      {erroGeral && <Aviso tom="danger">{erroGeral}</Aviso>}
-
-      <div className="flex flex-col gap-2.5">
-        <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={Boolean(evento) && !evento?.aceita} className="w-full">
-          Enviar solicitação
-        </Button>
-        <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
-          Salvar rascunho
-        </Button>
-        <span className="text-pequeno text-muted">{!evento ? "" : ehAlteracao ? `Prazo de resposta: ${slaHoras}h após o envio.` : "Envios encerram quando a reunião começa."}</span>
-        <span className={cn("text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
-          {estadoSalvo.tipo === "salvando"
-            ? "salvando rascunho…"
-            : estadoSalvo.tipo === "salvo"
-              ? `Rascunho ${codigoRascunho ?? ""} salvo às ${hora(estadoSalvo.em)}`
-              : estadoSalvo.tipo === "erro"
-                ? `Rascunho não salvo: ${estadoSalvo.msg}`
-                : evento?.aceita
-                  ? "O rascunho é salvo automaticamente enquanto você preenche."
-                  : ""}
-        </span>
-      </div>
-      </aside>
-      </div>
+          </DialogContent>
+        )}
+      </Dialog>
 
       <ConfirmDialog
         open={troca !== null}
@@ -805,49 +1129,81 @@ export function NovaSolicitacaoForm({
   );
 }
 
+/** Acima disto, a lista de descrições começa recolhida (mostra as primeiras). */
+const RECOLHER_ACIMA = 8;
+const VISIVEIS_RECOLHIDO = 6;
+
 /**
- * Descrição de cada unidade adicionada: 10 pedidas, 10 campos (texto, arte, medida de cada uma).
+ * Descrição de cada unidade adicionada: 10 pedidas, 10 campos numerados (texto, arte, medida de cada uma).
  * Acima de 50 unidades, um campo só vale para todas. Obrigatório para enviar.
  */
 function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (d: string[]) => void }) {
+  const [expandido, setExpandido] = useState(false);
   const esperadas = descricoesEsperadas(item.operacao, item.quantidade);
   if (!esperadas) return null;
   const lista = ajustarDescricoes(item.descricoes, esperadas);
   const vazias = lista.filter((d) => !d.trim()).length;
   const unica = esperadas === 1;
   const definir = (n: number, v: string) => onChange(lista.map((d, k) => (k === n ? v : d)));
+  const recolhivel = esperadas > RECOLHER_ACIMA;
+  // Com erro de envio, nada que falta fica escondido.
+  const aberto = !recolhivel || expandido || (destacarVazias && lista.slice(VISIVEIS_RECOLHIDO).some((d) => !d.trim()));
+  const mostradas = aberto ? lista : lista.slice(0, VISIVEIS_RECOLHIDO);
+  const idErro = `descricoes-${item.chave}-erro`;
+  const comErro = destacarVazias && vazias > 0;
+
   return (
-    <div id={`descricoes-${item.chave}`} tabIndex={-1} className="border-t border-line-faint px-cartao pb-3 pt-2.5 focus:outline-none">
-      <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 rounded-controle border bg-subtle px-3 pb-3 pt-2.5 focus:outline-none sm:ml-[76px]", comErro ? "border-danger-border" : "border-line-soft")}>
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-pequeno font-medium text-ink-2">
-          {unica ? (item.quantidade > 1 ? `Descrição (vale para as ${item.quantidade} unidades)` : "Descrição") : `Descrição de cada unidade (${esperadas})`}
+          {unica ? (item.quantidade > 1 ? "Descrição (vale para todas as unidades)" : "Descrição") : "Descrição de cada unidade"}
           <span className="text-danger" aria-hidden>
-            {" "}*
+            {" "}
+            *
           </span>
         </span>
-        {!unica && vazias > 0 && vazias < esperadas && <span className={cn("text-rotulo", destacarVazias ? "text-danger" : "text-muted")}>{vazias} sem descrição</span>}
+        {!unica && (
+          <span className={cn("numero text-rotulo", vazias === 0 ? "text-success" : "text-muted")}>
+            {esperadas - vazias} de {esperadas} descritas
+          </span>
+        )}
         {!unica && lista[0].trim() && vazias > 0 && (
-          <Button variant="link" size="xs" onClick={() => onChange(lista.map((d) => d.trim() ? d : lista[0]))}>
+          <Button variant="link" size="xs" className="ml-auto" onClick={() => onChange(lista.map((d) => (d.trim() ? d : lista[0])))}>
             Repetir a 1ª nas vazias
           </Button>
         )}
       </div>
-      <div className={cn("grid gap-1.5", !unica && "sm:grid-cols-2")}>
-        {lista.map((d, n) => (
-          <label key={n} className="flex items-center gap-2">
-            {!unica && <span className="w-6 shrink-0 text-right font-mono text-rotulo text-meta">{n + 1}</span>}
+      <ol className={cn("m-0 grid list-none gap-1.5 p-0", !unica && "sm:grid-cols-2")}>
+        {mostradas.map((d, n) => (
+          <li key={n} className="flex items-center gap-2">
+            {!unica && (
+              <span aria-hidden className="numero w-6 shrink-0 text-right text-rotulo text-meta">
+                {n + 1}
+              </span>
+            )}
             <Input
               value={d}
               maxLength={TAMANHO_DESCRICAO}
               onChange={(e) => definir(n, e.target.value)}
               aria-label={unica ? `Descrição de ${item.rotulo}` : `Descrição da unidade ${n + 1} de ${item.rotulo}`}
               aria-invalid={destacarVazias && !d.trim() ? true : undefined}
-              placeholder={unica ? "O que é, texto/arte, medida, cor…" : `Unidade ${n + 1}: texto/arte, medida, cor…`}
+              aria-describedby={comErro ? idErro : undefined}
+              placeholder={unica ? "O que é, texto/arte, medida, cor…" : "Texto/arte, medida, cor…"}
               className="min-w-0 flex-1"
             />
-          </label>
+          </li>
         ))}
-      </div>
+      </ol>
+      {recolhivel && !(destacarVazias && lista.slice(VISIVEIS_RECOLHIDO).some((d) => !d.trim())) && (
+        <Button variant="link" size="xs" className="mt-2" aria-expanded={aberto} onClick={() => setExpandido((v) => !v)}>
+          {aberto ? "Recolher" : `Mostrar as outras ${esperadas - VISIVEIS_RECOLHIDO}`}
+        </Button>
+      )}
+      {comErro && (
+        <ErroCampo id={idErro} className="mt-2">
+          {vazias === 1 ? "Falta descrever 1 unidade." : `Faltam descrever ${vazias} unidades.`}
+        </ErroCampo>
+      )}
     </div>
   );
 }

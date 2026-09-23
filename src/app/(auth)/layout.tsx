@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventos, pecas, projetos } from "@/server/db/schema";
@@ -18,6 +19,9 @@ async function numeros() {
 
 /** Tela de entrada (handoff §5.1): painel escuro à esquerda, formulário à direita. */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  // Renderização por requisição: a CSP com nonce (proxy.ts) só é aplicada em páginas dinâmicas —
+  // uma página pré-gerada no build sairia sem nonce e o navegador bloquearia os scripts dela.
+  await connection();
   const n = await numeros();
   return (
     <div className="grid min-h-screen bg-page lg:grid-cols-[1.1fr_1fr]">

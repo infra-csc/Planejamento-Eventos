@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { linhasAtaResumidas, listarEventos, opcoesReferencias } from "@/server/services/eventos";
+import { linhasAtaResumidas, listarEventosAceitando, opcoesReferencias } from "@/server/services/eventos";
 import { obterSolicitacao } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
-import { listarAreas } from "@/server/services/admin";
 import { getDb } from "@/server/db";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEnviar } from "@/domain/solicitacao";
@@ -14,6 +13,7 @@ import { PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
 import { descricaoItem } from "@/server/services/solicitacoes";
 import { extrasPermitidosTenda } from "@/domain/tendas";
+import { listarAreasCache } from "@/server/cache";
 
 export const metadata: Metadata = { title: "Nova solicitação" };
 
@@ -32,14 +32,14 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
 
   const [{ aceitando, linhasTodas }, opcoes, config, todasAreas] = await Promise.all([
     // Linhas da ata de todos os eventos abertos numa consulta só, encadeada aos eventos e em paralelo com o resto.
-    listarEventos(usuario).then(async (todos) => {
-      const aceitando = todos.filter((e) => e.status === "PREPARACAO" || e.status === "ABERTO" || e.id === rascunho?.eventoId);
+    // Filtro de status no banco, sem as contagens da lista de eventos.
+    listarEventosAceitando(usuario, rascunho?.eventoId).then(async (aceitando) => {
       const linhasTodas = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
       return { aceitando, linhasTodas };
     }),
     opcoesReferencias(),
     getDb().then(obterConfiguracoes),
-    usuario.perfil === "ADMIN" ? listarAreas() : Promise.resolve(null),
+    usuario.perfil === "ADMIN" ? listarAreasCache() : Promise.resolve(null),
   ]);
   // Administrador pede em nome de uma área: escolhe qual no formulário.
   const areasAdmin = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
@@ -84,7 +84,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       .filter((p) => p !== undefined)
       .map((p) => ({ pecaId: p.id, codigo: p.codigo, nome: p.nome, unidade: p.unidade, quantidade: 0 }));
 
-  const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : null);
+  // Um só evento aceitando pedidos: já vem escolhido (a pessoa ainda pode ver os dados dele no passo 1).
+  const aceitando1 = eventos.filter((e) => e.aceita);
+  const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : aceitando1.length === 1 ? aceitando1[0].id : null);
 
   return (
     <div>

@@ -26,3 +26,46 @@ jobs:
         run: npm run setup && npm run test:smoke
       - name: Build de produção
         run: npm run build
+
+  # Mesmos fluxos contra um PostgreSQL de verdade (o do Replit é Postgres, não PGlite): migrações,
+  # seed, teste de fumaça e ida-e-volta do backup. Não bloqueia o merge enquanto amadurece.
+  # Os testes do Vitest continuam no PGlite em memória (os arquivos de teste forçam PGLITE_DATA_DIR).
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: npe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/npe
+      SEED_DEMO: "true"
+      BACKUP_DIR: /tmp/npe-backups
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Migrações, seed e teste de fumaça (Postgres)
+        run: npm run setup && npm run test:smoke
+      - name: Backup e restauração só de dados (sem pg_dump)
+        run: |
+          BACKUP_MODO=dados npm run backup
+          npm run restaurar -- "$(ls -1 "$BACKUP_DIR"/npe-backup-*-dados.sql.gz | tail -n 1)" --force
+      - name: Backup e restauração completos (pg_dump/psql do runner)
+        run: |
+          sudo apt-get install -y -qq postgresql-client-16 >/dev/null 2>&1 || true
+          BACKUP_MODO=pg_dump npm run backup
+          npm run restaurar -- "$(ls -1t "$BACKUP_DIR"/npe-backup-*.sql.gz | grep -v -- -dados | head -n 1)" --force

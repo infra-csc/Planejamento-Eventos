@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import {
@@ -16,10 +15,14 @@ import {
 import { respostaItemSchema, solicitacaoCompletaSchema } from "@/lib/schemas";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import type { ItemStatus } from "@/server/db/schema";
+import { revalidarTelasOperacao } from "@/server/cache-dados";
 
-/** Contadores e agregados são derivados: qualquer resposta muda navegação, painel, ata e OS. */
+/**
+ * Contadores e agregados são derivados: qualquer resposta muda navegação, painel, ata e OS. A tela atual
+ * volta renderizada na resposta e o cache de navegação do cliente é limpo (ver revalidarTelasOperacao).
+ */
 function revalidarTudo() {
-  revalidatePath("/", "layout");
+  revalidarTelasOperacao();
 }
 
 export type DadosResposta = {

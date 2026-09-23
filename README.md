@@ -10,7 +10,7 @@ Especificação completa: [docs/01-analise-e-especificacao.md](docs/01-analise-e
 
 - Next.js 16 (App Router, Server Actions) + TypeScript + Tailwind CSS 4
 - Drizzle ORM sobre PostgreSQL. Sem `DATABASE_URL`, usa PostgreSQL embutido (PGlite) em `./.data/pglite` — nada para instalar localmente.
-- Autenticação própria (sessão em cookie HttpOnly), permissões verificadas no servidor.
+- Autenticação própria (sessão em cookie HttpOnly; expira com 14 dias sem uso ou 30 dias desde o login), permissões verificadas no servidor, CSP com nonce por requisição (`src/proxy.ts`).
 - Testes: Vitest (domínio + integração dos services com PGlite em memória) e teste de fumaça contra o banco (`npm run test:smoke`). CI em `.github/workflows/ci.yml`.
 
 ## Rodando localmente
@@ -42,8 +42,11 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 | `PGLITE_DATA_DIR` | local, opcional | Pasta do PGlite (padrão `./.data/pglite`; `memory://` nos testes). |
 | `APP_URL` | produção | URL pública: links de acesso gerados pelo administrador e origem liberada para Server Actions. |
 | `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração no Replit/produção (qualquer pessoa com o link entra como qualquer perfil, inclusive Administrador). O `.replit` deixa `false`. Local já aparece. |
-| `DB_POOL_MAX` | opcional | Conexões por instância (padrão 5). |
+| `DB_POOL_MAX` | opcional | Conexões do pool por instância (padrão 10). No Autoscale cada instância abre o seu: instâncias × `DB_POOL_MAX` precisa caber no limite de conexões do Postgres. |
 | `SEED_DEMO` | opcional | `true` permite rodar o seed fora da máquina local (Replit, Postgres, produção). Só num ambiente de demonstração. |
+| `CRON_SECRET` | produção | Segredo da rota `/api/cron/verificacoes` (avisos de prazo e lembretes). Sem ele a rota responde 503. Veja docs/operacao.md. |
+| `BACKUP_DIR` / `BACKUP_MANTER` | opcional | Pasta dos backups (padrão `./.data/backups`) e quantos manter (padrão 14). |
+| `BACKUP_OBJECT_STORAGE` | opcional | `true` exige enviar o backup ao Object Storage do Replit (precisa do pacote `@replit/object-storage`). |
 
 ## Regras de negócio que mais importam
 
@@ -74,6 +77,8 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 | `npm test` | testes de domínio e de integração (PGlite em memória, não toca no seu banco) |
 | `npm run test:smoke` | cenários de negócio contra o banco atual — **altera os dados**; rode logo após `setup` |
 | `npm run typecheck` / `lint` | TypeScript / ESLint |
+| `npm run backup` | backup do banco em `.sql.gz` com data no nome (pg_dump quando houver; senão, só os dados), mantém os 14 últimos |
+| `npm run restaurar -- <arquivo> --force` | restaura um backup (**apaga os dados atuais**); sem `--force` só mostra o que faria |
 
 ## Replit
 
@@ -85,15 +90,15 @@ git pull && npm install && npm run db:migrate
 
 Depois clique em Stop/Run. Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar).
 
-**Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num Repl separado, nunca com dados reais.
+**Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. Enquanto não houver nenhum usuário ativo, a tela de login mostra esse comando. **Senhas provisórias** (usuários do seed, senha definida pelo administrador, ou quem entrar com a senha de demonstração fora do modo demonstração) só abrem **Meu perfil** até a pessoa definir a própria senha. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num Repl separado, nunca com dados reais.
 
-**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública. Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com `npm run admin:senha -- <email> <senha>`.
+**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública e `CRON_SECRET` (avisos agendados). Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com `npm run admin:senha -- <email> <senha>`.
 
 **Login falhando com "Invalid Server Actions request".** A origem do navegador não está liberada. As origens vêm de `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` e `APP_URL` (`next.config.ts`); o `proxy.ts` registra `[origem-action]` no console com origin e host quando eles divergem.
 
 **Sem e-mail no MVP.** Ao criar um usuário, o administrador recebe um link de acesso (7 dias, uso único) para enviar à pessoa. "Esqueci minha senha" não mostra link: avisa os administradores, que geram um novo link na tela de usuários.
 
-**Backup.** O banco do Replit é a única cópia. Exporte antes de mudanças grandes (`pg_dump "$DATABASE_URL" > backup.sql` no Shell) e guarde fora do Replit.
+**Backup, avisos agendados e checklist de produção.** O banco do Replit é a única cópia: `npm run backup` gera o arquivo, `npm run restaurar` o devolve. Como agendar o backup e os avisos (Scheduled Deployments), onde os arquivos ficam e como testar a restauração: **docs/operacao.md**.
 
 ## Estrutura
 

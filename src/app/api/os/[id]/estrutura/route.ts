@@ -229,6 +229,21 @@ function abaProjeto(wb: ExcelJS.Workbook, a: OsEstrutura["abas"][number], imagem
   return ws;
 }
 
+/** Largura da imagem gravada na planilha: a aba mostra no máximo 560 px, então 800 px sobra. */
+const LARGURA_IMAGEM = 800;
+/**
+ * Imagens já reduzidas, por id do anexo (null = ilegível). Anexo não é editado, só incluído e removido:
+ * o id identifica o conteúdo para sempre. Exportar de novo não relê o original do banco nem refaz o sharp.
+ */
+const imagensProntas = new Map<string, Imagem | null>();
+/** Uma por projeto com capa (o catálogo tem algumas dezenas); limita a memória da instância. */
+const MAX_IMAGENS = 80;
+
+function guardarImagem(id: string, imagem: Imagem | null) {
+  if (imagensProntas.size >= MAX_IMAGENS) imagensProntas.delete(imagensProntas.keys().next().value as string);
+  imagensProntas.set(id, imagem);
+}
+
 /** Primeira imagem anexada de cada projeto (a capa), só PNG/JPEG, reduzida para não pesar a pasta. */
 async function imagensDosProjetos(codigos: string[]): Promise<Map<string, Imagem>> {
   const out = new Map<string, Imagem>();
@@ -245,19 +260,30 @@ async function imagensDosProjetos(codigos: string[]): Promise<Map<string, Imagem
   for (const m of metas) if (!capa.has(m.projetoId)) capa.set(m.projetoId, m);
   const escolhidas = [...capa.entries()].filter(([, m]) => m.mime === "image/png" || m.mime === "image/jpeg");
   if (escolhidas.length === 0) return out;
-  const conteudos = await db.select({ id: anexos.id, conteudo: anexos.conteudo }).from(anexos).where(inArray(anexos.id, escolhidas.map(([, m]) => m.id)));
+  // Só os originais que ainda não foram reduzidos nesta instância vêm do banco.
+  const faltam = escolhidas.map(([, m]) => m.id).filter((id) => !imagensProntas.has(id));
+  const conteudos = faltam.length ? await db.select({ id: anexos.id, conteudo: anexos.conteudo }).from(anexos).where(inArray(anexos.id, faltam)) : [];
   const conteudoDe = new Map(conteudos.map((c) => [c.id, c.conteudo]));
   for (const [projetoId, m] of escolhidas) {
-    const bruto = conteudoDe.get(m.id);
     const codigo = projs.find((p) => p.id === projetoId)?.codigo;
-    if (!bruto || !codigo) continue;
+    if (!codigo) continue;
+    if (imagensProntas.has(m.id)) {
+      const pronta = imagensProntas.get(m.id);
+      if (pronta) out.set(codigo, pronta);
+      continue;
+    }
+    const bruto = conteudoDe.get(m.id);
+    if (!bruto) continue;
     try {
-      const base = sharp(new Uint8Array(bruto)).rotate().resize({ width: 1000, withoutEnlargement: true });
+      const base = sharp(new Uint8Array(bruto)).rotate().resize({ width: LARGURA_IMAGEM, withoutEnlargement: true });
       const extension = m.mime === "image/png" ? "png" : "jpeg";
       const { data, info } = await (extension === "png" ? base.png() : base.jpeg({ quality: 82 })).toBuffer({ resolveWithObject: true });
-      out.set(codigo, { buffer: data, extension, largura: info.width, altura: info.height });
+      const imagem: Imagem = { buffer: data, extension, largura: info.width, altura: info.height };
+      guardarImagem(m.id, imagem);
+      out.set(codigo, imagem);
     } catch {
-      // Imagem ilegível: a aba sai sem o desenho.
+      // Imagem ilegível: a aba sai sem o desenho (e não se tenta de novo a cada exportação).
+      guardarImagem(m.id, null);
     }
   }
   return out;

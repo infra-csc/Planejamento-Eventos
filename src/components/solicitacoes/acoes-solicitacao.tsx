@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { toast, toastErro } from "@/components/ui/toast";
+import { toastErro, toastSucesso } from "@/components/ui/toast";
+import type { EventoStatus } from "@/server/db/schema";
 import { atenderTudoAction, cancelarSolicitacaoAction, devolverSolicitacaoAction, enviarRascunhoAction, excluirRascunhoAction } from "@/app/(app)/solicitacoes/actions";
 
 /** Botões do cabeçalho da solicitação (handoff §5.10). */
@@ -20,6 +21,7 @@ export function AcoesSolicitacao({
   podeExcluir,
   proximaHref,
   sufixo,
+  eventoStatus,
 }: {
   id: string;
   codigo: string;
@@ -32,6 +34,8 @@ export function AcoesSolicitacao({
   podeExcluir: boolean;
   proximaHref: string | null;
   sufixo: string;
+  /** Com o evento encerrado ou cancelado o servidor recusa o cancelamento: o botão não aparece. */
+  eventoStatus?: EventoStatus;
 }) {
   const router = useRouter();
   const [dialogo, setDialogo] = useState<"devolver" | "cancelar" | "excluir" | null>(null);
@@ -41,7 +45,7 @@ export function AcoesSolicitacao({
 
   return (
     <>
-      {podeCancelar && (
+      {podeCancelar && eventoStatus !== "ENCERRADO" && eventoStatus !== "CANCELADO" && (
         <Button variant="ghost" size="lg" onClick={() => setDialogo("cancelar")}>
           Cancelar solicitação
         </Button>
@@ -71,7 +75,7 @@ export function AcoesSolicitacao({
                   toastErro(r.erro);
                   return;
                 }
-                toast(`${codigo} respondida — ${pendentes} ${pendentes === 1 ? "item atendido" : "itens atendidos"}, ${sufixo}`);
+                toastSucesso(`${codigo} respondida — ${pendentes} ${pendentes === 1 ? "item atendido" : "itens atendidos"}, ${sufixo}`);
                 if (proximaHref) router.push(proximaHref);
               } finally {
                 emVoo.current = false;
@@ -95,7 +99,7 @@ export function AcoesSolicitacao({
           onClick={() =>
             iniciar(async () => {
               const r = await enviarRascunhoAction(id);
-              if (r.ok) toast(`${codigo} enviada para a logística`);
+              if (r.ok) toastSucesso(`${codigo} enviada para a logística`);
               else toastErro(r.erro);
             })
           }

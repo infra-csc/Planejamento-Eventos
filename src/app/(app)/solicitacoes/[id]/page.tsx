@@ -10,8 +10,9 @@ import { aceitaSolicitacao } from "@/domain/evento";
 import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, BannerEscuro, EmptyState, ListaDados, PageHeader, Section } from "@/components/ui/layout";
+import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
 import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
+import { Codigo } from "@/components/ui/numero";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
@@ -24,7 +25,6 @@ import { listarOsResumo } from "@/server/services/os";
 import { EventoStatusBadge } from "@/components/ui/badge";
 import { diaMesISO, periodoCurto } from "@/lib/format";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
-import { observacaoDoItem } from "@/domain/descricoes-itens";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -59,6 +59,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const modoFila = sp.fila === "1" && ehLogistica;
 
   const pi = prazoInfo(s, agora);
+  const aberta = s.status === "ENVIADA" || s.status === "EM_ANALISE";
+  const respondidos = s.itens.length - pendentes;
   const itens: ItemParaResposta[] = s.itens.map((i) => ({
     id: i.id,
     descricao: descricaoItem(i),
@@ -66,7 +68,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
     destino: i.destino,
-    justificativa: observacaoDoItem(i),
+    justificativa: i.justificativa?.trim() || null,
+    descricoes: i.descricoes ?? null,
     ajustes: resumirAjustes(i.ajustesBom),
     status: i.status,
     quantidadeAtendida: i.quantidadeAtendida,
@@ -131,7 +134,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             </>
           }
         >
-          <span className="font-mono text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span> · ordenada por prazo · atalhos A, P e N no item selecionado
+          <span className="numero font-medium text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span> · ordenada por prazo · atalhos A, P e N no item selecionado
         </BannerEscuro>
       )}
 
@@ -140,10 +143,9 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: s.codigo }]}
         eyebrow={
           <>
-            <span className="font-mono font-medium text-ink">{s.codigo}</span>
+            <Codigo className="font-medium text-ink">{s.codigo}</Codigo>
             <SolicitacaoStatusBadge status={s.status} naAta={naAta} />
             {s.foraDaJanela && <ForaJanelaTag />}
-            {pi.vencido && <span className="font-medium text-danger">Atrasada {pi.sub}</span>}
           </>
         }
         title={s.titulo || "Solicitação sem título"}
@@ -156,8 +158,32 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             · {s.area.nome} · {s.criadoPor.nome}
           </>
         }
+        meta={
+          <>
+            {/* Prazo sempre à vista no topo: é o que a logística olha primeiro. */}
+            {naAta ? (
+              <Meta rotulo="Reunião de OS" valor={diaMesHora(s.evento.dataReuniao)} />
+            ) : aberta && s.prazoRespostaEm ? (
+              <Meta
+                rotulo="Prazo de resposta"
+                valor={
+                  <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                    {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
+                    {pi.vencido ? `vencido ${pi.sub}` : `${pi.label} · ${pi.sub}`}
+                  </span>
+                }
+              />
+            ) : s.respondidaEm ? (
+              <Meta rotulo="Respondida em" valor={diaMesHora(s.respondidaEm)} />
+            ) : s.enviadaEm ? (
+              <Meta rotulo="Enviada em" valor={diaMesHora(s.enviadaEm)} />
+            ) : null}
+            {s.itens.length > 0 && !semStatus && <Meta rotulo={naAta ? "Na ata" : "Respondidos"} valor={naAta ? `${s.itens.filter((i) => i.status === "ATENDIDO" || i.status === "PARCIAL").length} de ${s.itens.length}` : `${respondidos} de ${s.itens.length}`} />}
+          </>
+        }
         actions={
           <AcoesSolicitacao
+            eventoStatus={s.evento.status}
             id={s.id}
             codigo={s.codigo}
             podeDevolver={ehLogistica && faseOk && podeDevolver(s.status, algumRespondido)}
@@ -242,11 +268,19 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         <div className="flex flex-col gap-5">
           {s.observacao && (
             <Section titulo="Observação do solicitante">
-              <p className="m-0 whitespace-pre-wrap px-cartao py-3.5 text-corpo leading-[1.55] text-ink-2">{s.observacao}</p>
+              <p className="m-0 whitespace-pre-wrap px-cartao py-3.5 text-corpo leading-relaxed text-ink-2">{s.observacao}</p>
             </Section>
           )}
           <RespostaProvider itens={itens} sufixoToast={sufixo}>
-            <Section titulo={`Itens · ${s.itens.length}`} sub={respondivel ? "Cada item recebe resposta própria. Parcial e não atendido exigem motivo." : undefined} acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}>
+            <Section
+              titulo={
+                <span className="inline-flex items-center gap-2">
+                  Itens <ChipMono tom="control">{s.itens.length}</ChipMono>
+                </span>
+              }
+              sub={respondivel ? (pendentes > 0 ? `${pendentes} ${pendentes === 1 ? "aguarda" : "aguardam"} resposta. Parcial e não atendido exigem motivo.` : "Todos os itens respondidos.") : undefined}
+              acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}
+            >
               {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
             </Section>
           </RespostaProvider>

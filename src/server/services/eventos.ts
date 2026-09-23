@@ -21,12 +21,13 @@ import {
 } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
-import { TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain/evento";
+import { motivoBloqueioEncerramento, TRANSICOES_EVENTO, transicaoPermitida, type AcaoEvento } from "@/domain/evento";
 import { pode } from "@/domain/permissions";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
-import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
-import { bloquearEvento, notificar, notificarAjusteLinha, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
+import { gerarOsVersao, montarLinhasAta, numeroOsAtual } from "./os";
+import { cacheDados, listarAreasAtivasCache, TAGS_DADOS } from "@/server/cache-dados";
+import { bloquearEvento, notificar, notificarAjusteLinha, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -71,6 +72,21 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
 }
 
 export type EventoLista = Awaited<ReturnType<typeof listarEventos>>[number];
+
+/**
+ * Eventos que aceitam pedido (preparação ou aberto), mais o do rascunho em edição, para o formulário
+ * de nova solicitação. Filtra no banco e traz só as colunas do formulário, sem as contagens da lista.
+ */
+export async function listarEventosAceitando(usuario: UsuarioAtual, incluirEventoId?: string | null) {
+  exigir(usuario, "evento.ver");
+  const db = await getDb();
+  const aceitando = inArray(eventos.status, ["PREPARACAO", "ABERTO"]);
+  return db
+    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, cliente: eventos.cliente, status: eventos.status, dataInicio: eventos.dataInicio, dataFim: eventos.dataFim, dataReuniao: eventos.dataReuniao, ataFechadaEm: eventos.ataFechadaEm })
+    .from(eventos)
+    .where(incluirEventoId ? or(aceitando, eq(eventos.id, incluirEventoId)) : aceitando)
+    .orderBy(asc(eventos.dataInicio));
+}
 
 export async function obterEvento(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "evento.ver");
@@ -220,18 +236,33 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
   };
 }
 
-/** Linhas ativas (id, nome, quantidade, destino, área) de vários eventos numa consulta só. */
+/**
+ * Linhas ativas (id, nome, quantidade, destino, área) de vários eventos numa consulta só. Só as colunas
+ * usadas: sem a lista de peças gravada na linha nem os cadastros inteiros de projeto, peça e área.
+ */
 export async function linhasAtaResumidas(eventoIds: string[]) {
+  const mapa = new Map<string, Array<{ id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null; areaId: string | null }>>(eventoIds.map((id) => [id, []]));
+  if (eventoIds.length === 0) return Object.fromEntries(mapa);
   const db = await getDb();
-  const mapa = await montarLinhasAtaDeEventos(db, eventoIds);
-  return Object.fromEntries([...mapa].map(([id, ls]) => [id, ls.map((l) => ({ id: l.id, nome: nomeLinha(l), quantidade: l.quantidade, destino: l.destino, areaNome: l.areaNome, areaId: l.registro.areaId }))]));
+  const rows = await db.query.eventoItens.findMany({
+    where: and(inArray(eventoItens.eventoId, eventoIds), eq(eventoItens.ativo, true)),
+    columns: { id: true, eventoId: true, tipo: true, quantidade: true, destino: true, areaId: true, descricaoLivre: true },
+    with: { projeto: { columns: { nome: true } }, peca: { columns: { codigo: true, nome: true } }, area: { columns: { nome: true } } },
+    orderBy: (t, { asc }) => [asc(t.criadoEm)],
+  });
+  for (const r of rows) {
+    // Mesmo recorte de `paraLinhaAta` (os.ts): projeto só em linha de projeto, peça só em linha de peça.
+    const nome = nomeLinha({ tipo: r.tipo, projeto: r.tipo === "PROJETO" ? r.projeto : null, peca: r.tipo === "PECA" ? r.peca : null, descricaoLivre: r.descricaoLivre });
+    mapa.get(r.eventoId)?.push({ id: r.id, nome, quantidade: r.quantidade, destino: r.destino, areaNome: r.area?.nome ?? null, areaId: r.areaId });
+  }
+  return Object.fromEntries(mapa);
 }
 
 /** "Onde está cada área" (handoff §5.5): enviados × respondidos por área. */
 export async function progressoAreas(eventoId: string) {
   const db = await getDb();
   const [todasAreas, sols] = await Promise.all([
-    db.query.areas.findMany({ where: eq(areas.ativo, true), orderBy: [asc(areas.criadoEm)] }),
+    listarAreasAtivasCache(),
     db.query.solicitacoes.findMany({
       where: and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA"])),
       columns: { id: true, areaId: true },
@@ -363,7 +394,8 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
     if (!atual) throw new NaoEncontradoError("Evento");
     if (atual.status === "CANCELADO") throw new DomainError("Evento cancelado não pode ser editado.");
     if (atual.status === "ENCERRADO") throw new DomainError("Evento encerrado não pode ser editado. Se precisar, a gestão reabre em exceção.");
-    if (atual.status !== "PREPARACAO" && Math.abs(atual.dataReuniao.getTime() - dados.dataReuniao.getTime()) >= 60_000) {
+    const reuniaoMudou = Math.abs(atual.dataReuniao.getTime() - dados.dataReuniao.getTime()) >= 60_000;
+    if (atual.status !== "PREPARACAO" && reuniaoMudou) {
       throw new ValidacaoError("A reunião de OS já começou ou aconteceu; a data dela não muda mais.", { dataReuniao: "Reunião já iniciada ou realizada." });
     }
     const periodo = periodoEvento(dados, atual);
@@ -403,6 +435,28 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
       dadosAntes: antes,
       dadosDepois: dados,
     });
+    // Reunião remarcada: as áreas precisam saber o novo prazo para enviar as necessidades.
+    // (O lembrete automático usa a data na chave de deduplicação e volta a avisar para a nova data.)
+    if (reuniaoMudou) {
+      await registrarHistorico(tx, {
+        eventoId: id,
+        entidade: "evento",
+        entidadeId: id,
+        acao: "REUNIAO_REMARCADA",
+        descricao: `Reunião de OS remarcada de ${formatarDataHora(atual.dataReuniao)} para ${formatarDataHora(dados.dataReuniao)}`,
+        usuarioId: usuario.id,
+        dadosAntes: { dataReuniao: atual.dataReuniao },
+        dadosDepois: { dataReuniao: dados.dataReuniao },
+      });
+      await notificar(tx, {
+        usuarioIds: await usuariosRequisitantes(tx),
+        tipo: "REUNIAO_REMARCADA",
+        titulo: `Reunião de OS remarcada: ${ev.nome}`,
+        mensagem: `Nova data: ${formatarDataHora(dados.dataReuniao)} (era ${formatarDataHora(atual.dataReuniao)}). Envie as necessidades da sua área até lá.`,
+        link: `/eventos/${id}`,
+        excetoUsuarioId: usuario.id,
+      });
+    }
     return ev;
   });
 }
@@ -494,14 +548,39 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const patch: Partial<typeof eventos.$inferInsert> = { status: t.para };
     let osNumero: number | null = null;
     /* Solicitações que a transição deixa sem saída (nunca mais poderiam ser enviadas ou respondidas). */
-    let canceladasAuto: Array<{ id: string; codigo: string; areaId: string; criadoPorId: string; motivo: string }> = [];
-    const cancelarOrfas = async (status: Array<"RASCUNHO" | "DEVOLVIDA" | "ENVIADA" | "EM_ANALISE">, motivo: string, tipo?: "PRE_REUNIAO") => {
+    const canceladasAuto: Array<{ id: string; codigo: string; areaId: string; criadoPorId: string; motivo: string }> = [];
+    const cancelarOrfas = async (status: Array<"RASCUNHO" | "DEVOLVIDA" | "ENVIADA" | "EM_ANALISE">, motivo: string, tipo?: "PRE_REUNIAO" | "ALTERACAO") => {
       const rows = await tx
         .update(solicitacoes)
         .set({ status: "CANCELADA", canceladaEm: agora, canceladaMotivo: motivo, atualizadoPorId: usuario.id })
         .where(and(eq(solicitacoes.eventoId, id), eq(solicitacoes.excluida, false), inArray(solicitacoes.status, status), tipo ? eq(solicitacoes.tipo, tipo) : undefined))
         .returning({ id: solicitacoes.id, codigo: solicitacoes.codigo, areaId: solicitacoes.areaId, criadoPorId: solicitacoes.criadoPorId });
-      canceladasAuto = rows.map((r) => ({ ...r, motivo }));
+      canceladasAuto.push(...rows.map((r) => ({ ...r, motivo })));
+    };
+    /*
+     * Solicitações já respondidas em parte (EM_ANALISE) quando o evento fecha: o que falta vira "não atendido"
+     * e a solicitação fica respondida — a área nunca vê "cancelada" numa solicitação que entrou em parte na OS.
+     */
+    const fecharParciais = async (observacao: string, aviso: string) => {
+      const parciais = await tx.query.solicitacoes.findMany({
+        where: and(eq(solicitacoes.eventoId, id), eq(solicitacoes.status, "EM_ANALISE"), eq(solicitacoes.excluida, false)),
+        columns: { id: true, codigo: true, areaId: true, criadoPorId: true },
+      });
+      for (const s of parciais) {
+        await tx
+          .update(solicitacaoItens)
+          .set({ status: "NAO_ATENDIDO", quantidadeAtendida: 0, observacaoLogistica: observacao, respondidoPorId: usuario.id, respondidoEm: agora })
+          .where(and(eq(solicitacaoItens.solicitacaoId, s.id), eq(solicitacaoItens.status, "EM_ANALISE")));
+        await tx.update(solicitacoes).set({ status: "RESPONDIDA", respondidaEm: agora, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, s.id));
+        await registrarHistorico(tx, { eventoId: id, entidade: "solicitacao", entidadeId: s.id, acao: "RESPONDIDO", descricao: `${s.codigo}: itens pendentes marcados como não atendidos — ${observacao}`, usuarioId: usuario.id });
+        await notificar(tx, {
+          usuarioIds: [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))],
+          tipo: "SOLICITACAO_RESPONDIDA",
+          titulo: `${s.codigo}: itens pendentes não atendidos`,
+          mensagem: aviso,
+          link: `/solicitacoes/${s.id}`,
+        });
+      }
     };
 
     if (acao === "INICIAR_REUNIAO") {
@@ -554,35 +633,19 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     }
 
     if (acao === "ENCERRAR") {
-      if (cfg.bloquear_encerramento_com_pendentes === "true") {
-        const pend = await solicitacoesPendentes(tx, id);
-        if (pend.length > 0) {
-          throw new DomainError(`Existem ${pend.length} solicitação(ões) sem resposta (${pend.map((p) => p.codigo).join(", ")}). Responda ou devolva todas antes de encerrar.`);
-        }
-      } else {
-        // Sem nenhuma resposta: cancela. Já com item atendido na OS: os itens restantes viram "não atendido",
-        // para a área não ver "cancelada" numa solicitação que entrou parcialmente na OS final.
-        await cancelarOrfas(["ENVIADA"], "Evento encerrado para alterações antes da resposta desta solicitação.");
-        const parciais = await tx.query.solicitacoes.findMany({
-          where: and(eq(solicitacoes.eventoId, id), eq(solicitacoes.status, "EM_ANALISE"), eq(solicitacoes.excluida, false)),
-          columns: { id: true, codigo: true, areaId: true, criadoPorId: true },
-        });
-        for (const s of parciais) {
-          await tx
-            .update(solicitacaoItens)
-            .set({ status: "NAO_ATENDIDO", quantidadeAtendida: 0, observacaoLogistica: "Evento encerrado para alterações antes da resposta.", respondidoPorId: usuario.id, respondidoEm: agora })
-            .where(and(eq(solicitacaoItens.solicitacaoId, s.id), eq(solicitacaoItens.status, "EM_ANALISE")));
-          await tx.update(solicitacoes).set({ status: "RESPONDIDA", respondidaEm: agora, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, s.id));
-          await registrarHistorico(tx, { eventoId: id, entidade: "solicitacao", entidadeId: s.id, acao: "RESPONDIDO", descricao: `${s.codigo}: itens pendentes marcados como não atendidos no encerramento do evento`, usuarioId: usuario.id });
-          await notificar(tx, {
-            usuarioIds: [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))],
-            tipo: "SOLICITACAO_RESPONDIDA",
-            titulo: `${s.codigo}: itens pendentes não atendidos`,
-            mensagem: "O evento foi encerrado para alterações; o que ainda estava em análise ficou como não atendido.",
-            link: `/solicitacoes/${s.id}`,
-          });
-        }
-      }
+      const bloqueio = motivoBloqueioEncerramento(
+        (await solicitacoesPendentes(tx, id)).map((p) => p.codigo),
+        cfg.bloquear_encerramento_com_pendentes === "true",
+      );
+      if (bloqueio) throw new DomainError(bloqueio);
+      // Sem nenhuma resposta: cancela. Já com item atendido na OS: os itens restantes viram "não atendido",
+      // para a área não ver "cancelada" numa solicitação que entrou parcialmente na OS final.
+      // (Com o bloqueio ligado, não sobra nenhuma: a checagem acima já recusou.)
+      await cancelarOrfas(["ENVIADA"], "Evento encerrado para alterações antes da resposta desta solicitação.");
+      await fecharParciais("Evento encerrado para alterações antes da resposta.", "O evento foi encerrado para alterações; o que ainda estava em análise ficou como não atendido.");
+      // Devolvida à área e rascunho de alteração nunca mais poderiam ser enviados: não ficam presos.
+      await cancelarOrfas(["DEVOLVIDA"], "Evento encerrado antes do reenvio");
+      await cancelarOrfas(["RASCUNHO"], "Evento encerrado antes do reenvio", "ALTERACAO");
       osNumero = (await gerarOsVersao(tx, id, "ENCERRAMENTO", usuario.id, "OS final — evento encerrado para alterações")).numero;
       patch.encerradoEm = agora;
       patch.encerradoPorId = usuario.id;
@@ -599,7 +662,9 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
       patch.canceladoEm = agora;
       patch.canceladoPorId = usuario.id;
       patch.canceladoMotivo = just;
-      await cancelarOrfas(["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"], "Evento cancelado");
+      // Respondida em parte não vira "cancelada": o que falta fica não atendido, como no encerramento.
+      await fecharParciais("Evento cancelado antes da resposta.", "O evento foi cancelado; o que ainda estava em análise ficou como não atendido.");
+      await cancelarOrfas(["RASCUNHO", "DEVOLVIDA", "ENVIADA"], "Evento cancelado");
     }
 
     await tx.update(eventos).set(patch).where(eq(eventos.id, id));
@@ -853,63 +918,16 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
   });
 }
 
-export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, justificativa: string | null) {
-  exigir(usuario, "ata.consolidar");
-  const db = await getDb();
-  return db.transaction(async (tx) => {
-    await bloquearEvento(tx, eventoId);
-    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
-    if (!ev) throw new NaoEncontradoError("Evento");
-    const geraOs = exigirEstadoAjuste(ev.status, justificativa);
-    if (geraOs) exigir(usuario, "ata.ajustar");
-    if (!Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) {
-      throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.", { quantidade: "Use um número inteiro." });
-    }
-    const [linha] = await montarLinhasAta(tx, eventoId, { linhaId });
-    if (!linha) throw new NaoEncontradoError("Linha da ata");
-    const desc = descricaoLinha(linha);
-    const remover = quantidade <= 0;
-    if (!remover && quantidade === linha.quantidade) throw new ValidacaoError("A quantidade informada é a mesma que já está na ata.", { quantidade: "Informe outro valor." });
-    // A resposta que a área lê tem de contar a mesma história da OS: item removido não fica "atendido".
-    const itemOrigem = linha.registro.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId) }) : null;
-    if (itemOrigem && itemOrigem.operacao === "ADICIONAR") {
-      const atendida = Math.min(remover ? 0 : quantidade, itemOrigem.quantidadeSolicitada);
-      await tx
-        .update(solicitacaoItens)
-        .set({ status: atendida === 0 ? "NAO_ATENDIDO" : atendida < itemOrigem.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO", quantidadeAtendida: atendida, observacaoLogistica: justificativa ?? itemOrigem.observacaoLogistica, respondidoPorId: usuario.id, respondidoEm: new Date() })
-        .where(eq(solicitacaoItens.id, itemOrigem.id));
-    }
-    await tx
-      .update(eventoItens)
-      .set(remover ? { ativo: false, removidoEm: new Date(), removidoPorId: usuario.id, justificativaAjuste: justificativa } : { quantidade, justificativaAjuste: justificativa })
-      .where(eq(eventoItens.id, linhaId));
-    await registrarHistorico(tx, {
-      eventoId,
-      entidade: "evento_item",
-      entidadeId: linhaId,
-      acao: remover ? "ATA_REMOCAO" : "ATA_QUANTIDADE",
-      descricao: `${remover ? `${desc}: removido da ata (era ${linha.quantidade})` : `${desc}: quantidade alterada de ${linha.quantidade} para ${quantidade}`}${justificativa ? ` — ${justificativa}` : ""}`,
-      usuarioId: usuario.id,
-      dadosAntes: { quantidade: linha.quantidade, ativo: true },
-      dadosDepois: { quantidade: remover ? 0 : quantidade, ativo: !remover },
-    });
-    if (geraOs) {
-      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, justificativa ?? `${desc} ${remover ? "removido" : `${linha.quantidade} → ${quantidade}`}`);
-      {
-        await notificarAjusteLinha(tx, {
-          eventoId,
-          areaId: linha.registro.areaId ?? null,
-          tipo: "ATA_AJUSTE",
-          titulo: `Ajuste na OS: ${ev.nome}`,
-          mensagem: `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}. Motivo: ${justificativa}`,
-          mensagemSemMotivo: `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}.`,
-          // Linha removida deixa de ter página própria: nesse caso o histórico é o registro.
-          link: remover ? `/eventos/${eventoId}/historico` : `/eventos/${eventoId}/itens/${linhaId}`,
-          excetoUsuarioId: usuario.id,
-        });
-      }
-    }
-  });
+/**
+ * Ajuste de quantidade pela aba Ata/OS (canetinha com justificativa). Mesmo caminho da conferência
+ * (`ajustarQuantidadeLinha` em conferencia.ts): linha que veio de um pedido vira resposta/correção do item;
+ * linha sem origem ajusta direto. Motivo sempre obrigatório. `quantidadeEsperada` é a quantidade que a tela
+ * mostrava: se a linha mudou nesse meio-tempo, o ajuste é recusado.
+ */
+export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, justificativa: string | null, opcoes: { quantidadeEsperada?: number | null } = {}) {
+  // Import tardio: conferencia.ts importa este módulo.
+  const { ajustarQuantidadeLinha } = await import("./conferencia");
+  return ajustarQuantidadeLinha(usuario, eventoId, linhaId, quantidade, justificativa ?? "", { contexto: "ata", quantidadeEsperada: opcoes.quantidadeEsperada });
 }
 
 /** MEL-02: atualiza uma linha de projeto para a versão atual do projeto padrão. */
@@ -954,8 +972,25 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
 /* Consultas auxiliares para formulários                                */
 /* ------------------------------------------------------------------ */
 
+/*
+ * Projetos e peças para os formulários mudam só pelas telas de catálogo e projetos: ficam em cache
+ * (cache-dados.ts) e as actions dessas telas invalidam as tags.
+ */
+const REFERENCIAS_TAGS = [TAGS_DADOS.catalogo, TAGS_DADOS.projetos];
+const referenciasResumidasEmCache = cacheDados(consultarOpcoesReferenciasResumidas, "eventos:referencias-resumidas", REFERENCIAS_TAGS);
+const referenciasEmCache = cacheDados(consultarOpcoesReferencias, "eventos:referencias", REFERENCIAS_TAGS);
+
 /** Só o que o formulário "Incluir linha na ata" usa: nome/código de projetos e peças, sem listas de peças nem imagens. */
 export async function opcoesReferenciasResumidas() {
+  return referenciasResumidasEmCache();
+}
+
+/** Projetos com a lista de peças da versão atual, peças ativas e capas (formulário de solicitação). */
+export async function opcoesReferencias() {
+  return referenciasEmCache();
+}
+
+async function consultarOpcoesReferenciasResumidas() {
   const db = await getDb();
   const [proj, pcs] = await Promise.all([
     db.select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual }).from(projetos).where(eq(projetos.ativo, true)).orderBy(asc(projetos.nome)),
@@ -964,7 +999,7 @@ export async function opcoesReferenciasResumidas() {
   return { projetos: proj, pecas: pcs };
 }
 
-export async function opcoesReferencias() {
+async function consultarOpcoesReferencias() {
   const db = await getDb();
   // Só a versão atual de cada projeto ativo (os únicos que aparecem na resposta), filtrada no banco.
   const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true));

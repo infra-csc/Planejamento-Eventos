@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Aviso, BannerEscuro } from "@/components/ui/layout";
+import { Icone } from "@/components/ui/icons";
 import { toast } from "@/components/ui/toast";
 import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
 import type { EventoStatus } from "@/server/db/schema";
 
-/** Banner escuro da consolidação (handoff §5.7). */
+/**
+ * Banner escuro da reunião (handoff §5.7): em que pé está e a ação que fecha (ou inicia) a reunião.
+ * O progresso linha a linha fica na barra fixa da conferência, que acompanha a rolagem.
+ */
 export function BannerReuniao({
   eventoId,
   nome,
@@ -36,7 +39,6 @@ export function BannerReuniao({
   const [confirmar, setConfirmar] = useState<"INICIAR_REUNIAO" | "FECHAR_ATA" | null>(null);
   const faltam = total - conferidas;
   const completo = faltam <= 0 && total > 0 && presentesOk;
-  const pct = total ? Math.round((conferidas / total) * 100) : 0;
   const emReuniao = status === "EM_REUNIAO";
 
   const titulo = emReuniao ? `Reunião de OS em andamento · ${nome}` : `Preparação da reunião de OS · ${nome}`;
@@ -53,16 +55,20 @@ export function BannerReuniao({
 
   return (
     <BannerEscuro
-      className="mb-cartao"
+      className="max-sm:flex-col max-sm:items-stretch max-sm:gap-4"
       aria-label="Andamento da reunião"
       titulo={titulo}
       acoes={
         emReuniao ? (
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <Button variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 max-sm:items-stretch">
+            <Button variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
               Fechar ata e gerar OS
             </Button>
-            {!completo && <span className="text-rotulo text-on-dark-4">{motivoBloqueio}</span>}
+            {!completo && (
+              <span id="fechar-ata-motivo" className="text-rotulo text-on-dark-3">
+                {motivoBloqueio}
+              </span>
+            )}
           </div>
         ) : (
           <Button variant="pink" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
@@ -72,15 +78,12 @@ export function BannerReuniao({
       }
     >
       <p className="m-0">{sub}</p>
-      <div className="mt-3 flex items-center gap-3">
-        <span className="relative block h-1.5 max-w-[360px] flex-1 overflow-hidden rounded-[3px] bg-dark-3" role="progressbar" aria-valuenow={conferidas} aria-valuemin={0} aria-valuemax={total} aria-label="Linhas conferidas">
-          <span className={cn("absolute left-0 top-0 block h-1.5 rounded-[3px]", faltam <= 0 && total > 0 ? "bg-success-light" : "bg-accent-light")} style={{ width: `${pct === 0 ? 0 : Math.max(4, pct)}%` }} />
-        </span>
-        <span className="font-mono text-pequeno text-on-dark-2">
-          {conferidas}/{total} conferidas
-        </span>
-        {emReuniao && iniciadaEm && <span className="text-pequeno text-on-dark-4">· iniciada {iniciadaEm}</span>}
-      </div>
+      {emReuniao && iniciadaEm && (
+        <p className="mb-0 mt-1.5 flex items-center gap-1.5 text-pequeno text-on-dark-4">
+          <Icone nome="relogio" className="size-3.5" />
+          iniciada <span className="numero">{iniciadaEm}</span>
+        </p>
+      )}
       {confirmar && (
         <ConfirmDialog
           open

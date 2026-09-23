@@ -21,8 +21,11 @@ import { BuscaUrl } from "@/components/ui/busca-url";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
+import { Icone } from "@/components/ui/icons";
+import { Codigo, Numero } from "@/components/ui/numero";
 import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
 import { RolarAoSelecionar } from "@/components/biblioteca/rolar-ao-selecionar";
+import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { combinaBusca } from "@/lib/busca";
 
 export const metadata: Metadata = { title: "Biblioteca" };
@@ -44,11 +47,7 @@ function Abas({ aba, nProjetos, nPecas, nFora }: { aba: Aba; nProjetos: number; 
 
 /** Seta › da última coluna: a linha abre algo (detalhe do projeto, edição da peça). */
 function SetaAbrir({ ativo }: { ativo?: boolean }) {
-  return (
-    <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={cn("inline-block", ativo && "text-accent")}>
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
+  return <Icone nome="chevron-direita" className={cn("inline-block align-middle", ativo && "text-accent")} />;
 }
 
 const barraCls = "mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center";
@@ -196,7 +195,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                               <th scope="row" aria-current={sel ? "true" : undefined} className="relative border-b border-line-row py-3.5 pl-cartao pr-3 text-left font-normal sm:pl-3">
                                 {marca && <span className="sm:hidden">{marca}</span>}
                                 <span className="flex min-w-[220px] items-start gap-2">
-                                  <span className="line-clamp-2 min-w-0 text-corpo font-medium leading-[1.25] text-ink" title={p.nome}>
+                                  <span className="line-clamp-2 min-w-0 text-corpo font-medium text-ink" title={p.nome}>
                                     {p.nome}
                                   </span>
                                   <ChipMono tom="control" className="shrink-0">
@@ -205,8 +204,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                 </span>
                                 {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
                                 <span className="mt-0.5 block text-pequeno text-ink-3">
-                                  <span className="font-mono">{p.codigo}</span>
-                                  {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · {p.tiposPeca} {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <span className="font-mono">{p.totalPecas}</span> {p.totalPecas === 1 ? "peça" : "peças"}
+                                  <Codigo>{p.codigo}</Codigo>
+                                  {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · <Numero valor={p.tiposPeca} /> {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <Numero valor={p.totalPecas} /> {p.totalPecas === 1 ? "peça" : "peças"}
                                   <span className="xl:hidden"> · {textoUso(n)}</span>
                                 </span>
                                 {p.descricao && (
@@ -218,7 +217,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                               <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell" title={p.categoria || undefined}>
                                 {p.categoria || "—"}
                               </td>
-                              <td className={cn("hidden whitespace-nowrap border-b border-line-row px-3 py-3.5 text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{textoUso(n)}</td>
+                              <td className={cn("numero hidden whitespace-nowrap border-b border-line-row px-3 py-3.5 text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{textoUso(n)}</td>
                               <td className="border-b border-line-row py-3.5 pl-1 pr-cartao text-right text-ink-3">
                                 <SetaAbrir ativo={sel} />
                               </td>
@@ -238,7 +237,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 <RolarAoSelecionar alvoId="detalhe" selecionado={sp.p} />
                 <Section
                   titulo={detalhe.nome}
-                  sub={`Lista de peças · v${detalhe.versaoAtual} · ${bom.reduce((a, i) => a + i.quantidade, 0)} unidades por projeto`}
+                  sub={
+                    <>
+                      <Codigo>{detalhe.codigo}</Codigo> · <Codigo>v{detalhe.versaoAtual}</Codigo> · <Numero valor={bom.reduce((a, i) => a + i.quantidade, 0)} /> unidades por projeto
+                    </>
+                  }
                   acoes={
                     <span className="flex items-center gap-3">
                       {pode(usuario, "projeto.gerenciar") && (
@@ -262,27 +265,39 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                         ))}
                     </div>
                   )}
-                  <div>
-                    {bom.map((i) => {
-                      const novo = anterior && !anterior.itens.some((x) => x.pecaId === i.pecaId);
-                      return (
-                        <div key={i.id} className="flex items-baseline gap-2.5 border-b border-line-faint px-cartao py-2 last:border-b-0">
-                          <span className="w-[86px] shrink-0 font-mono text-pequeno text-ink-2">{i.peca.codigo}</span>
-                          <span className="min-w-0 flex-1 text-pequeno text-ink">
-                            {i.peca.nome}
-                            {novo && (
-                              <Tag tom="accent" className="ml-1.5 font-medium">
-                                novo na v{detalhe.versaoAtual}
-                              </Tag>
-                            )}
-                          </span>
-                          <span className="font-mono text-pequeno font-semibold">{i.quantidade}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {bom.length > 0 ? (
+                    <>
+                    {/* Cabeçalho visual das colunas (a lista em si é lida item a item). */}
+                    <div aria-hidden className="flex items-center gap-2.5 border-b border-line-soft bg-subtle px-cartao py-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted">
+                      <span className="w-[86px] shrink-0">Código</span>
+                      <span className="flex-1">Peça</span>
+                      <span>Qtd.</span>
+                    </div>
+                    <ul aria-label={`Lista de peças de ${detalhe.nome}`} className="m-0 list-none p-0">
+                      {bom.map((i) => {
+                        const novo = anterior && !anterior.itens.some((x) => x.pecaId === i.pecaId);
+                        return (
+                          <li key={i.id} className="flex items-baseline gap-2.5 border-b border-line-faint px-cartao py-2 last:border-b-0">
+                            <Codigo className="w-[86px] shrink-0 truncate text-pequeno text-ink-2">{i.peca.codigo}</Codigo>
+                            <span className="min-w-0 flex-1 text-pequeno text-ink">
+                              {i.peca.nome}
+                              {novo && (
+                                <Tag tom="info" className="ml-1.5">
+                                  novo na v{detalhe.versaoAtual}
+                                </Tag>
+                              )}
+                            </span>
+                            <Numero valor={i.quantidade} className="shrink-0 text-right text-pequeno font-semibold text-ink" />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    </>
+                  ) : (
+                    <EmptyState compact title="Nenhuma peça nesta versão" description="Abra o projeto para montar a lista de peças." />
+                  )}
                   {(detalhe.versaoAtual > 1 || detalhe.usosDefasados.length > 0) && (
-                    <p className="m-0 border-t border-line-soft bg-subtle px-cartao py-3 text-pequeno leading-[1.5] text-ink-3">
+                    <p className="m-0 border-t border-line-soft bg-subtle px-cartao py-3 text-pequeno text-ink-3">
                       {detalhe.versaoAtual > 1 && atual.observacao ? `A v${detalhe.versaoAtual}: ${atual.observacao} ` : ""}
                       {detalhe.versaoAtual > 1 ? `Eventos que ainda usam versões anteriores aparecem marcados na ata.` : ""}
                       {detalhe.usosDefasados.length > 0 && <span className="mt-1 block text-warning">Em versão anterior: {detalhe.usosDefasados.map((u) => `${u.codigo} (v${u.versao})`).join(", ")}.</span>}
@@ -299,8 +314,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   // Catálogo de peças
   const emBom = await contarPecasEmBom();
+  const gerencia = pode(usuario, "catalogo.gerenciar");
+  // Quem gerencia o catálogo vê também as peças inativas (marcadas), para poder reativá-las.
+  const pecasLista = gerencia ? await listarPecas(usuario, { incluirInativas: true }) : pecasTodas;
   const setor = (SETORES as readonly string[]).includes(sp.setor ?? "") ? (sp.setor as Setor) : null;
-  const buscadas = termo ? pecasTodas.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasTodas;
+  const buscadas = termo ? pecasLista.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasLista;
   const filtradas = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
   const ordenadas = ordenar(
     filtradas,
@@ -310,7 +328,6 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   );
   const pag = paginar(ordenadas, sp.pagina, 12);
   const params = { aba: "pecas", q: sp.q, setor: sp.setor, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
-  const gerencia = pode(usuario, "catalogo.gerenciar");
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
     return <ThOrdenavel label={label} ativo={sp.ordem === chave} dir={sp.ordem === chave ? (sp.dir === "desc" ? "desc" : "asc") : undefined} href={hrefCom("/biblioteca", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })} largura={largura} alinhar={alinhar} />;
@@ -318,13 +335,16 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
-      <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno font-medium text-ink">{p.codigo}</td>
+      <td className="border-b border-line-row px-3 py-3 text-pequeno font-medium text-ink">
+        <Codigo>{p.codigo}</Codigo>
+      </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
         <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
           <span className="line-clamp-2 text-corpo font-medium text-ink" title={p.nome}>
             {p.nome}
           </span>
           {!p.permiteEmProjeto && <Tag tom="muted">só fora de projeto</Tag>}
+          {!p.ativo && <Tag tom="warning">inativa</Tag>}
         </span>
         <span className="mt-0.5 block text-pequeno text-muted xl:hidden">
           {SETOR_LABEL[p.setor]} · {p.familia || "sem família"}
@@ -336,14 +356,19 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           {p.familia || "—"}
         </span>
       </td>
-      <td className="whitespace-nowrap border-b border-line-row px-3 py-3 text-right font-mono text-pequeno">
-        {p.estoqueProprio > 0 ? p.estoqueProprio : "—"} <span className="text-rotulo text-muted">{p.unidade}</span>
+      <td className="whitespace-nowrap border-b border-line-row px-3 py-3 text-right text-pequeno text-ink">
+        {p.estoqueProprio > 0 ? <Numero valor={p.estoqueProprio} unidade={p.unidade} /> : <span className="numero text-meta">—</span>}
       </td>
       {/* px-3 também na última coluna: alinha com o cabeçalho ordenável. */}
-      <td className="border-b border-line-row px-3 py-3 text-right font-mono text-pequeno text-ink-3">{emBom.get(p.id) ?? 0}</td>
+      <td className="border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3">
+        <Numero valor={emBom.get(p.id) ?? 0} />
+      </td>
       {gerencia && (
-        <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
-          <SetaAbrir />
+        <td className="whitespace-nowrap border-b border-line-row py-1.5 pl-1 pr-cartao text-right text-ink-3">
+          <span className="inline-flex items-center justify-end gap-1">
+            <PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="xs" />
+            <SetaAbrir />
+          </span>
         </td>
       )}
     </>
@@ -391,8 +416,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     {th("estoque", "Estoque", 100, "right")}
                     {th("bom", "Em projetos", 118, "right")}
                     {gerencia && (
-                      <Th largura={44}>
-                        <span className="sr-only">Editar</span>
+                      <Th largura={120}>
+                        <span className="sr-only">Inativar, reativar ou editar</span>
                       </Th>
                     )}
                   </tr>

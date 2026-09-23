@@ -8,6 +8,8 @@ import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/com
 import { EmptyState, Section } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
@@ -37,7 +39,7 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                 <Th className="hidden lg:table-cell" largura={140}>
                   Área
                 </Th>
-                <Th className="hidden xl:table-cell" largura={64}>
+                <Th className="hidden xl:table-cell" largura={64} alinhar="right">
                   Itens
                 </Th>
                 <Th largura={124}>Status</Th>
@@ -54,7 +56,9 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                 const pi = prazoInfo(s, agora);
                 return (
                   <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                    <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3">{s.codigo}</td>
+                    <td className="border-b border-line-row py-3 pl-cartao pr-3 text-pequeno text-ink-3">
+                      <Codigo>{s.codigo}</Codigo>
+                    </td>
                     <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
                       <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
@@ -66,30 +70,28 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                         por {s.criadoPor.nome}
                         <span className="xl:hidden">
                           {" · "}
-                          <span className="font-mono">
+                          <span className="numero">
                             {s.itensRespondidos}/{s.totalItens} itens
                           </span>
                         </span>
                       </span>
                     </th>
                     <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
-                    <td className="hidden border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3 xl:table-cell">
+                    <td className="numero hidden border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3 xl:table-cell">
                       {s.itensRespondidos}/{s.totalItens}
                     </td>
                     <td className="border-b border-line-row px-3 py-3">
                       <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                     </td>
                     <td className="border-b border-line-row px-3 py-3 text-right">
-                      <span className="flex items-center justify-end gap-1.5 font-mono text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                      <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                         {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
                         {pi.vencido ? "atrasada" : pi.label}
                       </span>
                       <span className="block text-rotulo text-meta">{pi.sub}</span>
                     </td>
                     <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
-                      <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
-                        <path d="M9 6l6 6-6 6" />
-                      </svg>
+                      <Icone nome="chevron-direita" className="inline-block" />
                     </td>
                   </LinhaLink>
                 );

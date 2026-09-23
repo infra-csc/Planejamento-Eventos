@@ -7,7 +7,7 @@ import { pode, PERFIL_LABEL } from "@/domain/permissions";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { resumirAjustes } from "@/domain/os";
 import { ACOES_COM_MOTIVO, obterLinhasAta } from "./eventos";
-import { descricaoItem, obterSolicitacao } from "./solicitacoes";
+import { descricaoItem, obterSolicitacaoMemo } from "./solicitacoes";
 import { observacaoDoItem } from "@/domain/descricoes-itens";
 
 export type TomLinhaTempo = "neutro" | "ok" | "atencao" | "perigo" | "info";
@@ -103,7 +103,8 @@ async function carregarEntradas(filtro: SQL, itemDaEntidade: (entidade: string, 
 
 /** Tudo o que aconteceu com uma solicitação e seus itens, inclusive nas linhas da ata/OS que ela gerou. */
 export async function linhaDoTempoSolicitacao(usuario: UsuarioAtual, solicitacaoId: string) {
-  const s = await obterSolicitacao(usuario, solicitacaoId); // valida acesso (área)
+  // Mesma leitura memoizada da página da solicitação: a consulta não se repete na requisição.
+  const s = await obterSolicitacaoMemo(usuario, solicitacaoId); // valida acesso (área)
   const db = await getDb();
   const itemIds = s.itens.map((i) => i.id);
   const linhas = itemIds.length ? await db.select({ id: eventoItens.id, itemId: eventoItens.solicitacaoItemId }).from(eventoItens).where(inArray(eventoItens.solicitacaoItemId, itemIds)) : [];

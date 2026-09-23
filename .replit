@@ -7,6 +7,9 @@ run = "npm run db:migrate && npm run build && npm run start"
 [nix]
 channel = "stable-24_11"
 
+# Secrets do deployment: APP_URL e CRON_SECRET (avisos agendados em /api/cron/verificacoes).
+# Backup diário (npm run backup) e o curl dos avisos rodam como Scheduled Deployments: docs/operacao.md.
+# O módulo postgresql-16 acima fornece pg_dump/psql para o backup e a restauração.
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]

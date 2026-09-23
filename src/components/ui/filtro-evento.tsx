@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ComboBox } from "./combobox";
 import { Button } from "./button";
+import { useSinalizarNavegacao } from "./navegacao";
 
 /**
  * Filtro por evento que aguenta centenas de eventos: campo com busca (nome ou código) em vez de
@@ -14,6 +15,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rot
   const pathname = usePathname();
   const sp = useSearchParams();
   const [pendente, iniciar] = useTransition();
+  useSinalizarNavegacao(pendente);
   const atual = sp.get(param);
 
   const ir = (id: string | null) => {

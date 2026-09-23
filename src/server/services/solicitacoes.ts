@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, lt, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { cache } from "react";
+import { and, asc, desc, eq, gt, inArray, lt, ne, notInArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, usuarios, type AjusteBom, type ItemStatus, type SolicitacaoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -18,12 +19,13 @@ import {
   validarItem,
   validarResposta,
   type ItemRascunho,
+  type RespostaItem,
 } from "@/domain/solicitacao";
 import { diaMesISO, formatarDataHora, hojeISO } from "@/lib/format";
 import { gerarOsVersao } from "./os";
 import { snapshotBom } from "./eventos";
 import { aplicarAjustesBom } from "@/domain/os";
-import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "./support";
+import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosDaArea, usuariosLogistica, type Executor } from "./support";
 import { descricoesParaGravar, faltamDescricoes } from "@/domain/descricoes-itens";
 import { extrasPermitidosTenda } from "@/domain/tendas";
 
@@ -260,6 +262,12 @@ export async function obterSolicitacao(usuario: UsuarioAtual, id: string) {
   return s;
 }
 
+/**
+ * `obterSolicitacao` memoizada por requisição (React `cache`): a página da solicitação e a linha do
+ * tempo pedem o mesmo registro, e a consulta acontece uma vez só. Fora de uma renderização, chama direto.
+ */
+export const obterSolicitacaoMemo = cache(obterSolicitacao);
+
 /** Várias solicitações com itens em uma consulta (tela Consolidar ata), respeitando a área do usuário. */
 export async function obterSolicitacoes(usuario: UsuarioAtual, ids: string[]) {
   if (ids.length === 0) return [];
@@ -343,10 +351,11 @@ async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string,
   const s = await ex.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { evento: true, itens: true, area: true } });
   if (!s) throw new NaoEncontradoError("Solicitação");
   if (!podeEditarSolicitacao(usuario, s)) throw new SemPermissaoError("Só usuários da área da solicitação podem editá-la.");
-  if (!podeEnviar(s.status)) throw new DomainError("Esta solicitação não está mais em rascunho.");
+  // Antes do status: o encerramento cancela rascunhos e devolvidas, e o motivo real é o evento fechado.
   if (!opcoes.permitirEventoFechado && (s.evento.status === "ENCERRADO" || s.evento.status === "CANCELADO")) {
     throw new DomainError(`O evento está ${s.evento.status === "CANCELADO" ? "cancelado" : "encerrado"} e não aceita mais alterações neste rascunho.`);
   }
+  if (!podeEnviar(s.status)) throw new DomainError("Esta solicitação não está mais em rascunho.");
   return s;
 }
 
@@ -524,14 +533,8 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
  * Retorna quantos itens entraram.
  */
 export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string) {
-  const pendentes = await tx
-    .select({ id: solicitacaoItens.id })
-    .from(solicitacaoItens)
-    .where(and(eq(solicitacaoItens.solicitacaoId, solicitacaoId), eq(solicitacaoItens.status, "EM_ANALISE")))
-    .orderBy(asc(solicitacaoItens.ordem));
-  for (const item of pendentes) {
-    await responderNaTransacao(tx, usuario, item.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
-  }
+  // Em lote: mesmo resultado de responder "atendido" item a item.
+  const { pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId);
   if (pendentes.length) {
     const ids = pendentes.map((p) => p.id);
     await tx
@@ -668,14 +671,16 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
 export async function cancelarSolicitacao(usuario: UsuarioAtual, id: string, motivo: string | null) {
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const s = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { itens: true, evento: { columns: { status: true } } } });
+    const previa = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), columns: { eventoId: true, areaId: true } });
+    if (!previa) throw new NaoEncontradoError("Solicitação");
+    if (!podeEditarSolicitacao(usuario, previa)) throw new SemPermissaoError();
+    // Status lido depois da trava: uma resposta ou devolução em andamento termina antes.
+    await bloquearEvento(tx, previa.eventoId);
+    const s = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, id), with: { itens: { columns: { status: true } }, evento: { columns: { status: true, nome: true } }, area: { columns: { nome: true } } } });
     if (!s) throw new NaoEncontradoError("Solicitação");
-    if (!podeEditarSolicitacao(usuario, s)) throw new SemPermissaoError();
     if (s.evento.status === "ENCERRADO" || s.evento.status === "CANCELADO") throw new DomainError("O evento já foi encerrado; a solicitação não muda mais.");
-    await bloquearEvento(tx, s.eventoId);
-    const atual = await tx.query.solicitacaoItens.findMany({ where: eq(solicitacaoItens.solicitacaoId, id), columns: { status: true } });
-    const algumRespondido = atual.some((i) => i.status !== "EM_ANALISE");
-    if (!podeCancelar(s.status, algumRespondido)) throw new DomainError("A solicitação já começou a ser respondida e não pode mais ser cancelada.");
+    const algumRespondido = s.itens.some((i) => i.status !== "EM_ANALISE");
+    if (!podeCancelar(s.status, algumRespondido, s.evento.status)) throw new DomainError("A solicitação já começou a ser respondida e não pode mais ser cancelada.");
     await tx.update(solicitacoes).set({ status: "CANCELADA", canceladaEm: new Date(), canceladaMotivo: motivo, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, id));
     await registrarHistorico(tx, {
       eventoId: s.eventoId,
@@ -685,6 +690,17 @@ export async function cancelarSolicitacao(usuario: UsuarioAtual, id: string, mot
       descricao: `${s.codigo} cancelada pelo solicitante${motivo ? ` — ${motivo}` : ""}`,
       usuarioId: usuario.id,
     });
+    // Já estava na fila da logística (enviada, ou devolvida esperando o reenvio): ela precisa saber que saiu.
+    if (s.status === "ENVIADA" || s.status === "DEVOLVIDA") {
+      await notificar(tx, {
+        usuarioIds: await usuariosLogistica(tx),
+        tipo: "SOLICITACAO_CANCELADA",
+        titulo: `${s.codigo} cancelada pela ${s.area.nome}`,
+        mensagem: `${s.evento.nome}${s.titulo ? ` · ${s.titulo}` : ""}. ${motivo ? `Motivo: ${motivo}` : "Cancelada pela área antes da resposta."} Saiu da fila de resposta.`,
+        link: `/solicitacoes/${id}`,
+        excetoUsuarioId: usuario.id,
+      });
+    }
   });
 }
 
@@ -718,6 +734,33 @@ export async function devolverSolicitacao(usuario: UsuarioAtual, id: string, mot
 
 type Resposta = { status: ItemStatus; quantidadeAtendida?: number | null; observacaoLogistica?: string | null; pendenciaCompra?: boolean };
 type ItemComStatus = typeof solicitacaoItens.$inferSelect;
+type Snapshot = Awaited<ReturnType<typeof snapshotBom>>;
+type ObterSnapshot = (projetoId: string, versaoId: string | null) => Promise<Snapshot>;
+
+/** Ações do histórico da linha que não mudam o que ela é (a conferência só marca). */
+const ACOES_SO_CONFERENCIA = ["CONFERIDO", "CONFERENCIA_DESFEITA"];
+
+/** Valores da linha da ata que a resposta a um item "adicionar" cria. */
+async function valoresLinhaNova(usuario: UsuarioAtual, s: { eventoId: string; areaId: string }, item: ItemComStatus, quantidade: number, snap: ObterSnapshot): Promise<typeof eventoItens.$inferInsert> {
+  const base = { eventoId: s.eventoId, quantidade, destino: item.destino, areaId: s.areaId, origem: "SOLICITACAO" as const, solicitacaoItemId: item.id, criadoPorId: usuario.id };
+  if (item.projetoId) {
+    // A versão pedida pela área (MEL-02 atualiza depois, de propósito).
+    const sn = await snap(item.projetoId, item.projetoVersaoId);
+    return { ...base, tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: sn.versaoId, bomSnapshot: aplicarAjustesBom(sn.bom, item.ajustesBom) };
+  }
+  if (item.pecaId) return { ...base, tipo: "PECA", pecaId: item.pecaId };
+  return { ...base, tipo: "AVULSO", descricaoLivre: item.descricaoLivre };
+}
+
+/** Linha descrita à mão que foi vinculada ao catálogo enquanto estava fora da ata volta já com a referência. */
+async function referenciaAoVoltar(item: ItemComStatus, linha: { tipo: string }, ativa: boolean, snap: ObterSnapshot): Promise<Partial<typeof eventoItens.$inferInsert>> {
+  if (!ativa || linha.tipo !== "AVULSO" || item.operacao !== "ADICIONAR" || !(item.projetoId || item.pecaId)) return {};
+  if (item.projetoId) {
+    const sn = await snap(item.projetoId, item.projetoVersaoId);
+    return { tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: sn.versaoId, bomSnapshot: aplicarAjustesBom(sn.bom, item.ajustesBom) };
+  }
+  return { tipo: "PECA", pecaId: item.pecaId };
+}
 
 /**
  * Aplica na linha da ata a mudança de estado de um item (resposta, correção ou desfazer = EM_ANALISE).
@@ -728,31 +771,17 @@ async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId:
   const idLinha = item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : item.eventoItemId;
   const linha = idLinha ? await tx.query.eventoItens.findFirst({ where: eq(eventoItens.id, idLinha) }) : null;
   const efeito = calcularEfeitoLinha(item, novo, linha ? { ativo: linha.ativo, quantidade: linha.quantidade } : null);
+  const snap: ObterSnapshot = (projetoId, versaoId) => snapshotBom(tx, projetoId, versaoId);
 
   if (efeito.acao === "criar") {
-    const base = { eventoId: s.eventoId, quantidade: efeito.quantidade, destino: item.destino, areaId: s.areaId, origem: "SOLICITACAO" as const, solicitacaoItemId: item.id, criadoPorId: usuario.id };
-    let valores: typeof eventoItens.$inferInsert;
-    if (item.projetoId) {
-      // A versão pedida pela área (MEL-02 atualiza depois, de propósito).
-      const snap = await snapshotBom(tx, item.projetoId, item.projetoVersaoId);
-      valores = { ...base, tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, item.ajustesBom) };
-    } else if (item.pecaId) {
-      valores = { ...base, tipo: "PECA", pecaId: item.pecaId };
-    } else {
-      valores = { ...base, tipo: "AVULSO", descricaoLivre: item.descricaoLivre };
-    }
-    const [nova] = await tx.insert(eventoItens).values(valores).returning({ id: eventoItens.id });
+    const [nova] = await tx
+      .insert(eventoItens)
+      .values(await valoresLinhaNova(usuario, s, item, efeito.quantidade, snap))
+      .returning({ id: eventoItens.id });
     return { eventoItemGeradoId: nova.id, quantidadeAnterior: null };
   }
   if (efeito.acao === "atualizar" && linha) {
-    // Linha descrita à mão que foi vinculada ao catálogo enquanto estava fora da ata volta já com a referência.
-    let referencia: Partial<typeof eventoItens.$inferInsert> = {};
-    if (efeito.ativo && linha.tipo === "AVULSO" && item.operacao === "ADICIONAR" && (item.projetoId || item.pecaId)) {
-      if (item.projetoId) {
-        const snap = await snapshotBom(tx, item.projetoId, item.projetoVersaoId);
-        referencia = { tipo: "PROJETO", projetoId: item.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, item.ajustesBom) };
-      } else referencia = { tipo: "PECA", pecaId: item.pecaId };
-    }
+    const referencia = await referenciaAoVoltar(item, linha, efeito.ativo, snap);
     // Quantidade mudou: a conferência da reunião precisa ser refeita (depois da ata, o campo não importa).
     await tx
       .update(eventoItens)
@@ -779,8 +808,25 @@ async function eventoDoItem(tx: Executor, itemId: string) {
   return r.eventoId;
 }
 
-/** Responde um item dentro de uma transação que já travou o evento. */
-export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, itemId: string, resposta: Resposta, justificativaCorrecao: string | null | undefined, opcoes: { gerarOs: boolean; notificar: boolean }) {
+/** Texto do histórico de uma resposta: o mesmo na resposta item a item e no "atender tudo". */
+function descricaoResposta(codigo: string, desc: string, r: RespostaItem, quantidadeSolicitada: number, justificativaCorrecao: string | null) {
+  const extras = [r.observacaoLogistica, justificativaCorrecao ? `correção: ${justificativaCorrecao}` : null].filter(Boolean);
+  return `${codigo} · ${desc}: ${ITEM_STATUS_LABEL[r.status].toLowerCase()} (${r.quantidadeAtendida} de ${quantidadeSolicitada})${extras.length ? ` — ${extras.join(" · ")}` : ""}`;
+}
+
+/**
+ * Responde um item dentro de uma transação que já travou o evento.
+ * `ignorarFase`: só para o ajuste de linha da ata (conferencia.ts), que já conferiu a fase do evento —
+ * depois do fechamento, a linha de uma necessidade pré-reunião também é corrigida por aqui.
+ */
+export async function responderNaTransacao(
+  tx: Executor,
+  usuario: UsuarioAtual,
+  itemId: string,
+  resposta: Resposta,
+  justificativaCorrecao: string | null | undefined,
+  opcoes: { gerarOs: boolean; notificar: boolean; ignorarFase?: boolean },
+) {
   const item = await tx.query.solicitacaoItens.findFirst({
     where: eq(solicitacaoItens.id, itemId),
     with: { projeto: true, peca: true, eventoItem: { with: { projeto: true, peca: true } } },
@@ -796,7 +842,7 @@ export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, 
   } else if (!podeResponder(s.status)) {
     throw new DomainError("A solicitação não está aguardando resposta.");
   }
-  verificarFaseResposta(s);
+  if (!opcoes.ignorarFase) verificarFaseResposta(s);
 
   const linhaAtual = item.operacao === "ALTERAR_QUANTIDADE" && item.eventoItemId ? await tx.query.eventoItens.findFirst({ where: eq(eventoItens.id, item.eventoItemId), columns: { quantidade: true } }) : null;
   const r = validarResposta(item, resposta, linhaAtual?.quantidade ?? null);
@@ -827,9 +873,7 @@ export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, 
     entidade: "solicitacao_item",
     entidadeId: itemId,
     acao: correcao ? "RESPOSTA_CORRIGIDA" : "RESPONDIDO",
-    descricao: `${s.codigo} · ${desc}: ${ITEM_STATUS_LABEL[r.status].toLowerCase()} (${r.quantidadeAtendida} de ${item.quantidadeSolicitada})${
-      r.observacaoLogistica || correcao ? ` — ${[r.observacaoLogistica, correcao ? `correção: ${justificativaCorrecao}` : null].filter(Boolean).join(" · ")}` : ""
-    }`,
+    descricao: descricaoResposta(s.codigo, desc, r, item.quantidadeSolicitada, correcao ? (justificativaCorrecao ?? null) : null),
     usuarioId: usuario.id,
     dadosAntes: correcao ? { status: item.status, quantidadeAtendida: item.quantidadeAtendida, observacaoLogistica: item.observacaoLogistica } : null,
     dadosDepois: r,
@@ -854,6 +898,144 @@ export async function responderNaTransacao(tx: Executor, usuario: UsuarioAtual, 
   return { status: novoStatus, codigo: s.codigo, descricao: desc, podeDesfazer: !correcao, solicitacaoId: s.id, eventoId: s.eventoId, tipo: s.tipo, criadoPorId: s.criadoPorId, areaId: s.areaId };
 }
 
+/**
+ * Responde como atendidos, de uma vez, todos os itens ainda em análise de uma solicitação, numa
+ * transação que já travou o evento. Mesmo resultado de chamar `responderNaTransacao(…ATENDIDO…)` item a
+ * item, na ordem dos itens (mesmo efeito na ata, mesmo histórico, mesmo status), mas em poucas idas ao
+ * banco com o evento travado: linhas novas num insert, linhas existentes em dois updates, itens num
+ * update e o histórico num insert. A versão da OS e o aviso à área ficam com quem chama (uma vez só).
+ */
+async function atenderPendentesNaTransacao(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string) {
+  const s = await tx.query.solicitacoes.findFirst({
+    where: and(eq(solicitacoes.id, solicitacaoId), eq(solicitacoes.excluida, false)),
+    with: {
+      evento: { columns: { status: true } },
+      itens: { with: { projeto: true, peca: true, eventoItem: { with: { projeto: true, peca: true } } }, orderBy: [asc(solicitacaoItens.ordem), asc(solicitacaoItens.criadoEm)] },
+    },
+  });
+  if (!s) throw new NaoEncontradoError("Solicitação");
+  const pendentes = s.itens.filter((i) => i.status === "EM_ANALISE");
+  if (pendentes.length === 0) return { s, pendentes };
+  if (!podeResponder(s.status)) throw new DomainError("A solicitação não está aguardando resposta.");
+  verificarFaseResposta(s);
+
+  // Estado das linhas afetadas, lido uma vez e atualizado em memória item a item (como a sequência faria no banco).
+  const idLinha = (i: ItemComStatus) => (i.operacao === "ADICIONAR" ? i.eventoItemGeradoId : i.eventoItemId);
+  const ids = [...new Set(pendentes.map(idLinha).filter((x): x is string => Boolean(x)))];
+  const lidas = ids.length ? await tx.query.eventoItens.findMany({ where: inArray(eventoItens.id, ids), columns: { id: true, ativo: true, quantidade: true, tipo: true } }) : [];
+  const linhas = new Map(lidas.map((l) => [l.id, { ativo: l.ativo, quantidade: l.quantidade, tipo: l.tipo as string }]));
+  const mudadas = new Map<string, { ativo: boolean; quantidade: number; referencia: Partial<typeof eventoItens.$inferInsert> }>();
+  const cacheSnap = new Map<string, Promise<Snapshot>>();
+  const snap: ObterSnapshot = (projetoId, versaoId) => {
+    const k = `${projetoId}:${versaoId ?? ""}`;
+    if (!cacheSnap.has(k)) cacheSnap.set(k, snapshotBom(tx, projetoId, versaoId));
+    return cacheSnap.get(k)!;
+  };
+
+  const respostas = new Map<string, RespostaItem>();
+  const vinculo = new Map<string, { eventoItemGeradoId: string | null; quantidadeAnterior: number | null }>();
+  const novas: Array<typeof eventoItens.$inferInsert> = [];
+  for (const item of pendentes) {
+    const lid = idLinha(item);
+    const atual = lid ? (linhas.get(lid) ?? null) : null;
+    const r = validarResposta(item, { status: "ATENDIDO" }, item.operacao === "ALTERAR_QUANTIDADE" ? (atual?.quantidade ?? null) : null);
+    respostas.set(item.id, r);
+    const efeito = calcularEfeitoLinha(item, r, atual ? { ativo: atual.ativo, quantidade: atual.quantidade } : null);
+    if (efeito.acao === "criar") {
+      novas.push(await valoresLinhaNova(usuario, s, item, efeito.quantidade, snap));
+      vinculo.set(item.id, { eventoItemGeradoId: null, quantidadeAnterior: null });
+      continue;
+    }
+    if (efeito.acao === "atualizar" && lid && atual) {
+      const referencia = await referenciaAoVoltar(item, atual, efeito.ativo, snap);
+      linhas.set(lid, { ativo: efeito.ativo, quantidade: efeito.quantidade, tipo: (referencia.tipo as string | undefined) ?? atual.tipo });
+      mudadas.set(lid, { ativo: efeito.ativo, quantidade: efeito.quantidade, referencia: { ...(mudadas.get(lid)?.referencia ?? {}), ...referencia } });
+    }
+    vinculo.set(item.id, { eventoItemGeradoId: item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : (item.eventoItemId ?? null), quantidadeAnterior: efeito.quantidadeAnterior });
+  }
+
+  // Linhas da ata: novas num insert; existentes num update para as que saem e noutro para as que ficam.
+  if (novas.length) {
+    const criadas = await tx.insert(eventoItens).values(novas).returning({ id: eventoItens.id, solicitacaoItemId: eventoItens.solicitacaoItemId });
+    for (const c of criadas) if (c.solicitacaoItemId) vinculo.set(c.solicitacaoItemId, { eventoItemGeradoId: c.id, quantidadeAnterior: null });
+  }
+  const agora = new Date();
+  const saem = [...mudadas].filter(([, m]) => !m.ativo).map(([id]) => id);
+  const ficam = [...mudadas].filter(([, m]) => m.ativo);
+  if (saem.length) {
+    await tx.update(eventoItens).set({ ativo: false, removidoEm: agora, removidoPorId: usuario.id, conferidoEm: null, conferidoPorId: null }).where(inArray(eventoItens.id, saem));
+  }
+  if (ficam.length) {
+    const quantidade = sql`case ${eventoItens.id} ${sql.join(
+      ficam.map(([id, m]) => sql`when ${id} then ${m.quantidade}::integer`),
+      sql` `,
+    )} else ${eventoItens.quantidade} end`;
+    await tx
+      .update(eventoItens)
+      .set({ ativo: true, quantidade, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null })
+      .where(
+        inArray(
+          eventoItens.id,
+          ficam.map(([id]) => id),
+        ),
+      );
+    // Raro: linha descrita à mão vinculada ao catálogo enquanto estava fora da ata.
+    for (const [id, m] of ficam) if (Object.keys(m.referencia).length) await tx.update(eventoItens).set(m.referencia).where(eq(eventoItens.id, id));
+  }
+
+  // Itens: um update só (a quantidade atendida de "atendido" é a solicitada).
+  const porItem = (valor: (v: { eventoItemGeradoId: string | null; quantidadeAnterior: number | null }) => string | number | null, tipo: "text" | "integer", coluna: typeof solicitacaoItens.eventoItemGeradoId | typeof solicitacaoItens.quantidadeAnterior) =>
+    sql`case ${solicitacaoItens.id} ${sql.join(
+      pendentes.map((i) => sql`when ${i.id} then ${valor(vinculo.get(i.id)!)}::${sql.raw(tipo)}`),
+      sql` `,
+    )} else ${coluna} end`;
+  await tx
+    .update(solicitacaoItens)
+    .set({
+      status: "ATENDIDO",
+      quantidadeAtendida: sql`${solicitacaoItens.quantidadeSolicitada}`,
+      observacaoLogistica: null,
+      pendenciaCompra: false,
+      respondidoPorId: usuario.id,
+      respondidoEm: agora,
+      eventoItemGeradoId: porItem((v) => v.eventoItemGeradoId, "text", solicitacaoItens.eventoItemGeradoId),
+      quantidadeAnterior: porItem((v) => v.quantidadeAnterior, "integer", solicitacaoItens.quantidadeAnterior),
+    })
+    .where(
+      and(
+        inArray(
+          solicitacaoItens.id,
+          pendentes.map((i) => i.id),
+        ),
+        eq(solicitacaoItens.status, "EM_ANALISE"),
+      ),
+    );
+
+  const novoStatus = statusAposResposta(s.itens.map((i) => ({ status: respostas.get(i.id)?.status ?? i.status })));
+  await tx
+    .update(solicitacoes)
+    .set({ status: novoStatus, respondidaEm: novoStatus === "RESPONDIDA" ? agora : null, atualizadoPorId: usuario.id })
+    .where(eq(solicitacoes.id, s.id));
+
+  await registrarHistoricos(
+    tx,
+    pendentes.map((i) => {
+      const r = respostas.get(i.id)!;
+      return {
+        eventoId: s.eventoId,
+        entidade: "solicitacao_item",
+        entidadeId: i.id,
+        acao: "RESPONDIDO",
+        descricao: descricaoResposta(s.codigo, descricaoItem(i), r, i.quantidadeSolicitada, null),
+        usuarioId: usuario.id,
+        dadosAntes: null,
+        dadosDepois: r,
+      };
+    }),
+  );
+  return { s, pendentes, status: novoStatus };
+}
+
 export async function responderItem(usuario: UsuarioAtual, itemId: string, resposta: Resposta, justificativaCorrecao?: string | null) {
   exigir(usuario, "solicitacao.responder");
   const db = await getDb();
@@ -866,34 +1048,27 @@ export async function responderItem(usuario: UsuarioAtual, itemId: string, respo
 
 /**
  * "Atender tudo": responde como atendido todos os itens ainda em análise, numa transação só
- * (ou todos, ou nenhum), com uma única versão de OS e um único aviso para a área.
+ * (ou todos, ou nenhum), em lote, com uma única versão de OS e um único aviso para a área.
  */
 export async function atenderTudo(usuario: UsuarioAtual, solicitacaoId: string) {
   exigir(usuario, "solicitacao.responder");
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const s = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, solicitacaoId), eq(solicitacoes.excluida, false)), columns: { eventoId: true } });
-    if (!s) throw new NaoEncontradoError("Solicitação");
-    await bloquearEvento(tx, s.eventoId);
-    const pendentes = await tx
-      .select({ id: solicitacaoItens.id })
-      .from(solicitacaoItens)
-      .where(and(eq(solicitacaoItens.solicitacaoId, solicitacaoId), eq(solicitacaoItens.status, "EM_ANALISE")))
-      .orderBy(asc(solicitacaoItens.ordem));
-    if (!pendentes.length) throw new DomainError("Todos os itens já foram respondidos.");
-    let ultimo: Awaited<ReturnType<typeof responderNaTransacao>> | null = null;
-    for (const i of pendentes) ultimo = await responderNaTransacao(tx, usuario, i.id, { status: "ATENDIDO" }, null, { gerarOs: false, notificar: false });
-    if (!ultimo) return 0;
+    const previa = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, solicitacaoId), eq(solicitacoes.excluida, false)), columns: { eventoId: true } });
+    if (!previa) throw new NaoEncontradoError("Solicitação");
+    await bloquearEvento(tx, previa.eventoId);
+    const { s, pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId);
     const n = pendentes.length;
-    if (ultimo.tipo === "ALTERACAO") {
-      await gerarOsVersao(tx, ultimo.eventoId, "RESPOSTA_SOLICITACAO", usuario.id, `${ultimo.codigo} · ${n} ${n === 1 ? "item atendido" : "itens atendidos"}`);
+    if (!n) throw new DomainError("Todos os itens já foram respondidos.");
+    if (s.tipo === "ALTERACAO") {
+      await gerarOsVersao(tx, s.eventoId, "RESPOSTA_SOLICITACAO", usuario.id, `${s.codigo} · ${n} ${n === 1 ? "item atendido" : "itens atendidos"}`);
     }
     await notificar(tx, {
-      usuarioIds: [ultimo.criadoPorId, ...(await usuariosDaArea(tx, ultimo.areaId))],
+      usuarioIds: [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))],
       tipo: "ITEM_RESPONDIDO",
-      titulo: `${ultimo.codigo}: ${n} ${n === 1 ? "item atendido" : "itens atendidos"}`,
+      titulo: `${s.codigo}: ${n} ${n === 1 ? "item atendido" : "itens atendidos"}`,
       mensagem: "A logística atendeu integralmente os itens que estavam em análise.",
-      link: `/solicitacoes/${ultimo.solicitacaoId}`,
+      link: `/solicitacoes/${s.id}`,
     });
     return n;
   });
@@ -901,7 +1076,8 @@ export async function atenderTudo(usuario: UsuarioAtual, solicitacaoId: string) 
 
 /**
  * Desfaz a primeira resposta a um item (toast "Desfazer"): só o autor, dentro da janela,
- * e só quando a última ação sobre o item foi essa resposta. Correções não são desfeitas
+ * e só quando a última ação sobre o item foi essa resposta e a linha da ata ligada a ele não foi
+ * mexida depois (ajuste de quantidade, remoção, peças, versão, vínculo). Correções não são desfeitas
  * por aqui — use "Corrigir".
  */
 export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
@@ -922,6 +1098,16 @@ export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
       .limit(1);
     if (item.status === "EM_ANALISE" || !ultimo || ultimo.acao !== "RESPONDIDO" || ultimo.usuarioId !== usuario.id || Date.now() - ultimo.criadoEm.getTime() > JANELA_DESFAZER_MS) {
       throw new DomainError("Esta resposta não pode mais ser desfeita. Use “Corrigir”.");
+    }
+    // A linha da ata ligada ao item mudou depois da resposta: desfazer apagaria (ou inverteria) esse ajuste.
+    const idLinha = item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : item.eventoItemId;
+    if (idLinha) {
+      const [mexida] = await tx
+        .select({ id: historico.id })
+        .from(historico)
+        .where(and(eq(historico.entidade, "evento_item"), eq(historico.entidadeId, idLinha), gt(historico.criadoEm, ultimo.criadoEm), notInArray(historico.acao, ACOES_SO_CONFERENCIA)))
+        .limit(1);
+      if (mexida) throw new DomainError("A linha da ata ligada a este item foi alterada ou removida depois da resposta. Use “Corrigir”.");
     }
     const s = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, item.solicitacaoId), with: { evento: true, itens: true } });
     if (!s) throw new NaoEncontradoError("Solicitação");
@@ -960,22 +1146,110 @@ export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
 /* Pendências de compra/locação (RV-11)                                 */
 /* ------------------------------------------------------------------ */
 
-export async function listarPendenciasCompra(usuario: UsuarioAtual) {
+/**
+ * Itens com pendência de compra/locação em aberto (resposta parcial ou não atendida marcada pela
+ * logística), de eventos não cancelados. `eventoId` filtra no banco.
+ */
+export async function listarPendenciasCompra(usuario: UsuarioAtual, filtro: { eventoId?: string | null } = {}) {
   exigir(usuario, "pendencias.ver");
   const db = await getDb();
   const rows = await db.query.solicitacaoItens.findMany({
     // Solicitação excluída e evento cancelado saem já no banco (antes: filtro em memória).
     where: and(
       eq(solicitacaoItens.pendenciaCompra, true),
-      sql`${solicitacaoItens.solicitacaoId} in (select s.id from solicitacoes s join eventos e on e.id = s.evento_id where not s.excluida and e.status <> 'CANCELADO')`,
+      filtro.eventoId
+        ? sql`${solicitacaoItens.solicitacaoId} in (select s.id from solicitacoes s join eventos e on e.id = s.evento_id where not s.excluida and e.status <> 'CANCELADO' and e.id = ${filtro.eventoId})`
+        : sql`${solicitacaoItens.solicitacaoId} in (select s.id from solicitacoes s join eventos e on e.id = s.evento_id where not s.excluida and e.status <> 'CANCELADO')`,
     ),
     with: {
       solicitacao: { with: { evento: { columns: { id: true, codigo: true, nome: true, status: true, dataMontagem: true } }, area: true } },
       projeto: true,
       peca: true,
       eventoItem: { with: { projeto: true, peca: true } },
+      respondidoPor: { columns: { id: true, nome: true } },
     },
     orderBy: [desc(solicitacaoItens.respondidoEm)],
   });
   return rows.map((r) => ({ ...r, descricao: descricaoItem(r), faltante: r.quantidadeSolicitada - (r.quantidadeAtendida ?? 0) }));
+}
+
+export type PendenciaCompra = Awaited<ReturnType<typeof listarPendenciasCompra>>[number];
+
+/** Pendências já resolvidas (registro no histórico), mais recentes primeiro. */
+export async function listarPendenciasResolvidas(usuario: UsuarioAtual, filtro: { eventoId?: string | null; limite?: number } = {}) {
+  exigir(usuario, "pendencias.ver");
+  const db = await getDb();
+  const rows = await db
+    .select({
+      id: historico.id,
+      itemId: historico.entidadeId,
+      criadoEm: historico.criadoEm,
+      dados: historico.dadosDepois,
+      por: usuarios.nome,
+      solicitacaoId: solicitacoes.id,
+      codigo: solicitacoes.codigo,
+      eventoId: eventos.id,
+      eventoCodigo: eventos.codigo,
+      eventoNome: eventos.nome,
+      area: areas.nome,
+    })
+    .from(historico)
+    .innerJoin(solicitacaoItens, eq(solicitacaoItens.id, historico.entidadeId))
+    .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
+    .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
+    .innerJoin(areas, eq(solicitacoes.areaId, areas.id))
+    .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
+    .where(and(eq(historico.entidade, "solicitacao_item"), eq(historico.acao, "PENDENCIA_RESOLVIDA"), filtro.eventoId ? eq(eventos.id, filtro.eventoId) : undefined))
+    .orderBy(desc(historico.criadoEm))
+    .limit(filtro.limite ?? 500);
+  return rows.map((r) => {
+    const d = (r.dados ?? {}) as { descricao?: string; faltante?: number; resolucao?: string };
+    return { ...r, descricao: d.descricao ?? "Item", faltante: d.faltante ?? null, resolucao: d.resolucao ?? "" };
+  });
+}
+
+/**
+ * "Marcar como resolvida": a compra/locação foi providenciada. Sem coluna própria: a pendência sai
+ * (`pendenciaCompra = false`), a observação da logística ganha "Compra resolvida: …" e o registro
+ * fica no histórico do item (que alimenta a aba "Resolvidas"). A área que pediu é avisada.
+ */
+export async function resolverPendenciaCompra(usuario: UsuarioAtual, itemId: string, observacao: string) {
+  exigir(usuario, "pendencias.resolver");
+  const obs = observacao?.trim() ?? "";
+  if (!obs) throw new ValidacaoError("Conte como a compra ou locação foi resolvida.", { justificativa: "Obrigatória: fica no histórico do item." });
+  if (obs.length > 500) throw new ValidacaoError("A observação deve ter no máximo 500 caracteres.", { justificativa: "Máximo de 500 caracteres." });
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    // Mesma trava das respostas: uma correção ao mesmo tempo não desfaz a resolução (nem o contrário).
+    await bloquearEvento(tx, await eventoDoItem(tx, itemId));
+    const item = await tx.query.solicitacaoItens.findFirst({
+      where: eq(solicitacaoItens.id, itemId),
+      with: { projeto: true, peca: true, eventoItem: { with: { projeto: true, peca: true } }, solicitacao: { columns: { id: true, codigo: true, eventoId: true, areaId: true, criadoPorId: true, excluida: true } } },
+    });
+    if (!item || item.solicitacao.excluida) throw new NaoEncontradoError("Item");
+    if (!item.pendenciaCompra) throw new DomainError("Esta pendência já foi resolvida (ou a resposta do item mudou). Atualize a lista.");
+    const desc = descricaoItem(item);
+    const faltante = item.quantidadeSolicitada - (item.quantidadeAtendida ?? 0);
+    const observacaoLogistica = [item.observacaoLogistica, `Compra resolvida: ${obs}`].filter(Boolean).join(" · ");
+    await tx.update(solicitacaoItens).set({ pendenciaCompra: false, observacaoLogistica }).where(eq(solicitacaoItens.id, itemId));
+    await registrarHistorico(tx, {
+      eventoId: item.solicitacao.eventoId,
+      entidade: "solicitacao_item",
+      entidadeId: itemId,
+      acao: "PENDENCIA_RESOLVIDA",
+      descricao: `${item.solicitacao.codigo} · ${desc}: pendência de compra resolvida — ${obs}`,
+      usuarioId: usuario.id,
+      dadosAntes: { pendenciaCompra: true, observacaoLogistica: item.observacaoLogistica },
+      dadosDepois: { pendenciaCompra: false, observacaoLogistica, resolucao: obs, descricao: desc, faltante },
+    });
+    await notificar(tx, {
+      usuarioIds: [item.solicitacao.criadoPorId, ...(await usuariosDaArea(tx, item.solicitacao.areaId))],
+      tipo: "PENDENCIA_RESOLVIDA",
+      titulo: `${item.solicitacao.codigo}: compra resolvida`,
+      mensagem: `${desc} — ${obs}`,
+      link: `/solicitacoes/${item.solicitacao.id}`,
+      excetoUsuarioId: usuario.id,
+    });
+    return { codigo: item.solicitacao.codigo, descricao: desc, solicitacaoId: item.solicitacao.id };
+  });
 }

@@ -1,12 +1,13 @@
 import { Children, cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
+import { Icone } from "./icons";
 
-/* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). */
+/* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). Foco: borda da marca (o anel global fica só no teclado). */
 const base =
-  "w-full rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
+  "w-full rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink transition-colors duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cn(base, "h-[34px]", className)} {...rest} />;
+  return <input ref={ref} className={cn(base, "h-[34px] max-md:h-10", className)} {...rest} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
@@ -75,7 +76,8 @@ export function Field({
       )}
       {campo}
       {error ? (
-        <span id={idMensagem} className="mt-[5px] block text-pequeno text-danger">
+        <span id={idMensagem} className="mt-[5px] flex items-start gap-1 text-pequeno text-danger">
+          <Icone nome="erro" className="mt-px size-4" />
           {error}
         </span>
       ) : hint ? (
@@ -105,7 +107,7 @@ export function Checkbox({
   description?: string;
 }) {
   return (
-    <label htmlFor={id} className="flex cursor-pointer items-start gap-2 text-pequeno text-ink-2">
+    <label htmlFor={id} className="flex cursor-pointer items-start gap-2 text-pequeno text-ink-2 max-md:min-h-10 max-md:py-2">
       <input
         id={id}
         name={name}
@@ -113,7 +115,7 @@ export function Checkbox({
         defaultChecked={defaultChecked}
         checked={checked}
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
-        className="mt-[2px] size-[15px] shrink-0 accent-accent"
+        className="mt-[2px] size-4 shrink-0 cursor-pointer accent-accent"
       />
       <span>
         {label}
@@ -126,8 +128,9 @@ export function Checkbox({
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
   return (
-    <div role="alert" className="rounded-controle border border-danger-border bg-danger-bg px-4 py-3 text-corpo text-danger">
-      {message}
+    <div role="alert" className="flex items-start gap-2.5 rounded-controle border border-danger-border bg-danger-bg px-4 py-3 text-corpo text-danger">
+      <Icone nome="erro" className="mt-0.5" />
+      <span className="min-w-0">{message}</span>
     </div>
   );
 }

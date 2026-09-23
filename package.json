@@ -17,7 +17,9 @@
     "db:dados": "tsx scripts/registrar-pre-reuniao.ts",
     "test:smoke": "tsx scripts/smoke.ts",
     "importar:catalogo": "tsx scripts/importar-catalogo.ts",
-    "admin:senha": "tsx scripts/admin-senha.ts"
+    "admin:senha": "tsx scripts/admin-senha.ts",
+    "backup": "tsx scripts/backup.ts",
+    "restaurar": "tsx scripts/restaurar.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

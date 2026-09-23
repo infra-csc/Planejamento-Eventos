@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acoesDisponiveis, aceitaSolicitacao, janelaPreReuniaoAberta, statusExibicao, transicaoPermitida } from "./evento";
+import { acoesDisponiveis, aceitaSolicitacao, janelaPreReuniaoAberta, motivoBloqueioEncerramento, statusExibicao, transicaoPermitida } from "./evento";
 import { classificarHistorico } from "./historico";
 import { prazoInfo } from "@/lib/prazo";
 import { estaAtrasada, podeCancelar, statusAposResposta, validarItem, validarResposta } from "./solicitacao";
@@ -27,6 +27,13 @@ describe("máquina de estados do evento", () => {
     expect(acoesDisponiveis("ABERTO", "ADMIN")).toEqual(["ENCERRAR", "CANCELAR"]);
     expect(podeEditarSolicitacao({ perfil: "ADMIN", areaId: null }, { areaId: "qualquer" })).toBe(true);
     expect(podeEditarSolicitacao({ perfil: "LOGISTICA", areaId: "a" }, { areaId: "a" })).toBe(false);
+  });
+  it("encerramento com pendentes: bloqueia só com a configuração ligada e não sugere devolver", () => {
+    expect(motivoBloqueioEncerramento(["SOL-0001"], true)).toMatch(/SOL-0001 está sem resposta/);
+    expect(motivoBloqueioEncerramento(["SOL-0001", "SOL-0002"], true)).toMatch(/2 solicitações sem resposta/);
+    expect(motivoBloqueioEncerramento(["SOL-0001", "SOL-0002"], true)).not.toMatch(/devolv/i);
+    expect(motivoBloqueioEncerramento(["SOL-0001"], false)).toBeNull();
+    expect(motivoBloqueioEncerramento([], true)).toBeNull();
   });
   it("aceita cada tipo de solicitação só no estado certo", () => {
     expect(aceitaSolicitacao("PREPARACAO", "PRE_REUNIAO")).toBe(true);
@@ -71,6 +78,10 @@ describe("resposta por item", () => {
     expect(podeCancelar("ENVIADA", false)).toBe(true);
     expect(podeCancelar("ENVIADA", true)).toBe(false);
     expect(podeCancelar("EM_ANALISE", true)).toBe(false);
+    // Evento encerrado ou cancelado: a solicitação não muda mais (a tela não oferece o botão).
+    expect(podeCancelar("DEVOLVIDA", false, "ENCERRADO")).toBe(false);
+    expect(podeCancelar("ENVIADA", false, "CANCELADO")).toBe(false);
+    expect(podeCancelar("ENVIADA", false, "ABERTO")).toBe(true);
   });
   it("atraso só para solicitações abertas", () => {
     const prazo = new Date("2026-09-10T10:00:00Z");
@@ -99,6 +110,11 @@ describe("permissões", () => {
     expect(pode({ perfil: "LOGISTICA", areaId: null }, "projeto.gerenciar")).toBe(false);
     expect(pode({ perfil: "GESTAO", areaId: null }, "evento.reabrir")).toBe(true);
     expect(pode({ perfil: "ADMIN", areaId: null }, "admin.usuarios")).toBe(true);
+    // Pendências de compra: a operação vê; logística (e admin) resolve.
+    expect(pode({ perfil: "GESTAO", areaId: null }, "pendencias.ver")).toBe(true);
+    expect(pode({ perfil: "GESTAO", areaId: null }, "pendencias.resolver")).toBe(false);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "pendencias.resolver")).toBe(true);
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "pendencias.ver")).toBe(false);
   });
   it("requisitante só vê e edita solicitações da própria área", () => {
     expect(podeVerSolicitacao({ perfil: "REQUISITANTE", areaId: "a" }, { areaId: "a" })).toBe(true);

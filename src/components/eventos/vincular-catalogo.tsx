@@ -5,8 +5,8 @@ import { SETORES } from "@/domain/constantes";
 import { SETOR_LABEL } from "@/domain/os";
 import { Button } from "@/components/ui/button";
 import { ComboBox } from "@/components/ui/combobox";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, Label } from "@/components/ui/field";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Field, FormError, Input, Label } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { TabsControladas } from "@/components/ui/tabs-nav";
 import { toast } from "@/components/ui/toast";
@@ -69,8 +69,8 @@ function VincularModal({ linha, opcoes, podeCadastrar, onFechar }: { linha: { li
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
       <DialogContent title="Vincular ao catálogo" description="O item passa a somar as peças certas na OS. O texto original fica guardado e quem pediu é avisado." width={520}>
         <div className="flex flex-col gap-4">
-          <div className="rounded-controle bg-warning-bg px-3.5 py-2.5 text-corpo text-ink">
-            Pedido: <span className="font-medium">“{linha.descricao}”</span> <span className="font-mono text-ink-3">× {linha.quantidade}</span>
+          <div className="rounded-controle border border-warning-border bg-warning-bg px-3.5 py-2.5 text-corpo text-ink">
+            Pedido: <span className="font-medium">“{linha.descricao}”</span> <span className="numero text-ink-3">× {linha.quantidade}</span>
           </div>
 
           <TabsControladas
@@ -119,16 +119,16 @@ function VincularModal({ linha, opcoes, podeCadastrar, onFechar }: { linha: { li
             </div>
           )}
 
-          {erro && <p className="m-0 text-pequeno text-danger">{erro}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onFechar} disabled={pendente}>
-              Cancelar
-            </Button>
-            <Button variant="primary" onClick={salvar} loading={pendente}>
-              {modo === "NOVA_PECA" ? "Cadastrar e vincular" : "Vincular"}
-            </Button>
-          </div>
+          <FormError message={erro} />
         </div>
+        <DialogFooter>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+            {modo === "NOVA_PECA" ? "Cadastrar e vincular" : "Vincular"}
+          </Button>
+          <Button variant="secondary" size="lg" onClick={onFechar} disabled={pendente}>
+            Cancelar
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

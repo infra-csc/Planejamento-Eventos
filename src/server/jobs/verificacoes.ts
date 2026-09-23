@@ -12,7 +12,8 @@ const estado = globalThis as unknown as { __npeUltimaVerificacao?: number; __npe
  * Verificações de tempo (SLA vencido, prazo próximo, lembrete de reunião) e limpeza de registros
  * expirados, no máximo a cada 5 minutos por instância. O layout dispara depois de responder
  * (`after`), então nenhum usuário espera o job. Notificações têm chave de deduplicação: rodar em
- * duas instâncias ao mesmo tempo não duplica avisos.
+ * duas instâncias ao mesmo tempo não duplica avisos. A chave inclui o prazo (ou a data da reunião):
+ * prazo novo ou reunião remarcada avisam de novo.
  */
 export async function executarVerificacoesSeNecessario() {
   const agora = Date.now();
@@ -47,7 +48,8 @@ async function verificarSlaVencido() {
       titulo: `${s.codigo} aguarda resposta com prazo vencido`,
       mensagem: `${s.area.nome} · ${s.evento.nome} · prazo vencido em ${diaMesHora(s.prazoRespostaEm)}`,
       link: `/solicitacoes/${s.id}`,
-      chaveDedupe: `sla:${s.id}`,
+      // Com o prazo na chave: solicitação devolvida e reenviada (prazo novo) volta a avisar.
+      chaveDedupe: `sla:${s.id}:${s.prazoRespostaEm?.getTime() ?? 0}`,
     });
   }
 }
@@ -78,7 +80,7 @@ async function avisoPrazoProximo() {
       titulo: `${s.codigo} vence em breve`,
       mensagem: `${s.area.nome} · ${s.evento.nome} · responder até ${formatarDataHora(s.prazoRespostaEm)}`,
       link: `/solicitacoes/${s.id}`,
-      chaveDedupe: `aviso:${s.id}`,
+      chaveDedupe: `aviso:${s.id}:${s.prazoRespostaEm?.getTime() ?? 0}`,
     });
   }
 }
@@ -123,7 +125,8 @@ async function lembreteReuniao() {
         titulo: `Reunião de OS em breve: ${ev.nome}`,
         mensagem: `A reunião é ${formatarDataHora(ev.dataReuniao)} e a área ${a.nome} ainda não enviou necessidades.`,
         link: `/eventos/${ev.id}`,
-        chaveDedupe: `lembrete:${ev.id}:${a.id}`,
+        // Com a data na chave: reunião remarcada volta a lembrar.
+        chaveDedupe: `lembrete:${ev.id}:${a.id}:${ev.dataReuniao.getTime()}`,
       });
     }
   }

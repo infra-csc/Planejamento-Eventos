@@ -12,11 +12,15 @@ import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, Section } from "@/components/ui/layout";
 import { ItemStatusBadge, Tag } from "@/components/ui/badge";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
-import { LinhaDoTempo } from "@/components/ui/linha-do-tempo";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
+import { iconeHistorico, LinhaTempoAgrupada, type TomEntrada } from "@/components/eventos/linha-tempo-agrupada";
+import type { TomLinhaTempo } from "@/server/services/linha-do-tempo";
 import { PecasProjeto } from "@/components/eventos/pecas-projeto";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 
 const TIPO = { PROJETO: "projeto padrão", PECA: "peça do catálogo", AVULSO: "fora do catálogo" } as const;
+const TOM: Record<TomLinhaTempo, TomEntrada> = { neutro: "neutro", info: "info", ok: "success", atencao: "warning", perigo: "danger" };
 
 /** `generateMetadata` e a página pedem o mesmo item: a leitura acontece uma vez por requisição. */
 const detalheLinhaCache = cache(detalheLinha);
@@ -57,21 +61,29 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
           {d.capaId && <ImagemZoom src={`/api/anexos/${d.capaId}`} alt={d.nome} className="h-14 w-[76px] shrink-0 overflow-hidden rounded-controle border border-line" />}
           <div className="min-w-0">
             <p className="m-0 mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">
-              <Link href={voltar.href} className="link text-pequeno">
-                ← {voltar.rotulo}
+              <Link href={voltar.href} className="link inline-flex items-center gap-1 text-pequeno">
+                <Icone nome="seta-esquerda" className="size-3.5" />
+                {voltar.rotulo}
               </Link>
               <Tag tom={d.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[d.tipo]}</Tag>
-              {d.posAta && <Tag tom="accent">entrou depois da ata</Tag>}
+              {d.posAta && <Tag tom="info">entrou depois da ata</Tag>}
               {d.conferidoEm && <Tag tom="success">conferido</Tag>}
             </p>
-            <h2 id="titulo-item" className="m-0 text-titulo font-semibold leading-[1.2] tracking-[-0.02em]">
+            <h2 id="titulo-item" className="m-0 text-titulo font-semibold tracking-[-0.01em]">
               {d.nome}
             </h2>
-            <p className="mb-0 mt-1.5 flex flex-wrap gap-x-cartao gap-y-1">
-              {[d.codigo ? `${d.codigo}${d.versao ? ` · v${d.versao}` : ""}` : null, d.destino ? `Destino: ${d.destino}` : null, d.area ?? "Logística", d.origemLabel]
+            <p className="mb-0 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-pequeno text-ink-3">
+              {d.codigo && (
+                <Codigo>
+                  {d.codigo}
+                  {d.versao ? ` · v${d.versao}` : ""}
+                </Codigo>
+              )}
+              {[d.destino ? `Destino: ${d.destino}` : null, d.area ?? "Logística", d.origemLabel]
                 .filter(Boolean)
-                .map((m) => (
-                  <span key={String(m)} className="text-pequeno text-ink-3">
+                .map((m, i) => (
+                  <span key={String(m)}>
+                    {(i > 0 || d.codigo) && <span aria-hidden className="mr-2 text-meta">·</span>}
                     {m}
                   </span>
                 ))}
@@ -80,7 +92,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <div className="text-right">
-            <span className="block font-mono text-metrica font-medium leading-none tracking-[-0.02em] text-ink">{d.quantidade}</span>
+            <span className="numero block text-metrica font-semibold tracking-[-0.02em] text-ink">{d.quantidade}</span>
             <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : "na ata/OS"}</span>
           </div>
           {d.tipo === "AVULSO" && editavel && opcoes && (
@@ -99,7 +111,10 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
             </Section>
           )}
           <Section titulo="Linha do tempo" sub={`${d.linhaDoTempo.length} ${d.linhaDoTempo.length === 1 ? "registro" : "registros"} · do pedido até a OS`}>
-            <LinhaDoTempo entradas={d.linhaDoTempo} vazio="Sem registros para este item" />
+            <LinhaTempoAgrupada
+              vazio={<p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">Sem registros para este item.</p>}
+              entradas={d.linhaDoTempo.map((e) => ({ id: e.id, em: e.em, titulo: e.titulo, detalhe: e.descricao || null, autor: e.por ? `${e.por.nome}${e.por.perfil ? ` · ${e.por.perfil}` : ""}` : null, icone: iconeHistorico(null, e.acao).icone, tom: TOM[e.tom] }))}
+            />
           </Section>
         </div>
 
@@ -127,7 +142,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                   ]}
                 />
                 {(d.origem.titulo || d.origem.observacaoSolicitante || d.origem.observacaoSolicitacao || d.origem.ajustes) && (
-                  <div className="border-t border-line-faint px-cartao py-3 text-pequeno leading-[1.5] text-ink-2">
+                  <div className="border-t border-line-faint px-cartao py-3 text-pequeno text-ink-2">
                     {d.origem.titulo && <p className="m-0 font-medium text-ink">{d.origem.titulo}</p>}
                     {d.origem.observacaoSolicitante && <p className="mb-0 mt-1 italic">“{d.origem.observacaoSolicitante}”</p>}
                     {d.origem.observacaoSolicitacao && <p className="mb-0 mt-1 text-ink-3">{d.origem.observacaoSolicitacao}</p>}
@@ -144,7 +159,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
             <Section titulo="Resposta da logística">
               <div className="flex items-center justify-between gap-3 px-cartao pt-3">
                 <ItemStatusBadge status={d.origem.status} naAta={naAta} />
-                <span className="font-mono text-corpo text-ink-2">
+                <span className="numero text-corpo text-ink-2">
                   {d.origem.quantidadeAtendida ?? 0} de {d.origem.quantidadeSolicitada}
                 </span>
               </div>
@@ -155,7 +170,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                   { label: "Conferido", valor: d.conferidoEm ? `${d.conferidoPor ?? ""} · ${diaMesHora(d.conferidoEm)}` : "ainda não" },
                 ]}
               />
-              {d.origem.respostaLogistica && <p className="m-0 border-t border-line-faint px-cartao py-3 text-pequeno leading-[1.5] text-ink-2">{d.origem.respostaLogistica}</p>}
+              {d.origem.respostaLogistica && <p className="m-0 border-t border-line-faint px-cartao py-3 text-pequeno text-ink-2">{d.origem.respostaLogistica}</p>}
             </Section>
           )}
         </div>

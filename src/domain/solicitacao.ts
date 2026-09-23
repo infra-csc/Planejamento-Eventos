@@ -33,7 +33,12 @@ export function podeEnviar(status: SolicitacaoStatus) {
   return STATUS_EDITAVEIS.includes(status);
 }
 
-export function podeCancelar(status: SolicitacaoStatus, algumItemRespondido: boolean) {
+/**
+ * A área pode cancelar enquanto nada foi respondido. Com o evento encerrado ou cancelado a solicitação
+ * não muda mais (o servidor recusa): passe `statusEvento` para a tela não oferecer o botão.
+ */
+export function podeCancelar(status: SolicitacaoStatus, algumItemRespondido: boolean, statusEvento?: EventoStatus) {
+  if (statusEvento === "ENCERRADO" || statusEvento === "CANCELADO") return false;
   if (status === "RASCUNHO" || status === "DEVOLVIDA") return true;
   return status === "ENVIADA" && !algumItemRespondido;
 }

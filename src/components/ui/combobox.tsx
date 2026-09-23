@@ -4,10 +4,11 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { combinaBusca } from "@/lib/busca";
+import { Icone } from "./icons";
 
 export type OpcaoCombo = { value: string; label: string; descricao?: string; selo?: string; seloTom?: "accent" | "warning" | "muted"; disabled?: boolean };
 
-const TOM = { accent: "bg-accent-bg text-accent", warning: "bg-warning-bg text-warning", muted: "bg-neutral-bg text-muted" } as const;
+const TOM = { accent: "bg-accent-bg text-accent", warning: "bg-warning-bg text-warning", muted: "bg-neutral-bg text-ink-3" } as const;
 
 type Posicao = { left: number; width: number; top?: number; bottom?: number; max: number; alvo: HTMLElement };
 
@@ -104,10 +105,7 @@ export function ComboBox({
   return (
     <div ref={raiz} className={cn("relative", className)}>
       <div ref={campoRef} className="relative">
-        <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
+        <Icone nome="busca" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
         <input
           id={id}
           role="combobox"
@@ -154,13 +152,11 @@ export function ComboBox({
             }
           }}
           className={cn(
-            "h-[34px] w-full rounded-controle border border-line-control bg-surface pl-9 pr-9 text-corpo text-ink placeholder:text-meta focus:border-accent focus:outline-none",
+            "h-[34px] w-full rounded-controle border border-line-control bg-surface pl-9 pr-9 text-corpo text-ink transition-colors duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none max-md:h-10",
             "disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted aria-[invalid=true]:border-danger-input",
           )}
         />
-        <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 transition-transform", aberto && "rotate-180")}>
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        <Icone nome="chevron-baixo" className={cn("pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 transition-transform duration-150", aberto && "rotate-180")} />
       </div>
       {aberto &&
         pos &&
@@ -185,7 +181,7 @@ export function ComboBox({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => escolher(o)}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2.5 rounded-controle px-2.5 py-2 text-corpo",
+                  "flex cursor-pointer items-center gap-2.5 rounded-controle px-2.5 py-2 text-corpo max-md:min-h-10",
                   i === indice && "bg-subtle",
                   o.value === value && "font-medium",
                   o.disabled && "cursor-not-allowed text-meta",
@@ -197,11 +193,9 @@ export function ComboBox({
                   </span>
                   {o.descricao && <span className="block truncate text-rotulo text-muted">{o.descricao}</span>}
                 </span>
-                {o.selo && <span className={cn("shrink-0 rounded-chip px-1.5 py-px text-micro font-medium", TOM[o.seloTom ?? "muted"])}>{o.selo}</span>}
+                {o.selo && <span className={cn("numero shrink-0 rounded-chip px-1.5 py-px text-rotulo font-medium", TOM[o.seloTom ?? "muted"])}>{o.selo}</span>}
                 {o.value === value && (
-                  <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent">
-                    <path d="M5 12l5 5 9-10" />
-                  </svg>
+                  <Icone nome="check" className="text-accent" />
                 )}
               </li>
             ))}

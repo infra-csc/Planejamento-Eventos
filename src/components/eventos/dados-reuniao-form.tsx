@@ -89,7 +89,7 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
         <Textarea id="reuniaoPresentes" name="reuniaoPresentes" value={t.reuniaoPresentes} onChange={(e) => mudar("reuniaoPresentes", e.target.value)} onBlur={aoSair} disabled={!editavel} placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)" className="min-h-[72px]" />
       </Field>
       <RotuloGrupo className="!mb-0">Carga e público · opcionais</RotuloGrupo>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-3.5 min-[420px]:grid-cols-2">
         {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
         {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
         {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 6h")}

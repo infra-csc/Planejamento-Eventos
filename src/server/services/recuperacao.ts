@@ -2,10 +2,10 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { sessoes, tokensRecuperacao, usuarios } from "@/server/db/schema";
 import { gerarToken, hashSenha, hashToken } from "@/server/auth/password";
-import { ipCliente, limiteExcedido, registrarTentativas } from "@/server/auth/limite";
+import { consumirTentativa, ipCliente } from "@/server/auth/limite";
 import { DomainError } from "@/domain/errors";
 import type { Executor } from "./support";
-import { notificar, usuariosPorPerfil } from "./support";
+import { notificar, registrarHistorico, usuariosPorPerfil } from "./support";
 
 const VALIDADE_MS = 60 * 60 * 1000;
 export const VALIDADE_CONVITE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -37,7 +37,8 @@ export async function solicitarRecuperacao(email: string): Promise<void> {
   const chave = email.trim().toLowerCase();
   const ip = await ipCliente();
   const chaves = [`recuperacao:email:${chave}`, `recuperacao:ip:${ip}`];
-  const excedido = await limiteExcedido(
+  // Conta e reserva de uma vez (atômico): pedidos em paralelo não passam do limite.
+  const { excedido } = await consumirTentativa(
     [
       { chave: chaves[0], maximo: 3 },
       { chave: chaves[1], maximo: 10 },
@@ -45,7 +46,6 @@ export async function solicitarRecuperacao(email: string): Promise<void> {
     60 * 60 * 1000,
   );
   if (excedido) return;
-  await registrarTentativas(chaves);
   const db = await getDb();
   const [u] = await db
     .select({ id: usuarios.id, nome: usuarios.nome, ativo: usuarios.ativo })
@@ -74,9 +74,11 @@ export async function redefinirSenha(token: string, novaSenha: string) {
       .where(and(eq(tokensRecuperacao.tokenHash, hashToken(token)), isNull(tokensRecuperacao.usadoEm), gt(tokensRecuperacao.expiraEm, new Date())))
       .returning({ usuarioId: tokensRecuperacao.usuarioId });
     if (!t) throw new DomainError("Link inválido ou expirado. Peça um novo link ao administrador.");
-    await tx.update(usuarios).set({ senhaHash: await hashSenha(novaSenha) }).where(eq(usuarios.id, t.usuarioId));
+    // Senha escolhida pela própria pessoa pelo link: deixa de ser provisória.
+    await tx.update(usuarios).set({ senhaHash: await hashSenha(novaSenha), trocarSenha: false }).where(eq(usuarios.id, t.usuarioId));
     await invalidarLinksPendentes(tx, t.usuarioId);
     await tx.delete(sessoes).where(eq(sessoes.usuarioId, t.usuarioId));
+    await registrarHistorico(tx, { entidade: "usuario", entidadeId: t.usuarioId, acao: "SENHA_DEFINIDA", descricao: "Senha definida pelo link de acesso", usuarioId: t.usuarioId, verComo: null });
   });
 }
 

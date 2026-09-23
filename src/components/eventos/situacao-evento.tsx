@@ -12,10 +12,10 @@ export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { e
   const [aberto, setAberto] = useState<"VOLTAR_PREPARACAO" | "CANCELAR" | null>(null);
   if (status !== "PREPARACAO" && status !== "EM_REUNIAO" && status !== "ABERTO") return null;
   return (
-    <Section titulo="Situação do evento" sub="Mudanças de exceção. Ficam registradas no histórico com a justificativa.">
-      <div className="flex flex-col gap-3 px-cartao py-3.5">
+    <Section titulo="Zona de exceção" sub="Fica no histórico com a justificativa.">
+      <div className="flex flex-col gap-4 px-cartao py-3.5">
         {status === "EM_REUNIAO" && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
             <span className="min-w-0 flex-1">
               <span className="block text-corpo text-ink">Adiar a reunião</span>
               <span className="block text-pequeno text-muted">O evento volta para preparação e as áreas podem enviar de novo.</span>
@@ -25,7 +25,7 @@ export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { e
             </Button>
           </div>
         )}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
           <span className="min-w-0 flex-1">
             <span className="block text-corpo text-ink">Cancelar evento</span>
             <span className="block text-pequeno text-muted">Solicitações em aberto são canceladas. Não dá para desfazer.</span>

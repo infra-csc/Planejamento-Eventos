@@ -10,7 +10,8 @@ import { Field } from "@/components/ui/field";
 import { Stepper } from "@/components/ui/stepper";
 import { Tag } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconeCheck, IconeLapis } from "@/components/ui/icons";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { EmptyState, RodapeTabela } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
@@ -79,7 +80,7 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
         marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-transparent hover:border-success hover:text-success/50",
       )}
     >
-      <IconeCheck size={14} />
+      <Icone nome="check" />
     </button>
   );
 }
@@ -88,7 +89,7 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
 function BotaoAjustar({ nome, onClick }: { nome: string; onClick: () => void }) {
   return (
     <IconButton label={`Ajustar ${nome}`} onClick={onClick}>
-      <IconeLapis size={13} />
+      <Icone nome="lapis" />
     </IconButton>
   );
 }
@@ -159,7 +160,8 @@ export function AtaLista({
 
   const botaoIncluir = editavel && (
     <Button variant="link" size="sm" onClick={() => setIncluir(true)}>
-      + {contexto === "os" ? "Incluir item na OS com justificativa" : `Incluir linha ${exigeJustificativa ? "com justificativa" : "decidida na reunião"}`}
+      <Icone nome="mais" />
+      {contexto === "os" ? "Incluir item na OS com justificativa" : `Incluir linha ${exigeJustificativa ? "com justificativa" : "decidida na reunião"}`}
     </Button>
   );
 
@@ -192,7 +194,7 @@ export function AtaLista({
               <tbody>
                 {linhas.map((l) => (
                   <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
-                    <th scope="row" className="border-b border-line-row px-cartao py-[11px] text-left font-normal">
+                    <th scope="row" className="border-b border-line-row px-cartao py-2.5 text-left font-normal">
                       {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
                       <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
                         {l.nome}
@@ -203,7 +205,7 @@ export function AtaLista({
                         </Tag>
                       )}
                       {l.posAta && (
-                        <Tag className="ml-2" tom="accent">
+                        <Tag className="ml-2" tom="info">
                           depois da ata
                         </Tag>
                       )}
@@ -213,12 +215,12 @@ export function AtaLista({
                           <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                         </span>
                       )}
-                      {l.codigo && <span className="mt-px block font-mono text-rotulo text-muted">{l.codigo}</span>}
+                      {l.codigo && <Codigo className="mt-px block text-rotulo text-muted">{l.codigo}</Codigo>}
                     </th>
-                    <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-corpo font-medium">{l.quantidade}</td>
-                    {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
-                    {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
-                    <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-3">
+                    <td className="border-b border-line-row px-2.5 py-2.5 numero text-right text-corpo font-medium">{l.quantidade}</td>
+                    {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
+                    {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
+                    <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">
                       {l.origemSolicitacaoId ? (
                         <Link href={`/solicitacoes/${l.origemSolicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
                           {l.origemLabel}
@@ -264,11 +266,11 @@ export function AtaLista({
               </span>
             }
           >
-            {linhas.length} {contexto === "os" ? (linhas.length === 1 ? "item na OS" : "itens na OS") : `${linhas.length === 1 ? "linha" : "linhas"} na ata`} · <span className="font-mono">{soma}</span> unidades
+            {linhas.length} {contexto === "os" ? (linhas.length === 1 ? "item na OS" : "itens na OS") : `${linhas.length === 1 ? "linha" : "linhas"} na ata`} · <span className="numero">{soma.toLocaleString("pt-BR")}</span> unidades
             {conferivel && (
               <>
                 {" · "}
-                <span className={cn("font-mono", conferidas === linhas.length ? "text-success" : "text-warning")}>
+                <span className={cn("numero", conferidas === linhas.length ? "text-success" : "text-warning")}>
                   {conferidas}/{linhas.length}
                 </span>{" "}
                 conferidas
@@ -295,11 +297,17 @@ export function AtaLista({
           open
           onOpenChange={(o) => !o && setAjustar(null)}
           title={`Ajustar ${ajustar.nome}`}
-          description={exigeJustificativa ? "A ata já foi fechada: o ajuste exige justificativa, gera nova versão da OS e avisa a área." : "Quantidade 0 remove a linha da ata. A linha fica no histórico."}
+          description={
+            exigeJustificativa
+              ? `A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área.${ajustar.origemSolicitacaoId ? " Como a linha veio de um pedido, a resposta do item é corrigida junto." : ""}`
+              : "Quantidade 0 remove a linha da ata. O ajuste fica no histórico com o motivo."
+          }
           confirmLabel="Salvar ajuste"
-          reasonLabel={exigeJustificativa ? "Justificativa" : undefined}
+          // Motivo sempre obrigatório (antes e depois da ata): vai para o histórico e para quem pediu.
+          reasonLabel={exigeJustificativa ? "Justificativa" : "Motivo"}
           action={alterarQuantidadeLinhaAction}
-          hidden={{ eventoId, linhaId: ajustar.id }}
+          // A quantidade que a tela mostra: se outra pessoa mudar a linha antes, o servidor recusa.
+          hidden={{ eventoId, linhaId: ajustar.id, quantidadeEsperada: String(ajustar.quantidade) }}
         >
           <Field label="Quantidade" htmlFor="quantidade" hint="Use 0 para remover a linha.">
             <QuantidadeAjuste inicial={ajustar.quantidade} />

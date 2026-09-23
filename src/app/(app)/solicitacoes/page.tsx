@@ -14,6 +14,9 @@ import { BuscaUrl } from "@/components/ui/busca-url";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
+import { Icone } from "@/components/ui/icons";
+import { IndicadorLink } from "@/components/ui/indicador-link";
+import { Codigo } from "@/components/ui/numero";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
@@ -122,7 +125,41 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Celular: cartões empilhados (a tabela ficaria espremida em 375 px). */}
+            <ul className="m-0 list-none p-0 md:hidden">
+              {pag.itens.map((s) => {
+                const pi = prazoInfo(s, agora);
+                return (
+                  <li key={s.id} className="border-b border-line-row last:border-b-0">
+                    <Link href={`/solicitacoes/${s.id}`} className="relative block px-cartao py-3.5 no-underline transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block text-pequeno text-ink-3">
+                            <Codigo>{s.codigo}</Codigo> · {s.area.nome}
+                          </span>
+                          <span className="mt-0.5 line-clamp-2 text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
+                          <span className="mt-0.5 line-clamp-1 block text-pequeno text-muted">{s.evento.nome}</span>
+                        </span>
+                        <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                      </span>
+                      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-pequeno">
+                        <span className="numero text-ink-3">
+                          {s.itensRespondidos}/{s.totalItens} itens
+                        </span>
+                        <TipoSolicitacaoTag tipo={s.tipo} />
+                        {s.foraDaJanela && <ForaJanelaTag />}
+                        <span className="numero ml-auto inline-flex items-center gap-1.5 font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                          {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
+                          {pi.vencido ? `atrasada ${pi.sub}` : pi.sub ? `${pi.label} · ${pi.sub}` : pi.label}
+                        </span>
+                      </span>
+                      <IndicadorLink lugar="sobre" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[640px] border-collapse">
                 <CaptionOculta>{`Solicitações · ${ROTULO_FILTRO[filtro]}`}</CaptionOculta>
                 <thead>
@@ -150,7 +187,9 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                     const pi = prazoInfo(s, agora);
                     return (
                       <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                        <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3">{s.codigo}</td>
+                        <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-3">
+                          <Codigo>{s.codigo}</Codigo>
+                        </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
                           <span className="flex min-w-[240px] flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
@@ -163,7 +202,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                             por {s.criadoPor.nome}
                             <span className="2xl:hidden">
                               {" · "}
-                              <span className="font-mono">
+                              <span className="numero">
                                 {s.itensRespondidos}/{s.totalItens} itens
                               </span>
                             </span>
@@ -175,23 +214,21 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                           </span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
-                        <td className="hidden border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3 2xl:table-cell">
+                        <td className="numero hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 2xl:table-cell">
                           {s.itensRespondidos}/{s.totalItens}
                         </td>
                         <td className="border-b border-line-row px-3 py-3">
                           <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                         </td>
                         <td className="border-b border-line-row px-3 py-3 text-right">
-                          <span className="flex items-center justify-end gap-1.5 font-mono text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                          <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                             {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
                             {pi.vencido ? "atrasada" : pi.label}
                           </span>
-                          <span className="block text-rotulo text-meta">{pi.sub}</span>
+                          <span className="numero block text-rotulo text-meta">{pi.sub}</span>
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
-                          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
-                            <path d="M9 6l6 6-6 6" />
-                          </svg>
+                          <Icone nome="chevron-direita" className="inline-block" />
                         </td>
                       </LinhaLink>
                     );

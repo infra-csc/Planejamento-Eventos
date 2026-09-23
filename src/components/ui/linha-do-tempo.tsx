@@ -4,7 +4,7 @@ import type { EntradaLinhaTempo, TomLinhaTempo } from "@/server/services/linha-d
 
 const COR: Record<TomLinhaTempo, string> = {
   neutro: "bg-line-strong",
-  info: "bg-accent",
+  info: "bg-info",
   ok: "bg-success",
   atencao: "bg-warning",
   perigo: "bg-danger",
@@ -28,7 +28,7 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo">
                 <span className="font-medium text-ink">{e.titulo}</span>
                 {item && <span className="rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{item}</span>}
-                <span className="font-mono text-rotulo text-muted">{diaMesHora(e.em)}</span>
+                <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
               </p>
               <p className="mb-0 mt-0.5 text-pequeno text-ink-3">
                 {e.por ? (

@@ -7,17 +7,18 @@ import { diffOS, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { ChipMono } from "@/components/ui/badge";
-import { Aviso, BannerEscuro, EmptyState, Section } from "@/components/ui/layout";
-import { buttonClasses } from "@/components/ui/button-classes";
+import { Codigo } from "@/components/ui/numero";
+import { Aviso, EmptyState, Section } from "@/components/ui/layout";
 import { OsVisoes, visaoDe } from "@/components/eventos/os-visoes";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
+import { DiffOs } from "@/components/eventos/diff-os";
+import { Exportacoes, type Exportacao } from "@/components/eventos/exportacoes";
 import { obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
-import { listarAreas } from "@/server/services/admin";
 import { pode } from "@/domain/permissions";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
+import { listarAreasCache } from "@/server/cache";
 
 const GATILHO_LABEL: Record<OsGatilho, string> = {
   ATA_FECHADA: "ata fechada",
@@ -31,25 +32,13 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
 
 export const metadata: Metadata = { title: "Ordem de serviço" };
 
-function ChipDiff({ d }: { d: DiffLinha }) {
-  const delta = d.depois - d.antes;
-  return (
-    <ChipMono tom="dark" className="gap-1.5 bg-dark-3 px-2.5 py-1">
-      <span className="text-on-dark-2" title={d.nome}>
-        {d.codigo}
-      </span>
-      <span className="text-on-dark-4">{d.antes}</span>
-      <span className="text-on-dark-4" aria-hidden>
-        →
-      </span>
-      <span className="sr-only">para</span>
-      <span className="font-semibold text-white">{d.depois}</span>
-      <span className="text-accent-light">
-        {delta > 0 ? "+" : "−"}
-        {Math.abs(delta)}
-      </span>
-    </ChipMono>
-  );
+/** As três exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
+function exportacoesOs(id: string, qs: string, previa = false): Exportacao[] {
+  return [
+    { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e avulsos, com coluna de separação." },
+    { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "Planilha de estrutura", descricao: "Modelo da cenografia: TOTAL, somatória peça × projeto e uma aba por projeto." },
+    { tipo: "imprimir", href: `/impressao/os/${id}${qs}`, rotulo: previa ? "Imprimir prévia" : "Imprimir", descricao: "Folha de separação com assinaturas, pronta para PDF." },
+  ];
 }
 
 export default async function OsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; base?: string; visao?: string }> }) {
@@ -64,29 +53,23 @@ export default async function OsPage({ params, searchParams }: { params: Promise
     const visao = visaoDe(sp.visao);
     const temAlgo = previa.setores.length > 0 || previa.semSetor.length > 0;
     return (
-      <div className="flex flex-col gap-5">
-        <Aviso tom="warning" titulo="Prévia — a OS ainda não foi gerada">
-          Esta é a leitura atual da ata em construção. A OS v1 é gerada no fechamento da ata; até lá, tudo aqui pode mudar conforme a reunião corrige as linhas.
-        </Aviso>
-        {temAlgo && (
-          <div className="flex flex-wrap gap-2">
-            <a href={`/api/os/${id}/excel`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
-              Excel da prévia (.xlsx)
-            </a>
-            <a href={`/api/os/${id}/estrutura`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
-              Planilha de estrutura (.xlsx)
-            </a>
-            <ButtonLink href={`/impressao/os/${id}`} target="_blank" variant="secondary" size="sm" className="no-underline">
-              Imprimir prévia
-            </ButtonLink>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Aviso tom="warning" titulo="Prévia: a OS ainda não foi gerada">
+            Leitura atual da ata em construção. A v1 nasce no fechamento da ata; até lá, tudo pode mudar na reunião.
+          </Aviso>
+          {temAlgo ? (
+            <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
+          ) : (
+            <Section>
+              <EmptyState title="A ata ainda não tem linhas" description="As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS." />
+            </Section>
+          )}
+        </div>
+        {temAlgo && pode(usuario, "os.exportar") && (
+          <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
+            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true)} />
           </div>
-        )}
-        {temAlgo ? (
-          <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
-        ) : (
-          <Section>
-            <EmptyState title="A ata ainda não tem linhas" description="As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS." />
-          </Section>
         )}
       </div>
     );
@@ -129,15 +112,12 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const podeAjustar = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
   let composicao: { n: number; conteudo: React.ReactNode; ajustavel?: boolean } | undefined;
   if (visao === "composicao") {
-    const [linhasOs, opcoes, areas] = await Promise.all([obterLinhasAta(id), podeAjustar ? opcoesReferenciasResumidas() : Promise.resolve({ projetos: [], pecas: [] }), podeAjustar ? listarAreas() : Promise.resolve([])]);
+    const [linhasOs, opcoes, areas] = await Promise.all([obterLinhasAta(id), podeAjustar ? opcoesReferenciasResumidas() : Promise.resolve({ projetos: [], pecas: [] }), podeAjustar ? listarAreasCache() : Promise.resolve([])]);
     composicao = {
       n: linhasOs.length,
       ajustavel: podeAjustar,
       conteudo: (
-        <Section
-          titulo="Itens que compõem a OS"
-          sub={podeAjustar ? "Ata da reunião + alterações atendidas + ajustes. Ajustar ou incluir exige justificativa, avisa a área e gera nova versão da OS. A ata não muda." : "Ata da reunião + alterações atendidas + ajustes da logística."}
-        >
+        <Section titulo="Itens que compõem a OS" sub={podeAjustar ? "Ata + alterações atendidas + ajustes. Ajustar ou incluir pede justificativa, avisa a área e gera nova versão. A ata não muda." : "Ata da reunião + alterações atendidas + ajustes da logística."}>
           <AtaLista eventoId={id} status={ev.status} editavel={podeAjustar} contexto="os" podeCadastrar={pode(usuario, "catalogo.gerenciar")} opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhasOs.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
         </Section>
       ),
@@ -168,24 +148,36 @@ export default async function OsPage({ params, searchParams }: { params: Promise
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-      <div className="flex flex-col gap-5">
-        <BannerEscuro
-          aria-label="Diferenças da OS"
-          className="items-start"
+      <div className="flex min-w-0 flex-col gap-4">
+        {exibida.numero !== atual.numero && (
+          <Aviso
+            tom="neutro"
+            titulo={
+              <>
+                Você está vendo a <Codigo>v{exibida.numero}</Codigo>, de {diaMesHora(exibida.geradaEm)}
+              </>
+            }
+            acoes={
+              <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { v: null, base: null })} variant="secondary" size="sm" className="no-underline" scroll={false}>
+                Ver a atual (v{atual.numero})
+              </ButtonLink>
+            }
+          />
+        )}
+
+        <DiffOs
           titulo={tituloDiff}
+          sub={subDiff}
+          diff={diff}
+          vazio={existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial, gerada no fechamento da ata."}
           acoes={
             base && (
-              <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="onDark" size="sm" className="no-underline" scroll={false}>
+              <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="ghost" size="sm" className="no-underline" scroll={false}>
                 Sair da comparação
               </ButtonLink>
             )
           }
-        >
-          <p className="m-0 text-pequeno">{subDiff}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {diff.length === 0 ? <span className="text-pequeno text-on-dark-4">{existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial gerada no fechamento da ata."}</span> : diff.map((d) => <ChipDiff key={d.codigo} d={d} />)}
-          </div>
-        </BannerEscuro>
+        />
 
         <OsVisoes
           os={os}
@@ -197,8 +189,19 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         />
       </div>
 
-      <div className="lg:sticky lg:top-topo-fixo flex flex-col gap-5">
-        <Section titulo="Envio ao carregamento" sub={complemento ? `Enviada: v${complemento.numero}` : "Ainda não enviada"}>
+      <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
+        <Section
+          titulo="Envio ao carregamento"
+          sub={
+            complemento ? (
+              <>
+                Enviada: <Codigo>v{complemento.numero}</Codigo>
+              </>
+            ) : (
+              "Ainda não enviada"
+            )
+          }
+        >
           <EnvioOs
             eventoId={id}
             versaoAtual={atual.numero}
@@ -206,23 +209,18 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois })), avulsosNovos: complemento.avulsosNovos.length } : null}
           />
         </Section>
-        <Section titulo="Exportar">
-          <div className="px-cartao py-3.5">
-            <a href={`/api/os/${id}/excel${qsExport}`} className={buttonClasses({ variant: "primary", size: "md", className: "w-full no-underline" })}>
-              Excel completo (.xlsx)
-            </a>
-            <p className="mb-2.5 mt-1.5 text-rotulo leading-[1.45] text-muted">Abas: resumo, totais por peça, por projeto, peças soltas e itens avulsos, com coluna de separação.</p>
-            <a href={`/api/os/${id}/estrutura${qsExport}`} className={buttonClasses({ variant: "secondary", size: "md", className: "w-full no-underline" })}>
-              Planilha de estrutura (.xlsx)
-            </a>
-            <p className="mb-2.5 mt-1.5 text-rotulo leading-[1.45] text-muted">No modelo da cenografia: TOTAL (estruturas, peças, tendas por local, outros), SOMATÓRIA peça × projeto e uma aba por projeto.</p>
-            <ButtonLink href={`/impressao/os/${id}${qsExport}`} target="_blank" variant="secondary" size="md" className="w-full no-underline">
-              Imprimir / PDF
-            </ButtonLink>
-            <p className="mb-0 mt-2.5 text-pequeno leading-[1.5] text-muted">A OS nunca é editada à mão. Toda mudança vem de uma resposta a item ou de um ajuste registrado com justificativa.</p>
-          </div>
-        </Section>
-        <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · ${ev.codigo}`}>
+        {pode(usuario, "os.exportar") && (
+          <Exportacoes
+            sub={
+              <>
+                <Codigo>v{exibida.numero}</Codigo>
+                {exibida.numero === atual.numero ? " · versão atual" : ` · de ${diaMesHora(exibida.geradaEm)}`}
+              </>
+            }
+            itens={exportacoesOs(id, qsExport)}
+          />
+        )}
+        <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · nunca editadas à mão`}>
           <VersoesOs versoes={lista} />
         </Section>
       </div>

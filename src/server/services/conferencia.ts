@@ -123,63 +123,160 @@ export async function obterConferencia(eventoId: string) {
 
 export type LinhaConferencia = Awaited<ReturnType<typeof obterConferencia>>[number];
 
+/** De onde veio o ajuste: canetinha da conferência (antes da ata) ou ajuste pela aba Ata/OS. */
+export type ContextoAjuste = "conferencia" | "ata";
+
 /**
- * Canetinha da conferência: muda a quantidade de uma linha na reunião, sempre com motivo e log.
- * Se a linha veio de uma necessidade da área e a nova quantidade não passa do pedido, a mudança
- * vira a resposta do item (atendido, parcial ou não atendido), e quem pediu é avisado com o motivo.
- * Acima do pedido, ou em linha incluída pela logística, ajusta direto na ata.
- * A linha ajustada fica conferida (a decisão foi tomada na reunião).
+ * Caminho único para mudar a quantidade de uma linha da ata — canetinha da conferência e ajuste
+ * da aba Ata/OS —, sempre com motivo e log.
+ *
+ * - Linha que veio de um pedido da área (item "adicionar" já respondido): a mudança vira a resposta
+ *   ou a correção do item por `responderNaTransacao` (mesmas regras da tela da solicitação: status
+ *   atendido/parcial/não atendido, histórico RESPONDIDO/RESPOSTA_CORRIGIDA, aviso à área, pendência de
+ *   compra zerada quando atendido integralmente, status da solicitação recalculado). Acima do pedido,
+ *   o pedido conta como atendido e o excedente fica só na linha.
+ * - Linha sem origem (incluída pela logística): ajusta direto.
+ *
+ * `quantidadeEsperada` é a quantidade que a tela mostrava: se outra pessoa mudou (ou removeu) a linha
+ * enquanto esta editava, o ajuste é recusado em vez de sobrescrever.
+ * Na conferência a linha ajustada fica conferida (a decisão foi tomada na reunião). Com a ata fechada,
+ * sai nova versão da OS e quem tem pedido no evento é avisado.
  */
-export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, motivo: string) {
+export async function ajustarQuantidadeLinha(
+  usuario: UsuarioAtual,
+  eventoId: string,
+  linhaId: string,
+  quantidade: number,
+  motivo: string,
+  opcoes: { contexto: ContextoAjuste; quantidadeEsperada?: number | null },
+) {
   exigir(usuario, "ata.consolidar");
+  const conferencia = opcoes.contexto === "conferencia";
   const razao = motivo?.trim();
-  if (!razao) throw new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Fica registrado no histórico e é enviado a quem pediu." });
+  if (!razao) {
+    throw conferencia
+      ? new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Fica registrado no histórico e é enviado a quem pediu." })
+      : new ValidacaoError("Informe o motivo (justificativa) do ajuste.", { justificativa: "Obrigatória: fica no histórico e vai para quem pediu." });
+  }
   if (!Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) {
     throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.", { quantidade: "Use um número inteiro." });
   }
   const db = await getDb();
   return db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
-    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
     if (!ev) throw new NaoEncontradoError("Evento");
-    if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, use o ajuste com justificativa na aba Ata.");
+    const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
+    if (conferencia && !antesDaAta) throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, use o ajuste com justificativa na aba Ata.");
+    if (!antesDaAta && ev.status !== "ABERTO") throw new DomainError("O evento não aceita ajustes na ata neste estado.");
+    const posAta = ev.status === "ABERTO";
+    if (posAta) exigir(usuario, "ata.ajustar");
 
-    const [linha] = await montarLinhasAta(tx, eventoId, { linhaId });
+    const [linha] = await montarLinhasAta(tx, eventoId, { linhaId, incluirInativas: true });
     if (!linha) throw new NaoEncontradoError("Linha da ata");
+    const esperada = opcoes.quantidadeEsperada;
+    if (!linha.registro.ativo) {
+      if (esperada != null) throw new DomainError("Outra pessoa removeu esta linha da ata enquanto você editava. Confira e tente de novo.");
+      throw new NaoEncontradoError("Linha da ata");
+    }
     const antes = linha.quantidade;
+    if (esperada != null && esperada !== antes) throw new DomainError(`Outra pessoa mudou esta linha para ${antes} enquanto você editava. Confira e tente de novo.`);
     if (quantidade === antes) throw new ValidacaoError("A quantidade informada é a mesma que já está na ata.", { quantidade: "Informe outro valor." });
     const desc = descricaoLinha(linha);
+    const remover = quantidade === 0;
     const agora = new Date();
 
-    const item = linha.registro.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId) }) : null;
-    if (item && item.operacao === "ADICIONAR") {
-      // Acima do pedido, o pedido conta como atendido; o excedente é decisão da reunião e fica só na linha.
+    // Linha de um pedido já respondido (e solicitação ainda corrigível): a mudança passa pela resposta do item.
+    let respondeu: { areaId: string; criadoPorId: string } | null = null;
+    const item = linha.registro.solicitacaoItemId
+      ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId), with: { solicitacao: { columns: { status: true, excluida: true } } } })
+      : null;
+    const corrigivel = item && item.operacao === "ADICIONAR" && item.status !== "EM_ANALISE" && !item.solicitacao.excluida && (item.solicitacao.status === "RESPONDIDA" || item.solicitacao.status === "EM_ANALISE");
+    if (item && corrigivel) {
       const status = quantidade === 0 ? "NAO_ATENDIDO" : quantidade < item.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO";
       const atendida = Math.min(quantidade, item.quantidadeSolicitada);
-      if (!(status === "ATENDIDO" && item.status === "ATENDIDO")) {
-        await responderNaTransacao(tx, usuario, item.id, { status, quantidadeAtendida: atendida, observacaoLogistica: razao }, razao, { gerarOs: false, notificar: true });
+      if (!(status === item.status && atendida === item.quantidadeAtendida)) {
+        const r = await responderNaTransacao(
+          tx,
+          usuario,
+          item.id,
+          // A pendência de compra marcada antes continua (atendido integralmente a zera).
+          { status, quantidadeAtendida: atendida, observacaoLogistica: razao, pendenciaCompra: item.pendenciaCompra },
+          razao,
+          // A fase já foi conferida aqui (a pré-reunião também é corrigida pela aba Ata depois do fechamento); a OS sai uma vez só, abaixo.
+          { gerarOs: false, notificar: true, ignorarFase: true },
+        );
+        respondeu = { areaId: r.areaId, criadoPorId: r.criadoPorId };
       }
     }
-    // A resposta aplica só a diferença em relação à resposta anterior; a canetinha define o valor
-    // absoluto da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
+
+    // A resposta aplica só a diferença em relação à resposta anterior; o ajuste define o valor absoluto
+    // da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
+    // Quantidade mudou antes da ata: na conferência a linha fica conferida; pela aba Ata, volta a conferir.
+    const conferenciaCampos = conferencia ? { conferidoEm: agora, conferidoPorId: usuario.id } : antesDaAta ? { conferidoEm: null, conferidoPorId: null } : {};
     await tx
       .update(eventoItens)
-      .set(quantidade === 0 ? { ativo: false, quantidade: 0, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null } : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao })
+      .set(
+        remover
+          ? { ativo: false, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null }
+          : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao, ...conferenciaCampos },
+      )
       .where(eq(eventoItens.id, linhaId));
-    if (quantidade > 0) await tx.update(eventoItens).set({ conferidoEm: agora, conferidoPorId: usuario.id }).where(and(eq(eventoItens.id, linhaId), eq(eventoItens.ativo, true)));
 
-    await registrarHistorico(tx, {
-      eventoId,
-      entidade: "evento_item",
-      entidadeId: linhaId,
-      acao: "CONFERENCIA_AJUSTE",
-      descricao: quantidade === 0 ? `${desc}: retirado da ata na reunião (era ${antes}) — ${razao}` : `${desc}: ${antes} → ${quantidade} na reunião — ${razao}`,
-      usuarioId: usuario.id,
-      dadosAntes: { quantidade: antes },
-      dadosDepois: { quantidade, motivo: razao },
-    });
-    return { removida: quantidade === 0 };
+    await registrarHistorico(
+      tx,
+      conferencia
+        ? {
+            eventoId,
+            entidade: "evento_item",
+            entidadeId: linhaId,
+            acao: "CONFERENCIA_AJUSTE",
+            descricao: remover ? `${desc}: retirado da ata na reunião (era ${antes}) — ${razao}` : `${desc}: ${antes} → ${quantidade} na reunião — ${razao}`,
+            usuarioId: usuario.id,
+            dadosAntes: { quantidade: antes },
+            dadosDepois: { quantidade, motivo: razao },
+          }
+        : {
+            eventoId,
+            entidade: "evento_item",
+            entidadeId: linhaId,
+            acao: remover ? "ATA_REMOCAO" : "ATA_QUANTIDADE",
+            descricao: `${remover ? `${desc}: removido da ata (era ${antes})` : `${desc}: quantidade alterada de ${antes} para ${quantidade}`} — ${razao}`,
+            usuarioId: usuario.id,
+            dadosAntes: { quantidade: antes, ativo: true },
+            dadosDepois: { quantidade, ativo: !remover, motivo: razao },
+          },
+    );
+
+    if (posAta) {
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} ${remover ? "removido" : `${antes} → ${quantidade}`} — ${razao}`);
+      const texto = `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}`;
+      const base = {
+        tipo: "ATA_AJUSTE",
+        titulo: `Ajuste na OS: ${ev.nome}`,
+        // Linha removida deixa de ter página própria: nesse caso o histórico é o registro.
+        link: remover ? `/eventos/${eventoId}/historico` : `/eventos/${eventoId}/itens/${linhaId}`,
+        excetoUsuarioId: usuario.id,
+      };
+      if (respondeu) {
+        // A área dona já recebeu a resposta do item, com o motivo; quem mais tem pedido no evento recebe sem ele.
+        const jaAvisados = new Set([respondeu.criadoPorId, ...(await usuariosDaArea(tx, respondeu.areaId))]);
+        const outros = (await usuariosComPedidoNoEvento(tx, eventoId)).filter((u) => !jaAvisados.has(u));
+        await notificar(tx, { ...base, usuarioIds: outros, mensagem: `${texto}.` });
+      } else {
+        await notificarAjusteLinha(tx, { ...base, eventoId, areaId: linha.registro.areaId ?? null, mensagem: `${texto}. Motivo: ${razao}`, mensagemSemMotivo: `${texto}.` });
+      }
+    }
+    return { removida: remover, respondeuItem: Boolean(respondeu) };
   });
+}
+
+/**
+ * Canetinha da conferência: muda a quantidade de uma linha na reunião, sempre com motivo e log.
+ * Mesmo caminho do ajuste pela aba Ata (`ajustarQuantidadeLinha`).
+ */
+export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, motivo: string, opcoes: { quantidadeEsperada?: number | null } = {}) {
+  return ajustarQuantidadeLinha(usuario, eventoId, linhaId, quantidade, motivo, { contexto: "conferencia", quantidadeEsperada: opcoes.quantidadeEsperada });
 }
 
 /**

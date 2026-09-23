@@ -10,7 +10,10 @@ import { addDiasISO, diaMesISO, hojeISO } from "@/lib/format";
 import { combinaBusca } from "@/lib/busca";
 import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { BarraProgresso, EmptyState, Metric, MetricStrip, PageHeader } from "@/components/ui/layout";
-import { Badge, ChipMono } from "@/components/ui/badge";
+import { Badge, Tag } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { Icone } from "@/components/ui/icons";
+import { Codigo, Numero } from "@/components/ui/numero";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { TabsNav } from "@/components/ui/tabs-nav";
@@ -27,6 +30,33 @@ const ROTULO_ABA: Record<Aba, string> = { todas: "Todas", faltando: "Faltando", 
 
 /** Quanto falta para cobrir o pico com o estoque próprio (0 = coberta). */
 const faltaDe = (p: PecaConsolidada) => Math.max(0, p.pico - p.estoque);
+
+/** Data curta (dd/mm) de um ISO "aaaa-mm-dd", em <time> com algarismos tabulares. */
+function DiaMes({ iso, className }: { iso: string | null | undefined; className?: string }) {
+  return iso ? (
+    <time dateTime={iso} className={className ? `numero ${className}` : "numero"}>
+      {diaMesISO(iso)}
+    </time>
+  ) : (
+    <span className="numero">—</span>
+  );
+}
+
+/** Eventos do pico: código em mono, quantidade tabular. */
+function EventosDoPico({ eventos }: { eventos: PecaConsolidada["eventosNoPico"] }) {
+  if (eventos.length === 0) return <>—</>;
+  return (
+    <>
+      {eventos.map((e, i) => (
+        <span key={e.codigo + i}>
+          {i > 0 && " · "}
+          <Codigo>{e.codigo}</Codigo> <Numero valor={e.quantidade} />
+          {e.projetado ? " (projetado)" : ""}
+        </span>
+      ))}
+    </>
+  );
+}
 
 export default async function ConsolidacaoPage({ searchParams }: { searchParams: Promise<{ dias?: string; aba?: string; q?: string; ordem?: string; dir?: string; pagina?: string }> }) {
   const usuario = await requirePermissao("consolidacao.ver");
@@ -83,13 +113,22 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
     faltando: ["Nenhuma peça faltando", "O estoque próprio cobre o pico de todas as peças demandadas no período."],
     pendencias: ["Nenhuma pendência aberta", "Toda resposta parcial ou não atendida aparece aqui até ser resolvida."],
   };
+  const acaoVazio = busca ? (
+    <ButtonLink href={hrefCom("/consolidacao", params, { q: null, pagina: null })} variant="secondary" size="md" className="no-underline">
+      Limpar busca
+    </ButtonLink>
+  ) : aba === "todas" && dias < 60 ? (
+    <ButtonLink href={hrefCom("/consolidacao", params, { dias: 60, pagina: null })} variant="secondary" size="md" className="no-underline">
+      Ver os próximos 60 dias
+    </ButtonLink>
+  ) : aba === "faltando" ? (
+    <ButtonLink href={hrefCom("/consolidacao", params, { aba: null, ordem: null, dir: null, pagina: null })} variant="secondary" size="md" className="no-underline">
+      Ver todas as peças
+    </ButtonLink>
+  ) : undefined;
   const total = aba === "pendencias" ? pagPendencias.total : pagPecas.total;
 
-  const seta = (
-    <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
+  const seta = <Icone nome="chevron-direita" className="inline-block align-middle" />;
 
   return (
     <>
@@ -98,7 +137,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
       <MetricStrip>
         <Metric label="Eventos no período" valor={eventos.length} hint={eventos.length ? eventos.map((e) => e.codigo).join(" · ") : "nenhum evento"} />
         <Metric label="Peças demandadas" valor={demandadas.length} hint="tipos com demanda no pico" />
-        <Metric label="Unidades no pico" valor={unidadesPico} hint="soma dos picos de cada peça" />
+        <Metric label="Unidades no pico" valor={<Numero valor={unidadesPico} />} hint="soma dos picos de cada peça" />
         <Metric label="Disputadas" valor={simultaneas} hint={simultaneas ? "pedidas por mais de um evento no mesmo dia" : "nenhuma peça disputada"} />
       </MetricStrip>
 
@@ -112,15 +151,15 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
         {aba !== "pendencias" && (
           <span className="flex flex-wrap items-center gap-2.5">
             <Pills rotulo="Janela de tempo" itens={JANELAS.map((d) => ({ label: `${d} dias`, href: hrefCom("/consolidacao", params, { dias: d === 30 ? null : d, pagina: null }), ativo: d === dias }))} />
-            <span className="font-mono text-pequeno text-muted">
-              {diaMesISO(inicio)} – {diaMesISO(fim)}
+            <span className="text-pequeno text-muted">
+              <DiaMes iso={inicio} /> – <DiaMes iso={fim} />
             </span>
           </span>
         )}
         {temEstoque && contagens.faltando > 0 && aba !== "faltando" && (
           <Link href={hrefCom("/consolidacao", params, { aba: "faltando", ordem: null, dir: null, pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-danger no-underline hover:underline sm:ml-auto">
             <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-danger" />
-            {contagens.faltando} {contagens.faltando === 1 ? "peça faltando" : "peças faltando"}
+            <Numero valor={contagens.faltando} /> {contagens.faltando === 1 ? "peça faltando" : "peças faltando"}
           </Link>
         )}
       </div>
@@ -133,12 +172,15 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
         />
         {total === 0 ? (
           <EmptyState
+            icone={busca ? "busca" : "caixa"}
             title={busca ? `Nada encontrado para “${busca}”` : vazio[aba][0]}
             description={busca ? (aba === "pendencias" ? "Confira o código da solicitação ou tente outra palavra do item." : "Confira o código ou tente outra palavra do nome da peça.") : vazio[aba][1]}
+            action={acaoVazio}
           />
         ) : aba === "pendencias" ? (
           <>
-            <div className="overflow-x-auto">
+            {/* Tablet e desktop: tabela com a linha inteira clicável. */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[560px] border-collapse">
                 <CaptionOculta>Pendências de compra e locação</CaptionOculta>
                 <thead>
@@ -154,7 +196,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                     <Th className="hidden lg:table-cell" largura={100}>
                       Montagem
                     </Th>
-                    <Th largura={104} alinhar="right">
+                    <Th largura={112} alinhar="right">
                       Falta
                     </Th>
                     <Th largura={44}>
@@ -167,7 +209,9 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                     const ev = p.solicitacao.evento;
                     return (
                       <LinhaLink key={p.id} href={`/solicitacoes/${p.solicitacaoId}`} rotulo={`Abrir ${p.solicitacao.codigo} — ${p.descricao}`}>
-                        <td className="border-b border-line-row px-3 py-3 align-top font-mono text-pequeno font-medium text-ink">{p.solicitacao.codigo}</td>
+                        <td className="border-b border-line-row py-3 pl-cartao pr-3 align-top text-pequeno font-medium text-ink">
+                          <Codigo>{p.solicitacao.codigo}</Codigo>
+                        </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
                           <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={p.descricao}>
                             {p.descricao}
@@ -177,22 +221,24 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                             {p.solicitacao.area.nome}
                             <span className="lg:hidden">
                               {" · "}
-                              {ev.codigo} {ev.nome} · montagem {diaMesISO(ev.dataMontagem)}
+                              <Codigo>{ev.codigo}</Codigo> {ev.nome} · montagem <DiaMes iso={ev.dataMontagem} />
                             </span>
                           </span>
                         </th>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">
-                          <span className="block font-mono">{ev.codigo}</span>
+                          <Codigo className="block">{ev.codigo}</Codigo>
                           <span className="line-clamp-2 text-muted" title={ev.nome}>
                             {ev.nome}
                           </span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">{p.solicitacao.area.nome}</td>
-                        <td className="hidden border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-2 lg:table-cell">{diaMesISO(ev.dataMontagem)}</td>
+                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">
+                          <DiaMes iso={ev.dataMontagem} />
+                        </td>
                         <td className="border-b border-line-row px-3 py-3 text-right">
-                          <ChipMono tom="warning" className="font-medium">
-                            faltam {p.faltante}
-                          </ChipMono>
+                          <Badge tom="warning">
+                            faltam <Numero valor={p.faltante} />
+                          </Badge>
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">{seta}</td>
                       </LinhaLink>
@@ -201,11 +247,45 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                 </tbody>
               </table>
             </div>
+
+            {/* Celular: um cartão por pendência, o cartão inteiro é o link. */}
+            <ul aria-label="Pendências de compra e locação" className="m-0 list-none p-0 md:hidden">
+              {pagPendencias.itens.map((p) => {
+                const ev = p.solicitacao.evento;
+                return (
+                  <li key={p.id} className="border-b border-line-row last:border-b-0">
+                    <Link
+                      href={`/solicitacoes/${p.solicitacaoId}`}
+                      className="flex items-start gap-3 px-cartao py-3.5 text-ink no-underline transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <Codigo className="text-pequeno font-medium text-ink-2">{p.solicitacao.codigo}</Codigo>
+                          <Badge tom="warning">
+                            faltam <Numero valor={p.faltante} />
+                          </Badge>
+                        </span>
+                        <span className="mt-1 line-clamp-2 block text-corpo font-medium">{p.descricao}</span>
+                        {p.observacaoLogistica && <span className="mt-0.5 block text-pequeno text-ink-2">{p.observacaoLogistica}</span>}
+                        <span className="mt-1 block text-pequeno text-muted">
+                          <Codigo>{ev.codigo}</Codigo> {ev.nome}
+                        </span>
+                        <span className="block text-pequeno text-muted">
+                          {p.solicitacao.area.nome} · montagem <DiaMes iso={ev.dataMontagem} />
+                        </span>
+                      </span>
+                      <Icone nome="chevron-direita" className="mt-0.5 text-ink-3" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
             <Paginacao {...pagPendencias} hrefPagina={hrefPagina} />
           </>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Tablet e desktop: tabela ordenável. */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[600px] border-collapse">
                 <CaptionOculta>{`Demanda por peça · ${ROTULO_ABA[aba]} · ${dias} dias`}</CaptionOculta>
                 <thead>
@@ -230,7 +310,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                       <tr key={p.pecaId} className="hover:bg-subtle">
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
                           <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={`${p.codigo} — ${p.nome}`}>
-                            <span className="mr-2 font-mono text-pequeno text-ink-2">{p.codigo}</span>
+                            <Codigo className="mr-2 text-pequeno text-ink-2">{p.codigo}</Codigo>
                             {p.nome}
                           </span>
                           <span className="mt-0.5 block text-pequeno text-muted">
@@ -240,32 +320,34 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                           {/* Abaixo de lg a coluna de eventos some: os eventos do pico vêm aqui. */}
                           {p.eventosNoPico.length > 0 && (
                             <span className="mt-1 flex flex-wrap items-center gap-1.5 text-rotulo text-meta lg:hidden">
-                              {disputada && <Badge tom="warning">{p.eventosNoPico.length} eventos</Badge>}
-                              <span className="font-mono">{listaEventos}</span>
+                              {disputada && <Tag tom="warning">{p.eventosNoPico.length} eventos no mesmo dia</Tag>}
+                              <span>
+                                <EventosDoPico eventos={p.eventosNoPico} />
+                              </span>
                             </span>
                           )}
                         </th>
                         <td className="border-b border-line-row px-3 py-3 text-right">
-                          <span className="block font-mono text-corpo font-medium text-ink">
-                            {p.pico} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
-                          </span>
-                          <span className="block font-mono text-rotulo text-meta">{p.diaPico ? `pico ${diaMesISO(p.diaPico)}` : ""}</span>
+                          <Numero valor={p.pico} unidade={p.unidade} className="block text-corpo font-medium text-ink" />
+                          {p.diaPico && (
+                            <span className="block text-rotulo text-meta">
+                              pico <DiaMes iso={p.diaPico} />
+                            </span>
+                          )}
                         </td>
                         {temEstoque && (
                           <>
                             <td className="border-b border-line-row px-3 py-3 text-right">
-                              <span className="block font-mono text-pequeno text-ink-2">
-                                {p.estoque} <span className="text-rotulo text-muted">{p.unidade}</span>
-                              </span>
-                              <span role="img" aria-label={`Cobertura do pico: ${cobertura}%`} className="mt-1.5 ml-auto block w-[72px]">
+                              <Numero valor={p.estoque} unidade={p.unidade} className="block text-pequeno text-ink-2" />
+                              <span role="img" aria-label={`Cobertura do pico: ${cobertura}%`} className="ml-auto mt-1.5 block w-[72px]">
                                 <BarraProgresso pct={cobertura} tom={falta > 0 ? "danger" : "success"} altura={4} />
                               </span>
-                              <span className="mt-0.5 block font-mono text-rotulo text-meta">{cobertura}%</span>
+                              <span className="numero mt-0.5 block text-rotulo text-meta">{cobertura}%</span>
                             </td>
                             <td className="border-b border-line-row px-3 py-3 text-right">
                               {falta > 0 ? (
-                                <Badge tom="danger" className="font-mono">
-                                  faltam {falta}
+                                <Badge tom="danger">
+                                  faltam <Numero valor={falta} />
                                 </Badge>
                               ) : (
                                 <span className="text-pequeno text-success">coberta</span>
@@ -275,12 +357,12 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                         )}
                         <td className="hidden border-b border-line-row py-3 pl-3 pr-cartao text-pequeno text-ink-2 lg:table-cell">
                           {disputada && (
-                            <Badge tom="warning" className="mb-1">
+                            <Tag tom="warning" className="mb-1">
                               {p.eventosNoPico.length} eventos no mesmo dia
-                            </Badge>
+                            </Tag>
                           )}
-                          <span className="line-clamp-2 font-mono text-rotulo text-ink-3" title={listaEventos}>
-                            {listaEventos || "—"}
+                          <span className="line-clamp-2 text-rotulo text-ink-3" title={listaEventos}>
+                            <EventosDoPico eventos={p.eventosNoPico} />
                           </span>
                         </td>
                       </tr>
@@ -289,6 +371,51 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                 </tbody>
               </table>
             </div>
+
+            {/* Celular: uma linha empilhada por peça, necessidade (e falta) à direita. */}
+            <ul aria-label={`Demanda por peça · ${ROTULO_ABA[aba]} · ${dias} dias`} className="m-0 list-none p-0 md:hidden">
+              {pagPecas.itens.map((p) => {
+                const falta = faltaDe(p);
+                const disputada = p.eventosNoPico.length > 1;
+                const fam = familia.get(p.pecaId);
+                return (
+                  <li key={p.pecaId} className="flex items-start gap-3 border-b border-line-row px-cartao py-3.5 last:border-b-0">
+                    <span className="min-w-0 flex-1">
+                      <Codigo className="block text-pequeno text-ink-2">{p.codigo}</Codigo>
+                      <span className="mt-0.5 line-clamp-2 block text-corpo font-medium text-ink">{p.nome}</span>
+                      <span className="mt-0.5 block text-pequeno text-muted">
+                        {SETOR_LABEL[p.setor]}
+                        {fam ? ` · ${fam}` : ""}
+                      </span>
+                      {p.eventosNoPico.length > 0 && (
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-rotulo text-meta">
+                          {disputada && <Tag tom="warning">{p.eventosNoPico.length} eventos no mesmo dia</Tag>}
+                          <span>
+                            <EventosDoPico eventos={p.eventosNoPico} />
+                          </span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1 text-right">
+                      <Numero valor={p.pico} unidade={p.unidade} className="text-corpo font-medium text-ink" />
+                      {p.diaPico && (
+                        <span className="text-rotulo text-meta">
+                          pico <DiaMes iso={p.diaPico} />
+                        </span>
+                      )}
+                      {temEstoque &&
+                        (falta > 0 ? (
+                          <Badge tom="danger">
+                            faltam <Numero valor={falta} />
+                          </Badge>
+                        ) : (
+                          <span className="text-pequeno text-success">coberta</span>
+                        ))}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
             <Paginacao {...pagPecas} hrefPagina={hrefPagina} />
           </>
         )}

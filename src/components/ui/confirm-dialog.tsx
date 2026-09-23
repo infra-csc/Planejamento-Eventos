@@ -5,7 +5,7 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "./dialog";
 import { Button, SubmitButton } from "./button";
 import { Field, FormError, Textarea } from "./field";
-import { toast } from "./toast";
+import { toastSucesso } from "./toast";
 import type { ActionResult } from "@/lib/action";
 
 type Props = {
@@ -44,7 +44,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
     ultimo.current = state;
     if (!open) return;
     if (state.ok) {
-      if (state.mensagem) toast(state.mensagem);
+      if (state.mensagem) toastSucesso(state.mensagem);
       onOpenChange(false);
       onSuccess?.(state);
     }

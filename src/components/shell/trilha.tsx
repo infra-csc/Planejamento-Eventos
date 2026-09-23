@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
+import { SinalLink } from "@/components/ui/indicador-link";
 
 export type ItemTrilha = { label: string; href?: string };
 
@@ -72,8 +73,9 @@ export function Trilha() {
                 </span>
               )}
               {t.href && !ultimo ? (
-                <Link href={t.href} title={t.label} className="block max-w-[40vw] truncate text-ink-3 no-underline hover:text-ink">
+                <Link href={t.href} title={t.label} className="block max-w-[40vw] truncate rounded-chip text-ink-3 no-underline transition-colors duration-150 hover:text-ink">
                   {t.label}
+                  <SinalLink />
                 </Link>
               ) : (
                 <span className={cn("block truncate", ultimo ? "font-medium text-ink" : "max-w-[40vw]")} title={t.label} aria-current={ultimo ? "page" : undefined}>

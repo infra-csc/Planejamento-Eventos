@@ -106,6 +106,8 @@ export const usuarios = pgTable(
     perfil: perfilEnum("perfil").notNull(),
     areaId: text("area_id").references(() => areas.id),
     ativo: boolean("ativo").notNull().default(true),
+    /** Senha provisória (seed, senha definida pelo administrador, senha de demonstração): só navega depois de trocar. */
+    trocarSenha: boolean("trocar_senha").notNull().default(false),
     ultimoAcessoEm: ts("ultimo_acesso_em"),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
@@ -509,6 +511,8 @@ export const historico = pgTable(
     dadosAntes: jsonb("dados_antes"),
     dadosDepois: jsonb("dados_depois"),
     usuarioId: text("usuario_id").references(() => usuarios.id),
+    /** Perfil assumido em "ver como" quando o registro foi feito (ex.: "Requisitante · Produção"); o autor continua sendo o administrador. */
+    verComo: text("ver_como"),
     criadoEm: criadoEm(),
   },
   (t) => [index("historico_evento_idx").on(t.eventoId, t.criadoEm), index("historico_entidade_idx").on(t.entidade, t.entidadeId)],

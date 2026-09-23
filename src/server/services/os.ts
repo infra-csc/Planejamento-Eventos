@@ -109,6 +109,21 @@ export async function obterConteudosOs(eventoId: string, numeros: number[]): Pro
   return new Map(rows.map((r) => [r.numero, r.conteudo]));
 }
 
+/**
+ * Total de peças de uma versão gravada (mesmo número de `totalPecas` do domínio), somado no banco:
+ * a visão geral do evento só mostra o total e não precisa trazer o JSON inteiro da OS.
+ */
+export async function totalPecasOs(eventoId: string, numero: number): Promise<number> {
+  const db = await getDb();
+  const [r] = await db
+    .select({
+      total: sql<number | null>`(select sum((l->>'total')::numeric) from jsonb_array_elements(coalesce(${osVersoes.conteudo}->'setores', '[]'::jsonb)) s, jsonb_array_elements(coalesce(s->'linhas', '[]'::jsonb)) l)`,
+    })
+    .from(osVersoes)
+    .where(and(eq(osVersoes.eventoId, eventoId), eq(osVersoes.numero, numero)));
+  return Number(r?.total ?? 0);
+}
+
 export async function numeroOsAtual(ex: Executor, eventoId: string): Promise<number> {
   const [r] = await ex
     .select({ v: sql<number | null>`max(${osVersoes.numero})` })
