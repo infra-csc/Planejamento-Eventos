@@ -4,18 +4,19 @@
  * Idempotente:
  * - peça é identificada pelo código: existe → atualiza nome, setor, família e unidade
  *   (o estoque só é preenchido na criação, para não sobrescrever o que a logística ajustou);
- * - projeto é identificado pelo nome: já existe ativo → não mexe (a lista de peças é versionada
- *   pela cenografia dentro do app).
+ * - projeto é identificado pelo nome (ou por `nomesAnteriores`): já existe ativo → atualiza nome,
+ *   categoria e descrição e, se a lista de peças mudou, cria nova versão — mas só quando a versão
+ *   atual foi criada pelo próprio importador; lista editada pela cenografia no app é mantida.
  *
  * Uso: `npm run importar:catalogo` (local, PGlite) ou com DATABASE_URL apontando para o Postgres.
  */
 import fs from "node:fs";
 import path from "node:path";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getConnection } from "../src/server/db";
 import { pecas, projetos, usuarios } from "../src/server/db/schema";
 import type { UsuarioAtual } from "../src/server/auth/autorizacao";
-import { anexarArquivo, criarProjeto } from "../src/server/services/projetos";
+import { anexarArquivo, criarProjeto, editarProjeto } from "../src/server/services/projetos";
 import { PECAS, PROJETOS } from "./dados/catalogo";
 
 async function main() {
@@ -66,23 +67,60 @@ async function main() {
   const todas = await db.query.pecas.findMany({ columns: { id: true, codigo: true } });
   const idPorCodigo = new Map(todas.map((p) => [p.codigo, p.id]));
 
+  // Versões assinadas pelo importador: só essas podem ser substituídas numa reimportação.
+  const OBS_IMPORTACAO = "Importado do catálogo real (OS de estrutura / detalhamentos TTK).";
+  const OBS_ATUALIZACAO = "Atualizado pelo catálogo real (OS de estrutura 2026 — SharePoint).";
+  const chaveBom = (itens: Array<{ pecaId: string; quantidade: number }>) => itens.map((i) => `${i.pecaId}:${i.quantidade}`).sort().join("|");
+
   let projetosCriados = 0;
   let projetosMantidos = 0;
+  let projetosAtualizados = 0;
+  let projetosNovaVersao = 0;
+  const editadosNoApp: string[] = [];
   for (const pr of PROJETOS) {
-    const existente = await db.query.projetos.findFirst({ where: and(sql`lower(${projetos.nome}) = ${pr.nome.toLowerCase()}`, eq(projetos.ativo, true)), columns: { id: true } });
-    if (existente) {
-      projetosMantidos++;
-      continue;
-    }
+    const nomes = [pr.nome, ...(pr.nomesAnteriores ?? [])].map((n) => n.toLowerCase());
+    const existente = await db.query.projetos.findFirst({
+      where: and(inArray(sql`lower(${projetos.nome})`, nomes), eq(projetos.ativo, true)),
+      with: { versoes: { with: { itens: { columns: { pecaId: true, quantidade: true } } } } },
+    });
     const itens = pr.itens.map(([codigo, quantidade]) => {
       const pecaId = idPorCodigo.get(codigo);
       if (!pecaId) throw new Error(`Projeto "${pr.nome}": peça ${codigo} não existe no catálogo.`);
       return { pecaId, quantidade };
     });
-    await criarProjeto(usuario, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: "Importado do catálogo real (OS de estrutura / detalhamentos TTK).", itens });
-    projetosCriados++;
+    if (!existente) {
+      await criarProjeto(usuario, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: OBS_IMPORTACAO, itens });
+      projetosCriados++;
+      continue;
+    }
+    const versaoAtual = existente.versoes.find((v) => v.numero === existente.versaoAtual);
+    const bomMudou = !versaoAtual || chaveBom(versaoAtual.itens) !== chaveBom(itens);
+    const dadosMudaram = existente.nome !== pr.nome || existente.categoria !== pr.categoria || (existente.descricao ?? null) !== (pr.descricao ?? null);
+    if (!bomMudou && !dadosMudaram) {
+      projetosMantidos++;
+      continue;
+    }
+    // "Versão inicial" e a v2 do seed de demonstração também contam como não editadas pela cenografia.
+    const OBS_SEED = ["Versão inicial", "Incluídas 2 sapatas e 4 malotes de contrapeso após revisão de segurança."];
+    const versaoDoImportador = !versaoAtual || [OBS_IMPORTACAO, OBS_ATUALIZACAO, ...OBS_SEED].includes(versaoAtual.observacao ?? "");
+    if (bomMudou && !versaoDoImportador) {
+      // A cenografia mexeu na lista dentro do app: prevalece o app, só os dados cadastrais acompanham o catálogo.
+      editadosNoApp.push(pr.nome);
+      if (dadosMudaram) await db.update(projetos).set({ nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao }).where(eq(projetos.id, existente.id));
+      continue;
+    }
+    const r = await editarProjeto(usuario, existente.id, {
+      nome: pr.nome,
+      categoria: pr.categoria,
+      descricao: pr.descricao,
+      observacaoVersao: OBS_ATUALIZACAO,
+      itens: bomMudou ? itens : versaoAtual!.itens,
+    });
+    if (r.bomMudou) projetosNovaVersao++;
+    else projetosAtualizados++;
   }
-  console.log(`Projetos padrão: ${projetosCriados} criados, ${projetosMantidos} já existiam.`);
+  console.log(`Projetos padrão: ${projetosCriados} criados, ${projetosNovaVersao} com nova versão da lista, ${projetosAtualizados} com dados atualizados, ${projetosMantidos} sem mudança.`);
+  if (editadosNoApp.length) console.log(`  lista mantida como editada no app (${editadosNoApp.length}): ${editadosNoApp.join("; ")}`);
 
   // Imagens (renders e modulações TTK): anexa o que ainda não está no projeto, pelo nome do arquivo.
   const pastaImagens = path.join(process.cwd(), "scripts", "dados", "imagens");
