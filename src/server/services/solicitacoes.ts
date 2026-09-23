@@ -335,13 +335,10 @@ export async function criarRascunho(usuario: UsuarioAtual, eventoId: string, are
  */
 async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string, opcoes: { permitirEventoFechado?: boolean; travar?: boolean } = {}) {
   if (opcoes.travar) {
-    // Mesma ordem do envio (evento, depois a solicitação): o autosave de uma pessoa espera o "Enviar"
-    // de outra terminar e relê o status, em vez de apagar e regravar itens de algo já enviado.
-    const [pre] = await ex.select({ eventoId: solicitacoes.eventoId }).from(solicitacoes).where(eq(solicitacoes.id, id));
-    if (pre) {
-      await bloquearEvento(ex, pre.eventoId);
-      await ex.execute(sql`select id from solicitacoes where id = ${id} for update`);
-    }
+    // Trava só a linha da solicitação (o evento fica livre: o autosave de várias áreas não pode segurar a
+    // conferência ao vivo). O envio trava evento e depois esta mesma linha; como aqui só esta é travada,
+    // não há ciclo. Quem chega depois espera o outro terminar e relê o status abaixo.
+    await ex.execute(sql`select id from solicitacoes where id = ${id} for update`);
   }
   const s = await ex.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { evento: true, itens: true, area: true } });
   if (!s) throw new NaoEncontradoError("Solicitação");
@@ -586,10 +583,12 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     const previa = await carregarEditavel(tx, usuario, id);
     // Trava o evento: um envio pré-reunião não pode entrar no meio do "Iniciar reunião"/"Fechar ata".
     await bloquearEvento(tx, previa.eventoId);
-    const s = await carregarEditavel(tx, usuario, id);
+    // Depois do evento, a própria solicitação: um autosave em andamento termina antes e o envio lê os itens finais.
+    const s = await carregarEditavel(tx, usuario, id, { travar: true });
     if (s.itens.length === 0) throw new DomainError("Adicione ao menos um item antes de enviar.");
     const semDescricao = s.itens.filter((i) => faltamDescricoes(i) > 0).length;
-    if (semDescricao) throw new ValidacaoError(MSG_DESCRICOES(semDescricao), { descricoes: MSG_DESCRICOES(semDescricao) });
+    // Rascunho antigo (de antes das descrições) enviado pela página de detalhe: diz onde preencher.
+    if (semDescricao) throw new ValidacaoError(`${MSG_DESCRICOES(semDescricao)} Abra o rascunho em “Editar” para preencher.`, { descricoes: MSG_DESCRICOES(semDescricao) });
     if (!s.titulo?.trim()) throw new ValidacaoError(MSG_TITULO_OBRIGATORIO, { titulo: MSG_TITULO_OBRIGATORIO });
     if (!aceitaSolicitacao(s.evento.status, s.tipo)) {
       const motivo =

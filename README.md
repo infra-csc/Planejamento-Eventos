@@ -41,9 +41,9 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 | `DATABASE_URL` | Replit (automática) | PostgreSQL. Vazia = PGlite local. |
 | `PGLITE_DATA_DIR` | local, opcional | Pasta do PGlite (padrão `./.data/pglite`; `memory://` nos testes). |
 | `APP_URL` | produção | URL pública: links de acesso gerados pelo administrador e origem liberada para Server Actions. |
-| `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração no Replit/produção (qualquer pessoa com o link entra como qualquer perfil). Local já aparece; `false` esconde. |
+| `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração no Replit/produção (qualquer pessoa com o link entra como qualquer perfil, inclusive Administrador). O `.replit` deixa `false`. Local já aparece. |
 | `DB_POOL_MAX` | opcional | Conexões por instância (padrão 5). |
-| `SEED_DEMO` | opcional | `true` permite rodar o seed com `NODE_ENV=production`. |
+| `SEED_DEMO` | opcional | `true` permite rodar o seed fora da máquina local (Replit, Postgres, produção). Só num ambiente de demonstração. |
 
 ## Regras de negócio que mais importam
 
@@ -77,16 +77,17 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 
 ## Replit
 
-**Desenvolvimento / demonstração (botão Run).** O `.replit` roda `npm run setup && npm run dev` na porta 3000 e liga `EXIBIR_DEMO="true"`. Para atualizar o código e recarregar os dados de demonstração:
+**Botão Run.** O `.replit` roda `npm run db:migrate && npm run build && npm run start` na porta 3000, com `EXIBIR_DEMO="false"`. O Run **não** roda o seed nem a importação do catálogo (criavam usuários com senha fixa e reescreviam o catálogo). Para atualizar:
 
 ```bash
-git fetch origin && git reset --hard origin/main && npm install
-npm run db:reset -- --force && npm run setup
+git pull && npm install && npm run db:migrate
 ```
 
-Depois clique em Run. **Antes de colocar dados reais**, troque `EXIBIR_DEMO` para `"false"` no `.replit`.
+Depois clique em Stop/Run. Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar).
 
-**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública. Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com o seed (`SEED_DEMO=true npm run db:seed`), troque a senha dele pelo perfil e desative os usuários de demonstração em Administração.
+**Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num Repl separado, nunca com dados reais.
+
+**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública. Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com `npm run admin:senha -- <email> <senha>`.
 
 **Login falhando com "Invalid Server Actions request".** A origem do navegador não está liberada. As origens vêm de `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` e `APP_URL` (`next.config.ts`); o `proxy.ts` registra `[origem-action]` no console com origin e host quando eles divergem.
 
