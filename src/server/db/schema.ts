@@ -165,6 +165,8 @@ export const pecas = pgTable("pecas", {
   descricao: text("descricao"),
   estoqueProprio: integer("estoque_proprio").notNull().default(0),
   permiteEmProjeto: boolean("permite_em_projeto").notNull().default(true),
+  /** false = fica no catálogo, mas não aparece nas listas de seleção das solicitações (ex.: marcenaria, por enquanto). */
+  disponivelEmSolicitacoes: boolean("disponivel_solicitacao").notNull().default(true),
   ativo: boolean("ativo").notNull().default(true),
   criadoPorId: text("criado_por_id").references(() => usuarios.id),
   criadoEm: criadoEm(),
@@ -178,6 +180,8 @@ export const projetos = pgTable("projetos", {
   categoria: text("categoria").notNull().default(""),
   descricao: text("descricao"),
   versaoAtual: integer("versao_atual").notNull().default(1),
+  /** false = fica na biblioteca, mas não aparece nas listas de seleção das solicitações. */
+  disponivelEmSolicitacoes: boolean("disponivel_solicitacao").notNull().default(true),
   ativo: boolean("ativo").notNull().default(true),
   criadoPorId: text("criado_por_id").references(() => usuarios.id),
   criadoEm: criadoEm(),

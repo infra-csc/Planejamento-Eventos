@@ -204,6 +204,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                   <ChipMono tom="control" className="shrink-0">
                                     v{p.versaoAtual}
                                   </ChipMono>
+                                  {!p.disponivelEmSolicitacoes && (
+                                    <Tag tom="muted" className="shrink-0">
+                                      fora das solicitações
+                                    </Tag>
+                                  )}
                                 </span>
                                 {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
                                 <span className="mt-0.5 block text-pequeno text-ink-3">
@@ -347,6 +352,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             {p.nome}
           </span>
           {!p.permiteEmProjeto && <Tag tom="muted">só fora de projeto</Tag>}
+          {!p.disponivelEmSolicitacoes && <Tag tom="muted">fora das solicitações</Tag>}
           {!p.ativo && <Tag tom="warning">inativa</Tag>}
         </span>
         <span className="mt-0.5 block text-pequeno text-muted xl:hidden">

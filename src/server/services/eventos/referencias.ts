@@ -28,26 +28,26 @@ export async function opcoesReferencias() {
 async function consultarOpcoesReferenciasResumidas() {
   const db = await getDb();
   const [proj, pcs] = await Promise.all([
-    db.select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual }).from(projetos).where(eq(projetos.ativo, true)).orderBy(asc(projetos.nome)),
-    db.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade }).from(pecas).where(eq(pecas.ativo, true)).orderBy(asc(pecas.codigo)),
+    db.select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual }).from(projetos).where(and(eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true))).orderBy(asc(projetos.nome)),
+    db.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade }).from(pecas).where(and(eq(pecas.ativo, true), eq(pecas.disponivelEmSolicitacoes, true))).orderBy(asc(pecas.codigo)),
   ]);
   return { projetos: proj, pecas: pcs };
 }
 
 async function consultarOpcoesReferencias() {
   const db = await getDb();
-  // Só a versão atual de cada projeto ativo (os únicos que aparecem na resposta), filtrada no banco.
-  const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true));
+  // Só a versão atual de cada projeto ativo e disponível para solicitação (os únicos que aparecem na resposta), filtrada no banco.
+  const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true));
   const [proj, pcs, totais, linhasBom, capas] = await Promise.all([
     db
       .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual })
       .from(projetos)
-      .where(eq(projetos.ativo, true))
+      .where(and(eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true)))
       .orderBy(asc(projetos.nome)),
     db
       .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade, familia: pecas.familia, estoqueProprio: pecas.estoqueProprio })
       .from(pecas)
-      .where(eq(pecas.ativo, true))
+      .where(and(eq(pecas.ativo, true), eq(pecas.disponivelEmSolicitacoes, true)))
       .orderBy(asc(pecas.codigo)),
     db
       .select({ projetoId: projetoVersoes.projetoId, total: sql<number>`coalesce(sum(${projetoItens.quantidade}), 0)` })
@@ -67,7 +67,7 @@ async function consultarOpcoesReferencias() {
     db
       .select({ projetoId: anexos.projetoId, id: anexos.id })
       .from(anexos)
-      .innerJoin(projetos, and(eq(projetos.id, anexos.projetoId), eq(projetos.ativo, true)))
+      .innerJoin(projetos, and(eq(projetos.id, anexos.projetoId), eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true)))
       .where(eq(anexos.tipo, "IMAGEM"))
       .orderBy(asc(anexos.criadoEm)),
   ]);

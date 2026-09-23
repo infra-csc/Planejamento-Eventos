@@ -16,6 +16,7 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { AnexosManager } from "@/components/projetos/anexos-manager";
 import { AtivoToggle } from "@/components/projetos/ativo-toggle";
+import { DisponivelToggle } from "@/components/projetos/disponivel-toggle";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -57,6 +58,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
             <Codigo>{p.codigo}</Codigo>
             <ChipMono tom="control">v{p.versaoAtual}</ChipMono>
             {!p.ativo && <Badge tom="muted">Inativo</Badge>}
+            {p.ativo && !p.disponivelEmSolicitacoes && <Badge tom="muted">Fora das solicitações</Badge>}
           </>
         }
         title={p.nome}
@@ -71,6 +73,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         actions={
           gerencia && (
             <>
+              {p.ativo && <DisponivelToggle id={p.id} disponivel={p.disponivelEmSolicitacoes} />}
               <AtivoToggle id={p.id} ativo={p.ativo} />
               <ButtonLink href={`/projetos/${p.id}/editar`} variant="primary" size="lg" className="no-underline">
                 Editar

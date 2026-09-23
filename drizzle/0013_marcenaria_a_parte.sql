@@ -1,0 +1,2 @@
+ALTER TABLE "pecas" ADD COLUMN IF NOT EXISTS "disponivel_solicitacao" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "projetos" ADD COLUMN IF NOT EXISTS "disponivel_solicitacao" boolean DEFAULT true NOT NULL;

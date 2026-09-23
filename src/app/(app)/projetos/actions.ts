@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUsuario } from "@/server/auth/session";
-import { alterarAtivoProjeto, anexarArquivo, criarProjeto, editarProjeto, removerAnexo } from "@/server/services/projetos";
+import { alterarAtivoProjeto, alterarDisponivelProjeto, anexarArquivo, criarProjeto, editarProjeto, removerAnexo } from "@/server/services/projetos";
 import { projetoSchema } from "@/lib/schemas";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import { destinoInterno } from "@/lib/destino";
@@ -48,6 +48,18 @@ export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: F
   const id = String(formData.get("id") ?? "");
   const ativo = String(formData.get("ativo")) === "true";
   const r = await executar(() => alterarAtivoProjeto(usuario, id, ativo), ativo ? "Projeto reativado." : "Projeto inativado.");
+  revalidatePath("/projetos");
+  revalidatePath("/biblioteca");
+  revalidatePath(`/projetos/${id}`);
+  invalidarDados(TAGS_DADOS.projetos);
+  return r;
+}
+
+export async function alterarDisponivelProjetoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const usuario = await requireUsuario();
+  const id = String(formData.get("id") ?? "");
+  const disponivel = String(formData.get("disponivel")) === "true";
+  const r = await executar(() => alterarDisponivelProjeto(usuario, id, disponivel), disponivel ? "Projeto disponível nas solicitações." : "Projeto fora das listas das solicitações.");
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
   revalidatePath(`/projetos/${id}`);

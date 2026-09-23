@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* A doc do design system cita classes como exemplo; sem isto o Tailwind tenta gerá-las. */
+@source not "../../docs";
 
 /*
  * Design tokens — referência completa em docs/design-system.md.

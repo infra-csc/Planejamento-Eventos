@@ -178,6 +178,16 @@ export async function alterarAtivoProjeto(usuario: UsuarioAtual, id: string, ati
   await registrarHistorico(db, { entidade: "projeto", entidadeId: id, acao: ativo ? "REATIVADO" : "INATIVADO", descricao: `Projeto ${p.nome} ${ativo ? "reativado" : "inativado"}.`, usuarioId: usuario.id });
 }
 
+/** Tira/põe o projeto nas listas de seleção das solicitações sem inativá-lo (continua na biblioteca). */
+export async function alterarDisponivelProjeto(usuario: UsuarioAtual, id: string, disponivel: boolean) {
+  exigir(usuario, "projeto.gerenciar");
+  const db = await getDb();
+  const p = await db.query.projetos.findFirst({ where: eq(projetos.id, id) });
+  if (!p) throw new NaoEncontradoError("Projeto padrão");
+  await db.update(projetos).set({ disponivelEmSolicitacoes: disponivel }).where(eq(projetos.id, id));
+  await registrarHistorico(db, { entidade: "projeto", entidadeId: id, acao: "EDITADO", descricao: `Projeto ${p.nome} ${disponivel ? "disponível" : "fora das listas"} das solicitações.`, usuarioId: usuario.id });
+}
+
 const LIMITE_ANEXO = 8 * 1024 * 1024;
 const MIMES: Record<string, AnexoTipo> = { "image/png": "IMAGEM", "image/jpeg": "IMAGEM", "image/webp": "IMAGEM", "application/pdf": "PDF" };
 

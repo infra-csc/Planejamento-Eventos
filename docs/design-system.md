@@ -80,7 +80,7 @@ grandes com `tracking-[-0.02em]`.
   `rounded-cartao` 10 (cartão, popover, toast) · `rounded-modal` 12 (modal, busca).
 - Sombra: `shadow-pill` (pílula ativa) · `shadow-popover` (menu, lista, painel do sino) · `shadow-modal` · `shadow-toast`.
   Cartões não têm sombra — têm borda `line`.
-- Camadas (`z-[var(--z-*)]`): header 20 · tela-cheia 50 · popover 55 · busca 60 · diálogo 65 · toast 70 · progresso 75.
+- Camadas (utilitário z-index com as variáveis --z-header, --z-tela-cheia, --z-popover, --z-busca, --z-dialogo, --z-toast, --z-progresso): header 20 · tela-cheia 50 · popover 55 · busca 60 · diálogo 65 · toast 70 · progresso 75.
 - Movimento: **120–180 ms**. Cor/hover 150 ms (padrão de `transition-*`, curva `cubic-bezier(.2,0,0,1)`);
   entrada de painel `animate-fade-up-rapido` (140 ms) e de página `animate-fade-up` (180 ms); clique em botão
   `scale(.98)`. Com "reduzir movimento" (`prefers-reduced-motion`), animações e transições são zeradas

@@ -33,7 +33,7 @@ async function main() {
   let atualizadas = 0;
   for (const p of PECAS) {
     const existente = await db.query.pecas.findFirst({ where: eq(pecas.codigo, p.codigo) });
-    const base = { nome: p.nome, setor: p.setor, familia: p.familia, unidade: p.unidade ?? "un", permiteEmProjeto: p.permiteEmProjeto ?? true, descricao: p.descricao ?? null };
+    const base = { nome: p.nome, setor: p.setor, familia: p.familia, unidade: p.unidade ?? "un", permiteEmProjeto: p.permiteEmProjeto ?? true, descricao: p.descricao ?? null, disponivelEmSolicitacoes: p.disponivelEmSolicitacoes ?? true };
     if (existente) {
       // Por enquanto o estoque não é controlado no app: a importação zera o que veio do seed de demonstração.
       await db.update(pecas).set({ ...base, ativo: true, estoqueProprio: p.estoque ?? 0 }).where(eq(pecas.id, existente.id));
@@ -88,11 +88,14 @@ async function main() {
       if (!pecaId) throw new Error(`Projeto "${pr.nome}": peça ${codigo} não existe no catálogo.`);
       return { pecaId, quantidade };
     });
+    const disponivel = pr.disponivelEmSolicitacoes ?? true;
     if (!existente) {
-      await criarProjeto(usuario, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: OBS_IMPORTACAO, itens });
+      const criado = await criarProjeto(usuario, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: OBS_IMPORTACAO, itens });
+      if (!disponivel) await db.update(projetos).set({ disponivelEmSolicitacoes: false }).where(eq(projetos.id, criado.id));
       projetosCriados++;
       continue;
     }
+    if (existente.disponivelEmSolicitacoes !== disponivel) await db.update(projetos).set({ disponivelEmSolicitacoes: disponivel }).where(eq(projetos.id, existente.id));
     const versaoAtual = existente.versoes.find((v) => v.numero === existente.versaoAtual);
     const bomMudou = !versaoAtual || chaveBom(versaoAtual.itens) !== chaveBom(itens);
     const dadosMudaram = existente.nome !== pr.nome || existente.categoria !== pr.categoria || (existente.descricao ?? null) !== (pr.descricao ?? null);
