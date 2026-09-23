@@ -12,6 +12,7 @@ import { anexos, projetos } from "@/server/db/schema";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { impressao, textoSeguro } from "@/server/export/excel";
 import { montarOsEstrutura, type OsEstrutura } from "@/server/export/os-estrutura";
+import { lerArquivo } from "@/server/armazenamento";
 
 /*
  * OS de estrutura no modelo da planilha da cenografia: TOTAL (blocos lado a lado), SOMATÓRIA
@@ -272,9 +273,11 @@ async function imagensDosProjetos(codigos: string[]): Promise<Map<string, Imagem
       if (pronta) out.set(codigo, pronta);
       continue;
     }
-    const bruto = conteudoDe.get(m.id);
-    if (!bruto) continue;
+    const valor = conteudoDe.get(m.id);
+    if (!valor) continue;
     try {
+      // O valor pode ser o arquivo (banco) ou a referência ao Object Storage.
+      const bruto = await lerArquivo(valor);
       const base = sharp(new Uint8Array(bruto)).rotate().resize({ width: LARGURA_IMAGEM, withoutEnlargement: true });
       const extension = m.mime === "image/png" ? "png" : "jpeg";
       const { data, info } = await (extension === "png" ? base.png() : base.jpeg({ quality: 82 })).toBuffer({ resolveWithObject: true });

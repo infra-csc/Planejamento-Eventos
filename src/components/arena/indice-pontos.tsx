@@ -58,7 +58,7 @@ export function IndicePontos({
                         oculta && "opacity-60",
                       )}
                     >
-                      <span className="w-12 shrink-0 font-mono text-rotulo text-meta">{p.legenda?.split(" ")[0] ?? "—"}</span>
+                      <span className="numero w-12 shrink-0 text-rotulo text-meta">{p.legenda?.split(" ")[0] ?? "—"}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-corpo text-ink">{p.nome}</span>
                         <span className="block truncate text-rotulo text-muted">{p.tipo}</span>

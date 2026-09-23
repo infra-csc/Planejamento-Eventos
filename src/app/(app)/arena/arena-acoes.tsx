@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { IconButton } from "@/components/ui/icon-button";
+import { Icone } from "@/components/ui/icons";
 import { Field } from "@/components/ui/field";
 import { excluirArenaAction, removerPlantaArenaAction, trocarPlantaArenaAction } from "./arenas-actions";
 
@@ -29,11 +30,7 @@ export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: stri
       <Dropdown>
         <DropdownTrigger asChild>
           <IconButton label={`Ações de ${nome}`}>
-            <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="1.8" />
-              <circle cx="12" cy="12" r="1.8" />
-              <circle cx="19" cy="12" r="1.8" />
-            </svg>
+            <Icone nome="reticencias" />
           </IconButton>
         </DropdownTrigger>
         <DropdownContent>

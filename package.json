@@ -13,10 +13,12 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
-    "setup": "npm run db:migrate && npm run db:seed && npm run importar:catalogo && npm run db:dados",
+    "setup": "npm run db:migrate && npm run db:seed && npm run importar:catalogo && npm run importar:arena && npm run db:dados",
     "db:dados": "tsx scripts/registrar-pre-reuniao.ts",
     "test:smoke": "tsx scripts/smoke.ts",
+    "test:e2e": "playwright test",
     "importar:catalogo": "tsx scripts/importar-catalogo.ts",
+    "importar:arena": "tsx scripts/importar-arena-eco-run.ts",
     "admin:senha": "tsx scripts/admin-senha.ts",
     "backup": "tsx scripts/backup.ts",
     "restaurar": "tsx scripts/restaurar.ts"
@@ -40,6 +42,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.4",

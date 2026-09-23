@@ -4,7 +4,7 @@ import { areas, eventoItens, eventos, historico, solicitacaoItens, solicitacoes,
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { ehRequisitante, pode } from "@/domain/permissions";
 import { addDiasISO, diaMesHora, diaMesISO, diaSemanaCurto, hojeISO, hora, isoSP } from "@/lib/format";
-import { aguardaReuniao } from "@/domain/solicitacao";
+import { aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { descricaoItem } from "./solicitacoes";
 
 /**
@@ -45,7 +45,7 @@ type SolicitacaoComItens = {
 
 function paraFila(s: SolicitacaoComItens): ItemFila {
   const pendentes = s.itens.filter((i) => i.status === "EM_ANALISE");
-  const aberta = s.status === "ENVIADA" || s.status === "EM_ANALISE";
+  const aberta = STATUS_ABERTOS.includes(s.status);
   const p = pendentes[0];
   return {
     id: s.id,
@@ -133,7 +133,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
               eq(solicitacoes.excluida, false),
               eq(solicitacoes.areaId, areaId),
               or(
-                inArray(solicitacoes.status, ["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"]),
+                inArray(solicitacoes.status, [...STATUS_EDITAVEIS, ...STATUS_ABERTOS]),
                 and(eq(solicitacoes.status, "RESPONDIDA"), gt(solicitacoes.respondidaEm, new Date(agora.getTime() - 7 * 86_400_000))),
               ),
             ),
@@ -153,11 +153,11 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     const agenda = montarAgenda(evs);
     const ordemStatus: Partial<Record<SolicitacaoStatus, number>> = { DEVOLVIDA: 0, RASCUNHO: 1, EM_ANALISE: 2, ENVIADA: 2 };
     const fila = minhas
-      .filter((s) => ["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"].includes(s.status))
+      .filter((s) => STATUS_EDITAVEIS.includes(s.status) || STATUS_ABERTOS.includes(s.status))
       .map(paraFila)
       .sort((a, b) => (ordemStatus[a.status] ?? 9) - (ordemStatus[b.status] ?? 9) || porPrazo(a, b));
-    const aguardando = minhas.filter((s) => s.status === "ENVIADA" || s.status === "EM_ANALISE").length;
-    const rascunhos = minhas.filter((s) => s.status === "RASCUNHO" || s.status === "DEVOLVIDA");
+    const aguardando = minhas.filter((s) => STATUS_ABERTOS.includes(s.status)).length;
+    const rascunhos = minhas.filter((s) => STATUS_EDITAVEIS.includes(s.status));
     // Necessidade pré-reunião com a ata ainda aberta não foi avaliada: entrou na ata e espera a reunião.
     const naAta = (s: { tipo: "PRE_REUNIAO" | "ALTERACAO"; evento: { status: EventoStatus } }) => aguardaReuniao(s.tipo, s.evento.status);
     const respondidas = minhas.filter((s) => s.status === "RESPONDIDA").sort((a, b) => (b.respondidaEm?.getTime() ?? 0) - (a.respondidaEm?.getTime() ?? 0));
@@ -198,7 +198,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   const [evs, abertas, contagens] = await Promise.all([
     consultaEventos,
     db.query.solicitacoes.findMany({
-      where: and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")),
+      where: and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.tipo, "ALTERACAO")),
       with: {
         evento: { columns: { id: true, nome: true } },
         area: { columns: { nome: true } },
@@ -331,8 +331,8 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
       minhasUnidades: Number(t?.minhasUnidades ?? 0),
       itensNoEvento: Number(t?.itensNoEvento ?? 0),
       depoisDaAta: Number(t?.depoisDaAta ?? 0),
-      aguardando: pedidos.filter((p) => p.eventoId === e.id && (p.status === "ENVIADA" || p.status === "EM_ANALISE")).length,
-      rascunhos: pedidos.filter((p) => p.eventoId === e.id && (p.status === "RASCUNHO" || p.status === "DEVOLVIDA")).length,
+      aguardando: pedidos.filter((p) => p.eventoId === e.id && STATUS_ABERTOS.includes(p.status)).length,
+      rascunhos: pedidos.filter((p) => p.eventoId === e.id && STATUS_EDITAVEIS.includes(p.status)).length,
     };
   });
 }

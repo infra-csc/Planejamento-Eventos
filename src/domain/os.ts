@@ -117,7 +117,7 @@ export function diffOS(antes: OsConteudo, depois: OsConteudo): DiffLinha[] {
 }
 
 /** Resumo curto de uma diferença de OS: "BOX-600 +4 · CUBO −2 · +3". */
-export function resumirDiff(diff: DiffLinha[]): string {
+function resumirDiff(diff: DiffLinha[]): string {
   if (diff.length === 0) return "sem mudança nas quantidades";
   const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
   return partes.join(" · ") + (diff.length > 3 ? ` · +${diff.length - 3}` : "");

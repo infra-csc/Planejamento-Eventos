@@ -15,6 +15,7 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { Agora, type AcaoAgora } from "@/components/painel/agora";
 import { AtenderRapido } from "@/components/painel/atender-rapido";
 import { EventosSolicitante, MudancasSolicitante } from "@/components/painel/eventos-solicitante";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 export const metadata: Metadata = { title: "Painel" };
 
@@ -38,7 +39,7 @@ function LinhaFila({ f, rapida, agora }: { f: ItemFila; rapida: boolean; agora: 
   const cor = COR_TOM[pi.tom];
   const href = `/solicitacoes/${f.id}`;
   const contexto = [f.areaNome, f.eventoNome, `${f.total} ${plural(f.total, "item", "itens")}`, f.respondidos > 0 ? `${f.respondidos} ${plural(f.respondidos, "respondido", "respondidos")}` : null].filter(Boolean).join(" · ");
-  const aberta = f.status === "ENVIADA" || f.status === "EM_ANALISE";
+  const aberta = STATUS_ABERTOS.includes(f.status);
   return (
     <li className="flex items-start gap-3 border-b border-line-row px-cartao py-3 last:border-b-0">
       <Marcador cor={cor} pulsar={pi.vencido} />

@@ -48,11 +48,6 @@ export function poligonoFaixa(eixo: Vec2[], largura: number): Vec2[] {
   return [...esquerda, ...direita.reverse()];
 }
 
-export function centroide(poligono: Vec2[]): Vec2 {
-  const n = poligono.length || 1;
-  return [poligono.reduce((a, p) => a + p[0], 0) / n, poligono.reduce((a, p) => a + p[1], 0) / n];
-}
-
 export function comprimentoPercurso(arena: Arena): number {
   return arena.percurso.trechos.reduce((a, t) => a + comprimento(t.eixo), 0);
 }

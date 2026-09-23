@@ -30,6 +30,8 @@ async function main() {
   await conn.db.execute(sql`DROP SCHEMA public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS drizzle CASCADE;`);
   console.log("Schema public recriado.");
   await conn.close();
+  // O cache de dados do Next (catálogo, projetos, áreas) sobrevive a builds e guardaria ids do banco antigo.
+  fs.rmSync(".next/cache/fetch-cache", { recursive: true, force: true });
 }
 
 main().catch((err) => {

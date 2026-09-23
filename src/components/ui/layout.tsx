@@ -112,7 +112,7 @@ export function Panel({ title, description, actions, children, className, padded
 
 export function RotuloGrupo({ children, contagem, className }: { children: React.ReactNode; contagem?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn(!/mb-/.test(className ?? "") && "mb-[9px]", "flex items-baseline gap-[9px]", className)}>
+    <div className={cn(!/\bmb-/.test(className ?? "") && "mb-[9px]", "flex items-baseline gap-[9px]", className)}>
       <h2 className="m-0 text-pequeno font-semibold uppercase tracking-[0.1em] text-muted">{children}</h2>
       {contagem != null && <span className="numero text-rotulo text-meta">{contagem}</span>}
     </div>
@@ -155,7 +155,7 @@ export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { 
     <section className={cn("flex items-center gap-6 rounded-cartao bg-dark px-cartao py-4", className)} {...rest}>
       <div className="min-w-0 flex-1">
         {titulo && <h2 className="m-0 text-secao font-semibold text-white">{titulo}</h2>}
-        {children && <div className="mt-1 text-corpo leading-[1.5] text-on-dark-3">{children}</div>}
+        {children && <div className="mt-1 text-corpo text-on-dark-3">{children}</div>}
       </div>
       {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}
     </section>
@@ -179,14 +179,17 @@ export type TomSemantico = "neutro" | "danger" | "warning" | "success" | "accent
 const COR_TOM_TEXTO: Record<TomSemantico, string> = { neutro: "text-ink", danger: "text-danger", warning: "text-warning", success: "text-success", accent: "text-accent" };
 const COR_TOM_FUNDO: Record<TomSemantico, string> = { neutro: "bg-dark", danger: "bg-danger", warning: "bg-warning", success: "bg-success", accent: "bg-accent" };
 
-/** Número grande (28px, algarismos tabulares na fonte normal). Cor só por `tom` semântico. */
-export function Metric({ label, valor, hint, tom = "neutro", href }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; tom?: TomSemantico; href?: string }) {
+/**
+ * Número grande (28px, algarismos tabulares na fonte normal). Cor só por `tom` semântico.
+ * O `hint` corta em 2 linhas; com `hintInteiro`, aparece inteiro (quando a frase é a instrução do cartão).
+ */
+export function Metric({ label, valor, hint, tom = "neutro", href, hintInteiro }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; tom?: TomSemantico; href?: string; hintInteiro?: boolean }) {
   const conteudo = (
     <>
       <span className="mb-1.5 block text-pequeno text-ink-3">{label}</span>
       <span className={cn("numero block text-metrica font-semibold tracking-[-0.02em]", COR_TOM_TEXTO[tom])}>{valor}</span>
       {hint && (
-        <span className="mt-1 line-clamp-2 text-pequeno text-muted" title={typeof hint === "string" ? hint : undefined}>
+        <span className={cn("mt-1 text-pequeno text-muted", hintInteiro ? "block" : "line-clamp-2")} title={!hintInteiro && typeof hint === "string" ? hint : undefined}>
           {hint}
         </span>
       )}

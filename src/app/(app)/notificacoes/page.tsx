@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/ui/button";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { TabsNav } from "@/components/ui/tabs-nav";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { Paginacao } from "@/components/ui/tabela";
 import { tempoRelativo } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
@@ -81,6 +82,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
         }
       />
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <ContagemAoVivo oculto n={total} singular={soNaoLidas ? "notificação não lida" : "notificação"} plural={soNaoLidas ? "notificações não lidas" : "notificações"} />
         <TabsNav
           rotulo="Filtrar notificações"
           className="mb-0 px-2 pt-1"

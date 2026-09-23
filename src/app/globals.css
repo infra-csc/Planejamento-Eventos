@@ -169,11 +169,32 @@
   --z-dialogo: 65;
   --z-toast: 70;
   --z-progresso: 75;
+
+  /*
+   * Cabeçalho fixo do shell (h-14 em app-shell.tsx) e a folga de um alvo de âncora abaixo dele.
+   * Cabeçalho + folga = 76 px = `top-topo-fixo`. Mude os dois juntos.
+   */
+  --altura-cabecalho: 3.5rem;
+  --folga-ancora: 1.25rem;
+}
+
+/* Alvo de âncora (#hash) ou de rolagem programada: para a uma folga abaixo do cabeçalho fixo. */
+@utility alvo-ancora {
+  scroll-margin-top: var(--folga-ancora);
 }
 
 @layer base {
   html {
     color-scheme: light;
+    /*
+     * Foco por Tab, âncora (#hash) e scrollIntoView não param embaixo do cabeçalho fixo (WCAG 2.4.11).
+     * O alvo acrescenta a sua folga (`:target` / `alvo-ancora`).
+     */
+    scroll-padding-top: var(--altura-cabecalho);
+  }
+
+  :target {
+    scroll-margin-top: var(--folga-ancora);
   }
 
   body {

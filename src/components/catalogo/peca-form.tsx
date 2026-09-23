@@ -9,7 +9,7 @@ import { Aviso, Section } from "@/components/ui/layout";
 import { Numero } from "@/components/ui/numero";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
-import { SETORES } from "@/domain/constantes";
+import { LIMITES, SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
 
 export function PecaForm({
@@ -30,7 +30,7 @@ export function PecaForm({
       <Section titulo="Identificação" sub="Como a peça aparece no catálogo, nos projetos e nas OS.">
         <div className="grid gap-4 px-cartao py-4 sm:grid-cols-2">
           <Field label="Código" htmlFor="codigo" error={c?.codigo} hint="Curto e único. Ex.: BOX-600, TND-MASTRO, MDF-15" obrigatorio>
-            <Input id="codigo" name="codigo" defaultValue={valores.codigo ?? ""} required autoFocus className="font-mono uppercase" maxLength={30} />
+            <Input id="codigo" name="codigo" defaultValue={valores.codigo ?? ""} required autoFocus className="font-mono uppercase" maxLength={LIMITES.codigoPeca} />
           </Field>
           <Field label="Nome descritivo" htmlFor="nome" error={c?.nome} obrigatorio>
             <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required placeholder="Ex.: Box truss 600 mm (trecho 3 m)" />
@@ -47,10 +47,10 @@ export function PecaForm({
             <Select id="setor" name="setor" defaultValue={valores.setor ?? "ESTRUTURA"} ordenarAlfabetico={false} opcoes={SETORES.map((s) => ({ value: s, label: SETOR_LABEL[s] }))} />
           </Field>
           <Field label="Família" htmlFor="familia" optional hint="Box truss, Conexão, Fixação, Tenda, Chapa…">
-            <Input id="familia" name="familia" defaultValue={valores.familia ?? ""} maxLength={60} />
+            <Input id="familia" name="familia" defaultValue={valores.familia ?? ""} maxLength={LIMITES.categoria} />
           </Field>
           <Field label="Unidade" htmlFor="unidade" error={c?.unidade} hint="Ex.: un, m, m², par." obrigatorio>
-            <Input id="unidade" name="unidade" defaultValue={valores.unidade ?? "un"} maxLength={10} />
+            <Input id="unidade" name="unidade" defaultValue={valores.unidade ?? "un"} maxLength={LIMITES.unidade} />
           </Field>
           <Field label="Estoque próprio" htmlFor="estoqueProprio" error={c?.estoqueProprio} hint="Quantidade da empresa. Usado na consolidação por período (integração futura com o sistema de Logística).">
             <Input id="estoqueProprio" name="estoqueProprio" type="number" min={0} defaultValue={valores.estoqueProprio ?? 0} className="numero" />

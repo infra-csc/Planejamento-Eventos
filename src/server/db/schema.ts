@@ -602,6 +602,8 @@ export type AtaConteudo = {
   solicitacoesPreReuniao: Array<{
     codigo: string;
     area: string;
+    /** Id da área (atas fechadas antes desta versão só têm o nome). */
+    areaId?: string;
     itens: Array<{ descricao: string; solicitada: number; atendida: number; status: ItemStatus; observacao: string | null }>;
   }>;
 };

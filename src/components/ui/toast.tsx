@@ -95,10 +95,6 @@ export function toastSucesso(mensagem: string, opcoes?: { desfazer?: () => void 
   toast(mensagem, { ...opcoes, tipo: "sucesso" });
 }
 
-export function fecharToast() {
-  for (const t of lista) remover(t.id);
-}
-
 async function executarDesfazer(t: ItemToast) {
   const f = t.desfazer;
   remover(t.id);
@@ -155,7 +151,7 @@ export function Toaster() {
       <AnuncioNavegacao />
       {itens.length > 0 && (
         <div
-          className="fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end gap-2 max-sm:inset-x-3 max-sm:bottom-3 max-sm:max-w-none"
+          className="fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end gap-2 max-sm:inset-x-3 max-sm:bottom-auto max-sm:top-[calc(env(safe-area-inset-top,0px)+12px)] max-sm:max-w-none"
           onMouseEnter={pausar}
           onMouseLeave={retomar}
           onFocus={pausar}

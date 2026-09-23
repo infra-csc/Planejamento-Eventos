@@ -66,14 +66,14 @@ export function Trilha() {
           // Em telas estreitas só o primeiro e o último aparecem; os do meio encolhem com reticências.
           const meio = i > 0 && !ultimo;
           return (
-            <li key={`${t.label}-${i}`} className={cn("flex min-w-0 items-center gap-[7px]", ultimo ? "shrink" : "shrink-[2]", meio && "max-sm:hidden")}>
+            <li key={`${t.label}-${i}`} className={cn("flex min-w-0 items-center gap-[7px]", ultimo ? "shrink" : "shrink-[2]", meio && "max-sm:hidden", i === 0 && !ultimo && "max-sm:shrink-0")}>
               {i > 0 && (
                 <span aria-hidden className="text-meta">
                   /
                 </span>
               )}
               {t.href && !ultimo ? (
-                <Link href={t.href} title={t.label} className="block max-w-[40vw] truncate rounded-chip text-ink-3 no-underline transition-colors duration-150 hover:text-ink">
+                <Link href={t.href} title={t.label} className="flex min-h-6 min-w-6 max-w-[40vw] items-center truncate rounded-chip text-ink-3 no-underline transition-colors duration-150 hover:text-ink max-md:min-h-10">
                   {t.label}
                   <SinalLink />
                 </Link>

@@ -1,4 +1,5 @@
 import type { Perfil } from "@/server/db/schema";
+import { PERFIS } from "@/domain/constantes";
 
 /**
  * Matriz Perfil × Ação (ver docs/01-analise-e-especificacao.md §4.2).
@@ -34,7 +35,9 @@ export const ACOES = [
 
 export type Acao = (typeof ACOES)[number];
 
-export const PERFIS = ["REQUISITANTE", "CENOGRAFIA", "LOGISTICA", "GESTAO", "ADMIN"] as const satisfies readonly Perfil[];
+// Fonte única da lista de perfis: `constantes.ts` (também usada pelo enum do banco). Reexportada aqui
+// para quem já importava `PERFIS` de permissions.
+export { PERFIS };
 const TODOS: Perfil[] = [...PERFIS];
 const REQUISITANTES: Perfil[] = ["REQUISITANTE", "CENOGRAFIA"];
 

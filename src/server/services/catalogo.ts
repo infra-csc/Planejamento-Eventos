@@ -5,6 +5,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { registrarHistorico, buscaSemAcento, type Executor } from "./support";
 import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
+import { STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 
 export type DadosPeca = {
   codigo: string;
@@ -132,7 +133,7 @@ export async function impactoInativacaoPeca(usuario: UsuarioAtual, id: string) {
       .from(solicitacaoItens)
       .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
       .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
-      .where(and(eq(solicitacaoItens.pecaId, id), eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["RASCUNHO", "DEVOLVIDA", "ENVIADA", "EM_ANALISE"]), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])))
+      .where(and(eq(solicitacaoItens.pecaId, id), eq(solicitacoes.excluida, false), inArray(solicitacoes.status, [...STATUS_EDITAVEIS, ...STATUS_ABERTOS]), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])))
       .orderBy(asc(solicitacoes.codigo)),
     db
       .selectDistinct({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome })

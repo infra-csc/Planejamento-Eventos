@@ -158,7 +158,49 @@ na coluna `ver_como` e a descrição termina com "(pelo administrador, vendo com
 - **Server Actions** aceitas só da própria origem e dos domínios exatos de `REPLIT_DOMAINS`,
   `REPLIT_DEV_DOMAIN` e `APP_URL` — sem curingas.
 
-## 7. Checklist de produção
+## 7. Armazenamento de arquivos (anexos e plantas)
+
+Anexos de projeto e plantas de arena passam por `src/server/armazenamento.ts` (`gravar`, `ler`,
+`apagar`). Dois drivers:
+
+| Driver | Quando | Onde fica o arquivo |
+|---|---|---|
+| `banco` (padrão) | sempre que `ARMAZENAMENTO` não for `replit` | na coluna bytea (`anexos.conteudo`, `arenas.planta_imagem`) — como sempre foi |
+| `replit` | `ARMAZENAMENTO=replit` **e** o pacote `@replit/object-storage` instalado | no Object Storage do Replit; a coluna guarda só a referência `npe-ref:replit:<chave>` |
+
+Não há migração: o valor da coluna diz onde o arquivo está (nenhum PNG/JPG/WebP/PDF começa com
+`npe-ref:`). Por isso dá para ligar e desligar o driver externo a qualquer momento — arquivos antigos
+continuam no banco e são lidos de lá; só os **novos** vão para o destino atual.
+
+Para ligar o Object Storage:
+
+1. No Replit, abra **Object Storage** e crie um bucket para o app (o mesmo do backup serve).
+2. No Shell: `npm i @replit/object-storage` (o projeto não traz o pacote de propósito; o app o
+   carrega por import dinâmico).
+3. Em **Secrets** (workspace e deployment): `ARMAZENAMENTO=replit`.
+4. Reinicie/republique e envie um anexo de teste; ele deve abrir normalmente em Biblioteca → projeto.
+   No log, `ARMAZENAMENTO=replit, mas o pacote … não está instalado` indica o passo 2 pendente (o app
+   segue gravando no banco).
+
+Cuidados:
+
+- **Backup:** com o driver `replit`, `npm run backup` leva só as referências. Os arquivos ficam no
+  bucket (que o Replit mantém); não apague o bucket nem as chaves `anexos/…` e `arenas/…`.
+- **Voltar para o banco:** remova `ARMAZENAMENTO`. Os arquivos já enviados ao bucket continuam sendo
+  lidos de lá enquanto o pacote estiver instalado — não o desinstale antes de trazê-los de volta.
+- Remover anexo, trocar/remover planta e excluir arena apagam também o objeto no bucket; uma falha
+  nessa limpeza vai para o log e deixa só um arquivo órfão.
+
+## 8. Arena da Eco Run (dados importados)
+
+A arena da Eco Run SP 2026 não é mais código de produção: os dados estão em
+`scripts/dados/arena-eco-run-sp-2026.ts` e `npm run importar:arena` a grava na tabela `arenas`
+(slug `eco-run-sp-2026`, sem evento; o `npm run setup` já roda). É idempotente — se a arena já está
+no banco, não mexe. Enquanto o script não roda num banco, o app lê a mesma arena do arquivo de dados,
+com o mesmo endereço (`/arena/eco-run-sp-2026`). No app ela continua "fixa": só leitura (sem troca de
+planta nem exclusão); as posições ajustadas no mapa valem nos dois casos.
+
+## 9. Checklist de produção
 
 - [ ] Secrets do deployment: `APP_URL` (URL pública), `CRON_SECRET`; `EXIBIR_DEMO` ausente ou `false`; `SEED_DEMO` ausente.
 - [ ] Primeiro administrador criado com `npm run admin:senha -- <email> <senha>`; nenhum usuário do seed de demonstração no banco de produção.

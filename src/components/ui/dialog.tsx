@@ -5,7 +5,6 @@ import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
 
 export const Dialog = DialogPrimitive.Root;
-export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
 /**

@@ -141,7 +141,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
     <div className="flex flex-col gap-5">
       {/* Resumo: o que falta, quando é, o tamanho do evento e a versão da OS. */}
       <MetricStrip className="mb-0">
-        <Metric label={falta.rotulo} valor={falta.valor} hint={falta.hint} tom={falta.tom} href={falta.href} />
+        <Metric label={falta.rotulo} valor={falta.valor} hint={falta.hint} tom={falta.tom} href={falta.href} hintInteiro />
         <Metric label="Evento" valor={periodoCurto(ev.dataInicio, ev.dataFim)} hint={contagem(dEvento, "é hoje", "aconteceu")} />
         <Metric
           label="Itens"
@@ -202,7 +202,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           )}
 
           {/* Itens por tipo: projetos, peças do catálogo e fora do catálogo — com quem pediu e para onde vai. */}
-          <div id="itens" className="scroll-mt-20">
+          <div id="itens" className="alvo-ancora">
             <Section titulo="Itens do evento" sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}>
               {linhas.length > 0 && (
                 <div className="overflow-x-auto border-b border-line-soft px-cartao py-2.5">

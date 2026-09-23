@@ -4,6 +4,7 @@ import { areas, eventos, sessoes, solicitacoes, tokensRecuperacao, usuarios } fr
 import { notificar, obterConfiguracoes, usuariosLogistica } from "@/server/services/support";
 import { purgarTentativasAntigas } from "@/server/auth/limite";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 const INTERVALO_MS = 5 * 60_000;
 const estado = globalThis as unknown as { __npeUltimaVerificacao?: number; __npeVerificando?: boolean };
@@ -36,7 +37,7 @@ export async function executarVerificacoesSeNecessario() {
 async function verificarSlaVencido() {
   const db = await getDb();
   const vencidas = await db.query.solicitacoes.findMany({
-    where: and(inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO"), eq(solicitacoes.excluida, false), lt(solicitacoes.prazoRespostaEm, new Date())),
+    where: and(inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.tipo, "ALTERACAO"), eq(solicitacoes.excluida, false), lt(solicitacoes.prazoRespostaEm, new Date())),
     with: { evento: { columns: { nome: true } }, area: true },
   });
   if (!vencidas.length) return;
@@ -63,7 +64,7 @@ async function avisoPrazoProximo() {
   const agora = new Date();
   const proximas = await db.query.solicitacoes.findMany({
     where: and(
-      inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+      inArray(solicitacoes.status, STATUS_ABERTOS),
       eq(solicitacoes.tipo, "ALTERACAO"),
       eq(solicitacoes.excluida, false),
       gt(solicitacoes.prazoRespostaEm, agora),

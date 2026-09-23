@@ -22,3 +22,22 @@ export const OS_GATILHOS = [
   "REABERTURA",
   "ENCERRAMENTO",
 ] as const;
+
+/**
+ * Limites de texto dos formulários. Os schemas Zod (`lib/schemas.ts`) validam com eles e os campos
+ * usam os mesmos valores em `maxLength` — um número só para tela e servidor.
+ */
+export const LIMITES = {
+  /** Nome de evento, peça, projeto, usuário, arena. */
+  nome: 120,
+  codigoPeca: 30,
+  unidade: 10,
+  /** Família/categoria de peça e projeto. */
+  categoria: 60,
+  /** Descrição de item fora do catálogo e local do evento. */
+  descricaoLivre: 160,
+  destino: 60,
+  /** Justificativa, motivo e observação curta. */
+  justificativa: 500,
+  observacoesReuniao: 10_000,
+} as const;

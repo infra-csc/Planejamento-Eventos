@@ -145,11 +145,11 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
                 >
                   <span aria-hidden className={cn("mt-1.5 size-[7px] shrink-0 rounded-full", n.lida ? "bg-transparent" : n.prazo ? "bg-danger" : "bg-accent")} />
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block text-corpo leading-[1.35] text-ink", !n.lida && "font-medium")}>
+                    <span className={cn("block text-corpo text-ink", !n.lida && "font-medium")}>
                       {!n.lida && <span className="sr-only">Não lida: </span>}
                       {n.titulo}
                     </span>
-                    <span className="mt-0.5 block text-pequeno leading-[1.4] text-ink-3">{n.mensagem}</span>
+                    <span className="mt-0.5 block text-pequeno text-ink-3">{n.mensagem}</span>
                     <span className="numero mt-1 block text-rotulo text-meta">{tempoRelativo(n.criadoEm)}</span>
                   </span>
                 </button>

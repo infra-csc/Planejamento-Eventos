@@ -6,8 +6,8 @@
  * - Decorativo por padrão (`aria-hidden`); com `title`, vira imagem com nome (role="img").
  *   Em botão só com ícone, o nome vai no botão (IconButton `label`), não no ícone.
  *
- * Os componentes antigos (IconeLapis, IconeCheck, IconeChevron, IconeFechar, IconeLupa, IconeMais,
- * IconeMenos) continuam exportados e desenham a partir deste mesmo conjunto.
+ * Os componentes antigos ainda em uso (IconeLapis, IconeFechar, IconeMais, IconeMenos) continuam
+ * exportados e desenham a partir deste mesmo conjunto.
  */
 
 const TRACO = 1.75;
@@ -108,7 +108,6 @@ const DESENHOS = {
     </>
   ),
   download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />,
-  filtro: <path d="M4 5h16l-6 7.5V19l-4 2v-8.5z" />,
   check: <path d="m5 12.5 4.5 4.5L19 7" />,
   "check-circulo": (
     <>
@@ -158,18 +157,6 @@ const DESENHOS = {
       <path d="m3 14 9 5 9-5" />
     </>
   ),
-  olho: (
-    <>
-      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
-      <circle cx="12" cy="12" r="2.8" />
-    </>
-  ),
-  copia: (
-    <>
-      <rect x="8.5" y="8.5" width="12" height="12" rx="2" />
-      <path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" />
-    </>
-  ),
   "link-externo": <path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   recolher: (
@@ -191,11 +178,47 @@ const DESENHOS = {
       <circle cx="18" cy="12" r="0.9" fill="currentColor" />
     </>
   ),
+  /* Controles do mapa da arena (antes em components/arena/icones.tsx). */
+  enquadrar: (
+    <>
+      <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />
+      <circle cx="12" cy="12" r="2.2" />
+    </>
+  ),
+  norte: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 6.5l2.6 7h-5.2z" fill="currentColor" stroke="none" />
+      <path d="M12 17.5v-4" />
+    </>
+  ),
+  "tela-cheia": <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />,
+  "sair-tela-cheia": <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />,
+  perspectiva: <path d="M3 17l9 4 9-4-9-4zM12 13V3" />,
+  lista: (
+    <>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+  teclado: (
+    <>
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+    </>
+  ),
+  "vista-superior": (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 12h16M12 4v16" />
+    </>
+  ),
+  regua: <path d="M3 16.5 16.5 3 21 7.5 7.5 21zM7 12.5l1.8 1.8M10 9.5l1.8 1.8M13 6.5l1.8 1.8" />,
 } as const;
 
 export type NomeIcone = keyof typeof DESENHOS;
-export const NOMES_ICONE = Object.keys(DESENHOS) as NomeIcone[];
-
 type PropsIcone = {
   nome: NomeIcone;
   /** 16 (padrão) dentro de botões, campos e linhas; 20 no menu lateral e no cabeçalho. */
@@ -259,20 +282,8 @@ export function IconeLapis({ size = 14, className, strokeWidth }: P) {
   return <Svg nome="lapis" px={size} className={className} traco={traco16(strokeWidth)} />;
 }
 
-export function IconeCheck({ size = 15, className, strokeWidth }: P) {
-  return <Svg nome="check" px={size} className={className} traco={traco16(strokeWidth)} />;
-}
-
-export function IconeChevron({ size = 14, className, strokeWidth, direcao = "direita" }: P & { direcao?: "direita" | "esquerda" | "baixo" | "cima" }) {
-  return <Svg nome={`chevron-${direcao}`} px={size} className={className} traco={traco16(strokeWidth)} />;
-}
-
 export function IconeFechar({ size = 14, className, strokeWidth }: P) {
   return <Svg nome="fechar" px={size} className={className} traco={traco16(strokeWidth)} />;
-}
-
-export function IconeLupa({ size = 14, className, strokeWidth }: P) {
-  return <Svg nome="busca" px={size} className={className} traco={traco16(strokeWidth)} />;
 }
 
 export function IconeMais({ size = 14, className, strokeWidth }: P) {

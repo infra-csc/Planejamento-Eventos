@@ -1,5 +1,6 @@
 import type { SolicitacaoStatus } from "@/server/db/schema";
 import { diaMesHora, hora, isoSP } from "./format";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 export type TomPrazo = "danger" | "warning" | "neutral" | "muted";
 
@@ -17,7 +18,7 @@ export type InfoPrazo = { label: string; sub: string; tom: TomPrazo; vencido: bo
  * pode estar vencida: respondida, cancelada ou em rascunho nunca é "atrasada".
  */
 export function prazoInfo(s: { status: SolicitacaoStatus; prazoRespostaEm: Date | string | null }, agora: Date = new Date()): InfoPrazo {
-  const aberta = s.status === "ENVIADA" || s.status === "EM_ANALISE";
+  const aberta = STATUS_ABERTOS.includes(s.status);
   if (!aberta) {
     if (s.status === "RASCUNHO") return { label: "rascunho", sub: "", tom: "muted", vencido: false };
     if (s.status === "DEVOLVIDA") return { label: "sem prazo", sub: "corrigir e reenviar", tom: "muted", vencido: false };

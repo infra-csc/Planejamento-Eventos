@@ -263,8 +263,8 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
                   </td>
                   <td className="py-1 pr-3">{CATEGORIAS[p.categoria].rotulo}</td>
                   <td className="py-1 pr-3">{p.tipo}</td>
-                  <td className="py-1 pr-3 text-right font-mono font-semibold">{qtd ?? "—"}</td>
-                  <td className="py-1 pr-3 whitespace-nowrap font-mono text-[11px]">
+                  <td className="numero py-1 pr-3 text-right font-semibold">{qtd ?? "—"}</td>
+                  <td className="numero py-1 pr-3 whitespace-nowrap text-[11px]">
                     {numero1.format(p.posicao[0])} · {numero1.format(p.posicao[1])}
                   </td>
                   <td className="py-1 text-[11px] text-neutral-600">{obs || "—"}</td>
@@ -297,7 +297,7 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
                   <tr key={`${s.origem}-${s.item}-${i}`} className="break-inside-avoid border-b border-neutral-300 align-top">
                     <td className="py-1 pr-3 text-[11px] text-neutral-600">{s.origem}</td>
                     <td className="py-1 pr-3">{s.item}</td>
-                    <td className="py-1 pr-3 text-right font-mono">{s.quantidade ?? "—"}</td>
+                    <td className="numero py-1 pr-3 text-right">{s.quantidade ?? "—"}</td>
                     <td className="py-1 text-[11px] text-neutral-600">{s.nota ? curto(s.nota, 120) : "—"}</td>
                   </tr>
                 ))}

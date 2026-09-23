@@ -39,7 +39,7 @@ export function podeEnviar(status: SolicitacaoStatus) {
  */
 export function podeCancelar(status: SolicitacaoStatus, algumItemRespondido: boolean, statusEvento?: EventoStatus) {
   if (statusEvento === "ENCERRADO" || statusEvento === "CANCELADO") return false;
-  if (status === "RASCUNHO" || status === "DEVOLVIDA") return true;
+  if (STATUS_EDITAVEIS.includes(status)) return true;
   return status === "ENVIADA" && !algumItemRespondido;
 }
 
@@ -48,7 +48,7 @@ export function podeDevolver(status: SolicitacaoStatus, algumItemRespondido: boo
 }
 
 export function podeResponder(status: SolicitacaoStatus) {
-  return status === "ENVIADA" || status === "EM_ANALISE";
+  return STATUS_ABERTOS.includes(status);
 }
 
 export function podeCorrigirResposta(status: SolicitacaoStatus) {

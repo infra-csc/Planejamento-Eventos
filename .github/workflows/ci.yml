@@ -69,3 +69,29 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-16 >/dev/null 2>&1 || true
           BACKUP_MODO=pg_dump npm run backup
           npm run restaurar -- "$(ls -1t "$BACKUP_DIR"/npe-backup-*.sql.gz | grep -v -- -dados | head -n 1)" --force
+
+  # Fluxos ponta a ponta no navegador (Playwright + axe) contra o build de produção com PGlite novo
+  # em .data/e2e (o webServer do playwright.config.ts cuida de migrar, semear, buildar e subir).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Navegador do Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+      - name: Testes E2E (desktop 1280×800 e celular 375×812)
+        run: npm run test:e2e
+      - name: Relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

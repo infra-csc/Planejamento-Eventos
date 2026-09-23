@@ -80,7 +80,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (comp.avulsosNovos.length > 0) {
     l += 1;
     l = tituloSecao(ws, l, 7, "Itens fora do catálogo que entraram depois", "Separação manual: não somam por peça.");
-    l = tabela(
+    // Última tabela da planilha: a linha seguinte não é usada.
+    tabela(
       ws,
       "ComplementoAvulsos",
       l,

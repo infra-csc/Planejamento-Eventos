@@ -155,7 +155,7 @@ function LinhaMudanca({ m }: { m: Mudanca }) {
 /** Linha do tempo das mudanças nos eventos da área (inclusive de outras áreas, sem o motivo interno). */
 export function MudancasSolicitante({ mudancas }: { mudancas: Mudanca[] }) {
   return (
-    <div id="o-que-mudou" className="scroll-mt-topo-fixo">
+    <div id="o-que-mudou" className="alvo-ancora">
       <Section titulo="O que mudou" sub="Itens que entraram, saíram ou foram ajustados.">
         {mudancas.length === 0 ? (
           <EmptyState compact title="Nenhuma mudança recente" description="Ajustes da logística aparecem aqui assim que acontecem." />

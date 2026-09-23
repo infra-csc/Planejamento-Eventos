@@ -8,6 +8,7 @@ import { solicitacoes } from "@/server/db/schema";
 import { pode } from "@/domain/permissions";
 import { AppShell, type NavItem } from "@/components/shell/app-shell";
 import { listarAreasCache } from "@/server/cache";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const usuario = await requireUsuario();
@@ -20,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const [r] = await db
       .select({ n: count() })
       .from(solicitacoes)
-      .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO")));
+      .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.tipo, "ALTERACAO")));
     return Number(r.n);
   };
   // "Ver como" é só do admin real (não do perfil simulado): as áreas vêm em paralelo com os contadores.

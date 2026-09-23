@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUsuarioAtual } from "@/server/auth/session";
 import { obterAnexo, obterAnexoMeta } from "@/server/services/projetos";
-import { NaoEncontradoError } from "@/domain/errors";
+import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import sharp from "sharp";
 
 /** Larguras de miniatura aceitas (px). Fora disso, serve o original. */
@@ -64,6 +64,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return resposta(new Uint8Array(a.conteudo), a.mime, a.nomeArquivo, etag);
   } catch (e) {
     if (e instanceof NaoEncontradoError) return NextResponse.json({ erro: "Não encontrado" }, { status: 404 });
+    if (e instanceof SemPermissaoError) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
     throw e;
   }
 }

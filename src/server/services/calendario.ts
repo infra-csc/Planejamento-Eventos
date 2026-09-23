@@ -5,6 +5,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { pode } from "@/domain/permissions";
 import type { EventoStatus } from "@/server/db/schema";
 import { hora, isoSP } from "@/lib/format";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 export type TipoCalendario = "reuniao" | "evento" | "janela" | "montagem" | "carga" | "prazo";
 
@@ -54,7 +55,7 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
           .from(solicitacoes)
           .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
           .innerJoin(areas, eq(solicitacoes.areaId, areas.id))
-          .where(and(eq(solicitacoes.excluida, false), eq(solicitacoes.tipo, "ALTERACAO"), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), gte(solicitacoes.prazoRespostaEm, ini), lte(solicitacoes.prazoRespostaEm, fimD)))
+          .where(and(eq(solicitacoes.excluida, false), eq(solicitacoes.tipo, "ALTERACAO"), inArray(solicitacoes.status, STATUS_ABERTOS), gte(solicitacoes.prazoRespostaEm, ini), lte(solicitacoes.prazoRespostaEm, fimD)))
       : Promise.resolve([]),
   ]);
 

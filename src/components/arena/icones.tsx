@@ -1,89 +1,23 @@
-/** Ícones de traço simples, desenhados para os controles do mapa (o app não usa biblioteca de ícones). */
-type P = { className?: string };
-const base = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+import { Icone } from "@/components/ui/icons";
 
-export const IconeMais = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-);
-export const IconeMenos = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M5 12h14" />
-  </svg>
-);
-export const IconeEnquadrar = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />
-    <circle cx="12" cy="12" r="2.2" />
-  </svg>
-);
-export const IconeNorte = (p: P) => (
-  <svg {...base} className={p.className}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 6.5l2.6 7h-5.2z" fill="currentColor" stroke="none" />
-    <path d="M12 17.5v-4" />
-  </svg>
-);
-export const IconeCamadas = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M12 4l8.5 4.5L12 13 3.5 8.5z" />
-    <path d="M3.5 12.5L12 17l8.5-4.5" />
-    <path d="M3.5 16.5L12 21l8.5-4.5" />
-  </svg>
-);
-export const IconeTelaCheia = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
-  </svg>
-);
-export const IconeSairTelaCheia = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />
-  </svg>
-);
-export const IconeBusca = (p: P) => (
-  <svg {...base} className={p.className}>
-    <circle cx="11" cy="11" r="6.5" />
-    <path d="M20 20l-4.2-4.2" />
-  </svg>
-);
-export const IconePerspectiva = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M3 17l9 4 9-4-9-4z" />
-    <path d="M12 13V3" />
-  </svg>
-);
-export const IconeLista = (p: P) => (
-  <svg {...base} className={p.className}>
-    <path d="M9 6h11M9 12h11M9 18h11" />
-    <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
-  </svg>
-);
-export const IconeTeclado = (p: P) => (
-  <svg {...base} className={p.className}>
-    <rect x="3" y="6" width="18" height="12" rx="2" />
-    <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
-  </svg>
-);
-export const IconeSuperior = (p: P) => (
-  <svg {...base} className={p.className}>
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-    <path d="M4 12h16M12 4v16" />
-  </svg>
-);
-export const IconeRegua = (p: P) => (
-  <svg {...base} width={14} height={14} className={p.className}>
-    <path d="M3 16.5L16.5 3 21 7.5 7.5 21z" />
-    <path d="M7 12.5l1.8 1.8M10 9.5l1.8 1.8M13 6.5l1.8 1.8" />
-  </svg>
-);
-export const IconeImprimir = (p: P) => (
-  <svg {...base} width={14} height={14} className={p.className}>
-    <path d="M7 9V4h10v5" />
-    <rect x="3.5" y="9" width="17" height="8" rx="1.5" />
-    <path d="M7 14h10v6H7z" />
-  </svg>
-);
+/**
+ * Nomes antigos dos ícones do mapa, mantidos para os imports existentes. Os desenhos agora vêm do
+ * conjunto único (`ui/icons.tsx`, docs/design-system.md § 2): 20 px nos controles flutuantes do mapa,
+ * 16 px em botões, menus e campos. Código novo usa `<Icone nome=…>` direto.
+ */
+type P = { className?: string };
+
+export const IconeMais = (p: P) => <Icone nome="mais" tamanho={20} className={p.className} />;
+export const IconeMenos = (p: P) => <Icone nome="menos" tamanho={20} className={p.className} />;
+export const IconeEnquadrar = (p: P) => <Icone nome="enquadrar" tamanho={20} className={p.className} />;
+export const IconeNorte = (p: P) => <Icone nome="norte" tamanho={20} className={p.className} />;
+export const IconeCamadas = (p: P) => <Icone nome="camadas" tamanho={20} className={p.className} />;
+export const IconeTelaCheia = (p: P) => <Icone nome="tela-cheia" tamanho={20} className={p.className} />;
+export const IconeSairTelaCheia = (p: P) => <Icone nome="sair-tela-cheia" tamanho={20} className={p.className} />;
+export const IconeLista = (p: P) => <Icone nome="lista" tamanho={20} className={p.className} />;
+export const IconePerspectiva = (p: P) => <Icone nome="perspectiva" tamanho={20} className={p.className} />;
+export const IconeTeclado = (p: P) => <Icone nome="teclado" tamanho={20} className={p.className} />;
+export const IconeSuperior = (p: P) => <Icone nome="vista-superior" tamanho={20} className={p.className} />;
+export const IconeBusca = (p: P) => <Icone nome="busca" className={p.className} />;
+export const IconeRegua = (p: P) => <Icone nome="regua" className={p.className} />;
+export const IconeImprimir = (p: P) => <Icone nome="imprimir" className={p.className} />;

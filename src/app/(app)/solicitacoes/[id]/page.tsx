@@ -7,7 +7,7 @@ import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
-import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao } from "@/domain/solicitacao";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
@@ -59,7 +59,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const modoFila = sp.fila === "1" && ehLogistica;
 
   const pi = prazoInfo(s, agora);
-  const aberta = s.status === "ENVIADA" || s.status === "EM_ANALISE";
+  const aberta = STATUS_ABERTOS.includes(s.status);
   const respondidos = s.itens.length - pendentes;
   const itens: ItemParaResposta[] = s.itens.map((i) => ({
     id: i.id,
@@ -100,7 +100,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     return i ? descricaoItem(i) : null;
   };
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
-  const semStatus = s.status === "RASCUNHO" || s.status === "DEVOLVIDA";
+  const semStatus = STATUS_EDITAVEIS.includes(s.status);
 
   return (
     <div className="max-w-[1080px]">
@@ -199,7 +199,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         }
       />
 
-      {s.foraDaJanela && (s.status === "ENVIADA" || s.status === "EM_ANALISE") && (
+      {s.foraDaJanela && STATUS_ABERTOS.includes(s.status) && (
         <Aviso tom="danger" titulo="Enviada fora da janela de alterações" className="mb-cartao">
           {ehLogistica
             ? "A janela definida para este evento já terminou. Decida item a item: atender, atender parcialmente ou não atender, com o motivo."

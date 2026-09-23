@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ITEM_OPERACOES, ITEM_STATUS, PERFIS, SETORES } from "@/domain/constantes";
+import { ITEM_OPERACOES, ITEM_STATUS, LIMITES, PERFIS, SETORES } from "@/domain/constantes";
 
 // Postgres rejeita NUL em texto; nada legítimo contém esse caractere.
 const semNul = (s: string) => s.replace(/\0/g, "");
@@ -18,7 +18,11 @@ const dataISO = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
   // "2026-02-30" passa no formato mas não existe no calendário.
-  .refine((d) => new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d, "Data inválida");
+  .refine((d) => {
+    // No Zod 4 o refine roda mesmo depois de o regex falhar: data que não parseia é só inválida, não exceção.
+    const t = new Date(`${d}T00:00:00Z`);
+    return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === d;
+  }, "Data inválida");
 const bool = z
   .union([z.literal("on"), z.literal("true"), z.literal("false"), z.boolean()])
   .optional()
@@ -62,25 +66,28 @@ export const dadosReuniaoSchema = z.object({
 
 /** Cadastro enxuto: responsável é quem cria; montagem, fim, desmontagem e carga não são pedidos. */
 export const eventoSchema = z.object({
-  nome: texto(120),
+  nome: texto(LIMITES.nome),
   cliente: textoOpcional(120),
-  local: textoOpcional(160),
+  local: textoOpcional(LIMITES.descricaoLivre),
   dataInicio: dataISO,
   dataReuniao: z.string().min(1, "Informe a data e hora da reunião"),
   janelaAlteracoesAte: z
-    .union([dataISO, z.literal("")])
+    .union([z.literal(""), dataISO])
     .nullish()
     .transform((v) => (v ? v : null)),
 });
 
-export const justificativaSchema = z.object({ justificativa: texto(500, "Informe a justificativa") });
+/** Justificativa/motivo opcional (vazio passa); só confere o limite. */
+export const motivoOpcionalSchema = textoOpcional(LIMITES.justificativa);
+
+export const justificativaSchema = z.object({ justificativa: texto(LIMITES.justificativa, "Informe a justificativa") });
 
 export const respostaItemSchema = z.object({
   status: z.enum(ITEM_STATUS),
   quantidadeAtendida: z.coerce.number().int().min(0).optional(),
-  observacaoLogistica: textoOpcional(500),
+  observacaoLogistica: textoOpcional(LIMITES.justificativa),
   pendenciaCompra: bool,
-  justificativa: textoOpcional(500),
+  justificativa: textoOpcional(LIMITES.justificativa),
 });
 
 export const ataLinhaSchema = z
@@ -88,11 +95,11 @@ export const ataLinhaSchema = z
     referenciaTipo: z.enum(["PROJETO", "PECA", "AVULSO"]),
     projetoId: textoOpcional(64),
     pecaId: textoOpcional(64),
-    descricaoLivre: textoOpcional(160),
+    descricaoLivre: textoOpcional(LIMITES.descricaoLivre),
     quantidade: inteiroPositivo,
-    destino: textoOpcional(60),
+    destino: textoOpcional(LIMITES.destino),
     areaId: textoOpcional(64),
-    justificativa: textoOpcional(500),
+    justificativa: textoOpcional(LIMITES.justificativa),
   })
   .superRefine((d, ctx) => {
     if (d.referenciaTipo === "PROJETO" && !d.projetoId) ctx.addIssue({ code: "custom", path: ["projetoId"], message: "Escolha o projeto" });
@@ -102,23 +109,23 @@ export const ataLinhaSchema = z
 
 export const ataAlterarQuantidadeSchema = z.object({
   quantidade: z.coerce.number().int().min(0).max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`),
-  justificativa: textoOpcional(500),
+  justificativa: textoOpcional(LIMITES.justificativa),
 });
 
 export const pecaSchema = z.object({
-  codigo: texto(30).transform((v) => v.toUpperCase()),
-  nome: texto(120),
+  codigo: texto(LIMITES.codigoPeca).transform((v) => v.toUpperCase()),
+  nome: texto(LIMITES.nome),
   setor: z.enum(SETORES),
-  familia: textoOpcional(60).transform((v) => v ?? ""),
-  unidade: texto(10).default("un"),
-  descricao: textoOpcional(500),
+  familia: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
+  unidade: texto(LIMITES.unidade).default("un"),
+  descricao: textoOpcional(LIMITES.justificativa),
   estoqueProprio: z.coerce.number().int().min(0).default(0),
   permiteEmProjeto: bool,
 });
 
 export const projetoSchema = z.object({
-  nome: texto(120),
-  categoria: textoOpcional(60).transform((v) => v ?? ""),
+  nome: texto(LIMITES.nome),
+  categoria: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
   descricao: textoOpcional(1000),
   observacaoVersao: textoOpcional(300),
   itens: z
@@ -127,7 +134,7 @@ export const projetoSchema = z.object({
 });
 
 export const usuarioSchema = z.object({
-  nome: texto(120),
+  nome: texto(LIMITES.nome),
   email: z.string().trim().email("Informe um e-mail válido").max(160),
   perfil: z.enum(PERFIS),
   areaId: textoOpcional(64),
@@ -154,7 +161,7 @@ export const solicitacaoCompletaSchema = z.object({
   eventoId: z.string().min(1, "Escolha o evento"),
   /** Só o Administrador escolhe a área; os demais perfis usam a própria. */
   areaId: idOpcional,
-  titulo: textoLivre(120),
+  titulo: textoLivre(LIMITES.nome),
   observacao: textoLivre(1000),
   enviar: z.boolean(),
   itens: z
@@ -164,10 +171,10 @@ export const solicitacaoCompletaSchema = z.object({
         projetoId: idOpcional,
         pecaId: idOpcional,
         eventoItemId: idOpcional,
-        descricaoLivre: textoLivre(160),
+        descricaoLivre: textoLivre(LIMITES.descricaoLivre),
         quantidadeSolicitada: z.coerce.number().int("Use um número inteiro").min(0).max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`),
-        destino: textoLivre(60),
-        justificativa: textoLivre(500),
+        destino: textoLivre(LIMITES.destino),
+        justificativa: textoLivre(LIMITES.justificativa),
         descricoes: z.array(z.string().max(300, "Descrição com até 300 caracteres")).max(1000).nullable().optional(),
         ajustesBom: z
           .array(z.object({ pecaId: z.string().min(1), quantidade: z.coerce.number().int().min(-QTD_MAX).max(QTD_MAX) }))

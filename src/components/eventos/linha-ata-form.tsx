@@ -1,6 +1,6 @@
 "use client";
 
-import { SETORES } from "@/domain/constantes";
+import { LIMITES, SETORES } from "@/domain/constantes";
 import { useActionState, useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { incluirLinhaAtaAction } from "@/app/(app)/eventos/actions";
@@ -58,7 +58,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       )}
       {tipo === "AVULSO" && (
         <Field label="Descrição do item" htmlFor="descricaoLivre" error={campos?.descricaoLivre} hint="Itens fora do catálogo não entram na soma por peça; aparecem listados na OS até a logística vinculá-los.">
-          <Input id="descricaoLivre" name="descricaoLivre" required maxLength={160} placeholder="Ex.: Fechamento lateral de tenda" />
+          <Input id="descricaoLivre" name="descricaoLivre" required maxLength={LIMITES.descricaoLivre} placeholder="Ex.: Fechamento lateral de tenda" />
         </Field>
       )}
 
@@ -67,7 +67,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
           <Input id="quantidade" name="quantidade" type="number" min={1} defaultValue={1} required className="numero" />
         </Field>
         <Field label="Destino" htmlFor="destino" optional>
-          <Input id="destino" name="destino" maxLength={60} placeholder="Ex.: Palco principal" />
+          <Input id="destino" name="destino" maxLength={LIMITES.destino} placeholder="Ex.: Palco principal" />
         </Field>
       </div>
       <Field label="Área" htmlFor="areaId" optional>

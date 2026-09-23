@@ -9,6 +9,7 @@ import { hrefCom, paginar } from "@/lib/url";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { FiltroEvento } from "@/components/ui/filtro-evento";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th } from "@/components/ui/tabela";
@@ -81,6 +82,13 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <ContagemAoVivo
+          oculto
+          n={total}
+          singular="pendência"
+          plural="pendências"
+          complemento={[ROTULO_ABA[aba], eventoId ? eventosMapa.get(eventoId)?.codigo : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")}
+        />
         <TabsNav
           rotulo="Situação das pendências"
           className="mb-0 px-2 pt-1"

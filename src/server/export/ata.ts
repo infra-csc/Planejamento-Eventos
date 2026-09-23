@@ -11,7 +11,8 @@ const veObservacoes = (usuario: UsuarioAtual) => pode(usuario, "ata.consolidar")
 /** Pedidos das áreas: quem não vê todas as solicitações leva só os da própria área. */
 function filtrarPorArea(usuario: UsuarioAtual, lista: AtaConteudo["solicitacoesPreReuniao"]) {
   if (pode(usuario, "solicitacao.ver_todas")) return lista;
-  return lista.filter((s) => s.area === usuario.areaNome);
+  // Pelo id da área (o nome pode mudar depois do fechamento); atas antigas, sem id, pelo nome.
+  return lista.filter((s) => (s.areaId ? s.areaId === usuario.areaId : s.area === usuario.areaNome));
 }
 
 /**

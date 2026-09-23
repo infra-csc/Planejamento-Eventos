@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARENA_ECO_RUN_SP_2026 } from "@/domain/arena/eco-run-sp-2026";
+import { ARENA_ECO_RUN_SP_2026 } from "../../../scripts/dados/arena-eco-run-sp-2026";
 import { ataDoEvento, copiarLayout, detectarMimeImagem, gerarSlugArena, layoutEmBranco, montarBaseArena } from "./arenas";
 
 describe("gerarSlugArena", () => {

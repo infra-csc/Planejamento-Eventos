@@ -15,7 +15,8 @@ import {
   salvarObservacoesReuniao,
   transicionarEvento,
 } from "@/server/services/eventos";
-import { ataAlterarQuantidadeSchema, ataLinhaSchema, dadosReuniaoSchema, eventoSchema, justificativaSchema } from "@/lib/schemas";
+import { ataAlterarQuantidadeSchema, ataLinhaSchema, dadosReuniaoSchema, eventoSchema, justificativaSchema, motivoOpcionalSchema } from "@/lib/schemas";
+import { LIMITES } from "@/domain/constantes";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
@@ -76,7 +77,7 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
   const acao = String(formData.get("acao") ?? "") as AcaoEvento;
   if (!ACOES_EVENTO.includes(acao)) return { ok: false, erro: "Ação inválida." };
   const justificativa = String(formData.get("justificativa") ?? "").trim() || null;
-  if (justificativa && justificativa.length > 500) return { ok: false, erro: "A justificativa deve ter no máximo 500 caracteres." };
+  if (!motivoOpcionalSchema.safeParse(justificativa).success) return { ok: false, erro: `A justificativa deve ter no máximo ${LIMITES.justificativa} caracteres.` };
   if (TRANSICOES_EVENTO[acao].exigeJustificativa) {
     try {
       parseForm(justificativaSchema, formData);
@@ -99,7 +100,7 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
 export async function salvarObservacoesAction(eventoId: string, texto: string) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof texto !== "string") return { ok: false, erro: "Dados inválidos." } as const;
-  if (texto.length > 10_000) return { ok: false, erro: "As observações passam do limite de 10.000 caracteres." } as const;
+  if (texto.length > LIMITES.observacoesReuniao) return { ok: false, erro: `As observações passam do limite de ${LIMITES.observacoesReuniao.toLocaleString("pt-BR")} caracteres.` } as const;
   // Sem revalidatePath: o texto vive no estado do cliente e nada mais na tela depende dele.
   return executar(() => salvarObservacoesReuniao(usuario, eventoId, texto.trim() || null));
 }
@@ -156,20 +157,6 @@ export async function conferirTodasAction(eventoId: string, linhaIds: string[]) 
   return r;
 }
 
-export async function salvarDadosReuniaoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const usuario = await requireUsuario();
-  const eventoId = String(formData.get("eventoId") ?? "");
-  let r: ActionResult;
-  try {
-    const dados = parseForm(dadosReuniaoSchema, formData);
-    r = await executar(() => salvarDadosReuniao(usuario, eventoId, dados));
-  } catch (e) {
-    r = tratarErro(e);
-  }
-  revalidatePath(`/eventos/${eventoId}`, "layout");
-  return r;
-}
-
 /** Autosave dos dados da reunião (presentes, público, carga): mesmo schema do formulário. */
 export async function salvarDadosReuniaoAutoAction(eventoId: string, dados: Record<string, string>) {
   const usuario = await requireUsuario();
@@ -212,7 +199,7 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: "Dados inválidos." } as const;
-  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
+  if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo, { quantidadeEsperada }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
@@ -245,7 +232,7 @@ export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
 export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: string, pecaId: string, quantidade: number, motivo: string) {
   const usuario = await requireUsuario();
   if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: "Dados inválidos." } as const;
-  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." } as const;
+  if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);

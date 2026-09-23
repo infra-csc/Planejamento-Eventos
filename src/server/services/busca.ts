@@ -8,6 +8,7 @@ import { EVENTO_STATUS_LABEL } from "@/domain/evento";
 import { SETOR_LABEL } from "@/domain/os";
 import { hojeISO, hora, isoSP } from "@/lib/format";
 import { combinaBusca } from "@/lib/busca";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 export type ResultadoBusca = {
   grupo: "Ações" | "Eventos" | "Solicitações" | "Biblioteca";
@@ -41,7 +42,7 @@ export async function buscar(usuario: UsuarioAtual, termoBruto: string): Promise
       ? db
           .select({ n: count() })
           .from(solicitacoes)
-          .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]), eq(solicitacoes.tipo, "ALTERACAO"), lt(solicitacoes.prazoRespostaEm, agora), ...escopoSolicitacoes))
+          .where(and(eq(solicitacoes.excluida, false), inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.tipo, "ALTERACAO"), lt(solicitacoes.prazoRespostaEm, agora), ...escopoSolicitacoes))
       : Promise.resolve(null),
     db.query.eventos.findMany({
       where: t ? buscaSemAcento([eventos.nome, eventos.codigo, eventos.cliente, eventos.local], t) : undefined,

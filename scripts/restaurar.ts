@@ -141,7 +141,8 @@ async function main() {
     if (!url) throw new Error("Dump completo (pg_dump) só restaura em Postgres: defina DATABASE_URL.");
     if (!temComando("psql")) throw new Error("psql não encontrado no PATH (no Replit: módulo postgresql-16 no .replit).");
     await viaPsql(url, caminho, true);
-    console.log("Restauração concluída.");
+    fs.rmSync(".next/cache/fetch-cache", { recursive: true, force: true }); // cache de dados do Next guardaria ids antigos
+  console.log("Restauração concluída.");
     return;
   }
 
@@ -162,7 +163,8 @@ async function main() {
       await viaNode(db, caminho);
       await conn.close();
     }
-    console.log("Restauração concluída.");
+    fs.rmSync(".next/cache/fetch-cache", { recursive: true, force: true }); // cache de dados do Next guardaria ids antigos
+  console.log("Restauração concluída.");
   } catch (e) {
     await conn.close().catch(() => undefined);
     throw e;

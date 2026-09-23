@@ -172,8 +172,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
             {/* Mesma marca do favicon (src/app/icon.svg). */}
-            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-[6px] bg-accent">
-              <span className="block size-2.5 rounded-[3px] bg-accent-bg" />
+            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-chip bg-accent">
+              <span className="block size-2.5 rounded-xs bg-accent-bg" />
             </span>
             <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
               <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-meta">Norte Mkt</span>
@@ -185,6 +185,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             type="button"
             onClick={alternarRecolhido}
             aria-pressed={recolhido}
+            aria-label="Recolher menu"
             title={recolhido ? "Expandir menu" : "Recolher menu"}
             className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-3 transition-colors duration-150 hover:bg-subtle hover:text-ink lg:grid"
           >
@@ -266,8 +267,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 transition-colors duration-150 hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] max-md:min-h-10" aria-label={`Menu de ${usuario.nome}`}>
               <span className="flex size-7 items-center justify-center rounded-full bg-accent-bg text-rotulo font-semibold text-accent">{iniciais(usuario.nome)}</span>
               <span className="text-left max-sm:hidden">
-                <span className="block text-pequeno font-medium leading-[1.25] text-ink">{usuario.nome}</span>
-                <span className="block text-rotulo leading-[1.25] text-muted">{perfilTexto}</span>
+                <span className="block text-pequeno font-medium leading-tight text-ink">{usuario.nome}</span>
+                <span className="block text-rotulo leading-tight text-muted">{perfilTexto}</span>
               </span>
             </DropdownTrigger>
             <DropdownContent>

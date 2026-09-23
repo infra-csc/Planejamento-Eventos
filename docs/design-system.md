@@ -97,11 +97,13 @@ informação (e não estiver num botão — botão só com ícone usa `IconButto
 
 Nomes: `busca, seta, seta-esquerda, seta-cima, seta-baixo, chevron-direita|esquerda|baixo|cima, fechar,
 mais, menos, lapis, lixeira, sino, calendario, casa, eventos, solicitacoes, arena, grafico, livro,
-usuario, escudo, sair, imprimir, download, filtro, check, check-circulo, alerta, erro, info, relogio,
-local, caixa, camadas, olho, copia, link-externo, menu, recolher, expandir, reticencias`.
-`<Spinner tamanho={12|14|16|20} />` para carregamento. Os componentes antigos (`IconeLapis`,
-`IconeCheck`, `IconeChevron`, `IconeFechar`, `IconeLupa`, `IconeMais`, `IconeMenos`) continuam
-funcionando e desenham do mesmo conjunto. Não desenhe `<svg>` à mão em página: acrescente o desenho aqui.
+usuario, escudo, sair, imprimir, download, check, check-circulo, alerta, erro, info, relogio,
+local, caixa, camadas, link-externo, menu, recolher, expandir, reticencias`; do mapa da arena:
+`enquadrar, norte, tela-cheia, sair-tela-cheia, perspectiva, lista, teclado, vista-superior, regua`
+(`components/arena/icones.tsx` só repassa estes nomes: 20 px nos controles flutuantes do mapa, 16 nos demais).
+`<Spinner tamanho={12|14|16|20} />` para carregamento. Os componentes antigos ainda em uso
+(`IconeLapis`, `IconeFechar`, `IconeMais`, `IconeMenos`) continuam funcionando e desenham do mesmo
+conjunto; prefira `<Icone>` em código novo. Não desenhe `<svg>` à mão em página: acrescente o desenho aqui.
 
 ---
 

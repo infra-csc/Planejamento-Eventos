@@ -24,7 +24,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
               <span className="text-pequeno font-semibold uppercase tracking-[0.18em] text-ink">Norte Mkt</span>
             </div>
             <h1 className="m-0 text-pagina font-semibold tracking-[-0.025em]">Algo deu errado</h1>
-            <p className="mb-0 mt-2 text-secao leading-[1.55] text-ink-2">O sistema não conseguiu abrir esta tela. O erro foi registrado; tente de novo e, se continuar, avise o administrador.</p>
+            <p className="mb-0 mt-2 text-secao leading-relaxed text-ink-2">O sistema não conseguiu abrir esta tela. O erro foi registrado; tente de novo e, se continuar, avise o administrador.</p>
             {error.digest && <p className="mb-0 mt-1 font-mono text-rotulo text-muted">código {error.digest}</p>}
             <div className="mt-5 flex flex-wrap gap-2">
               <Button variant="primary" size="lg" onClick={reset}>

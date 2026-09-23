@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARENA_ECO_RUN_SP_2026 as arena, ATA_ECO_RUN_SP } from "./eco-run-sp-2026";
+import { ARENA_ECO_RUN_SP_2026 as arena, ATA_ECO_RUN_SP } from "../../../scripts/dados/arena-eco-run-sp-2026";
 import { amostrar, buscarPontos, comprimento, comprimentoPercurso, itensNaoPosicionados, limitesArena, poligonoFaixa, pontoNaDistancia } from "./geometria";
 import { CAMADAS, CATEGORIAS, GRUPOS_CAMADAS, camadasEssenciais } from "./categorias";
 import { derivarDivergencias, divergenciasDaArena, divergenciasDoPonto } from "./conferencia";

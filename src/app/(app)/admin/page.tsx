@@ -7,6 +7,7 @@ import { hrefCom } from "@/lib/url";
 import { PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { Paginacao } from "@/components/ui/tabela";
 import { UsuariosPainel } from "@/components/admin/usuarios-painel";
 import { AreasPainel } from "@/components/admin/areas-painel";
@@ -77,6 +78,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     busca = <BuscaUrl key="usuarios" placeholder="Buscar por nome, e-mail ou área" ariaLabel="Buscar usuário por nome, e-mail ou área" />;
     conteudo = (
       <div className={CARTAO}>
+        <ContagemAoVivo oculto n={pag.total} singular="usuário" plural="usuários" complemento={[rotulos[situacao], termo ? `busca “${termo}”` : null].filter(Boolean).join(" · ")} />
         <TabsNav rotulo="Situação dos usuários" className="mb-0 px-2 pt-1" tabs={SITUACOES.map((s) => abaSituacao(s, rotulos, buscados.filter((u) => naSituacao(u.ativo, s)).length))} />
         <UsuariosPainel
           usuarios={pag.itens.map((u) => ({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null, ativo: u.ativo, ultimoAcesso: ultimoAcesso(u.ultimoAcessoEm, agora) }))}
@@ -111,6 +113,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     );
     conteudo = (
       <div className={CARTAO}>
+        <ContagemAoVivo oculto n={pag.total} singular="área" plural="áreas" complemento={[rotulos[situacao], termo ? `busca “${termo}”` : null].filter(Boolean).join(" · ")} />
         <TabsNav rotulo="Situação das áreas" className="mb-0 px-2 pt-1" tabs={SITUACOES.map((s) => abaSituacao(s, rotulos, buscadas.filter((a) => naSituacao(a.ativo, s)).length))} />
         <AreasPainel
           areas={pag.itens}

@@ -119,14 +119,6 @@ export const EVENTO_STATUS_LABEL: Record<EventoStatus, string> = {
   CANCELADO: "Cancelado",
 };
 
-export const EVENTO_STATUS_DESCRICAO: Record<EventoStatus, string> = {
-  PREPARACAO: "As áreas registram necessidades até a reunião de OS.",
-  EM_REUNIAO: "A logística está consolidando a ata. Envios pausados.",
-  ABERTO: "Ata fechada. Alterações entram como solicitações respondidas por item.",
-  ENCERRADO: "Encerrado pela logística. Nenhuma solicitação nova é aceita.",
-  CANCELADO: "Evento cancelado.",
-};
-
 /** Estado derivado para listagens: um evento encerrado com data final passada foi "realizado". */
 export function statusExibicao(status: EventoStatus, dataFim: string, hoje: string): EventoStatus | "REALIZADO" {
   if (status === "ENCERRADO" && dataFim < hoje) return "REALIZADO";

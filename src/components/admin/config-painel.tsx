@@ -48,7 +48,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
             )}
           </label>
           <span className="flex shrink-0 items-center gap-2">
-            <Input id={l.chave} type="number" min={l.min} max={l.max} value={v[l.chave] ?? ""} aria-invalid={Boolean(erros[l.chave])} aria-describedby={erros[l.chave] ? `${l.chave}-erro` : undefined} onChange={(e) => setV({ ...v, [l.chave]: e.target.value })} className="w-[84px] px-2.5 text-right font-mono" />
+            <Input id={l.chave} type="number" min={l.min} max={l.max} value={v[l.chave] ?? ""} aria-invalid={Boolean(erros[l.chave])} aria-describedby={erros[l.chave] ? `${l.chave}-erro` : undefined} onChange={(e) => setV({ ...v, [l.chave]: e.target.value })} className="numero w-[84px] px-2.5 text-right" />
             <span className="w-8 text-pequeno text-muted">{l.unidade}</span>
           </span>
         </div>

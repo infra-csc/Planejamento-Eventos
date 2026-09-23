@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import { Icone } from "@/components/ui/icons";
 import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Badge, PerfilBadge } from "@/components/ui/badge";
@@ -187,11 +188,7 @@ function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar }: { u: U; meuI
     <Dropdown>
       <DropdownTrigger asChild>
         <IconButton label={`Ações de ${u.nome}`}>
-          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="1.8" />
-            <circle cx="12" cy="12" r="1.8" />
-            <circle cx="19" cy="12" r="1.8" />
-          </svg>
+          <Icone nome="reticencias" />
         </IconButton>
       </DropdownTrigger>
       <DropdownContent>
@@ -265,14 +262,14 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                     <span className="mt-0.5 block text-pequeno text-muted">{u.email}</span>
                     <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
                       {u.areaNome ? `${u.areaNome} · ` : ""}
-                      <span className="font-mono">{u.ultimoAcesso}</span>
+                      <span className="numero">{u.ultimoAcesso}</span>
                     </span>
                   </th>
                   <td className={CELULA}>
                     <PerfilBadge perfil={u.perfil} />
                   </td>
                   <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
-                  <td className={cn(CELULA, "hidden font-mono text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
+                  <td className={cn(CELULA, "numero hidden text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
                   <td className={CELULA}>
                     <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "Ativo" : "Inativo"}</Badge>
                   </td>

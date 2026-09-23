@@ -1,6 +1,11 @@
-import type { Arena, ItemAta, PontoArena, StatusPonto, Vec2 } from "./tipos";
+import type { Arena, ItemAta, PontoArena, StatusPonto, Vec2 } from "../../src/domain/arena/tipos";
 
 /**
+ * Dados da arena da Eco Run SP 2026. Não é código de produção: `npm run importar:arena`
+ * (scripts/importar-arena-eco-run.ts) grava esta arena na tabela `arenas`, de onde o app a lê.
+ * Enquanto o script não rodou, `src/server/services/arenas.ts` carrega este arquivo sob demanda
+ * como reserva (mesmo slug, mesma página).
+ *
  * Eco Run 1 - São Paulo - 2026 (SKU ECO26SP1), prova da Norte Marketing Esportivo.
  *
  * Posições e medidas: "Mapa de Arena_Eco Run_R03" (AutoCAD, revisão 03 de 08/06/2026). As coordenadas
@@ -566,9 +571,3 @@ export const ARENA_ECO_RUN_SP_2026: Arena = {
   ata: ATA_ECO_RUN_SP,
   corredores: [],
 };
-
-export const ARENAS: Arena[] = [ARENA_ECO_RUN_SP_2026];
-
-export function obterArenaPorSlug(slug: string): Arena | null {
-  return ARENAS.find((a) => a.slug === slug) ?? null;
-}

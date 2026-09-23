@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
@@ -5,6 +6,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento } from "./support";
 import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
+import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 
 export type DadosProjeto = {
   nome: string;
@@ -201,10 +203,18 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");
-  const [a] = await db
-    .insert(anexos)
-    .values({ projetoId, tipo, nomeArquivo: file.name.slice(0, 160), mime, tamanho: file.size, conteudo, criadoPorId: usuario.id })
-    .returning({ id: anexos.id });
+  // No banco (padrão) a coluna guarda o arquivo; com Object Storage, só a referência (ver armazenamento.ts).
+  const valor = await gravarArquivo(`anexos/${projetoId}/${randomUUID()}`, conteudo);
+  let a: { id: string };
+  try {
+    [a] = await db
+      .insert(anexos)
+      .values({ projetoId, tipo, nomeArquivo: file.name.slice(0, 160), mime, tamanho: file.size, conteudo: valor, criadoPorId: usuario.id })
+      .returning({ id: anexos.id });
+  } catch (e) {
+    if (valor !== conteudo) await apagarArquivo(valor);
+    throw e;
+  }
   await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo "${file.name}" adicionado.`, usuarioId: usuario.id });
   return a;
 }
@@ -212,9 +222,13 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
 export async function removerAnexo(usuario: UsuarioAtual, anexoId: string) {
   exigir(usuario, "projeto.gerenciar");
   const db = await getDb();
-  const a = await db.query.anexos.findFirst({ where: eq(anexos.id, anexoId), columns: { id: true, projetoId: true, nomeArquivo: true } });
+  const [a] = await db
+    .select({ id: anexos.id, projetoId: anexos.projetoId, nomeArquivo: anexos.nomeArquivo, inicio: inicioDoArquivo(anexos.conteudo) })
+    .from(anexos)
+    .where(eq(anexos.id, anexoId));
   if (!a) throw new NaoEncontradoError("Anexo");
   await db.delete(anexos).where(eq(anexos.id, anexoId));
+  await apagarArquivo(a.inicio);
   await registrarHistorico(db, { entidade: "projeto", entidadeId: a.projetoId, acao: "ANEXO_REMOVIDO", descricao: `Anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
   return a.projetoId;
 }
@@ -224,7 +238,7 @@ export async function obterAnexo(usuario: UsuarioAtual, anexoId: string) {
   const db = await getDb();
   const a = await db.query.anexos.findFirst({ where: eq(anexos.id, anexoId) });
   if (!a) throw new NaoEncontradoError("Anexo");
-  return a;
+  return { ...a, conteudo: await lerArquivo(a.conteudo) };
 }
 
 /** Metadados do anexo sem o arquivo (para responder 304 sem ler o bytea). */

@@ -9,6 +9,7 @@ import { EmptyState, Section } from "@/components/ui/layout";
 import { cn } from "@/lib/cn";
 import { ESTADO_INICIAL } from "@/lib/action";
 import { criarArenaAction } from "../arenas-actions";
+import { LIMITES } from "@/domain/constantes";
 
 type EventoOpcao = { id: string; codigo: string; nome: string; descricao: string; status: string };
 type ArenaOpcao = { slug: string; nome: string; pontos: number; evento: string | null };
@@ -67,7 +68,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
               id="nome"
               name="nome"
               value={nome}
-              maxLength={120}
+              maxLength={LIMITES.nome}
               required
               onChange={(e) => {
                 setNome(e.target.value);

@@ -17,6 +17,7 @@ import { LinhaLink } from "@/components/ui/linha-link";
 import { Icone } from "@/components/ui/icons";
 import { IndicadorLink } from "@/components/ui/indicador-link";
 import { Codigo } from "@/components/ui/numero";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
@@ -105,6 +106,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <ContagemAoVivo oculto n={pag.total} singular="solicitação" plural="solicitações" complemento={busca ? `${ROTULO_FILTRO[filtro]} · busca “${busca}”` : ROTULO_FILTRO[filtro]} />
         {/* Situações como abas com contagem sempre à vista (a logística olha os números o tempo todo). */}
         <TabsNav
           rotulo="Situação das solicitações"

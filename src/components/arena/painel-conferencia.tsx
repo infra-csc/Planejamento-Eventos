@@ -39,7 +39,7 @@ export function PainelConferencia({
             <h2 id="conferencia-titulo" className="m-0 text-destaque font-semibold text-ink">
               Conferência planta × ata
             </h2>
-            <p role="status" className="m-0 mt-[3px] text-pequeno leading-[1.45] text-warning">
+            <p role="status" className="m-0 mt-0.5 text-pequeno text-warning">
               As duas fontes do evento discordam em {n} {n === 1 ? "ponto" : "pontos"}. Confirme antes de fechar a carga.
             </p>
           </div>
@@ -59,7 +59,7 @@ export function PainelConferencia({
             <li key={d.id} className={cn("border-b border-line-row", ativo ? "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]" : "bg-surface")}>
               <button type="button" aria-pressed={ativo} onClick={() => onFocar(d.id)} className="block w-full cursor-pointer border-0 bg-transparent px-4 pb-2 pt-3 text-left hover:bg-subtle/60">
                 <span className="flex items-baseline gap-2">
-                  <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-chip px-1.5 py-px text-micro font-medium leading-[1.5]" style={{ background: tag.fundo, color: tag.cor }}>
+                  <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-chip px-1.5 py-px text-rotulo font-medium" style={{ background: tag.fundo, color: tag.cor }}>
                     {tag.rotulo}
                   </span>
                   <span className="min-w-0 flex-1 text-corpo font-medium text-ink">{d.titulo}</span>
@@ -68,15 +68,15 @@ export function PainelConferencia({
                 <span className="mt-2 flex items-stretch overflow-hidden rounded-controle border border-line-soft">
                   <span className="min-w-0 flex-1 bg-subtle px-[9px] py-1.5">
                     <span className="block text-micro uppercase tracking-[0.06em] text-muted">{arena.fonte.rotuloPlanta}</span>
-                    <span className="block font-mono text-corpo font-medium text-ink">{d.planta}</span>
+                    <span className="numero block text-corpo font-medium text-ink">{d.planta}</span>
                   </span>
                   <span aria-hidden className="w-px bg-line-soft" />
                   <span className="min-w-0 flex-1 bg-surface px-[9px] py-1.5">
                     <span className="block text-micro uppercase tracking-[0.06em] text-muted">{arena.fonte.rotuloAta}</span>
-                    <span className="block font-mono text-corpo font-medium text-warning">{d.ata}</span>
+                    <span className="numero block text-corpo font-medium text-warning">{d.ata}</span>
                   </span>
                 </span>
-                <span className="mt-1.5 block text-pequeno leading-[1.45] text-ink-2">{d.texto}</span>
+                <span className="mt-1.5 block text-pequeno text-ink-2">{d.texto}</span>
               </button>
               {ativo && (
                 <p className="m-0 flex flex-wrap gap-x-3 gap-y-1 px-4 pb-3">
@@ -92,7 +92,7 @@ export function PainelConferencia({
         })}
       </ul>
 
-      <p className="m-0 border-t border-line-soft bg-subtle px-4 py-[9px] text-rotulo leading-[1.45] text-muted">Nada foi corrigido automaticamente. Resolver exige decidir qual fonte vale — planta ou ata.</p>
+      <p className="m-0 border-t border-line-soft bg-subtle px-4 py-[9px] text-rotulo text-muted">Nada foi corrigido automaticamente. Resolver exige decidir qual fonte vale — planta ou ata.</p>
     </aside>
   );
 }

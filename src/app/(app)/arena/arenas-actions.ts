@@ -7,6 +7,7 @@ import { requireUsuario } from "@/server/auth/session";
 import { exigir } from "@/server/auth/autorizacao";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import { criarArena, excluirArena, removerPlantaArena, trocarPlantaArena, type DadosNovaArena } from "@/server/services/arenas";
+import { LIMITES } from "@/domain/constantes";
 
 const metros = (rotulo: string) =>
   z.coerce
@@ -14,23 +15,29 @@ const metros = (rotulo: string) =>
     .min(20, { message: `A ${rotulo} mínima é 20 m.` })
     .max(5000, { message: `A ${rotulo} máxima é 5.000 m.` });
 
+const nomeArena = z
+  .string()
+  .trim()
+  .min(2, { message: "Informe o nome (mínimo 2 letras)." })
+  .max(LIMITES.nome, { message: `Até ${LIMITES.nome} caracteres.` });
+
 const novaArenaSchema = z.discriminatedUnion("partida", [
   z.object({
     partida: z.literal("branco"),
     eventoId: z.string().trim().min(1, { message: "Escolha o evento." }),
-    nome: z.string().trim().min(2, { message: "Informe o nome (mínimo 2 letras)." }).max(120, { message: "Até 120 caracteres." }),
+    nome: nomeArena,
     largura: metros("largura"),
     profundidade: metros("profundidade"),
   }),
   z.object({
     partida: z.literal("copiar"),
     eventoId: z.string().trim().min(1, { message: "Escolha o evento." }),
-    nome: z.string().trim().min(2, { message: "Informe o nome (mínimo 2 letras)." }).max(120, { message: "Até 120 caracteres." }),
+    nome: nomeArena,
     origemSlug: z.string().trim().min(1, { message: "Escolha a arena para copiar." }),
   }),
 ]);
 
-const slugSchema = z.string().trim().min(1).max(120);
+const slugSchema = z.string().trim().min(1).max(LIMITES.nome);
 
 /** Arquivo do campo, ou null quando nada foi escolhido (o navegador manda um File vazio). */
 function arquivoDe(formData: FormData, campo: string): File | null {

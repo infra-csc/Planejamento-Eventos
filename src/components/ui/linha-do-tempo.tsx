@@ -40,7 +40,7 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
                   "Sistema"
                 )}
               </p>
-              <p className="mb-0 mt-0.5 break-words text-pequeno leading-[1.45] text-ink-2">{e.descricao}</p>
+              <p className="mb-0 mt-0.5 break-words text-pequeno text-ink-2">{e.descricao}</p>
             </div>
           </li>
         );

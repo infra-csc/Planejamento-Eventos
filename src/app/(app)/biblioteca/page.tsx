@@ -18,6 +18,7 @@ import { TabsNav } from "@/components/ui/tabs-nav";
 import { EmptyState, PageHeader, Section } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
@@ -101,6 +102,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           </div>
         )}
         <div className={cartaoCls}>
+          <ContagemAoVivo oculto n={pag.total} singular="item fora do catálogo" plural="itens fora do catálogo" complemento={busca ? `busca “${busca}”` : null} />
           {abas}
           {foraCatalogo.length > 0 && (
             <p className="m-0 border-b border-line-soft px-cartao py-2.5 text-pequeno text-muted">Itens que as áreas descreveram à mão. Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça.</p>
@@ -147,6 +149,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className={cartaoCls}>
+              <ContagemAoVivo oculto n={pag.total} singular="projeto padrão" plural="projetos padrão" complemento={busca ? `busca “${busca}”` : null} />
               {abas}
               {pag.total === 0 ? (
                 <EmptyState title={`Nada encontrado para “${busca}”`} description="Confira o código ou tente outra palavra do nome ou da categoria." />
@@ -233,7 +236,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             </div>
 
             {detalhe && atual && (
-              <div id="detalhe" className="scroll-mt-20 lg:sticky lg:top-topo-fixo">
+              <div id="detalhe" className="alvo-ancora lg:sticky lg:top-topo-fixo">
                 <RolarAoSelecionar alvoId="detalhe" selecionado={sp.p} />
                 <Section
                   titulo={detalhe.nome}
@@ -395,6 +398,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {atalhoFora}
       </div>
       <div className={cartaoCls}>
+        <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")} />
         {abas}
         {pag.total === 0 ? (
           <EmptyState title={vazio[0]} description={vazio[1]} />

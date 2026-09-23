@@ -16,6 +16,7 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -165,6 +166,13 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <ContagemAoVivo
+          oculto
+          n={total}
+          singular={aba === "pendencias" ? "pendência de compra" : "peça"}
+          plural={aba === "pendencias" ? "pendências de compra" : "peças"}
+          complemento={[aba === "pendencias" ? null : `${ROTULO_ABA[aba]} · ${dias} dias`, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")}
+        />
         <TabsNav
           rotulo="Recortes da demanda"
           className="mb-0 px-2 pt-1"

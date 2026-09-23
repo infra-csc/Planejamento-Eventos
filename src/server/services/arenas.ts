@@ -1,19 +1,38 @@
+import { randomUUID } from "node:crypto";
 import { cache } from "react";
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { arenaPosicoes, arenas, eventos } from "@/server/db/schema";
-import { ARENAS, obterArenaPorSlug } from "@/domain/arena/eco-run-sp-2026";
 import { aplicarPosicoes, type PosicaoEditada } from "@/domain/arena/posicoes";
 import type { Arena, ItemAta } from "@/domain/arena/tipos";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { LIMITES } from "@/domain/constantes";
 import { formatarData } from "@/lib/format";
+import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { linhasAtaResumidas } from "./eventos";
 import { registrarHistorico } from "./support";
 
 /**
- * Uma arena, de onde quer que venha: a Eco Run SP 2026 (fixa no código) ou uma arena de evento
- * criada no app (tabela arenas). Quem lê a arena passa sempre por aqui.
+ * Arenas "fixas": vêm de dados importados por script (`npm run importar:arena` grava a Eco Run SP 2026
+ * na tabela `arenas`, sem evento). No app são só leitura: não trocam planta nem são excluídas.
+ */
+export const SLUGS_ARENAS_FIXAS: readonly string[] = ["eco-run-sp-2026"];
+const ehFixa = (slug: string) => SLUGS_ARENAS_FIXAS.includes(slug);
+
+/**
+ * Reserva compatível enquanto o script de importação não rodou neste banco: a arena fixa sai do
+ * arquivo de dados (scripts/dados), carregado só quando falta no banco.
+ */
+async function arenaFixaDoArquivo(slug: string): Promise<Arena | null> {
+  if (!ehFixa(slug)) return null;
+  const { ARENA_ECO_RUN_SP_2026 } = await import("../../../scripts/dados/arena-eco-run-sp-2026");
+  return ARENA_ECO_RUN_SP_2026.slug === slug ? ARENA_ECO_RUN_SP_2026 : null;
+}
+
+/**
+ * Uma arena, de onde quer que venha: uma fixa (importada por script; reserva no arquivo de dados) ou
+ * uma arena de evento criada no app (tabela arenas). Quem lê a arena passa sempre por aqui.
  */
 export type ArenaCarregada = {
   arena: Arena;
@@ -45,28 +64,31 @@ function avisarMigracao<T>(padrao: T) {
 export const obterArenaBase = cache(carregarArenaBase);
 
 async function carregarArenaBase(slug: string): Promise<ArenaCarregada | null> {
-  const fixa = obterArenaPorSlug(slug);
-  if (fixa) return { arena: fixa, origem: "fixa", eventoId: null, temPlanta: false, versao: null };
   const db = await getDb();
-  const row = await db.query.arenas.findFirst({
-    where: eq(arenas.slug, slug),
-    columns: { slug: true, base: true, eventoId: true, plantaMime: true, atualizadoEm: true },
-  });
-  if (!row) return null;
+  const row = await db.query.arenas
+    .findFirst({
+      where: eq(arenas.slug, slug),
+      columns: { slug: true, base: true, eventoId: true, plantaMime: true, atualizadoEm: true },
+    })
+    .catch(avisarMigracao(undefined));
+  if (!row) {
+    const fixa = await arenaFixaDoArquivo(slug);
+    return fixa ? { arena: fixa, origem: "fixa", eventoId: null, temPlanta: false, versao: null } : null;
+  }
   const arena: Arena = { ...row.base, slug: row.slug };
   // A ata da arena de evento é a do próprio evento, sempre a vigente: o que estiver salvo na base é ignorado.
+  // Arena sem evento (a fixa importada) usa a ata gravada na própria base.
   if (row.eventoId) {
     const linhas = (await linhasAtaResumidas([row.eventoId]))[row.eventoId] ?? [];
     arena.ata = ataDoEvento(linhas);
   }
-  return { arena, origem: "evento", eventoId: row.eventoId, temPlanta: Boolean(row.plantaMime), versao: row.atualizadoEm.getTime() };
+  return { arena, origem: ehFixa(row.slug) ? "fixa" : "evento", eventoId: row.eventoId, temPlanta: Boolean(row.plantaMime), versao: row.atualizadoEm.getTime() };
 }
 
 export async function arenaExiste(slug: string): Promise<boolean> {
-  if (obterArenaPorSlug(slug)) return true;
   const db = await getDb();
-  const row = await db.query.arenas.findFirst({ where: eq(arenas.slug, slug), columns: { id: true } });
-  return Boolean(row);
+  const row = await db.query.arenas.findFirst({ where: eq(arenas.slug, slug), columns: { id: true } }).catch(avisarMigracao(undefined));
+  return Boolean(row) || ehFixa(slug);
 }
 
 export type ArenaResumo = {
@@ -103,18 +125,22 @@ export async function listarArenasResumo(): Promise<ArenaResumo[]> {
     db.select({ slug: arenaPosicoes.arenaSlug, n: count() }).from(arenaPosicoes).where(eq(arenaPosicoes.tipo, "NOVO")).groupBy(arenaPosicoes.arenaSlug).catch(avisarMigracao([])),
   ]);
   const novosPor = new Map(novos.map((n) => [n.slug, Number(n.n)]));
-  return [
-    ...ARENAS.map((a) => ({ slug: a.slug, nome: a.evento.nome, origem: "fixa" as const, evento: null, pontos: a.pontos.length + (novosPor.get(a.slug) ?? 0), temPlanta: false, atualizadoEm: null })),
-    ...doBanco.map((a) => ({
-      slug: a.slug,
-      nome: a.nome,
-      origem: "evento" as const,
-      evento: a.eventoId && a.eventoCodigo && a.eventoNome ? { id: a.eventoId, codigo: a.eventoCodigo, nome: a.eventoNome, status: String(a.eventoStatus) } : null,
-      pontos: Number(a.pontos) + (novosPor.get(a.slug) ?? 0),
-      temPlanta: Boolean(a.temPlanta),
-      atualizadoEm: a.atualizadoEm,
-    })),
-  ];
+  const resumos: ArenaResumo[] = doBanco.map((a) => ({
+    slug: a.slug,
+    nome: a.nome,
+    origem: ehFixa(a.slug) ? ("fixa" as const) : ("evento" as const),
+    evento: a.eventoId && a.eventoCodigo && a.eventoNome ? { id: a.eventoId, codigo: a.eventoCodigo, nome: a.eventoNome, status: String(a.eventoStatus) } : null,
+    pontos: Number(a.pontos) + (novosPor.get(a.slug) ?? 0),
+    temPlanta: Boolean(a.temPlanta),
+    atualizadoEm: a.atualizadoEm,
+  }));
+  // Fixa que ainda não foi importada para o banco: entra pelo arquivo de dados (reserva).
+  const noBanco = new Set(resumos.map((a) => a.slug));
+  const doArquivo = await Promise.all(SLUGS_ARENAS_FIXAS.filter((s) => !noBanco.has(s)).map(arenaFixaDoArquivo));
+  for (const a of doArquivo) {
+    if (a) resumos.push({ slug: a.slug, nome: a.evento.nome, origem: "fixa", evento: null, pontos: a.pontos.length + (novosPor.get(a.slug) ?? 0), temPlanta: false, atualizadoEm: null });
+  }
+  return [...resumos.filter((a) => a.origem === "fixa"), ...resumos.filter((a) => a.origem === "evento")];
 }
 
 /** Slug da arena de um evento, se ele já tiver uma (link "Arena / mapa" do evento). */
@@ -154,7 +180,7 @@ export function gerarSlugArena(nome: string, ocupados: Iterable<string>): string
       .replace(/^-+|-+$/g, "")
       .slice(0, 60)
       .replace(/-+$/g, "") || "arena";
-  const usados = new Set([...ocupados, ...SLUGS_RESERVADOS, ...ARENAS.map((a) => a.slug)]);
+  const usados = new Set([...ocupados, ...SLUGS_RESERVADOS, ...SLUGS_ARENAS_FIXAS]);
   if (!usados.has(base)) return base;
   for (let n = 2; ; n++) {
     const candidato = `${base}-${n}`;
@@ -304,23 +330,32 @@ export async function obterPlanta(usuario: UsuarioAtual, slug: string) {
   const db = await getDb();
   const row = await db.query.arenas.findFirst({ where: eq(arenas.slug, slug), columns: { plantaMime: true, plantaImagem: true, atualizadoEm: true } });
   if (!row?.plantaMime || !row.plantaImagem) return null;
-  return { mime: row.plantaMime, bytes: row.plantaImagem, versao: row.atualizadoEm.getTime() };
+  // A coluna guarda a imagem (banco) ou a referência ao Object Storage (ver server/armazenamento.ts).
+  return { mime: row.plantaMime, bytes: await lerArquivo(row.plantaImagem), versao: row.atualizadoEm.getTime() };
 }
 
 async function arenaDeEvento(slug: string) {
-  if (obterArenaPorSlug(slug)) throw new ValidacaoError("A arena da Eco Run é fixa no sistema e não pode ser alterada aqui.");
+  if (ehFixa(slug)) throw new ValidacaoError("A arena da Eco Run é fixa no sistema e não pode ser alterada aqui.");
   const db = await getDb();
-  const row = await db.query.arenas.findFirst({ where: eq(arenas.slug, slug), columns: { id: true, slug: true, nome: true, eventoId: true, plantaMime: true } });
+  const [row] = await db
+    .select({ id: arenas.id, slug: arenas.slug, nome: arenas.nome, eventoId: arenas.eventoId, plantaMime: arenas.plantaMime, plantaInicio: inicioDoArquivo(arenas.plantaImagem) })
+    .from(arenas)
+    .where(eq(arenas.slug, slug));
   if (!row) throw new NaoEncontradoError("Arena");
   return row;
 }
+
+/** Grava a imagem da planta onde o armazenamento mandar e devolve o valor da coluna. */
+const gravarPlanta = (slug: string, bytes: Buffer) => gravarArquivo(`arenas/${slug}/planta-${randomUUID()}`, bytes);
 
 export async function trocarPlantaArena(usuario: UsuarioAtual, slug: string, arquivo: File) {
   exigir(usuario, "arena.ver");
   const a = await arenaDeEvento(slug);
   const planta = await lerPlantaEnviada(arquivo);
   const db = await getDb();
-  await db.update(arenas).set({ plantaMime: planta.mime, plantaImagem: planta.bytes, atualizadoEm: new Date() }).where(eq(arenas.id, a.id));
+  const valor = await gravarPlanta(slug, planta.bytes);
+  await db.update(arenas).set({ plantaMime: planta.mime, plantaImagem: valor, atualizadoEm: new Date() }).where(eq(arenas.id, a.id));
+  await apagarArquivo(a.plantaInicio);
   await registrarHistorico(db, { eventoId: a.eventoId, entidade: "arena", entidadeId: slug, acao: "ARENA_PLANTA_TROCADA", descricao: `Planta da arena ${a.nome} ${a.plantaMime ? "trocada" : "enviada"} (${arquivo.name.slice(0, 120)}).`, usuarioId: usuario.id });
   return { slug, eventoId: a.eventoId };
 }
@@ -331,6 +366,7 @@ export async function removerPlantaArena(usuario: UsuarioAtual, slug: string) {
   if (!a.plantaMime) throw new ValidacaoError("Esta arena não tem planta.");
   const db = await getDb();
   await db.update(arenas).set({ plantaMime: null, plantaImagem: null, atualizadoEm: new Date() }).where(eq(arenas.id, a.id));
+  await apagarArquivo(a.plantaInicio);
   await registrarHistorico(db, { eventoId: a.eventoId, entidade: "arena", entidadeId: slug, acao: "ARENA_PLANTA_REMOVIDA", descricao: `Planta da arena ${a.nome} removida.`, usuarioId: usuario.id });
   return { slug, eventoId: a.eventoId };
 }
@@ -360,7 +396,7 @@ export async function criarArena(usuario: UsuarioAtual, dados: DadosNovaArena, p
   exigir(usuario, "arena.ver");
   const nome = dados.nome.trim();
   if (nome.length < 2) throw new ValidacaoError("Dê um nome à arena.", { nome: "Informe o nome (mínimo 2 letras)." });
-  if (nome.length > 120) throw new ValidacaoError("Nome longo demais.", { nome: "Até 120 caracteres." });
+  if (nome.length > LIMITES.nome) throw new ValidacaoError("Nome longo demais.", { nome: `Até ${LIMITES.nome} caracteres.` });
   const db = await getDb();
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, dados.eventoId) });
   if (!ev) throw new ValidacaoError("Escolha o evento da arena.", { eventoId: "Escolha um evento." });
@@ -371,7 +407,13 @@ export async function criarArena(usuario: UsuarioAtual, dados: DadosNovaArena, p
   const slugsBanco = await db.select({ slug: arenas.slug }).from(arenas);
   const slug = gerarSlugArena(nome, slugsBanco.map((s) => s.slug));
   const base = montarBaseArena(slug, ev, layout, imagem && planta ? planta.name.slice(0, 160) : null);
-  await db.insert(arenas).values({ slug, eventoId: ev.id, nome, base, plantaMime: imagem?.mime ?? null, plantaImagem: imagem?.bytes ?? null, criadoPorId: usuario.id });
+  const valorPlanta = imagem ? await gravarPlanta(slug, imagem.bytes) : null;
+  try {
+    await db.insert(arenas).values({ slug, eventoId: ev.id, nome, base, plantaMime: imagem?.mime ?? null, plantaImagem: valorPlanta, criadoPorId: usuario.id });
+  } catch (e) {
+    if (valorPlanta && valorPlanta !== imagem?.bytes) await apagarArquivo(valorPlanta);
+    throw e;
+  }
   const partida = dados.partida.tipo === "copiar" ? `a partir do layout de ${dados.partida.origemSlug}` : `em branco (${dados.partida.largura} × ${dados.partida.profundidade} m)`;
   await registrarHistorico(db, { eventoId: ev.id, entidade: "arena", entidadeId: slug, acao: "ARENA_CRIADA", descricao: `Arena ${nome} criada ${partida}.`, usuarioId: usuario.id });
   return { slug, eventoId: ev.id };
@@ -387,5 +429,6 @@ export async function excluirArena(usuario: UsuarioAtual, slug: string) {
     await tx.delete(arenas).where(eq(arenas.id, a.id));
     await registrarHistorico(tx, { eventoId: a.eventoId, entidade: "arena", entidadeId: slug, acao: "ARENA_EXCLUIDA", descricao: `Arena ${a.nome} excluída, com as posições marcadas no mapa.`, usuarioId: usuario.id });
   });
+  await apagarArquivo(a.plantaInicio);
   return { slug, eventoId: a.eventoId };
 }

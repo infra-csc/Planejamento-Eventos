@@ -355,7 +355,7 @@ export function ConferenciaAta({
         <div className="flex min-w-0 flex-1 gap-2">
           {areasNaAta.length > 1 && (
             <div className="w-44 shrink-0 max-sm:w-[42%]">
-              <Select tamanho="sm" value={areaAtiva} onValueChange={setArea} placeholder="Todas as áreas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
+              <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} placeholder="Todas as áreas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
             </div>
           )}
           <div className="relative min-w-0 flex-1">

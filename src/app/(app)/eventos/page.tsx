@@ -10,10 +10,13 @@ import { ButtonLink } from "@/components/ui/button";
 import { Badge, EventoStatusBadge } from "@/components/ui/badge";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { BarrasFase } from "@/components/eventos/fases";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -127,6 +130,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <ContagemAoVivo oculto n={pag.total} singular="evento" plural="eventos" complemento={[rotuloFase, soAcao ? rotuloAcao : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")} />
         <TabsNav
           rotulo="Fase dos eventos"
           className="mb-0 px-2 pt-1"
@@ -161,7 +165,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         className={`flex w-full items-center gap-[5px] whitespace-nowrap px-3 py-2.5 text-micro font-semibold uppercase tracking-[0.06em] no-underline ${sp.ordem === "periodo" ? "text-ink" : "text-muted hover:text-ink"}`}
                       >
                         Período
-                        <span className="font-mono">{sp.ordem === "periodo" ? (sp.dir === "desc" ? "↓" : "↑") : ""}</span>
+                        {sp.ordem === "periodo" && <Icone nome={sp.dir === "desc" ? "seta-baixo" : "seta-cima"} className="size-3.5" />}
                       </Link>
                     </th>
                     {th("pendencias", "Pendências", 140, "right")}
@@ -177,7 +181,9 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                     const onde = [e.cliente, e.local].filter(Boolean).join(" · ");
                     return (
                       <LinhaLink key={e.id} href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
-                        <td className="border-b border-line-row px-3 py-3 font-mono text-pequeno text-ink-3">{e.codigo}</td>
+                        <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-3">
+                          <Codigo>{e.codigo}</Codigo>
+                        </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
                           <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="text-corpo font-medium text-ink">{e.nome}</span>
@@ -188,7 +194,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                             {/* Período sai da coluna em telas menores e desce para cá. */}
                             <span className="lg:hidden">
                               {onde && " · "}
-                              <span className="font-mono">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e)}
+                              <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e)}
                             </span>
                           </span>
                         </th>
@@ -199,7 +205,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           </span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 lg:table-cell">
-                          <span className="block font-mono text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
+                          <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
                           <span className="block text-rotulo text-muted">{marco(e)}</span>
                         </td>
                         <td className="border-b border-line-row px-3 py-3 text-right">
@@ -209,9 +215,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           <span className="block text-rotulo text-meta">{e.responsavel.nome}</span>
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
-                          <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
-                            <path d="M9 6l6 6-6 6" />
-                          </svg>
+                          <Icone nome="chevron-direita" className="inline-block" />
                         </td>
                       </LinhaLink>
                     );

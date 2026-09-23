@@ -12,7 +12,8 @@ import {
   responderItem,
   salvarSolicitacaoCompleta,
 } from "@/server/services/solicitacoes";
-import { respostaItemSchema, solicitacaoCompletaSchema } from "@/lib/schemas";
+import { motivoOpcionalSchema, respostaItemSchema, solicitacaoCompletaSchema } from "@/lib/schemas";
+import { LIMITES } from "@/domain/constantes";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import type { ItemStatus } from "@/server/db/schema";
 import { revalidarTelasOperacao } from "@/server/cache-dados";
@@ -76,7 +77,7 @@ export async function cancelarSolicitacaoAction(_prev: ActionResult, formData: F
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
   const motivo = String(formData.get("justificativa") ?? "").trim() || null;
-  if (motivo && motivo.length > 500) return { ok: false, erro: "A justificativa deve ter no máximo 500 caracteres." };
+  if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `A justificativa deve ter no máximo ${LIMITES.justificativa} caracteres.` };
   const r = await executar(() => cancelarSolicitacao(usuario, id, motivo), "Solicitação cancelada");
   revalidarTudo();
   return r;
@@ -86,7 +87,7 @@ export async function devolverSolicitacaoAction(_prev: ActionResult, formData: F
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
   const motivo = String(formData.get("justificativa") ?? "").trim();
-  if (motivo.length > 500) return { ok: false, erro: "O motivo deve ter no máximo 500 caracteres." };
+  if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` };
   const r = await executar(() => devolverSolicitacao(usuario, id, motivo), "Solicitação devolvida — volta como rascunho para a área");
   revalidarTudo();
   return r;

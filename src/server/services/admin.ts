@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, count, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, eq, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, sessoes, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -60,15 +60,6 @@ export async function listarUsuarios(usuario: UsuarioAtual) {
   exigir(usuario, "admin.usuarios");
   const db = await getDb();
   return db.query.usuarios.findMany({ with: { area: true }, orderBy: [asc(usuarios.nome)] });
-}
-
-export async function listarUsuariosPorPerfil(perfis: Perfil[]) {
-  const db = await getDb();
-  return db.query.usuarios.findMany({
-    where: and(inArray(usuarios.perfil, perfis), eq(usuarios.ativo, true)),
-    columns: { id: true, nome: true, perfil: true },
-    orderBy: [asc(usuarios.nome)],
-  });
 }
 
 async function validarPerfilArea(dados: DadosUsuario) {

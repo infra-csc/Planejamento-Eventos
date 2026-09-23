@@ -6,7 +6,7 @@ import { CATEGORIAS, COR_PERCURSO, formaDoPonto, prioridadeRotulo, rotulosSemSob
 import { poligonoFaixa } from "@/domain/arena/geometria";
 import { distancia, emGraus, quantidadeAta, rotuloDistancia } from "@/domain/arena/posicoes";
 import { cn } from "@/lib/cn";
-import { IconeMais, IconeMenos } from "./icones";
+import { Icone } from "@/components/ui/icons";
 
 const pts = (lista: Array<[number, number]>) => lista.map(([x, z]) => `${x},${z}`).join(" ");
 
@@ -367,10 +367,10 @@ export function Plano2D({
       </svg>
       <div className={cn("pointer-events-auto absolute bottom-3 flex flex-col overflow-hidden rounded-cartao border border-line bg-surface shadow-pill", recuoDireita ? "right-[384px]" : "right-3")}>
         <button type="button" aria-label="Aproximar" title="Aproximar" onClick={() => zoom(1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-ink-2 hover:bg-subtle hover:text-ink">
-          <IconeMais />
+          <Icone nome="mais" tamanho={20} />
         </button>
         <button type="button" aria-label="Afastar" title="Afastar" onClick={() => zoom(1 / 1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-ink-2 hover:bg-subtle hover:text-ink">
-          <IconeMenos />
+          <Icone nome="menos" tamanho={20} />
         </button>
         <button type="button" aria-label="Enquadrar a arena" title="Enquadrar a arena" onClick={() => setVista({ s: 1, x: 0, y: 0 })} className="grid h-9 cursor-pointer place-items-center border-0 bg-transparent px-2 text-rotulo font-medium text-ink-2 hover:bg-subtle hover:text-ink">
           Tudo

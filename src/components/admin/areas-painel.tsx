@@ -103,12 +103,12 @@ export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: str
                 <tr key={a.id} className="hover:bg-subtle">
                   <th scope="row" className={cn(CELULA, "text-left font-normal")}>
                     <span className={cn("block text-corpo font-medium", a.ativo ? "text-ink" : "text-ink-3")}>{a.nome}</span>
-                    <span className="mt-0.5 block font-mono text-pequeno text-muted sm:hidden">
+                    <span className="numero mt-0.5 block text-pequeno text-muted sm:hidden">
                       {a.pessoas} {a.pessoas === 1 ? "pessoa" : "pessoas"} · {a.solicitacoes} {a.solicitacoes === 1 ? "solicitação" : "solicitações"}
                     </span>
                   </th>
-                  <td className={cn(CELULA, "hidden text-right font-mono text-pequeno text-ink-2 sm:table-cell")}>{a.pessoas}</td>
-                  <td className={cn(CELULA, "hidden text-right font-mono text-pequeno text-ink-2 sm:table-cell")}>{a.solicitacoes}</td>
+                  <td className={cn(CELULA, "numero hidden text-right text-pequeno text-ink-2 sm:table-cell")}>{a.pessoas}</td>
+                  <td className={cn(CELULA, "numero hidden text-right text-pequeno text-ink-2 sm:table-cell")}>{a.solicitacoes}</td>
                   <td className={CELULA}>
                     <Badge tom={a.ativo ? "success" : "muted"}>{a.ativo ? "Ativa" : "Inativa"}</Badge>
                   </td>

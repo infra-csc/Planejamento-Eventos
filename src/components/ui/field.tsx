@@ -11,7 +11,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
-  return <textarea ref={ref} className={cn(base, "min-h-[76px] resize-y py-2.5 leading-[1.5]", className)} {...rest} />;
+  return <textarea ref={ref} className={cn(base, "min-h-[76px] resize-y py-2.5 leading-normal", className)} {...rest} />;
 });
 
 // Lista suspensa estilizada (Radix) — mesma API em todo o app.
@@ -81,7 +81,7 @@ export function Field({
           {error}
         </span>
       ) : hint ? (
-        <p id={idMensagem} className="mt-1.5 text-pequeno leading-[1.45] text-muted">
+        <p id={idMensagem} className="mt-1.5 text-pequeno text-muted">
           {hint}
         </p>
       ) : null}

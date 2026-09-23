@@ -6,6 +6,7 @@ import { consolidar, type EventoConsolidacao } from "@/domain/consolidacao";
 import { calcularOS } from "@/domain/os";
 import { montarLinhasAtaDeEventos } from "./os";
 import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
+import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 /** Catálogo de peças ativas (com estoque): muda só pelas telas de catálogo, que invalidam a tag. */
 const pecasAtivasEmCache = cacheDados(
@@ -53,7 +54,7 @@ export async function calcularConsolidacao(periodo: { inicio: string; fim: strin
           .where(
             and(
               inArray(solicitacoes.eventoId, semAta),
-              inArray(solicitacoes.status, ["ENVIADA", "EM_ANALISE"]),
+              inArray(solicitacoes.status, STATUS_ABERTOS),
               eq(solicitacoes.excluida, false),
               eq(solicitacaoItens.status, "EM_ANALISE"),
               eq(solicitacaoItens.operacao, "ADICIONAR"),

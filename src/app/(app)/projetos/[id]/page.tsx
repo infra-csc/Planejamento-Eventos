@@ -198,7 +198,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
             )}
           </Section>
 
-          <div id="anexos" className="scroll-mt-20">
+          <div id="anexos" className="alvo-ancora">
             <Section titulo="Fotos e desenhos" sub="Render, modulação e PDF técnico do projeto. Até 8 MB por arquivo.">
               <AnexosManager projetoId={p.id} anexos={p.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))} podeGerenciar={gerencia} />
             </Section>

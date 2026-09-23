@@ -145,14 +145,3 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
     return { rotulo };
   });
 }
-
-/** Contagem para o menu/painel: quantos itens aguardam cadastro ou vínculo. */
-export async function contarItensForaDoCatalogo() {
-  const db = await getDb();
-  const rows = await db
-    .select({ id: eventoItens.id })
-    .from(eventoItens)
-    .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
-    .where(and(eq(eventoItens.tipo, "AVULSO"), eq(eventoItens.ativo, true), notInArray(eventos.status, ["ENCERRADO", "CANCELADO"])));
-  return rows.length;
-}
