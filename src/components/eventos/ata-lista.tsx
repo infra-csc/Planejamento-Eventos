@@ -20,6 +20,12 @@ import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import type { EventoStatus } from "@/server/db/schema";
 
+/** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
+const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
+  if (!r.ok) return toastErro(r.erro);
+  toast(r.dados && r.dados.novas > 0 ? `${rotulo}. ${r.dados.novas} ${r.dados.novas === 1 ? "linha chegou" : "linhas chegaram"} depois e ${r.dados.novas === 1 ? "continua pendente" : "continuam pendentes"}: confira na lista.` : rotulo);
+};
+
 export type LinhaAtaView = {
   id: string;
   tipo: "PROJETO" | "PECA" | "AVULSO";
@@ -163,74 +169,77 @@ export function AtaLista({
         <EmptyState compact={compacta} title="Ata ainda não montada" description={compacta ? "As linhas entram aqui conforme você responde os itens." : `A ata é montada na reunião de OS, marcada para ${dataReuniao}.`} action={botaoIncluir || undefined} />
       ) : (
         <>
-          <table className="w-full border-collapse">
-            <CaptionOculta>Linhas da ata</CaptionOculta>
-            <thead>
-              <tr className="bg-subtle">
-                <Th>Item</Th>
-                <Th largura={compacta ? 52 : 70} alinhar="right">
-                  Qtd.
-                </Th>
-                {!compacta && <Th largura={130}>Destino</Th>}
-                {!compacta && <Th largura={120}>Área</Th>}
-                <Th largura={compacta ? 120 : 170}>Origem</Th>
-                {(conferivel || editavel) && (
-                  <Th largura={conferivel && editavel ? 76 : 44}>
-                    <span className="sr-only">Conferir e ajustar</span>
+          {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] border-collapse">
+              <CaptionOculta>Linhas da ata</CaptionOculta>
+              <thead>
+                <tr className="bg-subtle">
+                  <Th>Item</Th>
+                  <Th largura={compacta ? 52 : 70} alinhar="right">
+                    Qtd.
                   </Th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l) => (
-                <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
-                  <th scope="row" className="border-b border-line-row px-cartao py-[11px] text-left font-normal">
-                    {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
-                    <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
-                      {l.nome}
-                    </Link>
-                    {!compacta && (
-                      <Tag className="ml-2" tom="muted">
-                        {TAG_TIPO[l.tipo]}
-                      </Tag>
-                    )}
-                    {l.posAta && (
-                      <Tag className="ml-2" tom="accent">
-                        depois da ata
-                      </Tag>
-                    )}
-                    {l.versaoDefasada && <BadgeVersao l={l} eventoId={eventoId} podeAtualizar={editavel} />}
-                    {l.tipo === "AVULSO" && editavel && (
-                      <span className="ml-2 inline-block align-middle">
-                        <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
-                      </span>
-                    )}
-                    {l.codigo && <span className="mt-px block font-mono text-rotulo text-muted">{l.codigo}</span>}
-                  </th>
-                  <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-corpo font-medium">{l.quantidade}</td>
-                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
-                  {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
-                  <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-3">
-                    {l.origemSolicitacaoId ? (
-                      <Link href={`/solicitacoes/${l.origemSolicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
-                        {l.origemLabel}
-                      </Link>
-                    ) : (
-                      l.origemLabel
-                    )}
-                  </td>
+                  {!compacta && <Th largura={130}>Destino</Th>}
+                  {!compacta && <Th largura={120}>Área</Th>}
+                  <Th largura={compacta ? 120 : 170}>Origem</Th>
                   {(conferivel || editavel) && (
-                    <td className={cn("border-b border-line-row py-[7px] pl-1.5", compacta ? "pr-2.5" : "pr-[14px]")}>
-                      <span className="flex items-center justify-end gap-1">
-                        {conferivel && <CheckConferida l={l} eventoId={eventoId} />}
-                        {editavel && <BotaoAjustar nome={l.nome} onClick={() => setAjustar(l)} />}
-                      </span>
-                    </td>
+                    <Th largura={conferivel && editavel ? 76 : 44}>
+                      <span className="sr-only">Conferir e ajustar</span>
+                    </Th>
                   )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {linhas.map((l) => (
+                  <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
+                    <th scope="row" className="border-b border-line-row px-cartao py-[11px] text-left font-normal">
+                      {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
+                      <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
+                        {l.nome}
+                      </Link>
+                      {!compacta && (
+                        <Tag className="ml-2" tom="muted">
+                          {TAG_TIPO[l.tipo]}
+                        </Tag>
+                      )}
+                      {l.posAta && (
+                        <Tag className="ml-2" tom="accent">
+                          depois da ata
+                        </Tag>
+                      )}
+                      {l.versaoDefasada && <BadgeVersao l={l} eventoId={eventoId} podeAtualizar={editavel} />}
+                      {l.tipo === "AVULSO" && editavel && (
+                        <span className="ml-2 inline-block align-middle">
+                          <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                        </span>
+                      )}
+                      {l.codigo && <span className="mt-px block font-mono text-rotulo text-muted">{l.codigo}</span>}
+                    </th>
+                    <td className="border-b border-line-row px-2.5 py-[11px] text-right font-mono text-corpo font-medium">{l.quantidade}</td>
+                    {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
+                    {!compacta && <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
+                    <td className="border-b border-line-row px-2.5 py-[11px] text-pequeno text-ink-3">
+                      {l.origemSolicitacaoId ? (
+                        <Link href={`/solicitacoes/${l.origemSolicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
+                          {l.origemLabel}
+                        </Link>
+                      ) : (
+                        l.origemLabel
+                      )}
+                    </td>
+                    {(conferivel || editavel) && (
+                      <td className={cn("border-b border-line-row py-[7px] pl-1.5", compacta ? "pr-2.5" : "pr-[14px]")}>
+                        <span className="flex items-center justify-end gap-1">
+                          {conferivel && <CheckConferida l={l} eventoId={eventoId} />}
+                          {editavel && <BotaoAjustar nome={l.nome} onClick={() => setAjustar(l)} />}
+                        </span>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <RodapeTabela
             direita={
               <span className="flex flex-wrap items-center gap-3">
@@ -242,9 +251,9 @@ export function AtaLista({
                     disabled={conferindoTodas}
                     onClick={() =>
                       iniciarTodas(async () => {
-                        const r = await conferirTodasAction(eventoId);
-                        if (r.ok) toast("Linhas restantes marcadas como conferidas");
-                        else toastErro(r.erro);
+                        // Só as linhas que estão na tela: o que chegar depois continua pendente.
+                        const r = await conferirTodasAction(eventoId, linhas.filter((l) => !l.conferidoEm).map((l) => l.id));
+                        avisarTodas(r, "Linhas restantes marcadas como conferidas");
                       })
                     }
                   >

@@ -50,6 +50,9 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
   if (!pode(usuario, "solicitacao.ver_todas") || filtro.somenteMinhaArea) {
     if (!usuario.areaId) return [];
     conds.push(eq(solicitacoes.areaId, usuario.areaId));
+  } else if (usuario.perfil !== "ADMIN") {
+    // Rascunho ainda não enviado é da área (mesma regra de paginarSolicitacoes e da busca).
+    conds.push(ne(solicitacoes.status, "RASCUNHO"));
   }
   if (filtro.eventoId) conds.push(eq(solicitacoes.eventoId, filtro.eventoId));
   if (filtro.areaId) conds.push(eq(solicitacoes.areaId, filtro.areaId));
@@ -330,7 +333,16 @@ export async function criarRascunho(usuario: UsuarioAtual, eventoId: string, are
  * Rascunho que o usuário pode editar. Evento encerrado ou cancelado não aceita edição (o rascunho
  * fica preservado para consulta); excluir continua permitido.
  */
-async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string, opcoes: { permitirEventoFechado?: boolean } = {}) {
+async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string, opcoes: { permitirEventoFechado?: boolean; travar?: boolean } = {}) {
+  if (opcoes.travar) {
+    // Mesma ordem do envio (evento, depois a solicitação): o autosave de uma pessoa espera o "Enviar"
+    // de outra terminar e relê o status, em vez de apagar e regravar itens de algo já enviado.
+    const [pre] = await ex.select({ eventoId: solicitacoes.eventoId }).from(solicitacoes).where(eq(solicitacoes.id, id));
+    if (pre) {
+      await bloquearEvento(ex, pre.eventoId);
+      await ex.execute(sql`select id from solicitacoes where id = ${id} for update`);
+    }
+  }
   const s = await ex.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, id), eq(solicitacoes.excluida, false)), with: { evento: true, itens: true, area: true } });
   if (!s) throw new NaoEncontradoError("Solicitação");
   if (!podeEditarSolicitacao(usuario, s)) throw new SemPermissaoError("Só usuários da área da solicitação podem editá-la.");
@@ -343,8 +355,10 @@ async function carregarEditavel(ex: Executor, usuario: UsuarioAtual, id: string,
 
 export async function atualizarCabecalho(usuario: UsuarioAtual, id: string, dados: { titulo: string | null; observacao: string | null }) {
   const db = await getDb();
-  await carregarEditavel(db, usuario, id);
-  await db.update(solicitacoes).set({ ...dados, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, id));
+  await db.transaction(async (tx) => {
+    await carregarEditavel(tx, usuario, id, { travar: true });
+    await tx.update(solicitacoes).set({ ...dados, atualizadoPorId: usuario.id }).where(eq(solicitacoes.id, id));
+  });
 }
 
 type DadosItem = ItemRascunho & { justificativa?: string | null };
@@ -418,7 +432,7 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
 export async function salvarItem(usuario: UsuarioAtual, solicitacaoId: string, itemId: string | null, dados: DadosItem) {
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const s = await carregarEditavel(tx, usuario, solicitacaoId);
+    const s = await carregarEditavel(tx, usuario, solicitacaoId, { travar: true });
     const valores = await prepararItem(tx, s, dados, usuario);
     if (itemId) {
       if (!s.itens.some((i) => i.id === itemId)) throw new NaoEncontradoError("Item");
@@ -433,9 +447,9 @@ export async function salvarItem(usuario: UsuarioAtual, solicitacaoId: string, i
 export async function excluirRascunho(usuario: UsuarioAtual, id: string) {
   const db = await getDb();
   await db.transaction(async (tx) => {
-    const s = await carregarEditavel(tx, usuario, id, { permitirEventoFechado: true });
+    const s = await carregarEditavel(tx, usuario, id, { permitirEventoFechado: true, travar: true });
     if (s.status !== "RASCUNHO") throw new DomainError("Só rascunhos podem ser excluídos. Use cancelar.");
-    await tx.update(solicitacoes).set({ excluida: true }).where(eq(solicitacoes.id, id));
+    await tx.update(solicitacoes).set({ excluida: true }).where(and(eq(solicitacoes.id, id), eq(solicitacoes.status, "RASCUNHO")));
   });
 }
 
@@ -474,7 +488,7 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
   const { id, codigo } = await db.transaction(async (tx) => {
     let s;
     if (dados.id) {
-      s = await carregarEditavel(tx, usuario, dados.id);
+      s = await carregarEditavel(tx, usuario, dados.id, { travar: true });
       if (s.eventoId !== dados.eventoId) throw new DomainError("Para trocar de evento, exclua este rascunho e crie outro.");
     } else {
       const novo = await criarRascunhoTx(tx, usuario, dados.eventoId, dados.areaId);

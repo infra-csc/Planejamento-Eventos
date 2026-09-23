@@ -86,6 +86,21 @@ export async function usuariosPorPerfil(ex: Executor, perfis: Perfil[]): Promise
   return rows.map((r) => r.id);
 }
 
+/**
+ * Aviso de mudança numa linha da ata: a área dona da linha recebe o texto com o motivo; quem só
+ * tem pedido no evento recebe o texto sem ele (o motivo é detalhe interno da área, como no histórico).
+ */
+export async function notificarAjusteLinha(
+  ex: Executor,
+  dados: { eventoId: string; areaId: string | null; tipo: string; titulo: string; mensagem: string; mensagemSemMotivo: string; link: string; excetoUsuarioId: string },
+) {
+  const daArea = dados.areaId ? await usuariosDaArea(ex, dados.areaId) : [];
+  const outros = (await usuariosComPedidoNoEvento(ex, dados.eventoId)).filter((id) => !daArea.includes(id));
+  const base = { tipo: dados.tipo, titulo: dados.titulo, link: dados.link, excetoUsuarioId: dados.excetoUsuarioId };
+  await notificar(ex, { ...base, usuarioIds: daArea, mensagem: dados.mensagem });
+  await notificar(ex, { ...base, usuarioIds: outros, mensagem: dados.mensagemSemMotivo });
+}
+
 export async function usuariosDaArea(ex: Executor, areaId: string): Promise<string[]> {
   const rows = await ex
     .select({ id: usuarios.id })

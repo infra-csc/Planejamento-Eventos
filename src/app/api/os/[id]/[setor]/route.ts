@@ -7,6 +7,7 @@ import { getDb } from "@/server/db";
 import { SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
 import { SETOR_LABEL } from "@/domain/os";
+import { NaoEncontradoError } from "@/domain/errors";
 
 /**
  * Escapa uma célula para CSV aberto no Excel. Valores que começam com = + - @ tab ou CR viram texto
@@ -24,7 +25,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const { id, setor } = await params;
   if (!(SETORES as readonly string[]).includes(setor)) return NextResponse.json({ erro: "Setor inválido" }, { status: 400 });
-  const ev = await obterEvento(usuario, id);
+  // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
+  const ev = await obterEvento(usuario, id).catch((e: unknown) => {
+    if (e instanceof NaoEncontradoError) return null;
+    throw e;
+  });
+  if (!ev) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
   const v = Number(new URL(request.url).searchParams.get("v"));
   // Versão pedida: só aquele JSON. Sem versão: OS calculada da ata atual.
   const sel = Number.isInteger(v) && v > 0 ? (await obterConteudosOs(id, [v])).get(v) : undefined;

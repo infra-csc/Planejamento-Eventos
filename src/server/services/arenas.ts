@@ -29,7 +29,10 @@ export type ArenaCarregada = {
  */
 function avisarMigracao<T>(padrao: T) {
   return (e: unknown): T => {
-    console.error("Arenas: tabela indisponível — rode `npm run db:migrate`.", e);
+    // Só "tabela não existe" (42P01) vira aviso; qualquer outra falha de banco continua sendo erro.
+    const codigo = (e as { code?: string; cause?: { code?: string } })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
+    if (codigo !== "42P01") throw e;
+    console.error("Arenas: tabela indisponível — rode `npm run db:migrate`.");
     return padrao;
   };
 }

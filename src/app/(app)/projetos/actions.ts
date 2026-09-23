@@ -7,6 +7,7 @@ import { requireUsuario } from "@/server/auth/session";
 import { alterarAtivoProjeto, anexarArquivo, criarProjeto, editarProjeto, removerAnexo } from "@/server/services/projetos";
 import { projetoSchema } from "@/lib/schemas";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
+import { destinoInterno } from "@/lib/destino";
 
 export async function salvarProjetoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
@@ -35,7 +36,8 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
   revalidatePath("/biblioteca");
   // Formulário dentro de um modal (Biblioteca) pede para voltar ao mesmo lugar.
   const voltarPara = String(formData.get("voltarPara") ?? "");
-  redirect(voltarPara.startsWith("/") ? voltarPara : destino);
+  // Só caminho interno: "//site" também começa com "/" e levaria para fora do app.
+  redirect(destinoInterno(voltarPara, destino));
 }
 
 export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

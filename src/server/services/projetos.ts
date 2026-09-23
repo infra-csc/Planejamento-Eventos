@@ -168,19 +168,31 @@ export async function alterarAtivoProjeto(usuario: UsuarioAtual, id: string, ati
 const LIMITE_ANEXO = 8 * 1024 * 1024;
 const MIMES: Record<string, AnexoTipo> = { "image/png": "IMAGEM", "image/jpeg": "IMAGEM", "image/webp": "IMAGEM", "application/pdf": "PDF" };
 
+/** Tipo real pelos primeiros bytes (assinatura do arquivo): um .exe renomeado para .pdf não passa. */
+export function detectarMimeAnexo(bytes: Uint8Array): keyof typeof MIMES | null {
+  const b = (i: number) => bytes[i];
+  const ascii = (de: number, ate: number) => String.fromCharCode(...bytes.subarray(de, ate));
+  if (bytes.length >= 8 && b(0) === 0x89 && ascii(1, 4) === "PNG" && b(4) === 0x0d && b(5) === 0x0a && b(6) === 0x1a && b(7) === 0x0a) return "image/png";
+  if (bytes.length >= 3 && b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return "image/jpeg";
+  if (bytes.length >= 12 && ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp";
+  if (bytes.length >= 5 && ascii(0, 5) === "%PDF-") return "application/pdf";
+  return null;
+}
+
 export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, file: File) {
   exigir(usuario, "projeto.gerenciar");
-  const tipo = MIMES[file.type];
-  if (!tipo) throw new ValidacaoError("Formato não suportado. Use PNG, JPG, WEBP ou PDF.");
   if (file.size > LIMITE_ANEXO) throw new ValidacaoError("Arquivo acima de 8 MB.");
   if (file.size === 0) throw new ValidacaoError("Arquivo vazio.");
+  const conteudo = Buffer.from(await file.arrayBuffer());
+  const mime = detectarMimeAnexo(new Uint8Array(conteudo));
+  const tipo = mime ? MIMES[mime] : undefined;
+  if (!mime || !tipo) throw new ValidacaoError("Formato não suportado. Use PNG, JPG, WEBP ou PDF (o conteúdo do arquivo não corresponde a nenhum deles).");
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");
-  const conteudo = Buffer.from(await file.arrayBuffer());
   const [a] = await db
     .insert(anexos)
-    .values({ projetoId, tipo, nomeArquivo: file.name.slice(0, 160), mime: file.type, tamanho: file.size, conteudo, criadoPorId: usuario.id })
+    .values({ projetoId, tipo, nomeArquivo: file.name.slice(0, 160), mime, tamanho: file.size, conteudo, criadoPorId: usuario.id })
     .returning({ id: anexos.id });
   await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo "${file.name}" adicionado.`, usuarioId: usuario.id });
   return a;

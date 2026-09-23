@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
   anexos,
@@ -26,7 +26,7 @@ import { pode } from "@/domain/permissions";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { formatarDataHora } from "@/lib/format";
 import { gerarOsVersao, montarLinhasAta, montarLinhasAtaDeEventos, numeroOsAtual } from "./os";
-import { bloquearEvento, notificar, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
+import { bloquearEvento, notificar, notificarAjusteLinha, obterConfiguracoes, proximoCodigo, registrarHistorico, registrarHistoricos, usuariosComPedidoNoEvento, usuariosDaArea, usuariosLogistica, usuariosRequisitantes, type Executor, buscaSemAcento } from "./support";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -197,7 +197,8 @@ export async function listarAtaVersoes(eventoId: string) {
  */
 export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) {
   const db = await getDb();
-  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? undefined : eq(solicitacoes.areaId, usuario.areaId ?? "");
+  // Quem vê todas não conta rascunho de outra área (ainda não foi enviado); o admin vê tudo.
+  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : ne(solicitacoes.status, "RASCUNHO")) : eq(solicitacoes.areaId, usuario.areaId ?? "");
   const [[linhas], sols, versaoOs] = await Promise.all([
     db
       .select({ n: count() })
@@ -687,10 +688,11 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
+    // Fase lida depois da trava: um "Fechar ata" em andamento termina antes, e a conferência não muda uma ata fechada.
+    await bloquearEvento(tx, eventoId);
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
-    await bloquearEvento(tx, eventoId);
     const [linha] = await tx
       .update(eventoItens)
       .set(conferida ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : { conferidoEm: null, conferidoPorId: null })
@@ -715,24 +717,35 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
 }
 
 /** Conferência em lote (seed, testes, "conferir todas as restantes"). */
-export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: string) {
+/**
+ * "Conferir as restantes": marca só as linhas que a pessoa tinha na tela (`linhaIds`). Linha que
+ * chegou depois (pedido novo, correção que desfez a conferência) continua pendente e é contada em
+ * `novas`, para a tela avisar. Sem `linhaIds` (scripts), vale para todas as pendentes.
+ */
+export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: string, linhaIds?: string[]) {
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
-  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
-  if (!ev) throw new NaoEncontradoError("Evento");
-  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata.");
+    if (linhaIds && linhaIds.length === 0) return { marcadas: 0, novas: 0 };
     const marcadas = await tx
       .update(eventoItens)
       .set({ conferidoEm: new Date(), conferidoPorId: usuario.id })
-      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`))
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`, ...(linhaIds ? [inArray(eventoItens.id, linhaIds)] : [])))
       .returning({ id: eventoItens.id });
     // Um registro por linha, gravados num insert só.
     await registrarHistoricos(
       tx,
       marcadas.map((m) => ({ eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id })),
     );
+    const [{ pendentes }] = await tx
+      .select({ pendentes: count() })
+      .from(eventoItens)
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+    return { marcadas: marcadas.length, novas: Number(pendentes) };
   });
 }
 
@@ -743,7 +756,9 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
 /** Lista de peças do projeto: a versão atual ou, quando informada, a versão que a área pediu. */
 export async function snapshotBom(ex: Executor, projetoId: string, versaoId?: string | null): Promise<{ versaoId: string; numero: number; bom: BomSnapshotLinha[] }> {
   const p = await ex.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
-  if (!p || !p.ativo) throw new NaoEncontradoError("Projeto padrão");
+  // Com a versão informada (pedido já feito), o projeto inativado depois continua valendo: a versão é imutável.
+  // Sem versão (pedido novo, "usar a versão atual"), só projeto ativo.
+  if (!p || (!p.ativo && !versaoId)) throw new NaoEncontradoError("Projeto padrão");
   const v = await ex.query.projetoVersoes.findFirst({
     where: versaoId ? and(eq(projetoVersoes.projetoId, projetoId), eq(projetoVersoes.id, versaoId)) : and(eq(projetoVersoes.projetoId, projetoId), eq(projetoVersoes.numero, p.versaoAtual)),
     with: { itens: { with: { peca: true } } },
@@ -823,11 +838,13 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     });
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${dados.quantidade} incluído — ${dados.justificativa}`);
-      await notificar(tx, {
-        usuarioIds: [...(dados.areaId ? await usuariosDaArea(tx, dados.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
+      await notificarAjusteLinha(tx, {
+        eventoId,
+        areaId: dados.areaId ?? null,
         tipo: "ATA_AJUSTE",
         titulo: `Item novo na OS: ${ev.nome}`,
         mensagem: `A logística incluiu ${desc} × ${dados.quantidade}. Motivo: ${dados.justificativa}`,
+        mensagemSemMotivo: `A logística incluiu ${desc} × ${dados.quantidade}.`,
         link: `/eventos/${eventoId}/itens/${linha.id}`,
         excetoUsuarioId: usuario.id,
       });
@@ -879,11 +896,13 @@ export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: st
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, justificativa ?? `${desc} ${remover ? "removido" : `${linha.quantidade} → ${quantidade}`}`);
       {
-        await notificar(tx, {
-          usuarioIds: [...(linha.registro.areaId ? await usuariosDaArea(tx, linha.registro.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
+        await notificarAjusteLinha(tx, {
+          eventoId,
+          areaId: linha.registro.areaId ?? null,
           tipo: "ATA_AJUSTE",
           titulo: `Ajuste na OS: ${ev.nome}`,
           mensagem: `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}. Motivo: ${justificativa}`,
+          mensagemSemMotivo: `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}.`,
           // Linha removida deixa de ter página própria: nesse caso o histórico é o registro.
           link: remover ? `/eventos/${eventoId}/historico` : `/eventos/${eventoId}/itens/${linhaId}`,
           excetoUsuarioId: usuario.id,

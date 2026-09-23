@@ -188,7 +188,8 @@ async function main() {
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
   const file = new File([png], "portico.png", { type: "image/png" });
   await deveFalhar(() => anexarArquivo(marina, pj.id, file), "logística não anexa em projeto", "permissão");
-  await deveFalhar(() => anexarArquivo(bruno, pj.id, new File([png], "x.exe", { type: "application/octet-stream" })), "formato inválido é rejeitado", "Formato");
+  // O tipo vem do conteúdo: um executável com nome e tipo de PDF é recusado.
+  await deveFalhar(() => anexarArquivo(bruno, pj.id, new File([Buffer.from("MZ executavel de verdade")], "planta.pdf", { type: "application/pdf" })), "formato inválido é rejeitado (pelos bytes)", "Formato");
   const a = await anexarArquivo(bruno, pj.id, file);
   const lido = await obterAnexo(paulo, a.id);
   ok(lido.conteudo.length === png.length && lido.mime === "image/png", "anexo gravado e lido com o mesmo conteúdo");

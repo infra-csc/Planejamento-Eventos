@@ -23,6 +23,24 @@ async function miniatura(id: string, conteudo: Uint8Array, largura: number) {
 /** Anexos não são editados (só incluídos e removidos): o id identifica o conteúdo para sempre. */
 const CACHE = "private, max-age=86400, immutable";
 
+const ehImagem = (mime: string) => mime.startsWith("image/") && mime !== "image/svg+xml";
+const nomeWebp = (nome: string) => nome.replace(/\.[^.]+$/, "") + ".webp";
+
+function resposta(corpo: Uint8Array, tipo: string, nomeArquivo: string, etag: string) {
+  return new NextResponse(new Uint8Array(corpo) as unknown as BodyInit, {
+    headers: {
+      "Content-Type": tipo,
+      "Content-Length": String(corpo.byteLength),
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(nomeArquivo)}`,
+      "Cache-Control": CACHE,
+      ETag: etag,
+      // O navegador não "adivinha" outro tipo e o arquivo abre isolado, sem scripts nem acesso à origem do app.
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+    },
+  });
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
@@ -34,23 +52,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const etag = `"${meta.id}-${meta.tamanho}${largura ? `-w${largura}` : ""}"`;
     // O navegador já tem o arquivo: responde sem ler o conteúdo do banco.
     if (req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": CACHE } });
+    // Miniatura já gerada nesta instância: sai da memória, sem trazer o original (até 8 MB) do banco.
+    const pronta = largura && ehImagem(meta.mime) ? miniaturas.get(`${meta.id}-${largura}`) : undefined;
+    if (pronta) return resposta(pronta, "image/webp", nomeWebp(meta.nomeArquivo), etag);
+
     const a = await obterAnexo(usuario, id);
-    const nome = encodeURIComponent(largura && a.mime.startsWith("image/") && a.mime !== "image/svg+xml" ? a.nomeArquivo.replace(/\.[^.]+$/, "") + ".webp" : a.nomeArquivo);
-    // Miniatura só para imagem: listas com dezenas de fotos deixam de baixar os originais.
-    const ehImagem = a.mime.startsWith("image/") && a.mime !== "image/svg+xml";
-    const corpo = largura && ehImagem ? await miniatura(a.id, new Uint8Array(a.conteudo), largura) : new Uint8Array(a.conteudo);
-    return new NextResponse(new Uint8Array(corpo) as unknown as BodyInit, {
-      headers: {
-        "Content-Type": largura && ehImagem ? "image/webp" : a.mime,
-        "Content-Length": String(corpo.byteLength),
-        "Content-Disposition": `inline; filename*=UTF-8''${nome}`,
-        "Cache-Control": CACHE,
-        ETag: etag,
-        // O navegador não "adivinha" outro tipo e o arquivo abre isolado, sem scripts nem acesso à origem do app.
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
-      },
-    });
+    // Miniatura só para imagem: listas com dezenas de fotos deixam de baixar os originais. Imagem que o
+    // sharp não consegue ler (arquivo corrompido) sai como o original, em vez de erro 500.
+    const reduzida = largura && ehImagem(a.mime) ? await miniatura(a.id, new Uint8Array(a.conteudo), largura).catch(() => null) : null;
+    if (reduzida) return resposta(reduzida, "image/webp", nomeWebp(a.nomeArquivo), etag);
+    return resposta(new Uint8Array(a.conteudo), a.mime, a.nomeArquivo, etag);
   } catch (e) {
     if (e instanceof NaoEncontradoError) return NextResponse.json({ erro: "Não encontrado" }, { status: 404 });
     throw e;

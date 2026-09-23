@@ -7,7 +7,7 @@ import { descricaoLinha, resumirAjustes } from "@/domain/os";
 import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
-import { bloquearEvento, notificar, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
+import { bloquearEvento, notificar, notificarAjusteLinha, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
 import { observacaoDoItem } from "@/domain/descricoes-itens";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
@@ -241,11 +241,13 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
     if (aberto) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, texto);
       // Peça trocada dentro de um projeto muda o que vai ser montado: quem pediu algo no evento fica sabendo.
-      await notificar(tx, {
-        usuarioIds: [...(linha.areaId ? await usuariosDaArea(tx, linha.areaId) : []), ...(await usuariosComPedidoNoEvento(tx, eventoId))],
+      await notificarAjusteLinha(tx, {
+        eventoId,
+        areaId: linha.areaId ?? null,
         tipo: "ATA_AJUSTE",
         titulo: `Ajuste na OS: ${ev.nome}`,
         mensagem: texto,
+        mensagemSemMotivo: `${projeto}: ${peca.codigo} · ${peca.nome} ${acaoTexto} (× ${linha.quantidade} = ${quantidadePorUnidade * linha.quantidade})`,
         link: `/eventos/${eventoId}/itens/${linhaId}`,
         excetoUsuarioId: usuario.id,
       });

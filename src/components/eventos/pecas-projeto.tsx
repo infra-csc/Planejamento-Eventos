@@ -69,45 +69,48 @@ export function PecasProjeto({
 
   return (
     <>
-      <table className="w-full border-collapse text-corpo">
-        <CaptionOculta>Peças do projeto nesta linha</CaptionOculta>
-        <thead>
-          <tr className="bg-subtle">
-            <Th>Código</Th>
-            <Th className="px-2">Peça</Th>
-            <Th largura={90} alinhar="right" className="px-2">
-              Por un.
-            </Th>
-            <Th largura={80} alinhar="right" className="px-2">
-              Total
-            </Th>
-            {editavel && (
-              <Th largura={52}>
-                <span className="sr-only">Ações</span>
+      {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse text-corpo">
+          <CaptionOculta>Peças do projeto nesta linha</CaptionOculta>
+          <thead>
+            <tr className="bg-subtle">
+              <Th>Código</Th>
+              <Th className="px-2">Peça</Th>
+              <Th largura={90} alinhar="right" className="px-2">
+                Por un.
               </Th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {pecas.map((p) => (
-            <tr key={p.pecaId} className="border-b border-line-row last:border-b-0 hover:bg-subtle">
-              <td className="px-cartao py-1.5 font-mono text-pequeno text-ink-2">{p.codigo}</td>
-              <td className="px-2 py-1.5 text-ink">{p.nome}</td>
-              <td className="px-2 py-1.5 text-right font-mono text-ink-2">{p.porUnidade}</td>
-              <td className="px-2 py-1.5 text-right font-mono font-medium text-ink">
-                {p.total} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
-              </td>
+              <Th largura={80} alinhar="right" className="px-2">
+                Total
+              </Th>
               {editavel && (
-                <td className="py-1 pr-cartao text-right">
-                  <IconButton label={`Ajustar ${p.nome}`} onClick={() => abrir({ pecaId: p.pecaId, codigo: p.codigo, nome: p.nome, porUnidade: p.porUnidade })}>
-                    <IconeLapis size={13} />
-                  </IconButton>
-                </td>
+                <Th largura={52}>
+                  <span className="sr-only">Ações</span>
+                </Th>
               )}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {pecas.map((p) => (
+              <tr key={p.pecaId} className="border-b border-line-row last:border-b-0 hover:bg-subtle">
+                <td className="px-cartao py-1.5 font-mono text-pequeno text-ink-2">{p.codigo}</td>
+                <td className="px-2 py-1.5 text-ink">{p.nome}</td>
+                <td className="px-2 py-1.5 text-right font-mono text-ink-2">{p.porUnidade}</td>
+                <td className="px-2 py-1.5 text-right font-mono font-medium text-ink">
+                  {p.total} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
+                </td>
+                {editavel && (
+                  <td className="py-1 pr-cartao text-right">
+                    <IconButton label={`Ajustar ${p.nome}`} onClick={() => abrir({ pecaId: p.pecaId, codigo: p.codigo, nome: p.nome, porUnidade: p.porUnidade })}>
+                      <IconeLapis size={13} />
+                    </IconButton>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <RodapeTabela
         direita={
           editavel && (

@@ -40,7 +40,7 @@ export function ImagemZoom({ src, alt, className, legenda }: { src: string; alt:
           <DialogPrimitive.Title className="sr-only">{alt}</DialogPrimitive.Title>
           <figure className="m-0 flex max-h-full max-w-[1200px] flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} className="max-h-[calc(100vh-96px)] max-w-full rounded-cartao bg-white object-contain shadow-modal" />
+            <img src={src} alt={alt} className="max-h-[calc(100dvh-96px)] max-w-full rounded-cartao bg-white object-contain shadow-modal" />
             <figcaption className="flex items-center gap-3 text-pequeno text-white/80">
               {legenda ?? alt}
               <DialogPrimitive.Close className="cursor-pointer rounded-controle border border-white/30 bg-transparent px-2.5 py-1 text-pequeno text-white hover:bg-white/10">Fechar (Esc)</DialogPrimitive.Close>

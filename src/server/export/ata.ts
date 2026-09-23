@@ -27,6 +27,15 @@ export type AtaExport = {
   solicitacoesPreReuniao: AtaConteudo["solicitacoesPreReuniao"];
 };
 
+/**
+ * Na ata em construção a origem é o código da solicitação ("SOL-0012"). Quem não vê todas as
+ * solicitações não vê o código de pedido de outra área (a tela da ata também esconde).
+ */
+function origemVisivel(usuario: UsuarioAtual, l: { origemLabel: string; origemSolicitacaoId: string | null; registro: { areaId: string | null } }) {
+  if (!l.origemSolicitacaoId || pode(usuario, "solicitacao.ver_todas") || l.registro.areaId === usuario.areaId) return l.origemLabel;
+  return "Pedido de outra área";
+}
+
 const ORIGEM_LABEL: Record<string, string> = { SOLICITACAO: "Solicitação da área", AJUSTE_LOGISTICA: "Incluída pela logística" };
 
 export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, versaoPedida?: number): Promise<AtaExport> {
@@ -73,7 +82,7 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
       kitDescarrega: ev.kitDescarrega,
     },
     observacoes: veObservacoes(usuario) ? ev.observacoesReuniao : null,
-    linhas: linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.tipo === "PROJETO" ? (l.projeto?.codigo ?? null) : l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.areaNome, origem: l.origemLabel, conferidoPor: l.conferidoPor ?? null })),
+    linhas: linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.tipo === "PROJETO" ? (l.projeto?.codigo ?? null) : l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.areaNome, origem: origemVisivel(usuario, l), conferidoPor: l.conferidoPor ?? null })),
     solicitacoesPreReuniao: [],
   };
 }

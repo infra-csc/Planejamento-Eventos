@@ -9,6 +9,7 @@ import { SETOR_LABEL } from "@/domain/os";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import type { OsConteudo } from "@/server/db/schema";
 import { blocoDados, CHECK, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
+import { NaoEncontradoError } from "@/domain/errors";
 
 /*
  * OS completa em Excel: capa com resumo e, em abas, tudo que vai no caminhão nas três leituras da tela
@@ -196,7 +197,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const { id } = await params;
-  const ev = await obterEvento(usuario, id);
+  // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
+  const ev = await obterEvento(usuario, id).catch((e: unknown) => {
+    if (e instanceof NaoEncontradoError) return null;
+    throw e;
+  });
+  if (!ev) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
   const v = Number(new URL(request.url).searchParams.get("v"));
   const versoes = await listarOsResumo(id);
   const pedida = Number.isInteger(v) && v > 0 ? versoes.find((x) => x.numero === v) : undefined;

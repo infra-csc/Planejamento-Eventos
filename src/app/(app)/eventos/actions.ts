@@ -133,10 +133,10 @@ export async function conferirLinhaAction(eventoId: string, linhaId: string, con
   return r;
 }
 
-export async function conferirTodasAction(eventoId: string) {
+export async function conferirTodasAction(eventoId: string, linhaIds: string[]) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => conferirTodasLinhas(usuario, eventoId));
+  if (typeof eventoId !== "string" || !Array.isArray(linhaIds) || linhaIds.length > 2000 || linhaIds.some((x) => typeof x !== "string")) return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => conferirTodasLinhas(usuario, eventoId, linhaIds));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

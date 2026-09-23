@@ -6,6 +6,7 @@ import { montarAtaExport } from "@/server/export/ata";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { blocoDados, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
+import { NaoEncontradoError } from "@/domain/errors";
 
 /*
  * Ata da reunião de OS em Excel: cabeçalho com os campos da ata (reunião, presentes, público, carga),
@@ -20,7 +21,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const { id } = await params;
   const v = Number(new URL(request.url).searchParams.get("v"));
-  const ata = await montarAtaExport(usuario, id, Number.isInteger(v) && v > 0 ? v : undefined);
+  const ata = await montarAtaExport(usuario, id, Number.isInteger(v) && v > 0 ? v : undefined).catch((e: unknown) => {
+    if (e instanceof NaoEncontradoError) return null;
+    throw e;
+  });
+  if (!ata) return NextResponse.json({ erro: "Evento ou versão da ata não encontrados" }, { status: 404 });
   const ev = ata.evento;
   const reu = ata.reuniao;
   const rotuloVersao = ata.versao ? `v${ata.versao}` : "em construção";

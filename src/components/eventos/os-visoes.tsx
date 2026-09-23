@@ -73,37 +73,40 @@ export function OsVisoes({
               }
               sub={[p.destino ? `Destino: ${p.destino}` : null, p.area, `${p.pecas.length} ${p.pecas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${p.pecas.reduce((a, x) => a + x.total, 0)} unidades no total`].filter(Boolean).join(" · ")}
             >
-              <table className="w-full border-collapse">
-                <CaptionOculta>{`Peças de ${p.nome} × ${p.quantidade}`}</CaptionOculta>
-                <thead>
-                  <tr className="bg-subtle">
-                    <Th largura={108}>Código</Th>
-                    <Th>Peça</Th>
-                    <Th largura={150}>Setor</Th>
-                    <Th largura={110} alinhar="right">
-                      Por unidade
-                    </Th>
-                    <Th largura={90} alinhar="right">
-                      Total
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {p.pecas.map((x) => (
-                    <tr key={x.codigo} className="hover:bg-subtle">
-                      <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
-                      <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
-                        {x.nome}
-                      </th>
-                      <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
-                      <td className="border-b border-line-row px-2.5 py-2 text-right font-mono text-pequeno text-ink-2">{x.porUnidade}</td>
-                      <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
-                        {x.total} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
-                      </td>
+              {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse">
+                  <CaptionOculta>{`Peças de ${p.nome} × ${p.quantidade}`}</CaptionOculta>
+                  <thead>
+                    <tr className="bg-subtle">
+                      <Th largura={108}>Código</Th>
+                      <Th>Peça</Th>
+                      <Th largura={150}>Setor</Th>
+                      <Th largura={110} alinhar="right">
+                        Por unidade
+                      </Th>
+                      <Th largura={90} alinhar="right">
+                        Total
+                      </Th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {p.pecas.map((x) => (
+                      <tr key={x.codigo} className="hover:bg-subtle">
+                        <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
+                        <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
+                          {x.nome}
+                        </th>
+                        <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
+                        <td className="border-b border-line-row px-2.5 py-2 text-right font-mono text-pequeno text-ink-2">{x.porUnidade}</td>
+                        <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
+                          {x.total} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Section>
           ))}
         </>
@@ -119,35 +122,38 @@ export function OsVisoes({
           )}
           {os.individuais && os.individuais.length > 0 && (
             <Section titulo="Peças do catálogo pedidas soltas" sub="Fora de projeto padrão. Também estão somadas nos totais por peça.">
-              <table className="w-full border-collapse">
-                <CaptionOculta>Peças soltas</CaptionOculta>
-                <thead>
-                  <tr className="bg-subtle">
-                    <Th largura={108}>Código</Th>
-                    <Th>Peça</Th>
-                    <Th largura={150}>Setor</Th>
-                    <Th largura={200}>Destino · área</Th>
-                    <Th largura={90} alinhar="right">
-                      Qtd.
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {os.individuais.map((x, i) => (
-                    <tr key={`${x.codigo}-${i}`} className="hover:bg-subtle">
-                      <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
-                      <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
-                        {x.nome}
-                      </th>
-                      <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
-                      <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
-                      <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
-                        {x.quantidade} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
-                      </td>
+              {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse">
+                  <CaptionOculta>Peças soltas</CaptionOculta>
+                  <thead>
+                    <tr className="bg-subtle">
+                      <Th largura={108}>Código</Th>
+                      <Th>Peça</Th>
+                      <Th largura={150}>Setor</Th>
+                      <Th largura={200}>Destino · área</Th>
+                      <Th largura={90} alinhar="right">
+                        Qtd.
+                      </Th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {os.individuais.map((x, i) => (
+                      <tr key={`${x.codigo}-${i}`} className="hover:bg-subtle">
+                        <td className="border-b border-line-row px-cartao py-2 font-mono text-pequeno text-ink">{x.codigo}</td>
+                        <th scope="row" className="border-b border-line-row px-2.5 py-2 text-left text-corpo font-normal text-ink">
+                          {x.nome}
+                        </th>
+                        <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{SETOR_LABEL[x.setor]}</td>
+                        <td className="border-b border-line-row px-2.5 py-2 text-pequeno text-muted">{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
+                        <td className="border-b border-line-row py-2 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
+                          {x.quantidade} <span className="text-rotulo font-normal text-muted">{x.unidade}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Section>
           )}
         </>
@@ -168,33 +174,36 @@ export function OsVisoes({
               )
             }
           >
-            <table className="w-full border-collapse">
-              <CaptionOculta>{`${titulo} · ${SETOR_LABEL[s.setor]}`}</CaptionOculta>
-              <thead>
-                <tr className="bg-subtle">
-                  <Th largura={108}>Código</Th>
-                  <Th>Peça</Th>
-                  <Th largura={260}>Origens</Th>
-                  <Th largura={90} alinhar="right">
-                    Total
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.linhas.map((l) => (
-                  <tr key={l.pecaId} className="hover:bg-subtle">
-                    <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno text-ink">{l.codigo}</td>
-                    <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal text-ink">
-                      {l.nome}
-                    </th>
-                    <td className="border-b border-line-row px-2.5 py-2.5 text-rotulo leading-[1.45] text-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
-                    <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
-                      {l.total} <span className="text-rotulo font-normal text-muted">{l.unidade}</span>
-                    </td>
+            {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] border-collapse">
+                <CaptionOculta>{`${titulo} · ${SETOR_LABEL[s.setor]}`}</CaptionOculta>
+                <thead>
+                  <tr className="bg-subtle">
+                    <Th largura={108}>Código</Th>
+                    <Th>Peça</Th>
+                    <Th largura={260}>Origens</Th>
+                    <Th largura={90} alinhar="right">
+                      Total
+                    </Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {s.linhas.map((l) => (
+                    <tr key={l.pecaId} className="hover:bg-subtle">
+                      <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno text-ink">{l.codigo}</td>
+                      <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal text-ink">
+                        {l.nome}
+                      </th>
+                      <td className="border-b border-line-row px-2.5 py-2.5 text-rotulo leading-[1.45] text-muted">{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
+                      <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
+                        {l.total} <span className="text-rotulo font-normal text-muted">{l.unidade}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Section>
         );
       })}

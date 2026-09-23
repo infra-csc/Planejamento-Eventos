@@ -11,9 +11,9 @@ vi.hoisted(() => {
   delete process.env.DATABASE_URL;
 });
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, osVersoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
+import { areas, eventoItens, notificacoes, osVersoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento, conferirTodasLinhas, salvarDadosReuniao } from "./eventos";
 import { atenderTudo, desfazerResposta, devolverSolicitacao, obterSolicitacao, paginarSolicitacoes, primeiraDaFila, responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
@@ -21,6 +21,7 @@ import { complementoOs, listarOsResumo, marcarOsEnviada, obterConteudosOs } from
 import { buscar } from "./busca";
 import { salvarConfiguracao } from "./support";
 import { descricoesIguais } from "@/domain/descricoes-itens";
+import { detectarMimeAnexo } from "./projetos";
 
 let logistica: UsuarioAtual;
 let logistica2: UsuarioAtual;
@@ -315,5 +316,44 @@ describe("histórico do evento por área", { timeout: 30_000 }, () => {
     expect(daGrafica.some((h) => h.descricao.includes("Motivo sigiloso"))).toBe(false);
     expect(daProducao.some((h) => h.descricao.includes("Motivo sigiloso"))).toBe(true);
     expect(daGrafica.some((h) => h.entidade === "evento")).toBe(true);
+  });
+});
+
+describe("correções da auditoria", { timeout: 30_000 }, () => {
+  it("conferir as restantes marca só as linhas que estavam na tela", async () => {
+    const ev = await novoEvento();
+    const base = { referenciaTipo: "PECA" as const, projetoId: null, pecaId, descricaoLivre: null, destino: null, areaId: producao.areaId, justificativa: null };
+    const a = await incluirLinhaAta(logistica, ev.id, { ...base, quantidade: 1 });
+    const b = await incluirLinhaAta(logistica, ev.id, { ...base, quantidade: 2 });
+    const r = await conferirTodasLinhas(logistica, ev.id, [a.id]);
+    expect(r).toEqual({ marcadas: 1, novas: 1 });
+    const db = await getDb();
+    const lb = await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, b.id) });
+    expect(lb?.conferidoEm).toBeNull();
+  });
+
+  it("motivo de ajuste pós-ata vai só para a área dona da linha", async () => {
+    const { ev, linhaId } = await eventoAberto();
+    await salvarSolicitacaoCompleta(grafica, { eventoId: ev.id, titulo: "Da gráfica", observacao: null, enviar: true, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Banner", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Logo") }] });
+    await alterarQuantidadeLinha(logistica, ev.id, linhaId, 12, "Motivo interno da produção");
+    const db = await getDb();
+    const daGrafica = await db.select().from(notificacoes).where(and(eq(notificacoes.usuarioId, grafica.id), eq(notificacoes.tipo, "ATA_AJUSTE")));
+    expect(daGrafica.length).toBeGreaterThan(0);
+    expect(daGrafica.some((n) => n.mensagem.includes("Motivo interno"))).toBe(false);
+    const daProducao = await db.select().from(notificacoes).where(and(eq(notificacoes.usuarioId, producao.id), eq(notificacoes.tipo, "ATA_AJUSTE")));
+    expect(daProducao.some((n) => n.mensagem.includes("Motivo interno"))).toBe(true);
+  });
+
+  it("logística não vê rascunho de outra área na busca nem na lista do evento", async () => {
+    const ev = await novoEvento();
+    const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho secreto xyz", observacao: null, enviar: false, itens: [] });
+    const achados = await buscar(logistica, "secreto xyz");
+    expect(achados.some((x) => x.href.includes(r.id))).toBe(false);
+  });
+
+  it("anexo: o tipo vem dos bytes, não do nome", () => {
+    expect(detectarMimeAnexo(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]))).toBe("application/pdf");
+    expect(detectarMimeAnexo(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe("image/png");
+    expect(detectarMimeAnexo(new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03]))).toBeNull();
   });
 });

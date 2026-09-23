@@ -90,39 +90,42 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
           </Section>
 
           <Section titulo={`Lista de peças · v${p.versaoAtual}`} sub={`${itens.length} ${itens.length === 1 ? "tipo de peça" : "tipos de peça"} · ${total} ${total === 1 ? "unidade" : "unidades"} por projeto`}>
-            <table className="w-full border-collapse">
-              <CaptionOculta>Lista de peças</CaptionOculta>
-              <thead>
-                <tr className="bg-subtle">
-                  <Th largura={120}>Código</Th>
-                  <Th>Peça</Th>
-                  <Th largura={160}>Setor</Th>
-                  <Th largura={90} alinhar="right">
-                    Qtd.
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {SETORES.flatMap((setor) =>
-                  itens
-                    .filter((i) => i.peca.setor === setor)
-                    .sort((a, b) => a.peca.codigo.localeCompare(b.peca.codigo))
-                    .map((i) => (
-                      <tr key={i.id} className="hover:bg-subtle">
-                        <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno">{i.peca.codigo}</td>
-                        <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal">
-                          {i.peca.nome}
-                          {!i.peca.ativo && <span className="ml-2 text-rotulo text-danger">peça inativa</span>}
-                        </th>
-                        <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{SETOR_LABEL[setor]}</td>
-                        <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
-                          {i.quantidade} <span className="text-rotulo font-normal text-muted">{i.peca.unidade}</span>
-                        </td>
-                      </tr>
-                    )),
-                )}
-              </tbody>
-            </table>
+            {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] border-collapse">
+                <CaptionOculta>Lista de peças</CaptionOculta>
+                <thead>
+                  <tr className="bg-subtle">
+                    <Th largura={120}>Código</Th>
+                    <Th>Peça</Th>
+                    <Th largura={160}>Setor</Th>
+                    <Th largura={90} alinhar="right">
+                      Qtd.
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SETORES.flatMap((setor) =>
+                    itens
+                      .filter((i) => i.peca.setor === setor)
+                      .sort((a, b) => a.peca.codigo.localeCompare(b.peca.codigo))
+                      .map((i) => (
+                        <tr key={i.id} className="hover:bg-subtle">
+                          <td className="border-b border-line-row px-cartao py-2.5 font-mono text-pequeno">{i.peca.codigo}</td>
+                          <th scope="row" className="border-b border-line-row px-2.5 py-2.5 text-left text-corpo font-normal">
+                            {i.peca.nome}
+                            {!i.peca.ativo && <span className="ml-2 text-rotulo text-danger">peça inativa</span>}
+                          </th>
+                          <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">{SETOR_LABEL[setor]}</td>
+                          <td className="border-b border-line-row py-2.5 pl-2.5 pr-cartao text-right font-mono text-corpo font-semibold">
+                            {i.quantidade} <span className="text-rotulo font-normal text-muted">{i.peca.unidade}</span>
+                          </td>
+                        </tr>
+                      )),
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Section>
         </div>
 

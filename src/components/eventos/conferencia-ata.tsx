@@ -20,6 +20,12 @@ import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 
+/** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
+const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
+  if (!r.ok) return toastErro(r.erro);
+  toast(r.dados && r.dados.novas > 0 ? `${rotulo}. ${r.dados.novas} ${r.dados.novas === 1 ? "linha chegou" : "linhas chegaram"} depois e ${r.dados.novas === 1 ? "continua pendente" : "continuam pendentes"}: confira na lista.` : rotulo);
+};
+
 type Filtro = "todas" | "pendentes" | "conferidas";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
@@ -374,9 +380,9 @@ export function ConferenciaAta({
                 loading={conferindo}
                 onClick={() =>
                   iniciarTodas(async () => {
-                    const r = await conferirTodasAction(eventoId);
-                    if (r.ok) toast(`${pendentes} linhas marcadas como conferidas`);
-                    else toastErro(r.erro);
+                    // Só as linhas que estão na tela: o que chegar depois continua pendente.
+                    const r = await conferirTodasAction(eventoId, linhas.filter((l) => !l.conferidoEm).map((l) => l.id));
+                    avisarTodas(r, `${r.ok ? (r.dados?.marcadas ?? pendentes) : pendentes} linhas marcadas como conferidas`);
                     setConfirmarTodas(false);
                   })
                 }

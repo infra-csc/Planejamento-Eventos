@@ -33,7 +33,7 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-dialogo)] animate-fade-up-rapido bg-scrim" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-[calc(var(--z-dialogo)+1)] flex max-h-[calc(100vh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-modal border border-line-strong bg-surface shadow-modal focus:outline-none",
+          "fixed left-1/2 top-1/2 z-[calc(var(--z-dialogo)+1)] flex max-h-[calc(100dvh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-modal border border-line-strong bg-surface shadow-modal focus:outline-none",
           className,
         )}
         style={{ width: `min(${w}px, 94vw)` }}
