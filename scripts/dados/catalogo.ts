@@ -186,6 +186,7 @@ export const PECAS: PecaCatalogo[] = [
   { codigo: "PE-067", nome: "Pé de praticável 0,67 m", setor: E, familia: "Praticável" },
   { codigo: "PE-084", nome: "Pé de praticável 0,84 m", setor: E, familia: "Praticável" },
   { codigo: "SARGENTO", nome: "Sargento (grampo de fixação)", setor: E, familia: "Fixação" },
+  // ---- Peças que aparecem nas OS de estrutura 2026 (SharePoint) e ainda não estavam no catálogo ----
 ];
 
 export const PROJETOS: ProjetoCatalogo[] = [
@@ -1376,5 +1377,466 @@ export const PROJETOS: ProjetoCatalogo[] = [
     categoria: "Estrutura",
     descricao: "Estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 6 tipos, 78 peças.",
     itens: [["BOX-500", 2], ["BOX-1000", 2], ["BOX-3000", 4], ["BOX-5000", 2], ["CUBO", 4], ["PARAF", 64]],
+  },
+  // ---- Pórtico — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "Pórtico boca de 4,40 m com orelha — modelo Eco Run Bh (9 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 4,40 m com orelha\" usada em Eco Run Bh (OS de 19/08/2026). Diferenças em relação à lista padrão: trecho 2,5 m 1 em vez de 4, trecho 3 m 8 em vez de 4, sem trecho 3,5 m, trecho 400 mm 9 em vez de 1, +1 trecho 4 m, sem trecho 600 mm, sem trecho 700 mm, cubo 10 em vez de 16, parafuso 124 em vez de 150. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 1 evento): 7 tipos, 154 peças.",
+    itens: [["BOX-400", 9], ["BOX-2500", 1], ["BOX-3000", 8], ["BOX-4000", 1], ["BOX-5000", 1], ["CUBO", 10], ["PARAF", 124]],
+  },
+  {
+    nome: "Pórtico boca de 6 m com orelha — modelo Eco Run Recife (8 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6 m com orelha\" usada em Eco Run Recife (OS de 13/07/2026). Diferenças em relação à lista padrão: sem trecho 1 m, +5 trecho 2,5 m, trecho 3 m 5 em vez de 10, sem trecho 400 mm, +1 trecho 5 m, trecho 600 mm 5 em vez de 4, cubo 17 em vez de 10, parafuso 150 em vez de 160. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (53 montagens em 18 eventos): 7 tipos, 185 peças.",
+    itens: [["BOX-600", 5], ["BOX-2500", 5], ["BOX-3000", 5], ["BOX-3500", 2], ["BOX-5000", 1], ["CUBO", 17], ["PARAF", 150]],
+  },
+  {
+    nome: "Pórtico boca de 6,60 m com orelha — trecho 1 m 1 em vez de 3, trecho 400 mm 3 em vez de 1, +2 trecho 500 mm",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6,60 m com orelha\" usada em Eco Run Sp (OS de 10/06/2026). Diferenças em relação à lista padrão: trecho 1 m 1 em vez de 3, trecho 400 mm 3 em vez de 1, +2 trecho 500 mm. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (7 montagens em 4 eventos): 8 tipos, 193 peças.",
+    itens: [["BOX-400", 3], ["BOX-500", 2], ["BOX-600", 5], ["BOX-1000", 1], ["BOX-3000", 10], ["BOX-3500", 2], ["CUBO", 10], ["PARAF", 160]],
+  },
+  {
+    nome: "Pórtico boca de 2 m sem orelha — Q15, testeira — modelo Troféu Brasil Triathlon Trofeu Br 3 (5 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 2 m sem orelha — Q15, testeira\" usada em Troféu Brasil Triathlon Trofeu Br 3 (OS de 23/09/2026). Diferenças em relação à lista padrão: trecho Q15 1 m 4 em vez de 2, trecho Q15 2 m 4 em vez de 2, trecho Q15 3 m 12 em vez de 6, cubo Q15 12 em vez de 6, parafuso Q15 192 em vez de 96. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 224 peças.",
+    itens: [["Q15-1000", 4], ["Q15-2000", 4], ["Q15-3000", 12], ["Q15-CUBO", 12], ["Q15-PARAF", 192]],
+  },
+  {
+    nome: "Pórtico boca de 4,40 m com orelha — trecho 600 mm 5 em vez de 4, sem trecho 700 mm, cubo 17 em vez de 16",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 4,40 m com orelha\" usada em Eco Run Curitiba (OS de 26/08/2026). Diferenças em relação à lista padrão: trecho 600 mm 5 em vez de 4, sem trecho 700 mm, cubo 17 em vez de 16. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 1 evento): 8 tipos, 183 peças.",
+    itens: [["BOX-400", 1], ["BOX-600", 5], ["BOX-2500", 4], ["BOX-3000", 4], ["BOX-3500", 1], ["BOX-5000", 1], ["CUBO", 17], ["PARAF", 150]],
+  },
+  {
+    nome: "Pórtico boca de 3 m com orelha — trecho 600 mm 4 em vez de 5",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 3 m com orelha\" usada em Blue Line Sp (OS de 21/09/2026). Diferenças em relação à lista padrão: trecho 600 mm 4 em vez de 5. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 6 tipos, 156 peças.",
+    itens: [["BOX-600", 4], ["BOX-1000", 3], ["BOX-3000", 9], ["BOX-3500", 1], ["CUBO", 11], ["PARAF", 128]],
+  },
+  {
+    nome: "Pórtico boca de 4 m com orelha — sem cubo, parafuso 120 em vez de 176",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 4 m com orelha\" usada em Superhumans Indaiatuba (OS de 06/08/2026). Diferenças em relação à lista padrão: sem cubo, parafuso 120 em vez de 176. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (98 montagens em 29 eventos): 6 tipos, 137 peças.",
+    itens: [["BOX-600", 4], ["BOX-1000", 2], ["BOX-2500", 1], ["BOX-3000", 9], ["BOX-4000", 1], ["PARAF", 120]],
+  },
+  {
+    nome: "Pórtico boca de 4 m com orelha — sem trecho 1 m, +2 trecho 400 mm, +2 trecho 500 mm",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 4 m com orelha\" usada em Eco Run Especial Niterói (OS de 29/04/2026). Diferenças em relação à lista padrão: sem trecho 1 m, +2 trecho 400 mm, +2 trecho 500 mm. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (98 montagens em 29 eventos): 8 tipos, 206 peças.",
+    itens: [["BOX-400", 2], ["BOX-500", 2], ["BOX-600", 4], ["BOX-2500", 1], ["BOX-3000", 9], ["BOX-4000", 1], ["CUBO", 11], ["PARAF", 176]],
+  },
+  {
+    nome: "Pórtico boca de 4 m sem orelha — trecho 4 m 4 em vez de 2, parafuso 64 em vez de 96",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 4 m sem orelha\" usada em Estações Inverno Vitoria (OS de 02/06/2026). Diferenças em relação à lista padrão: trecho 4 m 4 em vez de 2, parafuso 64 em vez de 96. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (93 montagens em 21 eventos): 5 tipos, 82 peças.",
+    itens: [["BOX-1000", 2], ["BOX-3000", 6], ["BOX-4000", 4], ["CUBO", 6], ["PARAF", 64]],
+  },
+  {
+    nome: "Pórtico boca de 5 m sem orelha — +2 trecho 2 m, trecho 3 m 2 em vez de 6, +2 trecho 4 m",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 5 m sem orelha\" usada em Meia Internacional Sp (OS de 28/05/2026). Diferenças em relação à lista padrão: +2 trecho 2 m, trecho 3 m 2 em vez de 6, +2 trecho 4 m. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (8 montagens em 5 eventos): 7 tipos, 112 peças.",
+    itens: [["BOX-1000", 2], ["BOX-2000", 2], ["BOX-3000", 2], ["BOX-4000", 2], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 96]],
+  },
+  {
+    nome: "Pórtico boca de 6 m com orelha — +1 trecho 4 m",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6 m com orelha\" usada em Longevidade Bradesco Ssa (OS de 27/07/2026). Diferenças em relação à lista padrão: +1 trecho 4 m. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (53 montagens em 18 eventos): 8 tipos, 191 peças.",
+    itens: [["BOX-400", 2], ["BOX-600", 4], ["BOX-1000", 2], ["BOX-3000", 10], ["BOX-3500", 2], ["BOX-4000", 1], ["CUBO", 10], ["PARAF", 160]],
+  },
+  {
+    nome: "Pórtico boca de 6 m com orelha — modelo Eco Run Sp (7 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6 m com orelha\" usada em Eco Run Sp (OS de 10/06/2026). Diferenças em relação à lista padrão: sem trecho 1 m, +5 trecho 2,5 m, trecho 3 m 5 em vez de 10, trecho 400 mm 1 em vez de 2, +1 trecho 700 mm, cubo 16 em vez de 10, parafuso 150 em vez de 160. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (53 montagens em 18 eventos): 8 tipos, 184 peças.",
+    itens: [["BOX-400", 1], ["BOX-600", 4], ["BOX-700", 1], ["BOX-2500", 5], ["BOX-3000", 5], ["BOX-3500", 2], ["CUBO", 16], ["PARAF", 150]],
+  },
+  {
+    nome: "Pórtico boca de 6 m sem orelha — Q15 — modelo Circuitinho Das Estações Fortaleza (6 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6 m sem orelha — Q15\" usada em Circuitinho Das Estações Fortaleza (OS de 14/09/2026). Diferenças em relação à lista padrão: sem trecho Q15 1 m, +6 trecho Q15 2 m, sem trecho Q15 3 m, +2 trecho Q15 4 m, +2 trecho Q15 700 mm, parafuso Q15 64 em vez de 72. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 80 peças.",
+    itens: [["Q15-700", 2], ["Q15-2000", 6], ["Q15-4000", 2], ["Q15-CUBO", 6], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Pórtico boca de 6,60 m com orelha — modelo Eco Run Palmas (7 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 6,60 m com orelha\" usada em Eco Run Palmas (OS de 15/09/2026). Diferenças em relação à lista padrão: sem trecho 1 m, +5 trecho 2,5 m, trecho 3 m 5 em vez de 10, trecho 600 mm 4 em vez de 5, +1 trecho 700 mm, cubo 16 em vez de 10, parafuso 128 em vez de 160. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (7 montagens em 4 eventos): 8 tipos, 162 peças.",
+    itens: [["BOX-400", 1], ["BOX-600", 4], ["BOX-700", 1], ["BOX-2500", 5], ["BOX-3000", 5], ["BOX-3500", 2], ["CUBO", 16], ["PARAF", 128]],
+  },
+  {
+    nome: "Pórtico boca de 7,40 m com orelha — modelo Pão De Açucar Sp (4 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 7,40 m com orelha\" usada em Pão De Açucar Sp (OS de 23/09/2026). Diferenças em relação à lista padrão: trecho 1 m 2 em vez de 4, trecho 3 m 10 em vez de 6, trecho 4 m 2 em vez de 6, parafuso 128 em vez de 192. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 7 tipos, 162 peças.",
+    itens: [["BOX-400", 2], ["BOX-600", 6], ["BOX-1000", 2], ["BOX-3000", 10], ["BOX-4000", 2], ["CUBO", 12], ["PARAF", 128]],
+  },
+  {
+    nome: "Pórtico boca de 8 m sem orelha — modelo Pão De Açucar Sp (5 diferenças)",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 8 m sem orelha\" usada em Pão De Açucar Sp (OS de 23/09/2026). Diferenças em relação à lista padrão: trecho 1 m 3 em vez de 2, trecho 3 m 6 em vez de 4, trecho 4 m 4 em vez de 6, +2 grapple, parafuso 50 em vez de 96. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 6 tipos, 71 peças.",
+    itens: [["BOX-1000", 3], ["BOX-3000", 6], ["BOX-4000", 4], ["CUBO", 6], ["PARAF", 50], ["GRAPPLE", 2]],
+  },
+  {
+    nome: "Pórtico boca de 8,90 m com orelha — trecho 1 m 5 em vez de 3, parafuso 224 em vez de 160",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 8,90 m com orelha\" usada em Longevidade Bradesco Sp (OS de 26/03/2026). Diferenças em relação à lista padrão: trecho 1 m 5 em vez de 3, parafuso 224 em vez de 160. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 6 tipos, 263 peças.",
+    itens: [["BOX-600", 8], ["BOX-1000", 5], ["BOX-3000", 8], ["BOX-4000", 4], ["CUBO", 14], ["PARAF", 224]],
+  },
+  {
+    nome: "Pórtico boca de 13,50 m com orelha — duas bocas — +4 trecho 4 m, sem trecho 5 m",
+    categoria: "Pórtico",
+    descricao: "Variação de \"Pórtico boca de 13,50 m com orelha — duas bocas\" usada em Girl Power Bsb (OS de 19/08/2026). Diferenças em relação à lista padrão: +4 trecho 4 m, sem trecho 5 m. Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 7 tipos, 232 peças.",
+    itens: [["BOX-400", 4], ["BOX-600", 6], ["BOX-1000", 5], ["BOX-3000", 9], ["BOX-4000", 4], ["CUBO", 12], ["PARAF", 192]],
+  },
+  // ---- Quadro — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "Quadro 2,30×2,30 m — Q15 — modelo Desafio Energia Petrobrás Sp (5 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 2,30×2,30 m — Q15\" usada em Desafio Energia Petrobrás Sp (OS de 15/06/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 8 em vez de 4, sem trecho Q15 500 mm, cubo Q15 8 em vez de 4, sem parafuso Q15, +4 sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (7 montagens em 6 eventos): 3 tipos, 20 peças.",
+    itens: [["Q15-2000", 8], ["Q15-CUBO", 8], ["Q15-SAPATA", 4]],
+  },
+  {
+    nome: "Quadro 5,30×2,30 m — Q15 — modelo Troféu Brasil Triathlon Trofeu Br 3 (5 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 5,30×2,30 m — Q15\" usada em Troféu Brasil Triathlon Trofeu Br 3 (OS de 23/09/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 12 em vez de 6, trecho Q15 3 m 4 em vez de 2, cubo Q15 8 em vez de 4, parafuso Q15 96 em vez de 48, sapata Q15 4 em vez de 2. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (5 montagens em 3 eventos): 5 tipos, 124 peças.",
+    itens: [["Q15-2000", 12], ["Q15-3000", 4], ["Q15-CUBO", 8], ["Q15-PARAF", 96], ["Q15-SAPATA", 4]],
+  },
+  {
+    nome: "Quadro 2,30×2,30 m — Q15 — sem trecho Q15 500 mm, parafuso Q15 64 em vez de 40, +2 sapata Q15",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 2,30×2,30 m — Q15\" usada em Circuito Vale Rj (OS de 17/08/2026). Diferenças em relação à lista padrão: sem trecho Q15 500 mm, parafuso Q15 64 em vez de 40, +2 sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (7 montagens em 6 eventos): 4 tipos, 74 peças.",
+    itens: [["Q15-2000", 4], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
+  },
+  {
+    nome: "Quadro 3,30×2,30 m — Q15 — +2 trecho Q15 500 mm, sem sapata Q15",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3,30×2,30 m — Q15\" usada em Netshoes Brasília (OS de 15/05/2026). Diferenças em relação à lista padrão: +2 trecho Q15 500 mm, sem sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 5 tipos, 74 peças.",
+    itens: [["Q15-500", 2], ["Q15-2000", 2], ["Q15-3000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Quadro 3,30×2,30 m — Q15 — modelo Longevidade Bradesco Sp (4 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3,30×2,30 m — Q15\" usada em Longevidade Bradesco Sp (OS de 26/03/2026). Diferenças em relação à lista padrão: +2 Malote de areia (contrapeso), +2 trecho Q15 500 mm, sem parafuso Q15, sem sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 5 tipos, 12 peças.",
+    itens: [["Q15-500", 2], ["Q15-2000", 2], ["Q15-3000", 2], ["Q15-CUBO", 4], ["MALOTE", 2]],
+  },
+  {
+    nome: "Quadro 3,30×2,30 m — Q15 — modelo Só Quero Pedalar Recife (5 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3,30×2,30 m — Q15\" usada em Só Quero Pedalar Recife (OS de 16/06/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 6 em vez de 2, trecho Q15 3 m 6 em vez de 2, cubo Q15 12 em vez de 4, parafuso Q15 192 em vez de 64, sapata Q15 6 em vez de 2. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 5 tipos, 222 peças.",
+    itens: [["Q15-2000", 6], ["Q15-3000", 6], ["Q15-CUBO", 12], ["Q15-PARAF", 192], ["Q15-SAPATA", 6]],
+  },
+  {
+    nome: "Quadro 3,30×2,30 m — Q15 — sem sapata Q15",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3,30×2,30 m — Q15\" usada em Estações Inverno Bh (OS de 30/06/2026). Diferenças em relação à lista padrão: sem sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 4 tipos, 72 peças.",
+    itens: [["Q15-2000", 2], ["Q15-3000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Quadro 3,30×2,30 m — Q15 — trecho Q15 2 m 4 em vez de 2, +2 trecho Q15 700 mm",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3,30×2,30 m — Q15\" usada em S21k (OS de 26/08/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 4 em vez de 2, +2 trecho Q15 700 mm. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 6 tipos, 78 peças.",
+    itens: [["Q15-700", 2], ["Q15-2000", 4], ["Q15-3000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
+  },
+  {
+    nome: "Quadro 3×2 m — Q15 — trecho Q15 2 m 4 em vez de 6",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 3×2 m — Q15\" usada em Banco Do Brasil Sp (OS de 26/05/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 4 em vez de 6. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 1 evento): 5 tipos, 78 peças.",
+    itens: [["Q15-700", 4], ["Q15-1000", 2], ["Q15-2000", 4], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Quadro 4,30×2,30 m — Q15 — trecho Q15 2 m 8 em vez de 16, cubo Q15 4 em vez de 8, parafuso Q15 64 em vez de 128",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 4,30×2,30 m — Q15\" usada em Netshoes Brasília (OS de 15/05/2026). Diferenças em relação à lista padrão: trecho Q15 2 m 8 em vez de 16, cubo Q15 4 em vez de 8, parafuso Q15 64 em vez de 128. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 3 tipos, 76 peças.",
+    itens: [["Q15-2000", 8], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Quadro 5,30×2,30 m — Q15 — modelo Netshoes Brasília (6 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 5,30×2,30 m — Q15\" usada em Netshoes Brasília (OS de 15/05/2026). Diferenças em relação à lista padrão: +2 trecho Q15 1 m, trecho Q15 2 m 2 em vez de 6, sem trecho Q15 3 m, +2 trecho Q15 5 m, parafuso Q15 64 em vez de 48, sem sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (5 montagens em 3 eventos): 5 tipos, 74 peças.",
+    itens: [["Q15-1000", 2], ["Q15-2000", 2], ["Q15-5000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
+  },
+  {
+    nome: "Quadro 6,30×3,30 m — Q15 — modelo Copa Sabesp Congresso (5 diferenças)",
+    categoria: "Quadro",
+    descricao: "Variação de \"Quadro 6,30×3,30 m — Q15\" usada em Copa Sabesp Congresso (OS de 05/05/2026). Diferenças em relação à lista padrão: sem trecho Q15 1 m, trecho Q15 3 m 6 em vez de 24, cubo Q15 4 em vez de 16, parafuso Q15 64 em vez de 256, +2 sapata Q15. Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 4 tipos, 76 peças.",
+    itens: [["Q15-3000", 6], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
+  },
+  // ---- Estande — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "Estande 6×6 m — modelo Plié (5 diferenças)",
+    categoria: "Estande",
+    descricao: "Variação de \"Estande 6×6 m\" usada em Plié (OS de 08/05/2026). Diferenças em relação à lista padrão: trecho 2,5 m 10 em vez de 8, +1 trecho 700 mm, cubo 8 em vez de 7, grapple 4 em vez de 2, parafuso 128 em vez de 100. Estande Q30 (estrutura da testeira e colunas). Lista de peças por unidade conforme as OS de estrutura de 2026 (11 montagens em 9 eventos): 8 tipos, 161 peças.",
+    itens: [["BOX-700", 1], ["BOX-2500", 10], ["BOX-4000", 2], ["BOX-5000", 3], ["ANG-15", 5], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 4]],
+  },
+  {
+    nome: "Estande 9×6 m — modelo Blue Run Salvador (6 diferenças)",
+    categoria: "Estande",
+    descricao: "Variação de \"Estande 9×6 m\" usada em Blue Run Salvador (OS de 18/09/2026). Diferenças em relação à lista padrão: +4 trecho 2 m, trecho 2,5 m 6 em vez de 2, +4 trecho 3 m, +8 trecho 400 mm, trecho 4 m 12 em vez de 8, cubo 11 em vez de 7. Estande Q30 (estrutura da testeira e colunas). Lista de peças por unidade conforme as OS de estrutura de 2026 (182 montagens em 38 eventos): 10 tipos, 167 peças.",
+    itens: [
+      ["BOX-400", 8], ["BOX-2000", 4], ["BOX-2500", 6], ["BOX-3000", 4], ["BOX-4000", 12], ["BOX-5000", 3], ["ANG-15", 5], ["CUBO", 11], ["PARAF", 112],
+      ["GRAPPLE", 2],
+    ],
+  },
+  {
+    nome: "Estande 9×6 m — trecho 4 m 10 em vez de 8, parafuso 128 em vez de 112",
+    categoria: "Estande",
+    descricao: "Variação de \"Estande 9×6 m\" usada em Plié (OS de 08/05/2026). Diferenças em relação à lista padrão: trecho 4 m 10 em vez de 8, parafuso 128 em vez de 112. Estande Q30 (estrutura da testeira e colunas). Lista de peças por unidade conforme as OS de estrutura de 2026 (182 montagens em 38 eventos): 7 tipos, 157 peças.",
+    itens: [["BOX-2500", 2], ["BOX-4000", 10], ["BOX-5000", 3], ["ANG-15", 5], ["CUBO", 7], ["PARAF", 128], ["GRAPPLE", 2]],
+  },
+  {
+    nome: "Estande 11×6 m — modelo Plié (5 diferenças)",
+    categoria: "Estande",
+    descricao: "Variação de \"Estande 11×6 m\" usada em Plié (OS de 08/05/2026). Diferenças em relação à lista padrão: trecho 3 m 9 em vez de 6, +2 trecho 700 mm, cubo 10 em vez de 8, grapple 4 em vez de 2, parafuso 160 em vez de 128. Estande Q30 (estrutura da testeira e colunas). Lista de peças por unidade conforme as OS de estrutura de 2026 (30 montagens em 5 eventos): 10 tipos, 202 peças.",
+    itens: [
+      ["BOX-600", 1], ["BOX-700", 2], ["BOX-2500", 2], ["BOX-3000", 9], ["BOX-4000", 3], ["BOX-5000", 5], ["ANG-15", 6], ["CUBO", 10], ["PARAF", 160],
+      ["GRAPPLE", 4],
+    ],
+  },
+  // ---- Palco — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "Palco 8×4 m — modelo Bravus Monster (16 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Bravus Monster (OS de 10/07/2026). Diferenças em relação à lista padrão: sem trecho 1 m, sem trecho 3,5 m, +3 trecho 400 mm, +3 trecho 4 m, trecho 700 mm 2 em vez de 4, cubo 6 em vez de 8, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, grapple 2 em vez de 5, parafuso 96 em vez de 128, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, sem Pé de praticável 1 m, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, sem praticável 2×1 m. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 8 tipos, 117 peças.",
+    itens: [["BOX-400", 3], ["BOX-700", 2], ["BOX-3000", 3], ["BOX-4000", 3], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 96], ["GRAPPLE", 2]],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Circuitinho Das Estações Salvador (7 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Circuitinho Das Estações Salvador (OS de 04/09/2026). Diferenças em relação à lista padrão: +2 trecho 4 m, +2 trecho 500 mm, sem trecho 5 m, trecho 700 mm 2 em vez de 4, cubo 6 em vez de 8, grapple 3 em vez de 5, parafuso 100 em vez de 128. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 17 tipos, 218 peças.",
+    itens: [
+      ["BOX-500", 2], ["BOX-700", 2], ["BOX-1000", 1], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-4000", 2], ["CUBO", 6], ["PARAF", 100], ["GRAPPLE", 3],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 66], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Girl Power São Luis (8 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Girl Power São Luis (OS de 26/08/2026). Diferenças em relação à lista padrão: trecho 1 m 2 em vez de 1, +1 trecho 600 mm, trecho 700 mm 6 em vez de 4, sem Guarda-corpo de rampa 1×1 m, Guarda-corpo de rampa 2×1 m 4 em vez de 2, grapple 7 em vez de 5, Pé de praticável 1 m 68 em vez de 66, sem Pé duplo de rampa 1 m. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 15 tipos, 256 peças.",
+    itens: [
+      ["BOX-600", 1], ["BOX-700", 6], ["BOX-1000", 2], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 7],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 68], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 4],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Troféu Brasil Triathlon Trofeu Br 3 (7 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Troféu Brasil Triathlon Trofeu Br 3 (OS de 23/09/2026). Diferenças em relação à lista padrão: trecho 3 m 9 em vez de 3, trecho 3,5 m 2 em vez de 4, +6 trecho 400 mm, sem trecho 5 m, trecho 700 mm 2 em vez de 4, grapple 3 em vez de 5, Pé de praticável 1 m 68 em vez de 66. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 16 tipos, 256 peças.",
+    itens: [
+      ["BOX-400", 6], ["BOX-700", 2], ["BOX-1000", 1], ["BOX-3000", 9], ["BOX-3500", 2], ["CUBO", 8], ["GRAPPLE", 3], ["PRAT-2X1", 18], ["PRAT-1X1", 1],
+      ["PE-100", 68], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2], ["PARAF", 128],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Desafio Energia Petrobrás Recife (14 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Desafio Energia Petrobrás Recife (OS de 04/09/2026). Diferenças em relação à lista padrão: sem trecho 1 m, trecho 3,5 m 2 em vez de 4, trecho 700 mm 2 em vez de 4, cubo 6 em vez de 8, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, grapple 2 em vez de 5, parafuso 96 em vez de 128, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, sem Pé de praticável 1 m, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, praticável 2×1 m 16 em vez de 18. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 8 tipos, 129 peças.",
+    itens: [["BOX-700", 2], ["BOX-3000", 3], ["BOX-3500", 2], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 96], ["GRAPPLE", 2], ["PRAT-2X1", 16]],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Desafio Energia Petrobrás Sp (14 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Desafio Energia Petrobrás Sp (OS de 15/06/2026). Diferenças em relação à lista padrão: sem trecho 1 m, trecho 3,5 m 2 em vez de 4, trecho 700 mm 2 em vez de 4, cubo 6 em vez de 8, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, grapple 2 em vez de 5, parafuso 96 em vez de 128, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, sem Pé de praticável 1 m, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, sem praticável 2×1 m. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 7 tipos, 113 peças.",
+    itens: [["BOX-700", 2], ["BOX-3000", 3], ["BOX-3500", 2], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 96], ["GRAPPLE", 2]],
+  },
+  {
+    nome: "Palco 6×4 m — modelo Chevrolet Run (17 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 6×4 m\" usada em Chevrolet Run (OS de 19/08/2026). Diferenças em relação à lista padrão: +1 trecho 1 m, trecho 3 m 8 em vez de 7, trecho 400 mm 6 em vez de 4, sem trecho 4 m, +1 trecho 5 m, trecho 700 mm 2 em vez de 3, cubo 8 em vez de 6, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, grapple 2 em vez de 3, sem parafuso, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, sem Pé de praticável 1 m, sem Pé duplo de rampa 1 m, praticável 1×1 m 48 em vez de 1, praticável 2×1 m 12 em vez de 14. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 9 tipos, 88 peças.",
+    itens: [["BOX-400", 6], ["BOX-700", 2], ["BOX-1000", 1], ["BOX-3000", 8], ["BOX-5000", 1], ["CUBO", 8], ["GRAPPLE", 2], ["PRAT-2X1", 12], ["PRAT-1X1", 48]],
+  },
+  {
+    nome: "Palco 6×4 m — modelo Só Quero Pedalar Sp (8 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 6×4 m\" usada em Só Quero Pedalar Sp (OS de 07/08/2026). Diferenças em relação à lista padrão: sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, Pé de praticável 1 m 48 em vez de 50, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, praticável 2×1 m 12 em vez de 14. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 9 tipos, 165 peças.",
+    itens: [["BOX-400", 4], ["BOX-700", 3], ["BOX-3000", 7], ["BOX-4000", 2], ["CUBO", 6], ["PARAF", 80], ["GRAPPLE", 3], ["PRAT-2X1", 12], ["PE-100", 48]],
+  },
+  {
+    nome: "Palco 8×4 m — cubo 6 em vez de 8, grapple 3 em vez de 5, Pé de praticável 1 m 68 em vez de 66",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Dog Race (OS de 09/09/2026). Diferenças em relação à lista padrão: cubo 6 em vez de 8, grapple 3 em vez de 5, Pé de praticável 1 m 68 em vez de 66. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 16 tipos, 248 peças.",
+    itens: [
+      ["BOX-700", 4], ["BOX-1000", 1], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 128], ["GRAPPLE", 3], ["PRAT-2X1", 18],
+      ["PRAT-1X1", 1], ["PE-100", 68], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — Guarda-corpo de rampa 1×1 m 3 em vez de 2, Guarda-corpo de rampa 2×1 m 4 em vez de 2",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Estações Outono Poa (OS de 10/03/2026). Diferenças em relação à lista padrão: Guarda-corpo de rampa 1×1 m 3 em vez de 2, Guarda-corpo de rampa 2×1 m 4 em vez de 2. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 16 tipos, 253 peças.",
+    itens: [
+      ["BOX-700", 4], ["BOX-1000", 1], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 5], ["PRAT-2X1", 18],
+      ["PRAT-1X1", 1], ["PE-100", 66], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 4], ["GC-1X1", 3],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo 42k Floripa (4 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em 42k Floripa (OS de 18/09/2026). Diferenças em relação à lista padrão: trecho 1 m 3 em vez de 1, +2 trecho 400 mm, grapple 3 em vez de 5, Pé de praticável 1 m 68 em vez de 66. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 17 tipos, 254 peças.",
+    itens: [
+      ["BOX-400", 2], ["BOX-700", 4], ["BOX-1000", 3], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 3],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 68], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Girl Power Paracatu (6 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Girl Power Paracatu (OS de 04/09/2026). Diferenças em relação à lista padrão: trecho 1 m 2 em vez de 1, +1 trecho 600 mm, trecho 700 mm 6 em vez de 4, grapple 7 em vez de 5, Pé de praticável 1 m 68 em vez de 66, Pé duplo de rampa 1 m 1 em vez de 2. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 17 tipos, 257 peças.",
+    itens: [
+      ["BOX-600", 1], ["BOX-700", 6], ["BOX-1000", 2], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 7],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 68], ["PE-DUPLO-100", 1], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Girl Power Rj (4 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Girl Power Rj (OS de 22/09/2026). Diferenças em relação à lista padrão: trecho 1 m 2 em vez de 1, +1 trecho 600 mm, trecho 700 mm 6 em vez de 4, grapple 7 em vez de 5. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 17 tipos, 256 peças.",
+    itens: [
+      ["BOX-600", 1], ["BOX-700", 6], ["BOX-1000", 2], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 7],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 66], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Pão De Açucar Riviera (11 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Pão De Açucar Riviera (OS de 25/02/2026). Diferenças em relação à lista padrão: trecho 1 m 3 em vez de 1, trecho 700 mm 2 em vez de 4, cubo 6 em vez de 8, sem Guarda-corpo de rampa 1×1 m, Guarda-corpo de rampa 2×1 m 4 em vez de 2, grapple 3 em vez de 5, parafuso 96 em vez de 128, Pé de praticável 1 m 74 em vez de 66, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, praticável 2×1 m 20 em vez de 18. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 13 tipos, 221 peças.",
+    itens: [
+      ["BOX-700", 2], ["BOX-1000", 3], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 6], ["PARAF", 96], ["GRAPPLE", 3], ["PRAT-2X1", 20],
+      ["PE-100", 74], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 4],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Plié (5 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Plié (OS de 08/05/2026). Diferenças em relação à lista padrão: sem Guarda-corpo de rampa 1×1 m, Guarda-corpo de rampa 2×1 m 4 em vez de 2, parafuso 72 em vez de 128, Pé de praticável 1 m 64 em vez de 66, sem praticável 1×1 m. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 14 tipos, 191 peças.",
+    itens: [
+      ["BOX-700", 4], ["BOX-1000", 1], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 72], ["GRAPPLE", 5], ["PRAT-2X1", 18],
+      ["PE-100", 64], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 4],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — modelo Só Quero Pedalar Recife (18 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em Só Quero Pedalar Recife (OS de 16/06/2026). Diferenças em relação à lista padrão: sem trecho 1 m, +4 trecho 2 m, +2 trecho 2,5 m, trecho 3 m 4 em vez de 3, sem trecho 3,5 m, +2 trecho 500 mm, +1 trecho 600 mm, trecho 700 mm 6 em vez de 4, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, sem grapple, parafuso 108 em vez de 128, sem Pé de rampa 0,54 m, sem Pé de rampa 0,58 m, Pé de praticável 1 m 64 em vez de 66, sem Pé duplo de rampa 1 m, sem praticável 1×1 m, praticável 2×1 m 16 em vez de 18. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 11 tipos, 217 peças.",
+    itens: [
+      ["BOX-500", 2], ["BOX-600", 1], ["BOX-700", 6], ["BOX-2000", 4], ["BOX-2500", 2], ["BOX-3000", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 108],
+      ["PRAT-2X1", 16], ["PE-100", 64],
+    ],
+  },
+  {
+    nome: "Palco 8×4 m — trecho 1 m 2 em vez de 1, +2 trecho 400 mm, grapple 3 em vez de 5",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco 8×4 m\" usada em S21k (OS de 26/08/2026). Diferenças em relação à lista padrão: trecho 1 m 2 em vez de 1, +2 trecho 400 mm, grapple 3 em vez de 5. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (152 montagens em 33 eventos): 17 tipos, 251 peças.",
+    itens: [
+      ["BOX-400", 2], ["BOX-700", 4], ["BOX-1000", 2], ["BOX-3000", 3], ["BOX-3500", 4], ["BOX-5000", 2], ["CUBO", 8], ["PARAF", 128], ["GRAPPLE", 3],
+      ["PRAT-2X1", 18], ["PRAT-1X1", 1], ["PE-100", 66], ["PE-DUPLO-100", 2], ["PE-058", 2], ["PE-054", 2], ["GC-2X1", 2], ["GC-1X1", 2],
+    ],
+  },
+  {
+    nome: "Palco show — modelo Energy Land Sp (20 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco show\" usada em Energy Land Sp (OS de 24/07/2026). Diferenças em relação à lista padrão: Ângulo 15° Q30 6 em vez de 4, trecho 1 m 6 em vez de 4, sem trecho 2,5 m, sem trecho 3,5 m, trecho 400 mm 13 em vez de 16, +9 trecho 4 m, trecho 500 mm 13 em vez de 2, trecho 600 mm 11 em vez de 10, sem trecho 700 mm, cubo 15 em vez de 14, sem Guarda-corpo de rampa 1×1 m, sem Guarda-corpo de rampa 2×1 m, sem parafuso, sem Pé de praticável 0,25 m, sem Pé de praticável 0,37 m, sem Pé de praticável 0,50 m, sem Pé de praticável 0,67 m, sem Pé de praticável 0,84 m, Pé de praticável 1 m 80 em vez de 60, praticável 2×1 m 20 em vez de 30. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 10 tipos, 177 peças.",
+    itens: [
+      ["BOX-400", 13], ["BOX-500", 13], ["BOX-600", 11], ["BOX-1000", 6], ["BOX-3000", 4], ["BOX-4000", 9], ["ANG-15", 6], ["CUBO", 15], ["PRAT-2X1", 20],
+      ["PE-100", 80],
+    ],
+  },
+  {
+    nome: "Palco show — modelo Netshoes Sp (22 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco show\" usada em Netshoes Sp (OS de 21/08/2026). Diferenças em relação à lista padrão: trecho 1 m 6 em vez de 4, trecho 3 m 8 em vez de 4, trecho 400 mm 28 em vez de 16, trecho 500 mm 4 em vez de 2, +2 trecho 5 m, trecho 600 mm 18 em vez de 10, cubo 28 em vez de 14, Guarda-corpo de rampa 2×1 m 4 em vez de 12, +10 grapple, parafuso 384 em vez de 224, sem Pé de praticável 0,25 m, sem Pé de praticável 0,37 m, sem Pé de praticável 0,50 m, +2 Pé de rampa 0,54 m, +2 Pé de rampa 0,58 m, sem Pé de praticável 0,67 m, sem Pé de praticável 0,84 m, Pé de praticável 1 m 4 em vez de 60, +2 Pé duplo de rampa 1 m, +1 praticável 1×1 m, praticável 2×1 m 14 em vez de 30, +12 Sargento (grampo de fixação). Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 22 tipos, 549 peças.",
+    itens: [
+      ["BOX-400", 28], ["BOX-500", 4], ["BOX-600", 18], ["BOX-700", 2], ["BOX-1000", 6], ["BOX-2500", 4], ["BOX-3000", 8], ["BOX-3500", 8], ["BOX-5000", 2],
+      ["ANG-15", 4], ["CUBO", 28], ["PARAF", 384], ["GRAPPLE", 10], ["PRAT-2X1", 14], ["PRAT-1X1", 1], ["PE-100", 4], ["PE-DUPLO-100", 2], ["PE-058", 2],
+      ["PE-054", 2], ["GC-2X1", 4], ["GC-1X1", 2], ["SARGENTO", 12],
+    ],
+  },
+  {
+    nome: "Palco show grande — modelo Night Run Sp (5 diferenças)",
+    categoria: "Palco",
+    descricao: "Variação de \"Palco show grande\" usada em Night Run Sp (OS de 31/08/2026). Diferenças em relação à lista padrão: trecho 3 m 5 em vez de 7, trecho 600 mm 3 em vez de 9, trecho 700 mm 24 em vez de 22, cubo 26 em vez de 28, grapple 4 em vez de 6. Palco em praticável com estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 1 evento): 19 tipos, 754 peças.",
+    itens: [
+      ["BOX-400", 13], ["BOX-500", 2], ["BOX-600", 3], ["BOX-700", 24], ["BOX-1000", 15], ["BOX-2000", 4], ["BOX-3000", 5], ["BOX-4000", 14],
+      ["BOX-5000", 5], ["ANG-15", 10], ["CUBO", 26], ["PARAF", 448], ["GRAPPLE", 4], ["PRAT-2X1", 34], ["PE-100", 138], ["PE-DUPLO-100", 1], ["PE-058", 2],
+      ["PE-054", 2], ["GC-2X1", 4],
+    ],
+  },
+  // ---- Ativação — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "Ícone Q30 (padrão das OS) — modelo Girl Power Osasco (6 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ícone Q30 (padrão das OS)\" usada em Girl Power Osasco (OS de 23/04/2026). Diferenças em relação à lista padrão: trecho 1 m 5 em vez de 6, +2 trecho 2,5 m, trecho 400 mm 5 em vez de 3, trecho 700 mm 6 em vez de 4, grapple 10 em vez de 7, parafuso 64 em vez de 48. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (12 montagens em 2 eventos): 7 tipos, 96 peças.",
+    itens: [["BOX-400", 5], ["BOX-700", 6], ["BOX-1000", 5], ["BOX-2500", 2], ["CUBO", 4], ["PARAF", 64], ["GRAPPLE", 10]],
+  },
+  {
+    nome: "Ativação microfone — modelo Night Run Rj (4 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ativação microfone\" usada em Night Run Rj (OS de 23/04/2026). Diferenças em relação à lista padrão: +2 trecho 400 mm, cubo 7 em vez de 1, +7 grapple, parafuso 32 em vez de 20. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (23 montagens em 1 evento): 7 tipos, 56 peças.",
+    itens: [["BOX-400", 2], ["BOX-500", 2], ["BOX-700", 4], ["BOX-1000", 2], ["CUBO", 7], ["PARAF", 32], ["GRAPPLE", 7]],
+  },
+  {
+    nome: "Ativação moldura — cubo 3 em vez de 2",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ativação moldura\" usada em Dog Race (OS de 09/09/2026). Diferenças em relação à lista padrão: cubo 3 em vez de 2. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (6 montagens em 3 eventos): 6 tipos, 43 peças.",
+    itens: [["BOX-500", 2], ["BOX-1000", 3], ["BOX-2000", 2], ["CUBO", 3], ["PARAF", 32], ["PRAT-2X1", 1]],
+  },
+  {
+    nome: "Ativação moldura — modelo Blue Line Sp (5 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ativação moldura\" usada em Blue Line Sp (OS de 21/09/2026). Diferenças em relação à lista padrão: sem trecho 1 m, trecho 2 m 4 em vez de 2, sem trecho 500 mm, parafuso 24 em vez de 32, sem praticável 2×1 m. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (6 montagens em 3 eventos): 3 tipos, 30 peças.",
+    itens: [["BOX-2000", 4], ["CUBO", 2], ["PARAF", 24]],
+  },
+  {
+    nome: "Ativação rede américa — modelo Estações Outono Rj (6 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ativação rede américa\" usada em Estações Outono Rj (OS de 30/06/2026). Diferenças em relação à lista padrão: sem Ângulo 45° Q30, trecho 1 m 2 em vez de 6, sem trecho 400 mm, sem trecho 600 mm, sem grapple, parafuso 64 em vez de 160. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 5 tipos, 74 peças.",
+    itens: [["BOX-500", 2], ["BOX-1000", 2], ["BOX-2000", 2], ["CUBO", 4], ["PARAF", 64]],
+  },
+  {
+    nome: "Ícone Q30 (padrão das OS) — modelo Meia Internacional Sp (8 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Ícone Q30 (padrão das OS)\" usada em Meia Internacional Sp (OS de 28/05/2026). Diferenças em relação à lista padrão: trecho 1 m 4 em vez de 6, +4 trecho 2 m, trecho 400 mm 6 em vez de 3, +8 trecho 600 mm, trecho 700 mm 2 em vez de 4, cubo 10 em vez de 4, grapple 2 em vez de 7, parafuso 160 em vez de 48. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (12 montagens em 2 eventos): 8 tipos, 196 peças.",
+    itens: [["BOX-400", 6], ["BOX-600", 8], ["BOX-700", 2], ["BOX-1000", 4], ["BOX-2000", 4], ["CUBO", 10], ["PARAF", 160], ["GRAPPLE", 2]],
+  },
+  {
+    nome: "Pirulito de luz — sem trecho 3 m, +1 trecho 4 m, parafuso 20 em vez de 16",
+    categoria: "Ativação",
+    descricao: "Variação de \"Pirulito de luz\" usada em Night Run Belem (OS de 22/09/2026). Diferenças em relação à lista padrão: sem trecho 3 m, +1 trecho 4 m, parafuso 20 em vez de 16. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (11 montagens em 1 evento): 4 tipos, 26 peças.",
+    itens: [["BOX-2000", 4], ["BOX-4000", 1], ["CUBO", 1], ["PARAF", 20]],
+  },
+  {
+    nome: "Pirulito de luz — trecho 3 m 3 em vez de 2",
+    categoria: "Ativação",
+    descricao: "Variação de \"Pirulito de luz\" usada em Night Run João Pessoa (OS de 20/05/2026). Diferenças em relação à lista padrão: trecho 3 m 3 em vez de 2. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (11 montagens em 1 evento): 4 tipos, 24 peças.",
+    itens: [["BOX-2000", 4], ["BOX-3000", 3], ["CUBO", 1], ["PARAF", 16]],
+  },
+  {
+    nome: "Trimandala — modelo Graac (4 diferenças)",
+    categoria: "Ativação",
+    descricao: "Variação de \"Trimandala\" usada em Graac (OS de 08/05/2026). Diferenças em relação à lista padrão: sem trecho 2 m, +6 trecho 2,5 m, trecho 3 m 12 em vez de 6, sem trecho 400 mm. Ativação cenográfica sobre estrutura Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (15 montagens em 7 eventos): 4 tipos, 222 peças.",
+    itens: [["BOX-2500", 6], ["BOX-3000", 12], ["CUBO", 12], ["PARAF", 192]],
+  },
+  // ---- Obstáculo — projetos das OS de estrutura 2026 (SharePoint) ----
+  {
+    nome: "3 Challenge — +4 trecho 3,5 m, parafuso 580 em vez de 548, sapata 14 em vez de 10",
+    categoria: "Obstáculo",
+    descricao: "Variação de \"3 Challenge\" usada em Bravus Speed (OS de 26/03/2026). Diferenças em relação à lista padrão: +4 trecho 3,5 m, parafuso 580 em vez de 548, sapata 14 em vez de 10. Obstáculo de prova em Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 1 evento): 9 tipos, 707 peças.",
+    itens: [["BOX-400", 6], ["BOX-500", 16], ["BOX-2000", 26], ["BOX-3500", 4], ["BOX-5000", 21], ["ANG-15", 20], ["CUBO", 20], ["PARAF", 580], ["SAPATA", 14]],
+  },
+  {
+    nome: "Ducha dupla — modelo Bravus Speed (4 diferenças)",
+    categoria: "Obstáculo",
+    descricao: "Variação de \"Ducha dupla\" usada em Bravus Speed (OS de 26/03/2026). Diferenças em relação à lista padrão: trecho 2 m 4 em vez de 6, trecho 5 m 6 em vez de 11, cubo 8 em vez de 12, sem parafuso. Obstáculo de prova em Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 1 evento): 3 tipos, 18 peças.",
+    itens: [["BOX-2000", 4], ["BOX-5000", 6], ["CUBO", 8]],
+  },
+  {
+    nome: "King Kong — modelo Familia Em Movimento (9 diferenças)",
+    categoria: "Obstáculo",
+    descricao: "Variação de \"King Kong\" usada em Familia Em Movimento (OS de 28/07/2026). Diferenças em relação à lista padrão: +6 trecho 1 m, trecho 2,5 m 4 em vez de 10, +3 trecho 3 m, sem trecho 5 m, +6 trecho 700 mm, cubo 6 em vez de 8, sem grapple, parafuso 104 em vez de 152, sem sapata. Obstáculo de prova em Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 6 tipos, 129 peças.",
+    itens: [["BOX-700", 6], ["BOX-1000", 6], ["BOX-2500", 4], ["BOX-3000", 3], ["CUBO", 6], ["PARAF", 104]],
+  },
+  {
+    nome: "Voadora no Sino — modelo Bravus Speed (4 diferenças)",
+    categoria: "Obstáculo",
+    descricao: "Variação de \"Voadora no Sino\" usada em Bravus Speed (OS de 26/03/2026). Diferenças em relação à lista padrão: +2 trecho 3 m, +2 trecho 500 mm, trecho 5 m 4 em vez de 6, parafuso 128 em vez de 104. Obstáculo de prova em Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 1 evento): 8 tipos, 154 peças.",
+    itens: [["BOX-400", 2], ["BOX-500", 2], ["BOX-2500", 4], ["BOX-3000", 2], ["BOX-5000", 4], ["CUBO", 8], ["PARAF", 128], ["SAPATA", 4]],
   },
 ];
