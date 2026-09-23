@@ -6,6 +6,9 @@ import { destinoInterno } from "@/lib/destino";
 
 export const metadata: Metadata = { title: "Entrar" };
 
+/** Senha dos usuários criados pelo seed de demonstração (scripts/seed.ts). */
+const SENHA_DEMO = "norte1234";
+
 /**
  * O bloco "Demonstração — entrar como" faz login com a senha do seed em um clique.
  * - Local (`npm run dev` fora do Replit): aparece por padrão.
@@ -23,5 +26,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   // Sessão válida (conferida no banco): não faz sentido mostrar o login.
   if (await getUsuarioAtual()) redirect(destinoInterno(sp.next, "/"));
-  return <LoginForm next={destinoInterno(sp.next, "")} redefinida={sp.redefinida === "1"} demo={exibirDemo()} />;
+  return <LoginForm next={destinoInterno(sp.next, "")} redefinida={sp.redefinida === "1"} senhaDemo={exibirDemo() ? SENHA_DEMO : null} />;
 }

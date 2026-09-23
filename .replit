@@ -1,6 +1,8 @@
 modules = ["nodejs-24", "postgresql-16"]
 # Produção também no workspace: o modo dev compila cada tela na primeira visita e fica 10-20x mais lento.
-run = "npm run setup && npm run build && npm run start"
+# Sem seed nem importação do catálogo aqui: eles criavam usuários com senha fixa e reescreviam o catálogo a cada Run.
+# Para trazer peças/projetos novos do catálogo, rode uma vez no Shell: npm run importar:catalogo
+run = "npm run db:migrate && npm run build && npm run start"
 
 [nix]
 channel = "stable-24_11"
@@ -8,7 +10,7 @@ channel = "stable-24_11"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]
-run = ["sh", "-c", "npm run db:migrate && npm run db:dados && npm run start"]
+run = ["sh", "-c", "npm run db:migrate && npm run start"]
 
 # Uma porta só: o app escuta na 3000 e o Replit publica na porta padrão (sem ":porta" na URL).
 [[ports]]
@@ -17,9 +19,9 @@ externalPort = 80
 
 [env]
 PORT = "3000"
-# Login de demonstração com um clique. Qualquer pessoa com o link entra como qualquer perfil:
-# troque para "false" (ou apague a linha) assim que houver dados reais.
-EXIBIR_DEMO = "true"
+# Login de demonstração com um clique: DESLIGADO. Com ele ligado, qualquer pessoa com o link
+# entrava como Administrador. Só ligue ("true") num Repl separado, com dados de exemplo.
+EXIBIR_DEMO = "false"
 
 # Botão Run. O projeto usa npm (package-lock.json); não trocar para pnpm.
 [workflows]
@@ -40,7 +42,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run setup && npm run build && npm run start"
+args = "npm run db:migrate && npm run build && npm run start"
 waitForPort = 3000
 
 [workflows.workflow.metadata]

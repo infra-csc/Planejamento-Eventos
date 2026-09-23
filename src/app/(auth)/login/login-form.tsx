@@ -17,7 +17,8 @@ const PERFIS_DEMO = [
   { nome: "Administrador do Sistema", perfil: "Administrador", email: "admin@nortemkt.com.br" },
 ];
 
-export function LoginForm({ next, redefinida, demo }: { next: string; redefinida: boolean; demo: boolean }) {
+export function LoginForm({ next, redefinida, senhaDemo }: { next: string; redefinida: boolean; /** Só vem preenchida com a demonstração ligada: fora dela, a senha do seed não chega ao navegador. */ senhaDemo: string | null }) {
+  const demo = Boolean(senhaDemo);
   const [state, action] = useActionState(loginAction, ESTADO_INICIAL);
   const formRef = useRef<HTMLFormElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -27,7 +28,7 @@ export function LoginForm({ next, redefinida, demo }: { next: string; redefinida
   const entrarComo = (email: string) => {
     if (!emailRef.current || !senhaRef.current) return;
     emailRef.current.value = email;
-    senhaRef.current.value = "norte1234";
+    senhaRef.current.value = senhaDemo ?? "";
     formRef.current?.requestSubmit();
   };
 
