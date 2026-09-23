@@ -13,6 +13,7 @@ import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
 import { PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
 import { descricaoItem } from "@/server/services/solicitacoes";
+import { extrasPermitidosTenda } from "@/domain/tendas";
 
 export const metadata: Metadata = { title: "Nova solicitação" };
 
@@ -75,6 +76,14 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "fora do catálogo",
     })) ?? [];
 
+  // Tenda: fechamento e calha não estão no padrão do projeto, mas podem ser pedidos como ajuste (por local).
+  const pecaPorCodigo = new Map(opcoes.pecas.map((p) => [p.codigo, p]));
+  const extrasDe = (bom: Array<{ codigo: string }>) =>
+    extrasPermitidosTenda(bom.map((b) => b.codigo))
+      .map((c) => pecaPorCodigo.get(c))
+      .filter((p) => p !== undefined)
+      .map((p) => ({ pecaId: p.id, codigo: p.codigo, nome: p.nome, unidade: p.unidade, quantidade: 0 }));
+
   const eventoInicial = rascunho?.eventoId ?? (eventos.some((e) => e.id === sp.evento && e.aceita) ? sp.evento! : null);
 
   return (
@@ -91,7 +100,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         areaInicial={rascunho?.areaId ?? null}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
-        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, capaId: p.capaId }))}
+        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
         pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
         slaHoras={Number(config.sla_resposta_horas)}

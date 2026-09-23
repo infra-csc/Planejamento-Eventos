@@ -551,8 +551,11 @@ export const sequencias = pgTable("sequencias", {
 /* Tipos JSON                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Delta por peça aplicado à lista padrão do projeto numa solicitação. */
-export type AjusteBom = { pecaId: string; codigo: string; nome: string; quantidade: number };
+/**
+ * Delta por peça aplicado à lista padrão do projeto numa solicitação. `setor`/`unidade` só vêm
+ * preenchidos em peça extra, fora do padrão (fechamento e calha de tenda, ver domain/tendas).
+ */
+export type AjusteBom = { pecaId: string; codigo: string; nome: string; quantidade: number; setor?: Setor; unidade?: string };
 
 export type BomSnapshotLinha = {
   pecaId: string;

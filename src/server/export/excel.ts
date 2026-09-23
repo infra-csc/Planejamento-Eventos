@@ -7,6 +7,14 @@ export const COR = { vinho: "FF8E2740", escuro: "FF2A1418", cinza: "FFF0ECEB", l
 
 export const CHECK = "☐";
 
+/**
+ * Texto digitado por usuário (nome, destino, item avulso) numa célula: o que começa com = + - @
+ * (ou tab/CR) é gravado como rich text, sempre texto, para nunca ser lido como fórmula.
+ */
+export function textoSeguro(v: string): string | { richText: Array<{ text: string }> } {
+  return /^[=+\-@\t\r]/.test(v) ? { richText: [{ text: v }] } : v;
+}
+
 /** Faixa de título no topo da aba (nome da empresa, título grande e subtítulo), ocupando `cols` colunas. */
 export function faixaTitulo(ws: ExcelJS.Worksheet, cols: number, empresa: string, titulo: string, subtitulo: string) {
   for (let r = 1; r <= 3; r++) for (let c = 1; c <= cols; c++) ws.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COR.escuro } };
