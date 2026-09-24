@@ -22,6 +22,8 @@ export function LoginForm({
   redefinida,
   senhaDemo,
   primeiroAcesso = false,
+  erroPortal = null,
+  portalUrl = null,
 }: {
   next: string;
   redefinida: boolean;
@@ -29,6 +31,10 @@ export function LoginForm({
   senhaDemo: string | null;
   /** Nenhum usuário ativo no banco: mostra como criar o administrador. */
   primeiroAcesso?: boolean;
+  /** Falha na entrada pelo Portal NORTE (mensagem pronta). */
+  erroPortal?: string | null;
+  /** Endereço do Portal NORTE, quando a entrada por ele está configurada. */
+  portalUrl?: string | null;
 }) {
   const demo = Boolean(senhaDemo);
   const [state, action] = useActionState(loginAction, ESTADO_INICIAL);
@@ -51,6 +57,11 @@ export function LoginForm({
       {primeiroAcesso && (
         <Aviso tom="warning" className="mb-4">
           Nenhum usuário cadastrado. Crie o administrador no Shell: <code className="font-mono">npm run admin:senha -- &lt;email&gt; &lt;senha&gt;</code>
+        </Aviso>
+      )}
+      {erroPortal && (
+        <Aviso tom="warning" className="mb-4">
+          {erroPortal}
         </Aviso>
       )}
       {redefinida && (
@@ -76,6 +87,15 @@ export function LoginForm({
           Esqueci minha senha
         </Link>
       </p>
+      {portalUrl && (
+        <p className="mb-0 mt-3 text-center text-pequeno text-ink-3">
+          Tem conta Microsoft da NORTE?{" "}
+          <a href={portalUrl} className="link">
+            Entre pelo Portal NORTE
+          </a>
+          , sem senha.
+        </p>
+      )}
       {demo && (
         <div className="mt-8 border-t border-line pt-5">
           <p className="mb-2.5 mt-0 text-pequeno uppercase tracking-[0.08em] text-muted">Demonstração — entrar como</p>

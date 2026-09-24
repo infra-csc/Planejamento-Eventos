@@ -66,20 +66,26 @@ export async function autenticar(email: string, senha: string): Promise<{ ok: tr
   // Login certo não conta como falha: desfaz a reserva desta tentativa e zera as falhas deste e-mail neste IP.
   await liberarTentativas(tentativa.ids);
   await limparTentativas([chaveEmailIp]);
-  const token = gerarToken();
-  const ua = (await headers()).get("user-agent")?.slice(0, 200) ?? null;
-  await db.insert(sessoes).values({
-    usuarioId: u.id,
-    tokenHash: hashToken(token),
-    expiraEm: expiracaoInicial(),
-    userAgent: ua,
-  });
   // Senha do seed de demonstração fora do modo demonstração: a pessoa troca antes de usar o sistema.
   const marcarTroca = senha === SENHA_DEMO && !exibirDemo() && !u.trocarSenha;
-  await db
-    .update(usuarios)
-    .set({ ultimoAcessoEm: new Date(), ...(marcarTroca ? { trocarSenha: true } : {}) })
-    .where(eq(usuarios.id, u.id));
+  if (marcarTroca) await db.update(usuarios).set({ trocarSenha: true }).where(eq(usuarios.id, u.id));
+  const usuario = await abrirSessaoUsuario(u.id);
+  if (!usuario) return { ok: false, erro: "E-mail ou senha inválidos." };
+  return { ok: true, usuario };
+}
+
+/**
+ * Abre uma sessão para um usuário já autenticado (senha conferida ou entrada pelo Portal NORTE):
+ * grava a sessão, registra o acesso e põe o cookie. Devolve o usuário carregado (null se inativo).
+ */
+export async function abrirSessaoUsuario(usuarioId: string): Promise<UsuarioAtual | null> {
+  const db = await getDb();
+  const [u] = await db.select({ id: usuarios.id, nome: usuarios.nome, ativo: usuarios.ativo }).from(usuarios).where(eq(usuarios.id, usuarioId)).limit(1);
+  if (!u || !u.ativo) return null;
+  const token = gerarToken();
+  const ua = (await headers()).get("user-agent")?.slice(0, 200) ?? null;
+  await db.insert(sessoes).values({ usuarioId: u.id, tokenHash: hashToken(token), expiraEm: expiracaoInicial(), userAgent: ua });
+  await db.update(usuarios).set({ ultimoAcessoEm: new Date() }).where(eq(usuarios.id, u.id));
   await registrarAcessoDiario(db, { usuarioId: u.id, nome: u.nome, sucesso: true }).catch(() => undefined);
   const store = await cookies();
   // O cookie vive até o teto absoluto; a inatividade é controlada no banco (sessoes.expira_em).
@@ -90,9 +96,7 @@ export async function autenticar(email: string, senha: string): Promise<{ ok: tr
     path: "/",
     maxAge: DURACAO_MAXIMA_MS / 1000,
   });
-  const usuario = await carregarUsuario(u.id);
-  if (!usuario) return { ok: false, erro: "E-mail ou senha inválidos." };
-  return { ok: true, usuario };
+  return carregarUsuario(u.id);
 }
 
 export async function encerrarSessao() {

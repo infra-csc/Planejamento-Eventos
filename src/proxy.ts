@@ -3,7 +3,7 @@ import { COOKIE_SESSAO, HEADER_CAMINHO } from "@/server/auth/cookies";
 import { gerarNonce, montarCsp } from "@/server/auth/csp";
 
 /** Sem sessão, abrem só estas. /api/cron se protege sozinha (Authorization: Bearer CRON_SECRET). */
-const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha", "/api/cron"];
+const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha", "/api/cron", "/api/auth/portal"];
 
 /**
  * Verificação otimista: só checa a presença do cookie de sessão. A validação real

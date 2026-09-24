@@ -45,6 +45,8 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 | `DB_POOL_MAX` | opcional | Conexões do pool por instância (padrão 10). No Autoscale cada instância abre o seu: instâncias × `DB_POOL_MAX` precisa caber no limite de conexões do Postgres. |
 | `SEED_DEMO` | opcional | `true` permite rodar o seed fora da máquina local (Replit, Postgres, produção). Só num ambiente de demonstração. |
 | `CRON_SECRET` | produção | Segredo da rota `/api/cron/verificacoes` (avisos de prazo e lembretes). Sem ele a rota responde 503. Veja docs/operacao.md. |
+| `PORTAL_SSO_SECRET` | produção | Entrada pelo Portal NORTE (NORTE-App-Hub): igual ao `SESSION_SECRET` do hub, 32+ caracteres. O portal abre `/api/auth/portal?portal_sso=<token>`; o papel escolhido lá vira o perfil aqui a cada entrada. Vazio = desligado. |
+| `PORTAL_URL` | opcional | Endereço do portal, para o link "Entre pelo Portal NORTE" na tela de login. |
 | `BACKUP_DIR` / `BACKUP_MANTER` | opcional | Pasta dos backups (padrão `./.data/backups`) e quantos manter (padrão 14). |
 | `BACKUP_OBJECT_STORAGE` | opcional | `true` exige enviar o backup ao Object Storage do Replit (precisa do pacote `@replit/object-storage`). |
 | `ARMAZENAMENTO` | opcional | `replit` grava anexos e plantas novos no Object Storage (precisa do pacote `@replit/object-storage`); ausente = no banco. Veja docs/operacao.md §7. |
