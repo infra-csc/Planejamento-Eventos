@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { dadosPainel, type DadosPainel, type ItemAgenda, type ItemFila } from "@/server/services/dashboard";
 import { pode, type UsuarioPermissao } from "@/domain/permissions";
+import { TELAS_INATIVAS } from "@/domain/telas";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { dataExtenso } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -153,8 +154,8 @@ function Atalhos({ usuario }: { usuario: UsuarioPermissao }) {
     { rotulo: "Áreas", href: "/admin?aba=areas", icone: "camadas", ok: pode(usuario, "admin.areas") },
     { rotulo: "Novo evento", href: "/eventos/novo", icone: "mais", ok: pode(usuario, "evento.criar") },
     { rotulo: "Calendário", href: "/calendario", icone: "calendario", ok: true },
-    { rotulo: "Consolidação", href: "/consolidacao", icone: "grafico", ok: pode(usuario, "consolidacao.ver") },
-    { rotulo: "Pendências", href: "/pendencias", icone: "alerta", ok: pode(usuario, "pendencias.ver") },
+    { rotulo: "Consolidação", href: "/consolidacao", icone: "grafico", ok: !TELAS_INATIVAS.consolidacao && pode(usuario, "consolidacao.ver") },
+    { rotulo: "Pendências", href: "/pendencias", icone: "alerta", ok: !TELAS_INATIVAS.pendencias && pode(usuario, "pendencias.ver") },
   ];
   const visiveis = itens.filter((i) => i.ok);
   if (visiveis.length === 0) return null;

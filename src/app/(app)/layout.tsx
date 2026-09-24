@@ -6,6 +6,7 @@ import { executarVerificacoesSeNecessario } from "@/server/jobs/verificacoes";
 import { getDb } from "@/server/db";
 import { solicitacoes } from "@/server/db/schema";
 import { pode } from "@/domain/permissions";
+import { TELAS_INATIVAS } from "@/domain/telas";
 import { AppShell, type NavItem } from "@/components/shell/app-shell";
 import { listarAreasCache } from "@/server/cache";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
@@ -39,8 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/calendario", label: "Calendário" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
-    ...(pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
-    ...(pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
+    ...(!TELAS_INATIVAS.consolidacao && pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
+    ...(!TELAS_INATIVAS.pendencias && pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
   ];

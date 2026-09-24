@@ -11,6 +11,7 @@ import { Checkbox, Input, Label } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/layout";
 import { Numero } from "@/components/ui/numero";
+import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
@@ -219,7 +220,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
       status,
       quantidadeAtendida: status === "PARCIAL" ? qtd : undefined,
       observacaoLogistica: obs.trim() || null,
-      pendenciaCompra: status !== "ATENDIDO" && pendencia,
+      pendenciaCompra: status !== "ATENDIDO" && !TELAS_INATIVAS.pendencias && pendencia,
       justificativa: corrigir ? justificativa.trim() : null,
     });
   };
@@ -297,7 +298,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
             )}
           </div>
         )}
-        {status !== "ATENDIDO" && <Checkbox id={`pendencia-${item.id}`} label="Gerar pendência de compra ou locação" checked={pendencia} onChange={setPendencia} />}
+        {status !== "ATENDIDO" && !TELAS_INATIVAS.pendencias && <Checkbox id={`pendencia-${item.id}`} label="Gerar pendência de compra ou locação" checked={pendencia} onChange={setPendencia} />}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={confirmar} loading={pendente}>

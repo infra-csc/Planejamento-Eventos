@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { TELAS_INATIVAS } from "@/domain/telas";
 import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { consolidarPeriodo } from "@/server/services/consolidacao";
@@ -60,6 +62,7 @@ function EventosDoPico({ eventos }: { eventos: PecaConsolidada["eventosNoPico"] 
 }
 
 export default async function ConsolidacaoPage({ searchParams }: { searchParams: Promise<{ dias?: string; aba?: string; q?: string; ordem?: string; dir?: string; pagina?: string }> }) {
+  if (TELAS_INATIVAS.consolidacao) notFound();
   const usuario = await requirePermissao("consolidacao.ver");
   const sp = await searchParams;
   const dias = JANELAS.find((d) => String(d) === sp.dias) ?? 30;

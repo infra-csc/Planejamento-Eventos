@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { TELAS_INATIVAS } from "@/domain/telas";
 import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { listarPendenciasCompra, listarPendenciasResolvidas } from "@/server/services/solicitacoes";
@@ -30,6 +32,7 @@ const td = "border-b border-line-row px-3 py-3 align-top";
  * observação, que fica no histórico do item e tira a pendência da lista.
  */
 export default async function PendenciasPage({ searchParams }: { searchParams: Promise<{ aba?: string; evento?: string; q?: string; pagina?: string }> }) {
+  if (TELAS_INATIVAS.pendencias) notFound();
   const usuario = await requirePermissao("pendencias.ver");
   const sp = await searchParams;
   const aba: Aba = sp.aba === "resolvidas" ? "resolvidas" : "abertas";
