@@ -50,7 +50,7 @@ export function DialogoTendas({
   return (
     <Dialog open={tendaAtual !== null && kitAtual !== null} onOpenChange={(o) => !o && setTendaAberta(null)}>
       {tendaAtual && kitAtual && (
-        <DialogContent title={`${tendaAtual.nome} por local`} description={`Quantas tendas ${kitAtual.tamanho} em cada local e os fechamentos e calhas do local. Cada local vira um item.`} size="lg">
+        <DialogContent title={`${tendaAtual.nome} por local`} description={`Os locais e quantidades mais comuns das OS já vêm preenchidos: ajuste tendas, fechamentos e calhas de cada local, zere o que não vai e acrescente outros. Cada local vira um item.`} size="lg">
           <QuadroTendas
             kit={kitAtual}
             bom={tendaAtual.bom ?? []}

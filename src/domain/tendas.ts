@@ -91,6 +91,40 @@ export function dividirPorUnidade(quantidade: number, totais: readonly number[])
 export type LocalTenda = { local: string; quantidade: number; fechamentos: number; calhas: number };
 
 /**
+ * Locais que a cenografia preenche em praticamente toda OS (192 OS de 2026), já com a quantidade de
+ * tendas, fechamentos e calhas mais comum de cada um (moda nas OS): o quadro abre assim e quem
+ * pede só ajusta — como na planilha. Limpeza aparece em 1 de cada 4 OS, por isso vem zerada; linha
+ * com 0 tendas não vira item.
+ */
+export const LOCAIS_PADRAO_TENDA: Readonly<Record<string, readonly LocalTenda[]>> = {
+  "5×5": [
+    { local: "Depósito", quantidade: 1, fechamentos: 4, calhas: 1 },
+    { local: "GV", quantidade: 3, fechamentos: 5, calhas: 2 },
+    { local: "Dispersão", quantidade: 2, fechamentos: 0, calhas: 1 },
+    { local: "Médica", quantidade: 1, fechamentos: 4, calhas: 1 },
+    { local: "Extra", quantidade: 1, fechamentos: 4, calhas: 0 },
+  ],
+  "3×3": [
+    { local: "Buffet", quantidade: 1, fechamentos: 3, calhas: 0 },
+    { local: "Som", quantidade: 2, fechamentos: 6, calhas: 0 },
+    { local: "Crono", quantidade: 1, fechamentos: 3, calhas: 0 },
+    { local: "Limpeza", quantidade: 0, fechamentos: 4, calhas: 0 },
+    { local: "Extra", quantidade: 1, fechamentos: 3, calhas: 0 },
+  ],
+};
+
+/** Outros locais que aparecem com frequência nas OS: sugeridos ao digitar o local. */
+export const LOCAIS_SUGERIDOS_TENDA: Readonly<Record<string, readonly string[]>> = {
+  "5×5": ["Lixo", "Dispersão + Fruta", "Guarda-volumes", "Hidratação", "Credenciamento", "Vestiário", "Voluntários", "Premiação", "Fraldário", "Reciclagem", "Kit", "Foto", "Bicicletário", "Mecânica", "Área de sombra", "Recovery"],
+  "3×3": ["Lixo", "Limpeza/carregadores", "Apoio", "Cronometragem", "Palco", "Médica", "Painel de LED", "Som palco", "House mix", "Área de descanso", "Video wall", "Equipe de filmagem", "Reciclagem", "Hidratação", "Segurança", "Estacionamento", "Food truck"],
+};
+
+export function locaisIniciaisTenda(tamanho: string): LocalTenda[] {
+  const linhas = (LOCAIS_PADRAO_TENDA[tamanho] ?? []).map((l) => ({ ...l }));
+  return linhas.length ? linhas : [{ local: "", quantidade: 1, fechamentos: 0, calhas: 0 }];
+}
+
+/**
  * Prévia dos totais do quadro de tendas (como a linha TOTAL da planilha): peças do padrão × tendas,
  * mais fechamentos e calhas pedidos por local. Só os papéis que o kit tem.
  */

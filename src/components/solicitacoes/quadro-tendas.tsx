@@ -10,7 +10,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { descricoesIguais } from "@/domain/descricoes-itens";
-import { dividirPorUnidade, previaTendas, type KitTenda, type LocalTenda } from "@/domain/tendas";
+import { dividirPorUnidade, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, previaTendas, type KitTenda, type LocalTenda } from "@/domain/tendas";
 
 export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[] };
 
@@ -19,7 +19,9 @@ const rotuloCls = "mb-1 block text-rotulo text-muted sm:sr-only";
 
 /**
  * Quadro "Tendas 5×5 por local", no formato da planilha da cenografia: uma linha por local com a
- * quantidade de tendas, os fechamentos e as calhas daquele local. Ao confirmar, vira um item por
+ * quantidade de tendas, os fechamentos e as calhas daquele local. Abre com os locais que aparecem
+ * em quase toda OS (Depósito, GV, Dispersão, Médica, Extra / Buffet, Som, Crono…) já com as
+ * quantidades mais comuns: é só ajustar; linha com 0 tendas é ignorada. Ao confirmar, vira um item por
  * local (projeto da tenda, destino = local, fechamentos e calhas como ajuste por unidade). Se o
  * total do local não divide igual entre as tendas, o local vira 2 ou 3 itens com a divisão
  * mais próxima — a soma sempre bate com o que foi digitado.
@@ -41,7 +43,9 @@ export function QuadroTendas({
   onConfirmar: (itens: ItemTenda[]) => void;
   onCancelar: () => void;
 }) {
-  const [locais, setLocais] = useState<LocalTenda[]>([{ local: "", quantidade: 1, fechamentos: 0, calhas: 0 }]);
+  const [locais, setLocais] = useState<LocalTenda[]>(() => locaisIniciaisTenda(kit.tamanho));
+  const sugestoes = [...(LOCAIS_PADRAO_TENDA[kit.tamanho] ?? []).map((l) => l.local), ...(LOCAIS_SUGERIDOS_TENDA[kit.tamanho] ?? [])];
+  const idSugestoes = `tenda-locais-${kit.tamanho.replace("×", "x")}`;
   const [erro, setErro] = useState<{ linha: number | null; msg: string } | null>(null);
   const temFechamento = Boolean(pecaFechamentoId);
   const temCalha = Boolean(pecaCalhaId);
@@ -106,6 +110,7 @@ export function QuadroTendas({
                   maxLength={60}
                   onChange={(e) => mudar(n, { local: e.target.value })}
                   placeholder="Ex.: Depósito"
+                  list={idSugestoes}
                   aria-label={`Local da linha ${n + 1}`}
                   aria-invalid={erroLinha || undefined}
                   aria-describedby={erroLinha ? "tenda-erro" : undefined}
@@ -113,7 +118,7 @@ export function QuadroTendas({
               </div>
               <div>
                 <span className={rotuloCls}>Tendas</span>
-                <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${nomeLinha}`} />
+                <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${nomeLinha}`} className={cn(l.quantidade === 0 && "text-meta")} />
               </div>
               {temFechamento && (
                 <div>
@@ -142,6 +147,12 @@ export function QuadroTendas({
         <Icone nome="mais" />
         Outro local
       </Button>
+      {/* Sugestões de local ao digitar (os mais comuns nas OS); a lista é a mesma para todas as linhas. */}
+      <datalist id={idSugestoes}>
+        {sugestoes.map((nome) => (
+          <option key={nome} value={nome} />
+        ))}
+      </datalist>
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 text-pequeno text-ink-2">
         <span>
