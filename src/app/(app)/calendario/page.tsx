@@ -39,17 +39,17 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
         // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
         {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
         style={atravessa ? { width: `calc(${diasNaLinha * 100}% + ${diasNaLinha - 1}px - ${margens}px)` } : undefined}
-        className={cn("block truncate px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
+        className={cn("block px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao ? "truncate" : "whitespace-normal break-words", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
       >
         {continuacao ? " " : i.titulo}
       </Link>
     );
   }
   return (
-    <Link href={i.href} title={dica} className="mx-1 flex min-w-0 items-center gap-1.5 rounded-chip px-1 py-0.5 text-rotulo text-ink-2 no-underline transition-colors hover:bg-subtle">
-      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", t.ponto)} />
+    <Link href={i.href} title={dica} className="mx-1 flex min-w-0 items-start gap-1.5 rounded-chip px-1 py-0.5 text-rotulo text-ink-2 no-underline transition-colors hover:bg-subtle">
+      <span aria-hidden className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", t.ponto)} />
       {i.hora && <span className="numero shrink-0 text-ink-3">{i.hora}</span>}
-      <span className="min-w-0 truncate">{semPrefixo(i.titulo)}</span>
+      <span className="min-w-0 whitespace-normal break-words">{semPrefixo(i.titulo)}</span>
       <span className="sr-only"> · {t.rotulo}</span>
     </Link>
   );
@@ -64,7 +64,7 @@ function LinhaAgenda({ it, comFaixa }: { it: ItemCalendario; comFaixa?: boolean 
       <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
       <span className="min-w-0 flex-1">
         <span className="block text-corpo text-ink">{it.tipo === "evento" ? it.titulo : semPrefixo(it.titulo)}</span>
-        <span className="block truncate text-pequeno text-muted">{detalhe}</span>
+        <span className="block text-pequeno text-muted">{detalhe}</span>
       </span>
     </Link>
   );
