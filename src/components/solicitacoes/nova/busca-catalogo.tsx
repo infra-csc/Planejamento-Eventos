@@ -252,7 +252,7 @@ export function BuscaCatalogo({
                             {r.meta ? ` · ${r.meta}` : ""}
                           </p>
                           {r.descricao && (
-                            <p className="mb-0 mt-1 line-clamp-3 text-pequeno text-ink-2" title={r.descricao}>
+                            <p className="mb-0 mt-1 whitespace-pre-line text-pequeno text-ink-2">
                               {r.descricao}
                             </p>
                           )}

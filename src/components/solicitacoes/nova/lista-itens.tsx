@@ -89,7 +89,7 @@ export function ListaItens({
                       {ajustes && <span className="text-ink-2">{ajustes}</span>}
                     </p>
                     {descricaoProjeto && (
-                      <p className="mb-0 mt-1 line-clamp-2 text-pequeno text-muted" title={descricaoProjeto}>
+                      <p className="mb-0 mt-1 text-pequeno text-muted">
                         {descricaoProjeto}
                       </p>
                     )}

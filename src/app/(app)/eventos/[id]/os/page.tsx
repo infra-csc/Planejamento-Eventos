@@ -32,11 +32,12 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
 
 export const metadata: Metadata = { title: "Ordem de serviço" };
 
-/** As três exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
+/** As exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
 function exportacoesOs(id: string, qs: string, previa = false): Exportacao[] {
   return [
     { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e avulsos, com coluna de separação." },
-    { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "Planilha de estrutura", descricao: "Modelo da cenografia: TOTAL, somatória peça × projeto e uma aba por projeto." },
+    { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "OS de estrutura", descricao: "Igual à planilha da cenografia: TOTAL, SOMATORIA e uma aba por projeto." },
+    { tipo: "xlsx", href: `/api/os/${id}/marcenaria${qs}`, rotulo: "OS de marcenaria", descricao: "Igual à planilha da cenografia: seções, item, peças e quantidade." },
     { tipo: "imprimir", href: `/impressao/os/${id}${qs}`, rotulo: previa ? "Imprimir prévia" : "Imprimir", descricao: "Folha de separação com assinaturas, pronta para PDF." },
   ];
 }

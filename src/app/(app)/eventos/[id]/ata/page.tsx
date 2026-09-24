@@ -196,6 +196,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
           <Exportacoes
             sub={!emConstrucao && congelada ? "Ata fechada" : "Prévia da ata em construção"}
             itens={[
+              { tipo: "xlsx", href: `/api/eventos/${id}/ata/lista${qsV}`, rotulo: "Ata (lista de materiais)", descricao: "Igual à planilha da cenografia: percurso, tendas por local, box truss, ativação e arena." },
               { tipo: "xlsx", href: `/api/eventos/${id}/ata/excel${qsV}`, rotulo: "Excel da ata", descricao: "Cabeçalho da reunião, linhas conferidas e pedidos por área." },
               { tipo: "imprimir", href: `/impressao/ata/${id}${qsV}`, rotulo: "Imprimir", descricao: "Ata com presentes, observações e assinaturas." },
             ]}
