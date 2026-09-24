@@ -7,11 +7,7 @@ channel = "stable-24_11"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]
-<<<<<<< HEAD
-run = ["npm", "run", "start"]
-=======
 run = ["sh", "-c", "npm run db:migrate && npm run start"]
->>>>>>> 52ea20a (Post-Recovery checkpoint)
 
 [[ports]]
 localPort = 3000
