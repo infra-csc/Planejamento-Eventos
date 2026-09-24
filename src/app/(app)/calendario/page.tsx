@@ -10,46 +10,36 @@ import { Icone } from "@/components/ui/icons";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { FiltroEvento } from "@/components/ui/filtro-evento";
+import { DiaBotao } from "@/components/calendario/dia-modal";
+import { DIAS, MESES, ORDEM_TIPOS, pad, rotuloDia, semPrefixo, TIPO } from "@/components/calendario/tipos";
 
 export const metadata: Metadata = { title: "Calendário" };
 
-const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
-
-/**
- * Cor e rótulo de cada tipo, pelos tons semânticos do design system (o vinho fica só para "hoje"):
- * evento = faixa neutra; reunião de OS = info; prazo de resposta = erro; fim da janela = atenção;
- * montagem = sucesso; carga = escuro (neutro de peso).
- */
-const TIPO: Record<TipoCalendario, { rotulo: string; ponto: string; fundo: string; texto: string }> = {
-  evento: { rotulo: "Evento", ponto: "bg-ink-3", fundo: "bg-control", texto: "text-ink" },
-  reuniao: { rotulo: "Reunião de OS", ponto: "bg-info", fundo: "bg-info-bg", texto: "text-info" },
-  prazo: { rotulo: "Prazo de resposta", ponto: "bg-danger", fundo: "bg-danger-bg", texto: "text-danger" },
-  janela: { rotulo: "Fim da janela de alterações", ponto: "bg-warning", fundo: "bg-warning-bg", texto: "text-warning" },
-  montagem: { rotulo: "Montagem", ponto: "bg-success", fundo: "bg-success-bg", texto: "text-success" },
-  carga: { rotulo: "Carga do caminhão", ponto: "bg-dark", fundo: "bg-neutral-bg", texto: "text-ink" },
-};
-const ORDEM_TIPOS = Object.keys(TIPO) as TipoCalendario[];
-
-const pad = (n: number) => String(n).padStart(2, "0");
 const addMes = (ano: number, mes: number, n: number) => {
   const d = new Date(Date.UTC(ano, mes - 1 + n, 1));
   return { ano: d.getUTCFullYear(), mes: d.getUTCMonth() + 1 };
 };
-const semPrefixo = (titulo: string) => titulo.replace(/^(Reunião de OS|Prazo de resposta|Fim da janela de alterações|Montagem|Carga do caminhão) · /, "");
 
-function Compromisso({ i, compacto }: { i: ItemCalendario; compacto?: boolean }) {
+function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?: boolean; coluna?: number }) {
   const t = TIPO[i.tipo];
   const dica = `${t.rotulo}: ${i.titulo}${i.detalhe ? ` · ${i.detalhe}` : ""}`;
   if (i.tipo === "evento") {
-    const continuacao = !i.faixa?.inicio && !compacto;
+    // O nome aparece na primeira célula da faixa em cada semana (início do evento ou segunda-feira)
+    // e atravessa as células seguintes da mesma semana, que só repetem o fundo.
+    const rotulado = compacto || Boolean(i.faixa?.inicio) || coluna === 0;
+    const continuacao = !rotulado;
+    const diasNaLinha = i.faixa && !compacto ? Math.min(i.faixa.total - i.faixa.dia + 1, 7 - coluna) : 1;
+    const fimNaLinha = !i.faixa || i.faixa.dia + diasNaLinha - 1 >= i.faixa.total;
+    const margens = (i.faixa?.inicio ? 4 : -1) + (fimNaLinha ? 4 : -1);
+    const atravessa = rotulado && diasNaLinha > 1;
     return (
       <Link
         href={i.href}
         title={dica}
         // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
         {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
-        className={cn("block truncate px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px")}
+        style={atravessa ? { width: `calc(${diasNaLinha * 100}% + ${diasNaLinha - 1}px - ${margens}px)` } : undefined}
+        className={cn("block truncate px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
       >
         {continuacao ? " " : i.titulo}
       </Link>
@@ -78,11 +68,6 @@ function LinhaAgenda({ it, comFaixa }: { it: ItemCalendario; comFaixa?: boolean 
       </span>
     </Link>
   );
-}
-
-function rotuloDia(d: string) {
-  const dt = new Date(`${d}T12:00:00Z`);
-  return `${DIAS[(dt.getUTCDay() + 6) % 7]}, ${pad(dt.getUTCDate())}/${pad(dt.getUTCMonth() + 1)}`;
 }
 
 /** Cabeçalho de um dia nas listas: mesmo estilo na agenda lateral e na lista do celular. */
@@ -270,11 +255,11 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                   className={cn("flex min-h-28 min-w-0 flex-col border-b border-r border-line-row [&:nth-child(7n)]:border-r-0", !c.doMes ? "bg-subtle" : fimDeSemana && "bg-subtle/50", ehHoje && "bg-selected")}
                 >
                   <div className="flex items-center px-1.5 pt-1.5">
-                    <span className={cn("numero inline-flex size-6 items-center justify-center rounded-full text-pequeno", ehHoje ? "bg-accent font-semibold text-white" : c.doMes ? "font-medium text-ink" : "text-meta")}>{c.numero}</span>
+                    <DiaBotao dia={c.dia} numero={c.numero} hoje={hoje} doMes={c.doMes} itens={itens} />
                   </div>
                   <div className="mt-1 flex min-w-0 flex-col gap-0.5 pb-1.5">
                     {itens.slice(0, mostrar).map((it) => (
-                      <Compromisso key={it.chave} i={it} />
+                      <Compromisso key={it.chave} i={it} coluna={i % 7} />
                     ))}
                     {itens.length > 4 && (
                       <details className="group">
