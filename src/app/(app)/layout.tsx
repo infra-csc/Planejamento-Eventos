@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
     ...(!TELAS_INATIVAS.consolidacao && pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
     ...(!TELAS_INATIVAS.pendencias && pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
+    ...(pode(usuario, "historico.ver_tudo") ? [{ href: "/historico", label: "Histórico", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
   ];
