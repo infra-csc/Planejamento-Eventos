@@ -74,7 +74,7 @@ describe("GET /api/os/[id]/estrutura", { timeout: 30_000 }, () => {
     expect((await chamar("evento-que-nao-existe")).status).toBe(404);
   });
 
-  it("200: TOTAL, SOMATÓRIA e uma aba por projeto, com a capa", async () => {
+  it("200: TOTAL, SOMATORIA e uma aba por projeto, com a capa", async () => {
     await entrar(E.requisitante.id);
     const r = await chamar(eventoId, "?v=1");
     expect(r.status).toBe(200);
@@ -82,7 +82,7 @@ describe("GET /api/os/[id]/estrutura", { timeout: 30_000 }, () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await r.arrayBuffer());
     const nomes = wb.worksheets.map((w) => w.name);
-    expect(nomes.slice(0, 2)).toEqual(["TOTAL", "SOMATÓRIA"]);
+    expect(nomes.slice(0, 2)).toEqual(["TOTAL", "SOMATORIA"]);
     expect(nomes.length).toBe(3);
     expect(nomes[2]).toContain("(2X)");
     expect(wb.worksheets[2].getImages().length).toBe(1);
