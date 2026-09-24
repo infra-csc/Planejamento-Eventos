@@ -65,6 +65,7 @@ export function BuscaCatalogo({
           destino: "",
           justificativa: "",
           descricoes: [],
+          locais: [],
           ajustes: {},
           rotulo: tipo === "projeto" ? r.nome : `${r.codigo} · ${r.nome}`,
           meta: tipo === "projeto" ? `${r.codigo} · projeto padrão` : "peça do catálogo",
@@ -83,7 +84,7 @@ export function BuscaCatalogo({
     const chave = novaChave();
     setErroAvulso(null);
     setAvulso("");
-    setItens((l) => [...l, { chave, operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
+    setItens((l) => [...l, { chave, operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], locais: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
     toastSucesso(`${d} adicionado`, { acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
   };
 
@@ -102,6 +103,7 @@ export function BuscaCatalogo({
         destino: l.destino ?? "",
         justificativa: "",
         descricoes: [],
+        locais: [],
         ajustes: {},
         rotulo: l.nome,
         meta: operacao === "REMOVER" ? "remover da ata" : `hoje ${l.quantidade} na ata`,
@@ -249,6 +251,11 @@ export function BuscaCatalogo({
                             <Codigo className="text-ink-3">{r.codigo}</Codigo>
                             {r.meta ? ` · ${r.meta}` : ""}
                           </p>
+                          {r.descricao && (
+                            <p className="mb-0 mt-1 line-clamp-3 text-pequeno text-ink-2" title={r.descricao}>
+                              {r.descricao}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
@@ -266,7 +273,7 @@ export function BuscaCatalogo({
                           </Button>
                         ) : (
                           <span
-                            className="flex items-center gap-2"
+                            className="flex flex-wrap items-center justify-end gap-2"
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
                                 e.preventDefault();

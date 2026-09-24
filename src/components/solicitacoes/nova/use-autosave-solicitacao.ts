@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
-import { ajustarDescricoes, descricoesEsperadas } from "@/domain/descricoes-itens";
+import { agruparPorLocal } from "@/domain/descricoes-itens";
 import type { EventoOpcao, ItemNovo, RascunhoSolicitacao } from "./tipos";
 
 export type EstadoSalvo = { tipo: "ocioso" } | { tipo: "salvando" } | { tipo: "salvo"; em: Date } | { tipo: "erro"; msg: string };
@@ -49,20 +49,23 @@ export function useAutosaveSolicitacao({
     titulo,
     observacao,
     enviar,
-    itens: itens.map((i) => ({
-      operacao: i.operacao,
-      projetoId: i.projetoId,
-      pecaId: i.pecaId,
-      eventoItemId: i.eventoItemId,
-      descricaoLivre: i.descricaoLivre,
-      quantidadeSolicitada: i.quantidade,
-      destino: i.destino,
-      justificativa: i.justificativa,
-      descricoes: ajustarDescricoes(i.descricoes, descricoesEsperadas(i.operacao, i.quantidade)),
-      ajustesBom: Object.entries(i.ajustes)
-        .filter(([, d]) => d !== 0)
-        .map(([pecaId, quantidade]) => ({ pecaId, quantidade })),
-    })),
+    // "Onde vai ficar" é por unidade: unidades no mesmo local viram um item (destino = local).
+    itens: itens.flatMap((i) =>
+      agruparPorLocal(i.operacao, i.quantidade, i.descricoes, i.operacao === "ADICIONAR" ? i.locais : [i.destino]).map((g) => ({
+        operacao: i.operacao,
+        projetoId: i.projetoId,
+        pecaId: i.pecaId,
+        eventoItemId: i.eventoItemId,
+        descricaoLivre: i.descricaoLivre,
+        quantidadeSolicitada: g.quantidade,
+        destino: g.destino,
+        justificativa: i.justificativa,
+        descricoes: g.descricoes,
+        ajustesBom: Object.entries(i.ajustes)
+          .filter(([, d]) => d !== 0)
+          .map(([pecaId, quantidade]) => ({ pecaId, quantidade })),
+      })),
+    ),
   });
   const lembrarRascunho = (id: string, codigo: string) => {
     if (rascunhoIdRef.current) return;
@@ -70,7 +73,7 @@ export function useAutosaveSolicitacao({
     setCodigoRascunho(codigo);
     window.history.replaceState(null, "", `/solicitacoes/nova?rascunho=${id}`);
   };
-  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.descricoes, i.ajustes])]);
+  const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.descricoes, i.locais, i.ajustes])]);
   const salvoRef = useRef(rascunho ? assinatura : "");
   const podeAutosalvar = Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
 

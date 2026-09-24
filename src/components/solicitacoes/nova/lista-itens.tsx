@@ -15,7 +15,7 @@ import { DescricoesItem } from "./descricoes-item";
 import { ErroCampo, Passo } from "./passo";
 import type { ItemNovo, Referencia } from "./tipos";
 
-/** Passo 3: cada item adicionado com quantidade, destino, descrições por unidade e ajuste de peças do projeto. */
+/** Passo 3: cada item adicionado com quantidade, local e descrição de cada unidade e ajuste de peças do projeto. */
 export function ListaItens({
   itens,
   projetos,
@@ -52,7 +52,7 @@ export function ListaItens({
       n={3}
       titulo="Detalhe cada item"
       feito={itens.length > 0 && semDescricao.length === 0}
-      sub="Quantidade, onde vai ficar e a descrição de cada unidade (texto, arte, medida)."
+      sub="Quantidade e, para cada unidade, onde vai ficar e a descrição (texto, arte, medida)."
       acoes={itens.length > 0 ? <ChipMono tom="control">{itens.length}</ChipMono> : undefined}
     >
       {itens.length === 0 ? (
@@ -67,6 +67,7 @@ export function ListaItens({
           {itens.map((i) => {
             const capa = capaDe(i);
             const bom = bomDe(i);
+            const descricaoProjeto = i.projetoId ? (projetos.find((p) => p.id === i.projetoId)?.descricao ?? null) : null;
             const ajustes = resumoAjustes(i);
             const abertoAjuste = ajustando === i.chave;
             return (
@@ -87,6 +88,11 @@ export function ListaItens({
                       <Tag tom={i.operacao === "REMOVER" ? "danger" : i.meta === "fora do catálogo" ? "warning" : "muted"}>{i.meta}</Tag>
                       {ajustes && <span className="text-ink-2">{ajustes}</span>}
                     </p>
+                    {descricaoProjeto && (
+                      <p className="mb-0 mt-1 line-clamp-2 text-pequeno text-muted" title={descricaoProjeto}>
+                        {descricaoProjeto}
+                      </p>
+                    )}
                   </div>
                   <IconButton label={`Remover ${i.rotulo} da solicitação`} onClick={() => removerItem(i)}>
                     <Icone nome="lixeira" />
@@ -105,12 +111,14 @@ export function ListaItens({
                       <Stepper id={`qtd-${i.chave}`} tamanho="sm" valor={i.quantidade} min={i.operacao === "ALTERAR_QUANTIDADE" ? 0 : 1} onChange={(v) => mudar(i.chave, { quantidade: v })} />
                     </div>
                   )}
-                  <div className="min-w-[160px] max-w-[280px] flex-1">
-                    <Label htmlFor={`destino-${i.chave}`} optional>
-                      Onde vai ficar
-                    </Label>
-                    <Input id={`destino-${i.chave}`} value={i.destino} onChange={(e) => mudar(i.chave, { destino: e.target.value })} placeholder="Ex.: Palco, Dispersão" maxLength={60} />
-                  </div>
+                  {i.operacao !== "ADICIONAR" && (
+                    <div className="min-w-[160px] max-w-[280px] flex-1">
+                      <Label htmlFor={`destino-${i.chave}`} optional>
+                        Onde vai ficar
+                      </Label>
+                      <Input id={`destino-${i.chave}`} value={i.destino} onChange={(e) => mudar(i.chave, { destino: e.target.value })} placeholder="Ex.: Palco, Dispersão" maxLength={60} />
+                    </div>
+                  )}
                   {i.projetoId && bom.length > 0 && (
                     <Button variant={abertoAjuste ? "secondary" : "ghost"} size="sm" onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))} aria-expanded={abertoAjuste} aria-controls={`ajuste-${i.chave}`}>
                       <Icone nome={abertoAjuste ? "chevron-cima" : "chevron-baixo"} />
@@ -119,7 +127,7 @@ export function ListaItens({
                   )}
                 </div>
 
-                <DescricoesItem item={i} destacarVazias={tentouEnviar} onChange={(descricoes) => mudar(i.chave, { descricoes })} />
+                <DescricoesItem item={i} destacarVazias={tentouEnviar} onChange={(patch) => mudar(i.chave, patch)} />
 
                 {abertoAjuste && (
                   <div id={`ajuste-${i.chave}`} className="mt-3 animate-fade-up-rapido rounded-controle border border-line-soft bg-subtle px-3 pb-3 pt-2.5 sm:ml-[76px]">

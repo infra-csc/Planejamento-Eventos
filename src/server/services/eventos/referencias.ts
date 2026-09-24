@@ -13,7 +13,7 @@ import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
  */
 const REFERENCIAS_TAGS = [TAGS_DADOS.catalogo, TAGS_DADOS.projetos];
 const referenciasResumidasEmCache = cacheDados(consultarOpcoesReferenciasResumidas, "eventos:referencias-resumidas", REFERENCIAS_TAGS);
-const referenciasEmCache = cacheDados(consultarOpcoesReferencias, "eventos:referencias", REFERENCIAS_TAGS);
+const referenciasEmCache = cacheDados(consultarOpcoesReferencias, "eventos:referencias:v2", REFERENCIAS_TAGS);
 
 /** Só o que o formulário "Incluir linha na ata" usa: nome/código de projetos e peças, sem listas de peças nem imagens. */
 export async function opcoesReferenciasResumidas() {
@@ -40,7 +40,7 @@ async function consultarOpcoesReferencias() {
   const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true));
   const [proj, pcs, totais, linhasBom, capas] = await Promise.all([
     db
-      .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, versaoAtual: projetos.versaoAtual })
+      .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, descricao: projetos.descricao, versaoAtual: projetos.versaoAtual })
       .from(projetos)
       .where(and(eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true)))
       .orderBy(asc(projetos.nome)),

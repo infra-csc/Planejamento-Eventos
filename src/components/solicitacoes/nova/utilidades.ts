@@ -21,7 +21,3 @@ export const irPara = (id: string) => {
 
 /** Projeto de tenda: o kit (tamanho e peças) reconhecido pelo padrão do projeto; `null` se não for tenda. */
 export const kitDe = (r: Referencia) => (r.bom?.length ? kitDaTenda(r.bom.map((b) => b.codigo)) : null);
-export const extraDoKit = (r: Referencia, papel: "fechamento" | "calha") => {
-  const codigo = kitDe(r)?.pecas[papel];
-  return (codigo && [...(r.bom ?? []), ...(r.extras ?? [])].find((b) => b.codigo === codigo)?.pecaId) || null;
-};

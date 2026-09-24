@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toastSucesso } from "@/components/ui/toast";
 import { QuadroTendas, type ItemTenda } from "../quadro-tendas";
-import { extraDoKit, kitDe, novaChave } from "./utilidades";
+import { kitDe, novaChave } from "./utilidades";
 import type { ItemNovo, Referencia } from "./tipos";
 
 /** Projeto de tenda: em vez do "Adicionar" simples, o quadro por local (Local | Tendas | Fechamentos | Calhas). */
@@ -38,6 +38,7 @@ export function DialogoTendas({
         destino: x.destino,
         justificativa: "",
         descricoes: x.descricoes,
+        locais: x.locais,
         ajustes: x.ajustes,
         rotulo: r.nome,
         meta: `${r.codigo} · projeto padrão`,
@@ -50,12 +51,11 @@ export function DialogoTendas({
   return (
     <Dialog open={tendaAtual !== null && kitAtual !== null} onOpenChange={(o) => !o && setTendaAberta(null)}>
       {tendaAtual && kitAtual && (
-        <DialogContent title={`${tendaAtual.nome} por local`} description={`Os locais e quantidades mais comuns das OS já vêm preenchidos: ajuste tendas, fechamentos e calhas de cada local, zere o que não vai e acrescente outros. Cada local vira um item.`} size="lg">
+        <DialogContent title={`${tendaAtual.nome} por local`} description={`Os locais e quantidades mais comuns das OS já vêm preenchidos: ajuste tendas e peças de cada local, zere o que não vai e acrescente outros. Cada local vira um item.`} width={900}>
           <QuadroTendas
             kit={kitAtual}
             bom={tendaAtual.bom ?? []}
-            pecaFechamentoId={extraDoKit(tendaAtual, "fechamento")}
-            pecaCalhaId={extraDoKit(tendaAtual, "calha")}
+            extras={tendaAtual.extras ?? []}
             onConfirmar={(novos) => adicionarTendas(tendaAtual, novos)}
             onCancelar={() => setTendaAberta(null)}
           />

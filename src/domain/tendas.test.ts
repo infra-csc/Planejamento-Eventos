@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, KITS_TENDA, kitDaTenda, papelNoKit, previaTendas } from "./tendas";
+import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisIniciaisTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -58,16 +58,52 @@ describe("previaTendas", () => {
   it("soma padrão × tendas + fechamentos e calhas por local (linha TOTAL da planilha)", () => {
     const kit = KITS_TENDA[0];
     const r = previaTendas(kit, bom5, [
-      { local: "Depósito", quantidade: 2, fechamentos: 6, calhas: 1 },
-      { local: "GV", quantidade: 3, fechamentos: 5, calhas: 2 },
+      { local: "Depósito", quantidade: 2, totais: { fechamento: 6, calha: 1 } },
+      { local: "GV", quantidade: 3, totais: { fechamento: 5, calha: 2 } },
     ]);
     const t = Object.fromEntries(r.map((x) => [x.papel, x.total]));
     expect(t).toEqual({ fechamento: 11, cantoneira: 20, travessa: 20, pe: 20, mastro: 5, cabo: 5, calha: 3 });
   });
 
   it("3×3 não mostra calha", () => {
-    const r = previaTendas(KITS_TENDA[1], [{ codigo: "TND3-CANT", quantidade: 4 }], [{ local: "Buffet", quantidade: 3, fechamentos: 9, calhas: 0 }]);
+    const r = previaTendas(KITS_TENDA[1], [{ codigo: "TND3-CANT", quantidade: 4 }], [{ local: "Buffet", quantidade: 3, totais: { fechamento: 9 } }]);
     expect(r.map((x) => x.papel)).not.toContain("calha");
     expect(r.find((x) => x.papel === "fechamento")?.total).toBe(9);
+  });
+
+  it("qualquer coluna digitada sobrescreve o padrão × tendas", () => {
+    const kit = KITS_TENDA[0];
+    const l = { local: "Médica", quantidade: 2, totais: { cantoneira: 10, fechamento: 4 } };
+    expect(totalDoLocal(kit, bom5, l, "cantoneira")).toBe(10);
+    expect(totalDoLocal(kit, bom5, l, "travessa")).toBe(8);
+    expect(totalDoLocal(kit, bom5, l, "fechamento")).toBe(4);
+    const r = previaTendas(kit, bom5, [l]);
+    expect(r.find((x) => x.papel === "cantoneira")?.total).toBe(10);
+  });
+});
+
+describe("itensDoQuadro", () => {
+  const kit = KITS_TENDA[0];
+  it("um item por local com o ajuste por unidade de cada peça (só o que difere do padrão)", () => {
+    const itens = itensDoQuadro(kit, bom5, [
+      { local: "Depósito", quantidade: 2, totais: { fechamento: 6, calha: 1 } },
+      { local: "Extra", quantidade: 0, totais: { fechamento: 4 } },
+      { local: "Médica", quantidade: 1, totais: { cantoneira: 6, mastro: 1 } },
+    ]);
+    // Depósito: 6 fechamentos e 1 calha em 2 tendas → 1 tenda (3 fech, 1 calha) + 1 tenda (3 fech).
+    expect(itens).toEqual([
+      { local: "Depósito", quantidade: 1, ajustes: { "TND5-FECH": 3, "TND5-CALHA": 1 } },
+      { local: "Depósito", quantidade: 1, ajustes: { "TND5-FECH": 3 } },
+      { local: "Médica", quantidade: 1, ajustes: { "TND5-CANT": 2 } },
+    ]);
+  });
+
+  it("o quadro abre com os locais padrão e a soma bate com a planilha", () => {
+    const locais = locaisIniciaisTenda("5×5");
+    expect(locais.map((l) => l.local)).toEqual(["Depósito", "GV", "Dispersão", "Médica", "Extra"]);
+    const t = Object.fromEntries(previaTendas(kit, bom5, locais).map((x) => [x.papel, x.total]));
+    expect(t.fechamento).toBe(17);
+    expect(t.cantoneira).toBe(32);
+    expect(locaisIniciaisTenda("9×9")).toEqual([{ local: "", quantidade: 0, totais: {} }]);
   });
 });

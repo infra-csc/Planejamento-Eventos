@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
 import { descricaoItem } from "@/server/services/solicitacoes";
 import { extrasPermitidosTenda } from "@/domain/tendas";
+import { descricoesEsperadas } from "@/domain/descricoes-itens";
 import { listarAreasCache } from "@/server/cache";
 
 export const metadata: Metadata = { title: "Nova solicitação" };
@@ -71,6 +72,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       destino: i.destino ?? "",
       justificativa: i.justificativa ?? "",
       descricoes: i.descricoes ?? [],
+      locais: Array.from({ length: descricoesEsperadas(i.operacao, i.quantidadeSolicitada) }, () => i.destino ?? ""),
       ajustes: Object.fromEntries((i.ajustesBom ?? []).map((a) => [a.pecaId, a.quantidade])),
       rotulo: descricaoItem(i),
       meta: i.projeto ? `${i.projeto.codigo} · projeto padrão` : i.peca ? `${i.peca.codigo} · peça` : i.eventoItemId ? "linha da ata" : "fora do catálogo",
@@ -102,7 +104,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         areaInicial={rascunho?.areaId ?? null}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
-        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
+        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
         pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
         slaHoras={Number(config.sla_resposta_horas)}

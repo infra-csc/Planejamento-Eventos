@@ -50,6 +50,28 @@ export function observacaoDoItem(item: { justificativa?: string | null; descrico
   return partes.length ? partes.join(" · ") : null;
 }
 
+/**
+ * "Onde vai ficar" é por unidade (a mesma tenda pode ir para o Depósito e para o GV). Na hora de
+ * gravar, unidades no mesmo local viram um item (destino = local) com as descrições delas, na ordem
+ * em que os locais aparecem. Item sem descrição por unidade (alteração, remoção, >50 unidades) fica
+ * inteiro num item só, com o primeiro local informado.
+ */
+export function agruparPorLocal(operacao: string, quantidade: number, descricoes: readonly string[] | null | undefined, locais: readonly string[] | null | undefined): Array<{ destino: string; quantidade: number; descricoes: string[] }> {
+  const esperadas = descricoesEsperadas(operacao, quantidade);
+  const locs = ajustarDescricoes(locais, esperadas).map((l) => l.trim().slice(0, 60));
+  if (esperadas !== quantidade) return [{ destino: locs[0] ?? (locais?.[0] ?? "").trim().slice(0, 60), quantidade, descricoes: ajustarDescricoes(descricoes, esperadas) }];
+  const descs = ajustarDescricoes(descricoes, esperadas);
+  const grupos: Array<{ destino: string; quantidade: number; descricoes: string[] }> = [];
+  locs.forEach((destino, n) => {
+    const g = grupos.find((x) => x.destino === destino);
+    if (g) {
+      g.quantidade++;
+      g.descricoes.push(descs[n]);
+    } else grupos.push({ destino, quantidade: 1, descricoes: [descs[n]] });
+  });
+  return grupos;
+}
+
 /** A mesma descrição em todas as unidades (dados de exemplo, testes e "repetir em todas"). */
 export function descricoesIguais(quantidade: number, texto: string): string[] {
   return Array.from({ length: descricoesEsperadas("ADICIONAR", quantidade) }, () => texto);

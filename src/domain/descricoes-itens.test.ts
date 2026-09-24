@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ajustarDescricoes, descricoesEsperadas, descricoesParaGravar, faltamDescricoes, MAX_DESCRICOES_POR_UNIDADE, textoDescricoes } from "./descricoes-itens";
+import { agruparPorLocal, ajustarDescricoes, descricoesEsperadas, descricoesParaGravar, faltamDescricoes, MAX_DESCRICOES_POR_UNIDADE, textoDescricoes } from "./descricoes-itens";
 
 describe("descrição por unidade", () => {
   it("uma por unidade até o limite; acima, uma só; alteração não pede", () => {
@@ -26,5 +26,21 @@ describe("descrição por unidade", () => {
     expect(textoDescricoes(["Igual", "Igual", "Igual"])).toBe("Todas as 3 unidades: Igual");
     expect(textoDescricoes(["Parafuso M8"], 200)).toBe("Todas as unidades: Parafuso M8");
     expect(textoDescricoes([" ", ""])).toBeNull();
+  });
+});
+
+describe("agruparPorLocal", () => {
+  it("unidades no mesmo local viram um item, na ordem dos locais", () => {
+    expect(agruparPorLocal("ADICIONAR", 4, ["a", "b", "c", "d"], ["Palco", "GV", "Palco", ""])).toEqual([
+      { destino: "Palco", quantidade: 2, descricoes: ["a", "c"] },
+      { destino: "GV", quantidade: 1, descricoes: ["b"] },
+      { destino: "", quantidade: 1, descricoes: ["d"] },
+    ]);
+  });
+
+  it("todas no mesmo local: um item só; sem descrição por unidade: não divide", () => {
+    expect(agruparPorLocal("ADICIONAR", 3, ["a", "b", "c"], ["Palco", "Palco ", "Palco"])).toEqual([{ destino: "Palco", quantidade: 3, descricoes: ["a", "b", "c"] }]);
+    expect(agruparPorLocal("ALTERAR_QUANTIDADE", 5, [], ["Palco"])).toEqual([{ destino: "Palco", quantidade: 5, descricoes: [] }]);
+    expect(agruparPorLocal("ADICIONAR", 80, ["todas"], ["Depósito"])).toEqual([{ destino: "Depósito", quantidade: 80, descricoes: ["todas"] }]);
   });
 });
