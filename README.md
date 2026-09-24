@@ -91,7 +91,7 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 git pull && npm install && npm run db:migrate
 ```
 
-Depois clique em Stop/Run. Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar).
+Depois clique em Stop/Run. Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar). Os **eventos reais de 2026** (um por OS de estrutura do SharePoint, com a ata montada a partir dos projetos e das tendas por local) entram com `npm run importar:eventos`; o script é idempotente (identifica cada evento pelo arquivo da OS) e `npm run importar:eventos -- --desfazer` remove tudo que ele criou.
 
 **Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. Enquanto não houver nenhum usuário ativo, a tela de login mostra esse comando. **Senhas provisórias** (usuários do seed, senha definida pelo administrador, ou quem entrar com a senha de demonstração fora do modo demonstração) só abrem **Meu perfil** até a pessoa definir a própria senha. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num Repl separado, nunca com dados reais.
 

@@ -148,6 +148,8 @@ export async function notificar(
   ex: Executor,
   dados: { usuarioIds: string[]; tipo: string; titulo: string; mensagem: string; link?: string | null; chaveDedupe?: string | null; excetoUsuarioId?: string | null },
 ) {
+  // Importações em massa (scripts) desligam os avisos: ninguém precisa de 500 notificações de uma vez.
+  if (process.env.NOTIFICACOES_DESLIGADAS === "1") return;
   const ids = [...new Set(dados.usuarioIds)].filter((id) => id !== dados.excetoUsuarioId);
   if (ids.length === 0) return;
   await ex

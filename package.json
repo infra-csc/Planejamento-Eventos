@@ -18,6 +18,7 @@
     "test:smoke": "tsx scripts/smoke.ts",
     "test:e2e": "playwright test",
     "importar:catalogo": "tsx scripts/importar-catalogo.ts",
+    "importar:eventos": "tsx scripts/importar-eventos-os.ts",
     "importar:arena": "tsx scripts/importar-arena-eco-run.ts",
     "admin:senha": "tsx scripts/admin-senha.ts",
     "backup": "tsx scripts/backup.ts",
