@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -13,6 +13,8 @@ export type DadosProjeto = {
   categoria: string;
   descricao: string | null;
   observacaoVersao: string | null;
+  /** Ausente = não mexe (edição) / true (criação). */
+  disponivelEmSolicitacoes?: boolean;
   itens: Array<{ pecaId: string; quantidade: number }>;
 };
 
@@ -104,13 +106,25 @@ async function validarItens(itens: DadosProjeto["itens"]) {
   }
 }
 
+/** Dois projetos ativos com o mesmo nome confundem quem pede e o importador do catálogo (que acha pelo nome). */
+async function exigirNomeUnico(nome: string, ignorarId?: string) {
+  const db = await getDb();
+  const [dup] = await db
+    .select({ id: projetos.id, codigo: projetos.codigo })
+    .from(projetos)
+    .where(and(sql`lower(${projetos.nome}) = ${nome.trim().toLowerCase()}`, eq(projetos.ativo, true), ...(ignorarId ? [ne(projetos.id, ignorarId)] : [])))
+    .limit(1);
+  if (dup) throw new ValidacaoError(`Já existe um projeto ativo com este nome (${dup.codigo}).`, { nome: `Já existe: ${dup.codigo}. Se é uma variação, diga no nome o que muda.` });
+}
+
 export async function criarProjeto(usuario: UsuarioAtual, dados: DadosProjeto) {
   exigir(usuario, "projeto.gerenciar");
   await validarItens(dados.itens);
+  await exigirNomeUnico(dados.nome);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const codigo = await proximoCodigo(tx, "projeto");
-    const [p] = await tx.insert(projetos).values({ codigo, nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: 1, criadoPorId: usuario.id }).returning();
+    const [p] = await tx.insert(projetos).values({ codigo, nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: 1, disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes ?? true, criadoPorId: usuario.id }).returning();
     const [v] = await tx.insert(projetoVersoes).values({ projetoId: p.id, numero: 1, observacao: dados.observacaoVersao ?? "Versão inicial", criadoPorId: usuario.id }).returning();
     await tx.insert(projetoItens).values(dados.itens.map((i) => ({ versaoId: v.id, pecaId: i.pecaId, quantidade: i.quantidade })));
     await registrarHistorico(tx, { entidade: "projeto", entidadeId: p.id, acao: "CRIADO", descricao: `Projeto ${p.codigo} · ${p.nome} criado (v1, ${dados.itens.length} peças).`, usuarioId: usuario.id, dadosDepois: dados });
@@ -121,6 +135,7 @@ export async function criarProjeto(usuario: UsuarioAtual, dados: DadosProjeto) {
 export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: DadosProjeto) {
   exigir(usuario, "projeto.gerenciar");
   await validarItens(dados.itens);
+  await exigirNomeUnico(dados.nome, id);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const p = await tx.query.projetos.findFirst({ where: eq(projetos.id, id), with: { versoes: { with: { itens: true } } } });
@@ -138,7 +153,7 @@ export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: Da
       const [v] = await tx.insert(projetoVersoes).values({ projetoId: id, numero: novaVersao, observacao: dados.observacaoVersao, criadoPorId: usuario.id }).returning();
       await tx.insert(projetoItens).values(dados.itens.map((i) => ({ versaoId: v.id, pecaId: i.pecaId, quantidade: i.quantidade })));
     }
-    await tx.update(projetos).set({ nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: novaVersao }).where(eq(projetos.id, id));
+    await tx.update(projetos).set({ nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: novaVersao, ...(dados.disponivelEmSolicitacoes === undefined ? {} : { disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes }) }).where(eq(projetos.id, id));
     await registrarHistorico(tx, {
       entidade: "projeto",
       entidadeId: id,
@@ -266,14 +281,28 @@ export async function historicoProjeto(id: string) {
 }
 
 /** Quantos eventos (não cancelados) usam cada projeto na ata — coluna "uso" da Biblioteca. */
-export async function contarUsoProjetos() {
+export type UsoProjeto = { n: number; eventos: Array<{ id: string; codigo: string; nome: string; status: string; dataInicio: string; quantidade: number }> };
+
+/**
+ * Em quais eventos cada projeto está (linhas ativas da ata, eventos não cancelados), com as
+ * unidades somadas — para o filtro por evento e o "Em uso em" da biblioteca.
+ */
+export async function usoProjetosPorEvento(): Promise<Map<string, UsoProjeto>> {
   const db = await getDb();
-  // Uma linha por projeto, contada no banco (antes: todas as linhas de ata do histórico).
   const rows = await db
-    .select({ projetoId: eventoItens.projetoId, n: sql<number>`count(distinct ${eventoItens.eventoId})::int` })
+    .select({ projetoId: eventoItens.projetoId, eventoId: eventos.id, codigo: eventos.codigo, nome: eventos.nome, status: eventos.status, dataInicio: eventos.dataInicio, quantidade: sql<number>`sum(${eventoItens.quantidade})::int` })
     .from(eventoItens)
     .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
     .where(and(eq(eventoItens.ativo, true), isNotNull(eventoItens.projetoId), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"])))
-    .groupBy(eventoItens.projetoId);
-  return new Map(rows.map((r) => [r.projetoId!, Number(r.n)]));
+    .groupBy(eventoItens.projetoId, eventos.id, eventos.codigo, eventos.nome, eventos.status, eventos.dataInicio)
+    .orderBy(desc(eventos.dataInicio));
+  const mapa = new Map<string, UsoProjeto>();
+  for (const r of rows) {
+    const u = mapa.get(r.projetoId!) ?? { n: 0, eventos: [] };
+    u.n++;
+    u.eventos.push({ id: r.eventoId, codigo: r.codigo, nome: r.nome, status: r.status, dataInicio: r.dataInicio, quantidade: Number(r.quantidade) });
+    mapa.set(r.projetoId!, u);
+  }
+  return mapa;
 }
+

@@ -75,6 +75,9 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
             <>
               {p.ativo && <DisponivelToggle id={p.id} disponivel={p.disponivelEmSolicitacoes} />}
               <AtivoToggle id={p.id} ativo={p.ativo} />
+              <ButtonLink href={`/projetos/novo?de=${p.id}`} variant="secondary" size="lg" className="no-underline">
+                Duplicar
+              </ButtonLink>
               <ButtonLink href={`/projetos/${p.id}/editar`} variant="primary" size="lg" className="no-underline">
                 Editar
               </ButtonLink>

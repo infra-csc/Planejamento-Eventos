@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { contarUsoProjetos, listarProjetos, obterProjeto } from "@/server/services/projetos";
+import { listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
 import { contarPecasEmBom, listarPecas } from "@/server/services/catalogo";
 import { listarItensForaDoCatalogo } from "@/server/services/fora-catalogo";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
@@ -18,6 +18,9 @@ import { TabsNav } from "@/components/ui/tabs-nav";
 import { EmptyState, PageHeader, Section } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
+import { FiltroEvento } from "@/components/ui/filtro-evento";
+import { EVENTO_STATUS_LABEL } from "@/domain/evento";
+import type { EventoStatus } from "@/server/db/schema";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -31,7 +34,7 @@ import { combinaBusca } from "@/lib/busca";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
-type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string };
+type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string };
 
 type Aba = "projetos" | "pecas" | "fora";
 
@@ -122,15 +125,29 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   if (aba === "projetos") {
     // Busca e paginação em memória (a lista de projetos já vem inteira do serviço).
-    const encontrados = termo ? projetos.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""}`, termo)) : projetos;
+    const uso = await usoProjetosPorEvento();
+    // Filtro por evento: só os projetos que estão na ata daquele evento, com as unidades pedidas.
+    const eventoId = sp.evento?.trim() || null;
+    const noEvento = eventoId ? projetos.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : projetos;
+    const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""}`, termo)) : noEvento;
     const pag = paginar(encontrados, sp.pagina, 12);
-    const params = { q: sp.q, pagina: sp.pagina };
-    const selecionado = projetos.find((p) => p.id === sp.p) ?? pag.itens[0];
-    const [uso, detalhe] = await Promise.all([contarUsoProjetos(), selecionado ? obterProjeto(usuario, selecionado.id) : null]);
+    const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento };
+    const selecionado = encontrados.find((p) => p.id === sp.p) ?? pag.itens[0];
+    const detalhe = selecionado ? await obterProjeto(usuario, selecionado.id) : null;
+    // Eventos para o filtro: os que têm algum projeto na ata, do mais recente para o mais antigo.
+    const eventosFiltro = [...new Map([...uso.values()].flatMap((u) => u.eventos).map((e) => [e.id, e])).values()].sort((a, b) => b.dataInicio.localeCompare(a.dataInicio)).map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: projetos.filter((p) => uso.get(p.id)?.eventos.some((x) => x.id === e.id)).length }));
+    const eventoFiltrado = eventoId ? eventosFiltro.find((e) => e.id === eventoId) : null;
     const atual = detalhe?.versaoAtualObj;
     const anterior = detalhe?.versoes.find((v) => v.numero === (detalhe.versaoAtual ?? 1) - 1);
     const bom = [...(atual?.itens ?? [])].sort((a, b) => SETORES.indexOf(a.peca.setor) - SETORES.indexOf(b.peca.setor) || a.peca.codigo.localeCompare(b.peca.codigo));
-    const textoUso = (n: number) => (n > 0 ? `em ${n} ${n === 1 ? "evento" : "eventos"}` : "sem uso");
+    const textoUso = (id: string) => {
+      const u = uso.get(id);
+      if (eventoId) {
+        const q = u?.eventos.find((e) => e.id === eventoId)?.quantidade ?? 0;
+        return `${q} ${q === 1 ? "unidade" : "unidades"} no evento`;
+      }
+      return u ? `em ${u.n} ${u.n === 1 ? "evento" : "eventos"}` : "sem uso";
+    };
 
     return (
       <>
@@ -138,6 +155,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {(projetos.length > 0 || atalhoFora) && (
           <div className={barraCls}>
             {projetos.length > 0 && <BuscaUrl key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
+            {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto />}
             {atalhoFora}
           </div>
         )}
@@ -149,10 +167,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className={cartaoCls}>
-              <ContagemAoVivo oculto n={pag.total} singular="projeto padrão" plural="projetos padrão" complemento={busca ? `busca “${busca}”` : null} />
+              <ContagemAoVivo oculto n={pag.total} singular="projeto padrão" plural="projetos padrão" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null].filter(Boolean).join(", ") || null} />
               {abas}
+              {eventoFiltrado && (
+                <p className="m-0 border-b border-line-soft bg-subtle px-cartao py-2 text-pequeno text-ink-2">
+                  Projetos na ata de <Codigo>{eventoFiltrado.codigo}</Codigo> {eventoFiltrado.nome}: <Numero valor={noEvento.length} />. A coluna Uso mostra as unidades pedidas neste evento.
+                </p>
+              )}
               {pag.total === 0 ? (
-                <EmptyState title={`Nada encontrado para “${busca}”`} description="Confira o código ou tente outra palavra do nome ou da categoria." />
+                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : "Nenhum projeto na ata deste evento"} description={busca ? "Confira o código ou tente outra palavra do nome ou da categoria." : "Quando as solicitações forem atendidas, os projetos aparecem aqui."} />
               ) : (
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
@@ -179,7 +202,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       <tbody>
                         {pag.itens.map((p) => {
                           const sel = p.id === selecionado?.id;
-                          const n = uso.get(p.id) ?? 0;
+                          const n = uso.get(p.id)?.n ?? 0;
                           const marca = sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />;
                           return (
                             <LinhaLink key={p.id} href={hrefCom("/biblioteca", params, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
@@ -214,7 +237,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                 <span className="mt-0.5 block text-pequeno text-ink-3">
                                   <Codigo>{p.codigo}</Codigo>
                                   {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · <Numero valor={p.tiposPeca} /> {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <Numero valor={p.totalPecas} /> {p.totalPecas === 1 ? "peça" : "peças"}
-                                  <span className="xl:hidden"> · {textoUso(n)}</span>
+                                  <span className="xl:hidden"> · {textoUso(p.id)}</span>
                                 </span>
                                 {p.descricao && (
                                   <span className="mt-0.5 block truncate text-pequeno text-muted" title={p.descricao}>
@@ -225,7 +248,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                               <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell" title={p.categoria || undefined}>
                                 {p.categoria || "—"}
                               </td>
-                              <td className={cn("numero hidden whitespace-nowrap border-b border-line-row px-3 py-3.5 text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{textoUso(n)}</td>
+                              <td className={cn("numero hidden whitespace-nowrap border-b border-line-row px-3 py-3.5 text-right text-pequeno xl:table-cell", n > 0 ? "text-ink-2" : "text-meta")}>{textoUso(p.id)}</td>
                               <td className="border-b border-line-row py-3.5 pl-1 pr-cartao text-right text-ink-3">
                                 <SetaAbrir ativo={sel} />
                               </td>
@@ -254,9 +277,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     <span className="flex items-center gap-3">
                       {pode(usuario, "projeto.gerenciar") && (
                         <EditarProjetoModal
-                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, versaoAtual: detalhe.versaoAtual, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
+                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, versaoAtual: detalhe.versaoAtual, disponivelEmSolicitacoes: detalhe.disponivelEmSolicitacoes, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
                           anexos={detalhe.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))}
+                          categorias={[...new Set(projetos.map((x) => x.categoria).filter(Boolean))]}
                         />
+                      )}
+                      {pode(usuario, "projeto.gerenciar") && (
+                        <Link href={`/projetos/novo?de=${detalhe.id}`} className="link text-pequeno">
+                          Duplicar
+                        </Link>
                       )}
                       <Link href={`/projetos/${detalhe.id}`} className="link text-pequeno">
                         Abrir
@@ -264,6 +293,20 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     </span>
                   }
                 >
+                  {(uso.get(detalhe.id)?.eventos.length ?? 0) > 0 && (
+                    <div className="border-b border-line-soft px-cartao py-2.5 text-pequeno">
+                      <span className="text-muted">Em uso em: </span>
+                      {uso.get(detalhe.id)!.eventos.map((e, i) => (
+                        <span key={e.id}>
+                          {i > 0 && <span className="text-meta"> · </span>}
+                          <Link href={`/eventos/${e.id}/ata`} className="link" title={`${e.nome} · ${EVENTO_STATUS_LABEL[e.status as EventoStatus]}`}>
+                            <Codigo>{e.codigo}</Codigo> {e.nome}
+                          </Link>
+                          <span className="text-muted"> (<Numero valor={e.quantidade} />)</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {detalhe.anexos.some((a) => a.tipo === "IMAGEM") && (
                     <div className="flex gap-2 overflow-x-auto border-b border-line-soft px-cartao py-3">
                       {detalhe.anexos

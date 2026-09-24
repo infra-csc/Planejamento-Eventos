@@ -15,6 +15,6 @@ export async function pecasParaProjetoAction(): Promise<ActionResult<PecaOpcao[]
   return executar(async () => {
     exigir(usuario, "projeto.gerenciar");
     const pecas = await listarPecas(usuario);
-    return pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, permiteEmProjeto: p.permiteEmProjeto }));
+    return pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, familia: p.familia, unidade: p.unidade, permiteEmProjeto: p.permiteEmProjeto }));
   });
 }

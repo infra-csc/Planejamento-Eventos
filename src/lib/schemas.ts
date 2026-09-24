@@ -128,6 +128,7 @@ export const projetoSchema = z.object({
   categoria: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
   descricao: textoOpcional(1000),
   observacaoVersao: textoOpcional(300),
+  disponivelEmSolicitacoes: z.boolean().default(true),
   itens: z
     .array(z.object({ pecaId: z.string().min(1), quantidade: inteiroPositivo }))
     .min(1, "Adicione ao menos uma peça à lista de materiais"),

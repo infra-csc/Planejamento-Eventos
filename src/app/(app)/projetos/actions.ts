@@ -21,6 +21,7 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
       categoria: formData.get("categoria"),
       descricao: formData.get("descricao"),
       observacaoVersao: formData.get("observacaoVersao"),
+      disponivelEmSolicitacoes: formData.get("disponivel") === "on",
       itens: itensRaw,
     });
     if (id) {

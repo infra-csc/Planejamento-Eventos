@@ -19,9 +19,11 @@ type Anexo = { id: string; tipo: "IMAGEM" | "PDF"; nomeArquivo: string; tamanho:
 export function EditarProjetoModal({
   projeto,
   anexos,
+  categorias,
 }: {
-  projeto: { id: string; nome: string; categoria: string; descricao: string | null; versaoAtual: number; itens: Array<{ pecaId: string; quantidade: number }> };
+  projeto: { id: string; nome: string; categoria: string; descricao: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number }> };
   anexos: Anexo[];
+  categorias?: string[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [pecas, setPecas] = useState<PecaOpcao[] | null>(null);
@@ -56,7 +58,7 @@ export function EditarProjetoModal({
             </section>
             <div>
               {pecas ? (
-                <ProjetoForm valores={projeto} pecas={pecas} cancelarHref={`/biblioteca?p=${projeto.id}`} onCancelar={() => setAberto(false)} voltarPara={`/biblioteca?p=${projeto.id}`} />
+                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} cancelarHref={`/biblioteca?p=${projeto.id}`} onCancelar={() => setAberto(false)} voltarPara={`/biblioteca?p=${projeto.id}`} />
               ) : erro ? (
                 <FormError message={erro} />
               ) : (
