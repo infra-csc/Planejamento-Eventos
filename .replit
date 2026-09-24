@@ -1,27 +1,13 @@
 modules = ["nodejs-24", "postgresql-16"]
-# Produção também no workspace: o modo dev compila cada tela na primeira visita e fica 10-20x mais lento.
-# Sem seed nem importação do catálogo aqui: eles criavam usuários com senha fixa e reescreviam o catálogo a cada Run.
-# Para trazer peças/projetos novos do catálogo, rode uma vez no Shell: npm run importar:catalogo
-run = "npm run db:migrate && npm run build && npm run start"
+run = "npm run setup && npm run dev"
 
 [nix]
 channel = "stable-24_11"
 
-# Secrets do deployment: APP_URL e CRON_SECRET (avisos agendados em /api/cron/verificacoes).
-# Backup diário (npm run backup) e o curl dos avisos rodam como Scheduled Deployments: docs/operacao.md.
-# O módulo postgresql-16 acima fornece pg_dump/psql para o backup e a restauração.
 [deployment]
 deploymentTarget = "autoscale"
 build = ["sh", "-c", "npm ci && npm run build"]
-<<<<<<< HEAD
 run = ["sh", "-c", "npm run db:migrate && npm run start"]
-=======
-<<<<<<< HEAD
-run = ["sh", "-c", "npm run db:migrate && npm run db:dados && npm run start"]
-=======
-run = ["npm", "run", "start"]
->>>>>>> b1ccc29 (Update Replit configuration and dependency lockfile)
->>>>>>> d55dccf (Pre-Recovery checkpoint)
 
 [[ports]]
 localPort = 3000
@@ -29,31 +15,3 @@ externalPort = 80
 
 [env]
 PORT = "3000"
-# Login de demonstração com um clique: DESLIGADO. Com ele ligado, qualquer pessoa com o link
-# entrava como Administrador. Só ligue ("true") num Repl separado, com dados de exemplo.
-EXIBIR_DEMO = "false"
-
-# Botão Run. O projeto usa npm (package-lock.json); não trocar para pnpm.
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run db:migrate && npm run build && npm run start"
-waitForPort = 3000
-
-[workflows.workflow.metadata]
-outputType = "webview"
