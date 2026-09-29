@@ -1,7 +1,6 @@
 /**
  * GET /api/arenas/[slug]/planta chamado direto, com sessão de verdade (cookie simulado) e PGlite
- * em memória. arena.ver é só do administrador: os outros perfis (e o administrador em "ver como")
- * recebem 403.
+ * em memória. Todo perfil vê o mapa 3D (arena.ver); sem sessão, 401.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,10 +65,16 @@ describe("GET /api/arenas/[slug]/planta", { timeout: 30_000 }, () => {
     }
   });
 
-  it("403 para o administrador em ver como (não eleva nem mantém o acesso de admin)", async () => {
+  it("todo perfil vê a planta (inclusive o administrador em ver como)", async () => {
+    for (const perfil of PERFIS) {
+      req.cookies.clear();
+      await entrar(E.porPerfil[perfil].id);
+      expect((await chamar(comPlanta)).status, perfil).toBe(200);
+    }
+    req.cookies.clear();
     await entrar(E.admin.id);
-    req.cookies.set(COOKIE_VER_COMO, JSON.stringify({ perfil: "LOGISTICA", areaId: E.areas.logistica.id }));
-    expect((await chamar(comPlanta)).status).toBe(403);
+    req.cookies.set(COOKIE_VER_COMO, JSON.stringify({ perfil: "REQUISITANTE", areaId: E.areas.a.id }));
+    expect((await chamar(comPlanta)).status).toBe(200);
   });
 
   it("404 para arena inexistente e para arena sem planta", async () => {

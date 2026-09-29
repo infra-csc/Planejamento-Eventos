@@ -9,7 +9,7 @@ import { NovaArenaForm } from "./form";
 export const metadata: Metadata = { title: "Nova arena" };
 
 export default async function NovaArenaPage({ searchParams }: { searchParams: Promise<{ evento?: string }> }) {
-  const usuario = await requirePermissao("arena.ver");
+  const usuario = await requirePermissao("arena.editar");
   const sp = await searchParams;
   const [eventos, arenas] = await Promise.all([eventosSemArena(usuario), listarArenasResumo()]);
   const eventoInicial = eventos.some((e) => e.id === sp.evento) ? (sp.evento ?? null) : null;

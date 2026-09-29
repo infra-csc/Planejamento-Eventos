@@ -349,7 +349,7 @@ async function arenaDeEvento(slug: string) {
 const gravarPlanta = (slug: string, bytes: Buffer) => gravarArquivo(`arenas/${slug}/planta-${randomUUID()}`, bytes);
 
 export async function trocarPlantaArena(usuario: UsuarioAtual, slug: string, arquivo: File) {
-  exigir(usuario, "arena.ver");
+  exigir(usuario, "arena.editar");
   const a = await arenaDeEvento(slug);
   const planta = await lerPlantaEnviada(arquivo);
   const db = await getDb();
@@ -361,7 +361,7 @@ export async function trocarPlantaArena(usuario: UsuarioAtual, slug: string, arq
 }
 
 export async function removerPlantaArena(usuario: UsuarioAtual, slug: string) {
-  exigir(usuario, "arena.ver");
+  exigir(usuario, "arena.editar");
   const a = await arenaDeEvento(slug);
   if (!a.plantaMime) throw new ValidacaoError("Esta arena não tem planta.");
   const db = await getDb();
@@ -393,7 +393,7 @@ async function layoutDeOutraArena(slug: string): Promise<Layout> {
 }
 
 export async function criarArena(usuario: UsuarioAtual, dados: DadosNovaArena, planta: File | null) {
-  exigir(usuario, "arena.ver");
+  exigir(usuario, "arena.editar");
   const nome = dados.nome.trim();
   if (nome.length < 2) throw new ValidacaoError("Dê um nome à arena.", { nome: "Informe o nome (mínimo 2 letras)." });
   if (nome.length > LIMITES.nome) throw new ValidacaoError("Nome longo demais.", { nome: `Até ${LIMITES.nome} caracteres.` });
@@ -421,7 +421,7 @@ export async function criarArena(usuario: UsuarioAtual, dados: DadosNovaArena, p
 
 /** Remove a arena de evento e as posições editadas dela. Arenas fixas não saem. */
 export async function excluirArena(usuario: UsuarioAtual, slug: string) {
-  exigir(usuario, "arena.ver");
+  exigir(usuario, "arena.editar");
   const a = await arenaDeEvento(slug);
   const db = await getDb();
   await db.transaction(async (tx) => {

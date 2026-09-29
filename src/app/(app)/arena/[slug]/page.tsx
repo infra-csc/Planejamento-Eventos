@@ -29,5 +29,5 @@ export default async function ArenaPage({ params }: { params: Promise<{ slug: st
   const arena = aplicarPosicoes(base, posicoes);
   // A versão na URL troca quando a planta muda: o cache do navegador (5 min) não mostra a imagem antiga.
   const plantaImagemUrl = carregada.temPlanta ? `/api/arenas/${slug}/planta?v=${carregada.versao ?? 0}` : undefined;
-  return <ArenaExperiencia arena={arena} podeEditar={pode(usuario, "ata.consolidar")} editadas={posicoes.map((p) => p.chave)} plantaImagemUrl={plantaImagemUrl} />;
+  return <ArenaExperiencia arena={arena} podeEditar={pode(usuario, "arena.editar")} editadas={posicoes.map((p) => p.chave)} plantaImagemUrl={plantaImagemUrl} />;
 }

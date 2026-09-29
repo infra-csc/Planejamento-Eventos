@@ -10,11 +10,13 @@ import { EmptyState, PageHeader, RodapeTabela, Section } from "@/components/ui/l
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { ArenaAcoes } from "./arena-acoes";
+import { pode } from "@/domain/permissions";
 
 export const metadata: Metadata = { title: "Arena 3D" };
 
 export default async function ArenaIndicePage() {
-  await requirePermissao("arena.ver");
+  const usuario = await requirePermissao("arena.ver");
+  const podeEditar = pode(usuario, "arena.editar");
   const lista = await listarArenasResumo();
   const deEvento = lista.filter((a) => a.origem === "evento").length;
 
@@ -25,10 +27,12 @@ export default async function ArenaIndicePage() {
         divisor
         breadcrumbs={[{ label: "Arena 3D" }]}
         actions={
-          <ButtonLink href="/arena/nova" variant="primary" size="lg" className="no-underline">
-            <Icone nome="mais" />
-            Nova arena
-          </ButtonLink>
+          podeEditar ? (
+            <ButtonLink href="/arena/nova" variant="primary" size="lg" className="no-underline">
+              <Icone nome="mais" />
+              Nova arena
+            </ButtonLink>
+          ) : undefined
         }
       />
       <Section titulo="Arenas" sub="A arena da Eco Run é fixa no sistema; as demais são criadas aqui, uma por evento.">
@@ -95,7 +99,7 @@ export default async function ArenaIndicePage() {
                       <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-2">
                         <Data valor={a.atualizadoEm} hora />
                       </td>
-                      <td className="border-b border-line-row py-2 pl-2 pr-1 text-right">{a.origem === "evento" && <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} />}</td>
+                      <td className="border-b border-line-row py-2 pl-2 pr-1 text-right">{podeEditar && a.origem === "evento" && <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} />}</td>
                       <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                         <Icone nome="chevron-direita" className="inline-block align-middle" />
                       </td>

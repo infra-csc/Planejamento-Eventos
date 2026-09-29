@@ -100,10 +100,12 @@ describe("resposta por item", () => {
 
 describe("permissões", () => {
   it("matriz básica", () => {
-    // Todo mundo vê a OS; ajustar e enviar continua só com a logística. Arena e demanda de peças só o administrador.
+    // Todo mundo vê a OS e o mapa 3D; ajustar e enviar continua só com a logística. Demanda de peças só o administrador.
     expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "os.ver")).toBe(true);
     expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "ata.ajustar")).toBe(false);
-    expect(pode({ perfil: "LOGISTICA", areaId: null }, "arena.ver")).toBe(false);
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "arena.ver")).toBe(true);
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "arena.editar")).toBe(false);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "arena.editar")).toBe(true);
     expect(pode({ perfil: "LOGISTICA", areaId: null }, "consolidacao.ver")).toBe(false);
     expect(pode({ perfil: "ADMIN", areaId: null }, "arena.ver")).toBe(true);
     expect(pode({ perfil: "CENOGRAFIA", areaId: "a" }, "projeto.gerenciar")).toBe(true);

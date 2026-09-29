@@ -27,6 +27,7 @@ export const ACOES = [
   "pendencias.ver",
   "pendencias.resolver", // marcar pendência de compra/locação como resolvida
   "arena.ver",
+  "arena.editar", // criar/excluir arena, trocar planta, marcar e mover pontos no mapa
   "historico.ver_tudo",
   "admin.usuarios",
   "admin.areas",
@@ -64,9 +65,11 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "catalogo.gerenciar": ["LOGISTICA", "CENOGRAFIA", "ADMIN"],
   "projeto.ver": TODOS,
   "projeto.gerenciar": ["CENOGRAFIA", "ADMIN"],
-  // Por enquanto só o administrador: demanda de peças e arena 3D ainda em validação.
+  // Por enquanto só o administrador: demanda de peças ainda em validação.
   "consolidacao.ver": ["ADMIN"],
-  "arena.ver": ["ADMIN"],
+  // Mapa 3D: todo mundo vê; quem monta o mapa (logística) e o administrador editam.
+  "arena.ver": TODOS,
+  "arena.editar": ["LOGISTICA", "ADMIN"],
   "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
   "pendencias.resolver": ["LOGISTICA", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],

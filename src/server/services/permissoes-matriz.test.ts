@@ -121,7 +121,7 @@ async function alteracaoEnviada(itens = [itemAvulso("Gerador extra", 2)]) {
   return { ev, linhaId, s, itemId: s.itens[0].id };
 }
 
-/** Arena de evento criada pelo administrador (arena.ver hoje é só dele). */
+/** Arena de evento criada pelo administrador. */
 async function arenaDeEvento(comPlanta = false) {
   const ev = await novoEvento(E.logistica);
   return criarArena(E.admin, { eventoId: ev.id, nome: unico("Arena"), partida: { tipo: "branco", largura: 60, profundidade: 40 } }, comPlanta ? arquivoPng() : null);
@@ -376,24 +376,22 @@ caso({
 
 caso({
   nome: "criar arena de evento",
-  acao: "arena.ver",
+  acao: "arena.editar",
   preparar: () => novoEvento(E.logistica),
   executar: (u, ev) => criarArena(u, { eventoId: ev.id, nome: unico("Arena"), partida: { tipo: "branco", largura: 50, profundidade: 30 } }, null),
 });
-caso({ nome: "trocar planta da arena", acao: "arena.ver", preparar: () => arenaDeEvento(), executar: (u, a) => trocarPlantaArena(u, a.slug, arquivoPng()) });
-caso({ nome: "remover planta da arena", acao: "arena.ver", preparar: () => arenaDeEvento(true), executar: (u, a) => removerPlantaArena(u, a.slug) });
-caso({ nome: "excluir arena", acao: "arena.ver", preparar: () => arenaDeEvento(), executar: (u, a) => excluirArena(u, a.slug) });
+caso({ nome: "trocar planta da arena", acao: "arena.editar", preparar: () => arenaDeEvento(), executar: (u, a) => trocarPlantaArena(u, a.slug, arquivoPng()) });
+caso({ nome: "remover planta da arena", acao: "arena.editar", preparar: () => arenaDeEvento(true), executar: (u, a) => removerPlantaArena(u, a.slug) });
+caso({ nome: "excluir arena", acao: "arena.editar", preparar: () => arenaDeEvento(), executar: (u, a) => excluirArena(u, a.slug) });
 caso({
   nome: "marcar ponto no mapa da arena",
-  acao: "arena.ver",
-  permitido: (u) => pode(u, "arena.ver") && pode(u, "ata.consolidar"),
+  acao: "arena.editar",
   preparar: () => arenaDeEvento(),
   executar: (u, a) => salvarPosicaoArena(u, a.slug, { chave: unico("novo"), tipo: "NOVO", x: 1, z: 2, nome: "Tenda extra" }),
 });
 caso({
   nome: "remover ponto do mapa da arena",
-  acao: "arena.ver",
-  permitido: (u) => pode(u, "arena.ver") && pode(u, "ata.consolidar"),
+  acao: "arena.editar",
   preparar: async () => {
     const a = await arenaDeEvento();
     const chave = unico("novo");
@@ -404,8 +402,7 @@ caso({
 });
 caso({
   nome: "restaurar planta original da arena",
-  acao: "arena.ver",
-  permitido: (u) => pode(u, "arena.ver") && pode(u, "ata.consolidar"),
+  acao: "arena.editar",
   preparar: async () => {
     const a = await arenaDeEvento();
     await salvarPosicaoArena(E.admin, a.slug, { chave: unico("novo"), tipo: "NOVO", x: 1, z: 2, nome: "Tenda extra" });

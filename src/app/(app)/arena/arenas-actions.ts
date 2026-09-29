@@ -49,7 +49,7 @@ export async function criarArenaAction(_prev: ActionResult, formData: FormData):
   const usuario = await requireUsuario();
   let destino: string;
   try {
-    exigir(usuario, "arena.ver");
+    exigir(usuario, "arena.editar");
     const d = novaArenaSchema.parse({
       partida: formData.get("partida"),
       eventoId: formData.get("eventoId") ?? "",
