@@ -38,13 +38,29 @@ export function descricoesParaGravar(operacao: string, quantidade: number, lista
   return limpas.some(Boolean) ? limpas : null;
 }
 
-/** Uma linha legível para quem responde: "1. Logo azul · 2. Logo branco", ou "Todas: …" quando é uma só. */
+/**
+ * Descrições iguais juntas, na ordem em que aparecem, com quantas unidades cada uma: não numera as
+ * unidades (um "1 Yelum Seguros" parecia quantidade).
+ */
+export function agruparDescricoes(lista: readonly string[] | null | undefined): Array<{ texto: string; unidades: number }> {
+  const grupos: Array<{ texto: string; unidades: number }> = [];
+  for (const d of (lista ?? []).map((x) => x.trim())) {
+    const g = grupos.find((x) => x.texto === d);
+    if (g) g.unidades++;
+    else grupos.push({ texto: d, unidades: 1 });
+  }
+  return grupos;
+}
+
+/** Uma linha legível para quem responde: "1 un. — Logo azul · 2 un. — Logo branco", ou "Todas: …" quando é uma só. */
 export function textoDescricoes(lista: readonly string[] | null | undefined, quantidade?: number): string | null {
   const itens = (lista ?? []).map((d) => d.trim());
   if (!itens.some(Boolean)) return null;
   if (itens.length === 1) return quantidade && quantidade > 1 ? `Todas as unidades: ${itens[0]}` : itens[0];
   if (itens.every((d) => d === itens[0])) return `Todas as ${itens.length} unidades: ${itens[0]}`;
-  return itens.map((d, i) => `${i + 1}. ${d || "—"}`).join(" · ");
+  return agruparDescricoes(itens)
+    .map((g) => `${g.unidades} un. — ${g.texto || "sem descrição"}`)
+    .join(" · ");
 }
 
 /** Observação do solicitante sobre o item com as descrições das unidades juntas, para as telas de leitura. */

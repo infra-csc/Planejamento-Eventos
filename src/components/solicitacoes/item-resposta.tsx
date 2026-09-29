@@ -13,6 +13,7 @@ import { Kbd } from "@/components/ui/layout";
 import { Numero } from "@/components/ui/numero";
 import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
+import { agruparDescricoes } from "@/domain/descricoes-itens";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
 export type ItemParaResposta = {
@@ -333,27 +334,26 @@ function DescricoesUnidades({ lista, quantidade }: { lista: string[] | null | un
       </p>
     );
   }
-  const recolhivel = itens.length > RECOLHER_ACIMA;
-  const mostradas = recolhivel && !aberto ? itens.slice(0, VISIVEIS_RECOLHIDO) : itens;
+  // Descrições iguais juntas, com quantas unidades cada: sem numerar unidade (o número parecia quantidade).
+  const grupos = agruparDescricoes(itens);
+  const recolhivel = grupos.length > RECOLHER_ACIMA;
+  const mostradas = recolhivel && !aberto ? grupos.slice(0, VISIVEIS_RECOLHIDO) : grupos;
   return (
     <div>
       <p className="mb-1 mt-0 text-pequeno text-muted">
-        Descrição de cada unidade <span className="numero">({itens.length})</span>
+        Descrição das unidades <span className="numero">({itens.length} un.)</span>
       </p>
-      <ol className="m-0 grid list-none gap-x-6 gap-y-0.5 p-0 sm:grid-cols-2">
-        {mostradas.map((d, n) => (
-          <li key={n} className="flex min-w-0 gap-2 text-pequeno">
-            <span aria-hidden className="numero w-5 shrink-0 text-right text-meta">
-              {n + 1}
-            </span>
-            <span className="sr-only">Unidade {n + 1}: </span>
-            <span className={cn("min-w-0 break-words", d ? "text-ink-2" : "text-meta")}>{d || "sem descrição"}</span>
+      <ul className="m-0 grid list-none gap-x-6 gap-y-0.5 p-0 sm:grid-cols-2">
+        {mostradas.map((g, n) => (
+          <li key={n} className="flex min-w-0 items-baseline gap-2 text-pequeno">
+            <span className="numero shrink-0 whitespace-nowrap rounded-chip bg-control px-1.5 text-rotulo text-ink-3">{g.unidades} un.</span>
+            <span className={cn("min-w-0 break-words", g.texto ? "text-ink-2" : "text-meta")}>{g.texto || "sem descrição"}</span>
           </li>
         ))}
-      </ol>
+      </ul>
       {recolhivel && (
         <Button variant="link" size="xs" className="mt-1" aria-expanded={aberto} onClick={() => setAberto((v) => !v)}>
-          {aberto ? "Mostrar menos" : `Ver todas as ${itens.length}`}
+          {aberto ? "Mostrar menos" : `Ver todas as ${grupos.length} descrições`}
         </Button>
       )}
     </div>

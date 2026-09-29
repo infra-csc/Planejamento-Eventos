@@ -22,7 +22,8 @@ describe("descrição por unidade", () => {
   });
 
   it("texto legível para quem responde", () => {
-    expect(textoDescricoes(["Logo azul", "Logo branco"])).toBe("1. Logo azul · 2. Logo branco");
+    expect(textoDescricoes(["Logo azul", "Logo branco"])).toBe("1 un. — Logo azul · 1 un. — Logo branco");
+    expect(textoDescricoes(["Palco", "Yelum", "Palco"])).toBe("2 un. — Palco · 1 un. — Yelum");
     expect(textoDescricoes(["Igual", "Igual", "Igual"])).toBe("Todas as 3 unidades: Igual");
     expect(textoDescricoes(["Parafuso M8"], 200)).toBe("Todas as unidades: Parafuso M8");
     expect(textoDescricoes([" ", ""])).toBeNull();
