@@ -15,18 +15,21 @@ import { extrasPermitidosTenda } from "@/domain/tendas";
 import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarJanelaPreReuniao } from "./comum";
 import { enviarSolicitacao, registrarPreReuniaoNaAta } from "./envio";
 
+export const MSG_SEM_AREA = "Seu usuário ainda não está ligado a uma área. Peça ao administrador para definir a sua área (Administração › Usuários).";
+
 /* ------------------------------------------------------------------ */
 /* Rascunho                                                             */
 /* ------------------------------------------------------------------ */
 
 async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: string, areaEscolhida?: string | null) {
   exigir(usuario, "solicitacao.criar");
-  // Quem pede escolhe a área em nome da qual está pedindo (a área fixa do cadastro vem sugerida).
-  // No "ver como" o administrador fica preso à área que escolheu ver.
-  const areaId = usuario.verComo ? usuario.areaId : (areaEscolhida ?? usuario.areaId);
-  if (!areaId) throw new ValidacaoError("Escolha a área que está pedindo.", { areaId: "Escolha a área." });
+  // O solicitante pede pela área do próprio cadastro; só o Administrador escolhe em nome de qual área pede
+  // (no "ver como" ele fica preso à área que escolheu ver).
+  const admin = usuario.perfil === "ADMIN" && !usuario.verComo;
+  const areaId = admin ? (areaEscolhida ?? usuario.areaId) : usuario.areaId;
+  if (!areaId) throw new ValidacaoError(admin ? "Escolha a área que está pedindo." : MSG_SEM_AREA, admin ? { areaId: "Escolha a área." } : undefined);
   const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)), columns: { id: true } });
-  if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
+  if (!area) throw new ValidacaoError(admin ? "Área inativa ou inexistente." : "Sua área está desativada. Peça ao administrador.", admin ? { areaId: "Escolha outra área." } : undefined);
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
   if (!ev) throw new NaoEncontradoError("Evento");
   const tipo = tipoSolicitacaoParaStatus(ev.status);

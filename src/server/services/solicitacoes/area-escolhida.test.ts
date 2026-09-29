@@ -1,6 +1,6 @@
 /**
- * O solicitante escolhe a área em cada pedido (não há área fixa obrigatória no cadastro) e passa a
- * enxergar as áreas pelas quais já pediu — mais nenhuma.
+ * Área do pedido: o solicitante pede sempre pela área do próprio cadastro (não escolhe); só o
+ * Administrador escolhe em nome de qual área pede. Visibilidade pelas áreas do usuário.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -24,41 +24,36 @@ beforeAll(async () => {
 
 const pedido = (u: UsuarioAtual, eventoId: string, areaId: string | null) => salvarSolicitacaoCompleta(u, { eventoId, areaId, titulo: "Pedido", observacao: null, enviar: false, itens: [itemAvulso("Tenda extra")] });
 
-describe("área escolhida no pedido", () => {
-  it("sem área escolhida (e sem área no cadastro) não cria e aponta o campo", async () => {
+describe("área do pedido", () => {
+  it("solicitante sem área no cadastro não pede (e o aviso manda falar com o administrador)", async () => {
     const ev = await novoEvento(E.logistica);
-    const erro = await pedido(semArea, ev.id, null).catch((e) => e);
+    const erro = await pedido(semArea, ev.id, E.areas.a.id).catch((e) => e);
     expect(erro).toBeInstanceOf(ValidacaoError);
-    expect((erro as ValidacaoError).campos?.areaId).toBeTruthy();
+    expect(String((erro as Error).message)).toMatch(/administrador/);
   });
 
-  it("escolhendo a área, cria em nome dela e já grava os itens na mesma operação", async () => {
-    const ev = await novoEvento(E.logistica);
-    const r = await pedido(semArea, ev.id, E.areas.a.id);
-    const s = await obterSolicitacao(E.admin, r.id);
-    expect(s.areaId).toBe(E.areas.a.id);
-    expect(s.itens).toHaveLength(1);
-  });
-
-  it("quem tem área no cadastro também pode pedir por outra", async () => {
+  it("solicitante pede sempre pela própria área, mesmo que outra venha no pedido", async () => {
     const ev = await novoEvento(E.logistica);
     const r = await pedido(E.requisitante, ev.id, E.areas.b.id);
+    expect((await obterSolicitacao(E.admin, r.id)).areaId).toBe(E.areas.a.id);
+  });
+
+  it("o administrador escolhe a área em nome da qual pede", async () => {
+    const ev = await novoEvento(E.logistica);
+    const r = await pedido(E.admin, ev.id, E.areas.b.id);
     expect((await obterSolicitacao(E.admin, r.id)).areaId).toBe(E.areas.b.id);
   });
 
-  it("enxerga só as áreas pelas quais já pediu", async () => {
+  it("enxerga só as solicitações das próprias áreas", async () => {
     const ev = await novoEvento(E.logistica);
-    const daA = await pedido(semArea, ev.id, E.areas.a.id);
-    const daB = await pedido(E.requisitanteB, ev.id, E.areas.b.id);
-    // A sessão carrega as áreas pedidas; aqui o usuário é montado à mão.
-    const comA: UsuarioAtual = { ...semArea, areasPedidas: [E.areas.a.id] };
-    const ids = (await listarSolicitacoes(comA, { eventoId: ev.id })).map((s) => s.id);
+    const daA = await pedido(E.requisitante, ev.id, null);
+    const daB = await pedido(E.requisitanteB, ev.id, null);
+    const ids = (await listarSolicitacoes(E.requisitante, { eventoId: ev.id })).map((s) => s.id);
     expect(ids).toContain(daA.id);
     expect(ids).not.toContain(daB.id);
-    await expect(obterSolicitacao(comA, daB.id)).rejects.toBeInstanceOf(SemPermissaoError);
-    expect(podeEditarSolicitacao(comA, { areaId: E.areas.a.id })).toBe(true);
-    expect(podeEditarSolicitacao(comA, { areaId: E.areas.b.id })).toBe(false);
-    // Sem nenhuma área (nem fixa, nem pedida) não vê nada.
+    await expect(obterSolicitacao(E.requisitante, daB.id)).rejects.toBeInstanceOf(SemPermissaoError);
+    expect(podeEditarSolicitacao(E.requisitante, { areaId: E.areas.a.id })).toBe(true);
+    expect(podeEditarSolicitacao(E.requisitante, { areaId: E.areas.b.id })).toBe(false);
     expect(await listarSolicitacoes(semArea, { eventoId: ev.id })).toHaveLength(0);
   });
 });

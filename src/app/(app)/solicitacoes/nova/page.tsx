@@ -9,7 +9,7 @@ import { daMinhaArea, pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEditarPreReuniaoEnviada, podeEnviar } from "@/domain/solicitacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
-import { PageHeader } from "@/components/ui/layout";
+import { Aviso, PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
 import { descricaoItem } from "@/server/services/solicitacoes";
 import { extrasPermitidosTenda } from "@/domain/tendas";
@@ -49,10 +49,11 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     }),
     opcoesReferencias(),
     getDb().then(obterConfiguracoes),
-    listarAreasCache(),
+    usuario.perfil === "ADMIN" ? listarAreasCache() : Promise.resolve(null),
   ]);
-  // Todo solicitante escolhe a área em nome da qual está pedindo (a área fixa do cadastro vem marcada).
-  const areasEscolha = todasAreas.map((a) => ({ id: a.id, nome: a.nome }));
+  // Só o Administrador escolhe a área (pede em nome dela); o solicitante pede pela área do cadastro.
+  const areasEscolha = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
+  const semArea = usuario.perfil !== "ADMIN" && !usuario.areaId;
   // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
   const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
@@ -107,11 +108,16 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         description="Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."
         breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho ? rascunho.codigo : "Nova" }]}
       />
+      {semArea && (
+        <Aviso tom="warning" titulo="Sua área ainda não foi definida" className="mb-4">
+          Para pedir, o seu usuário precisa estar ligado a uma área. Peça ao administrador para definir a sua área em Administração › Usuários.
+        </Aviso>
+      )}
       <NovaSolicitacaoForm
         rascunho={rascunho ? { id: rascunho.id, codigo: rascunho.codigo, titulo: rascunho.titulo ?? "", observacao: rascunho.observacao ?? "", eventoId: rascunho.eventoId, devolvidaMotivo: rascunho.status === "DEVOLVIDA" ? rascunho.devolvidaMotivo : null } : null}
         eventos={eventos}
         areas={areasEscolha}
-        areaInicial={rascunho?.areaId ?? (usuario.perfil === "ADMIN" ? null : usuario.areaId)}
+        areaInicial={rascunho?.areaId ?? null}
         comoAdministrador={usuario.perfil === "ADMIN"}
         edicaoEnviada={edicaoEnviada}
         eventoInicial={eventoInicial}
