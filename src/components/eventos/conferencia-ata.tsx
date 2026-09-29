@@ -31,6 +31,9 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
+/** Quem pediu a linha (ou quem incluiu na reunião). */
+const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? l.incluidaPor ?? "Logística";
+const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 
 /** Check da linha (40 px, alvo de toque em qualquer tela): um clique confere, outro desfaz. Otimista, volta se o servidor recusar. */
 function Check({ l, eventoId, onMudou }: { l: LinhaConferencia; eventoId: string; onMudou: (id: string, v: boolean) => void }) {
@@ -167,7 +170,10 @@ function Linha({
   onAjustar,
   opcoes,
   podeCadastrar,
+  emGrupo = false,
 }: {
+  /** Dentro do bloco do item: o nome já está no cabeçalho, a linha mostra a área. */
+  emGrupo?: boolean;
   l: LinhaConferencia;
   eventoId: string;
   editavel: boolean;
@@ -191,15 +197,24 @@ function Linha({
       )}
 
       <div className="min-w-0">
-        <p className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-          <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
-            {l.nome}
-          </Link>
-          <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>
-          {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
-        </p>
+        {emGrupo ? (
+          <p className="m-0 text-corpo font-medium text-ink">
+            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
+              {areaDe(l)}
+            </Link>
+          </p>
+        ) : (
+          <p className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
+              {l.nome}
+            </Link>
+            <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>
+            {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
+          </p>
+        )}
         <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">
           <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>
+          {!emGrupo && <span className="text-ink-2">{areaDe(l)} · </span>}
           <PedidoPor l={l} />
         </p>
         {/* O que quem pediu escreveu: descrição das unidades e observação, inteiras (a reunião confere por elas). */}
@@ -286,6 +301,7 @@ export function ConferenciaAta({
 
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [area, setArea] = useState("");
+  const [pessoa, setPessoa] = useState("");
   const [busca, setBusca] = useState("");
   const [ajustando, setAjustando] = useState<LinhaConferencia | null>(null);
   const [incluir, setIncluir] = useState(false);
@@ -298,6 +314,8 @@ export function ConferenciaAta({
   const completo = linhas.length > 0 && pendentes === 0;
   const areasNaAta = useMemo(() => [...new Set(linhas.map(areaDe))].sort((a, b) => a.localeCompare(b, "pt-BR")), [linhas]);
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
+  const pessoasNaAta = useMemo(() => [...new Set(linhas.map(pessoaDe))].sort(porNome), [linhas]);
+  const pessoaAtiva = pessoa && pessoasNaAta.includes(pessoa) ? pessoa : "";
 
   const visiveis = useMemo(
     () =>
@@ -305,22 +323,35 @@ export function ConferenciaAta({
         (l) =>
           (filtro === "pendentes" ? !l.conferidoEm : filtro === "conferidas" ? Boolean(l.conferidoEm) : true) &&
           (!areaAtiva || areaDe(l) === areaAtiva) &&
+          (!pessoaAtiva || pessoaDe(l) === pessoaAtiva) &&
           (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""} ${l.origem?.descricao ?? ""}`, busca)),
       ),
-    [linhas, filtro, areaAtiva, busca],
+    [linhas, filtro, areaAtiva, pessoaAtiva, busca],
   );
 
+  // Um bloco por item (mesmo projeto/peça/descrição), em ordem alfabética; dentro, por área, destino e id.
+  // A ordem só depende do nome, da área e do destino: conferir uma linha não a tira do lugar.
   const grupos = useMemo(() => {
     const mapa = new Map<string, LinhaConferencia[]>();
-    for (const l of visiveis) mapa.set(areaDe(l), [...(mapa.get(areaDe(l)) ?? []), l]);
-    return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+    for (const l of visiveis) {
+      const k = `${l.tipo}|${l.codigo ?? l.nome}`;
+      mapa.set(k, [...(mapa.get(k) ?? []), l]);
+    }
+    return [...mapa.entries()]
+      .map(([k, ls]) => [k, [...ls].sort((a, b) => porNome(areaDe(a), areaDe(b)) || porNome(a.destino ?? "", b.destino ?? "") || a.id.localeCompare(b.id))] as const)
+      .sort(([, a], [, b]) => porNome(a[0].nome, b[0].nome));
   }, [visiveis]);
-  // Contagem por área sobre a ata inteira (não só o recorte), para o cabeçalho do grupo.
-  const totalArea = (a: string) => {
-    const ls = linhas.filter((l) => areaDe(l) === a);
-    return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length };
+  const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(busca.trim());
+  const conferirGrupo = (ls: readonly LinhaConferencia[]) => {
+    const ids = ls.filter((l) => !l.conferidoEm).map((l) => l.id);
+    if (!ids.length) return;
+    setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, true])) }));
+    iniciarTodas(async () => {
+      const r = await conferirTodasAction(eventoId, ids);
+      if (!r.ok) setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, false])) }));
+      avisarTodas(r, `${ls[0].nome}: ${ids.length} ${ids.length === 1 ? "linha conferida" : "linhas conferidas"}`);
+    });
   };
-  const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(busca.trim());
 
   return (
     <section className="min-w-0 rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
@@ -371,6 +402,11 @@ export function ConferenciaAta({
               <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} placeholder="Todas as áreas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
             </div>
           )}
+          {pessoasNaAta.length > 1 && (
+            <div className="w-48 shrink-0 max-sm:w-[42%]">
+              <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} placeholder="Todas as pessoas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
+            </div>
+          )}
           <div className="relative min-w-0 flex-1">
             <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Item, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
@@ -392,6 +428,7 @@ export function ConferenciaAta({
                 onClick={() => {
                   setFiltro("todas");
                   setArea("");
+                  setPessoa("");
                   setBusca("");
                 }}
               >
@@ -409,20 +446,40 @@ export function ConferenciaAta({
             <span className="text-right">Qtd.</span>
             <span />
           </div>
-          {grupos.map(([nomeArea, ls]) => {
-            const t = totalArea(nomeArea);
+          {grupos.map(([chave, ls]) => {
+            if (ls.length === 1) {
+              const l = ls[0];
+              return (
+                <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
+                  <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                </ul>
+              );
+            }
+            const ok = ls.filter((l) => l.conferidoEm).length;
+            const total = ls.reduce((a, l) => a + l.quantidade, 0);
+            const p0 = ls[0];
             return (
-              <section key={nomeArea} aria-label={`${nomeArea}: ${t.ok} de ${t.n} conferidas`}>
-                <h3 className="m-0 flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-cartao py-1.5">
-                  <span className="text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">{nomeArea}</span>
-                  <span className={cn("numero inline-flex items-center gap-1 text-pequeno font-normal", t.ok === t.n ? "text-success" : "text-ink-3")}>
-                    {t.ok === t.n && <Icone nome="check" className="size-3.5" />}
-                    {t.ok}/{t.n}
+              <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
+                <h3 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 bg-subtle/60 px-cartao pb-1.5 pt-3 font-normal">
+                  <span className="text-corpo font-medium text-ink">{p0.nome}</span>
+                  <Tag tom={p0.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[p0.tipo]}</Tag>
+                  {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
+                  <span className="text-pequeno text-muted">
+                    <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} linhas
                   </span>
+                  <span className={cn("numero ml-auto inline-flex items-center gap-1 text-pequeno", ok === ls.length ? "text-success" : "text-ink-3")}>
+                    {ok === ls.length && <Icone nome="check" className="size-3.5" />}
+                    {ok}/{ls.length}
+                  </span>
+                  {editavel && ok < ls.length && (
+                    <Button variant="link" size="xs" disabled={conferindo} onClick={() => conferirGrupo(ls)}>
+                      Conferir as {ls.length - ok}
+                    </Button>
+                  )}
                 </h3>
-                <ul className="m-0 list-none p-0">
+                <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
                   {ls.map((l) => (
-                    <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                    <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} emGrupo />
                   ))}
                 </ul>
               </section>
