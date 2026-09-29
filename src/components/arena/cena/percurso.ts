@@ -147,6 +147,12 @@ export function construirPublico(arena: Arena, m: Materiais): THREE.InstancedMes
   const palco = arena.pontos.find((p) => p.id === "palco");
   if (palco) locais.push(() => [palco.posicao[0] - 8 - r() * 22, palco.posicao[1] + (r() - 0.5) * 24]);
 
+  // Arena sem percurso, estandes nem palco (ex.: mapa de evento recém-criado em branco): o público
+  // fica espalhado pela área do mapa, até as áreas posicionarem os itens.
+  if (locais.length === 0) {
+    const a = arena.area;
+    locais.push(() => [a.minX + r() * (a.maxX - a.minX), a.minZ + r() * (a.maxZ - a.minZ)]);
+  }
   const mesh = new THREE.InstancedMesh(geometriaPessoa(), m.solido(0xffffff, { rugosidade: 1 }), n);
   const cor = new THREE.Color();
   for (let i = 0; i < n; i++) {
@@ -166,8 +172,9 @@ export type Fluxo = { mesh: THREE.InstancedMesh; atualizar: (segundos: number) =
  * Quando houver leitura de chip, `Arena.corredores` substitui esta simulação.
  */
 export function construirFluxo(arena: Arena, m: Materiais): Fluxo {
-  const n = m.qualidade === "alta" ? 240 : 90;
-  const trechos = arena.percurso.trechos.map((t) => ({ t, total: comprimento(t.eixo) }));
+  const trechos = arena.percurso.trechos.map((t) => ({ t, total: comprimento(t.eixo) })).filter((x) => x.total > 0);
+  // Sem percurso desenhado (mapa em branco): sem corredores.
+  const n = trechos.length ? (m.qualidade === "alta" ? 240 : 90) : 0;
   const soma = trechos.reduce((a, x) => a + x.total, 0);
   const mesh = new THREE.InstancedMesh(geometriaPessoa(), m.solido(0xffffff, { rugosidade: 1 }), n);
   const cor = new THREE.Color();
