@@ -14,7 +14,7 @@ import { combinaBusca } from "@/lib/busca";
 import { Passo } from "./passo";
 import { irPara, kitDe, novaChave, POR_PAGINA } from "./utilidades";
 import type { PedidoAnterior } from "@/domain/ja-pedido";
-import { AvisoJaPedido } from "./aviso-ja-pedido";
+import { AcoesReferencia } from "./aviso-ja-pedido";
 import type { ItemNovo, LinhaAta, Modo, Referencia } from "./tipos";
 
 /** Passo 2: abas por tipo de item, busca no catálogo (projetos e peças), item descrito à mão e linhas da ata. */
@@ -256,12 +256,18 @@ export function BuscaCatalogo({
                             <Codigo className="text-ink-3">{r.codigo}</Codigo>
                             {r.meta ? ` · ${r.meta}` : ""}
                           </p>
+                          {/* No cartão, a descrição fica curta; inteira (com as peças) em "Ver peças". */}
                           {r.descricao && (
-                            <p className="mb-0 mt-1 whitespace-pre-line text-pequeno text-ink-2">
+                            <p className="mb-0 mt-1 line-clamp-2 text-pequeno text-ink-2" title={r.descricao}>
                               {r.descricao}
                             </p>
                           )}
-                          <AvisoJaPedido nome={r.nome} pedidos={jaPedidos[r.id]} className="mt-2" />
+                          <AcoesReferencia
+                            referencia={{ nome: r.nome, codigo: r.codigo, meta: r.meta, descricao: r.descricao, capaId: r.capaId, bom: modo === "projeto" ? r.bom : undefined }}
+                            pedidos={jaPedidos[r.id]}
+                            quantidade={qtdNova[r.id] ?? 1}
+                            className="mt-1.5"
+                          />
                         </div>
                       </div>
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
