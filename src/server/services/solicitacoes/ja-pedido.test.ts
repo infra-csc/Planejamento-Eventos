@@ -40,6 +40,6 @@ describe("já pedido neste evento", () => {
     await incluirPeca(E.logistica, ev.id, pecaId, 3, null);
     const r = (await pedidosAnterioresPorEvento([ev.id]))[ev.id][pecaId];
     expect(r).toEqual([expect.objectContaining({ quantidade: 3, situacao: "incluído pela logística", pessoa: E.logistica.nome })]);
-    expect(resumoJaPedido(r)?.linhas[0]).toContain("Logística");
+    expect(resumoJaPedido(r)?.quem).toContain("Logística");
   });
 });

@@ -98,7 +98,7 @@ export function ListaItens({
                         {descricaoProjeto}
                       </p>
                     )}
-                    {i.operacao === "ADICIONAR" && <AvisoJaPedido pedidos={jaPedidos[i.projetoId ?? i.pecaId ?? ""]} className="mt-2" />}
+                    {i.operacao === "ADICIONAR" && <AvisoJaPedido nome={i.rotulo} pedidos={jaPedidos[i.projetoId ?? i.pecaId ?? ""]} className="mt-2" />}
                   </div>
                   <IconButton label={`Remover ${i.rotulo} da solicitação`} onClick={() => removerItem(i)}>
                     <Icone nome="lixeira" />

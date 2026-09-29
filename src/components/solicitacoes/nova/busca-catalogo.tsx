@@ -261,7 +261,7 @@ export function BuscaCatalogo({
                               {r.descricao}
                             </p>
                           )}
-                          <AvisoJaPedido pedidos={jaPedidos[r.id]} className="mt-2" />
+                          <AvisoJaPedido nome={r.nome} pedidos={jaPedidos[r.id]} className="mt-2" />
                         </div>
                       </div>
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
