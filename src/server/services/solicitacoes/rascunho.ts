@@ -1,17 +1,19 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, eventos, pecas, projetos, solicitacaoItens, solicitacoes, type AjusteBom } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type AjusteBom } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
-import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { tipoSolicitacaoParaStatus } from "@/domain/evento";
 import { pode } from "@/domain/permissions";
-import { validarItem, type ItemRascunho } from "@/domain/solicitacao";
+import { podeEditarPreReuniaoEnviada, validarItem, type ItemRascunho } from "@/domain/solicitacao";
+import { podeEditarSolicitacao } from "@/domain/permissions";
 import { snapshotBom } from "../eventos";
-import { proximoCodigo, registrarHistorico, type Executor } from "../support";
+import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosLogistica, type Executor } from "../support";
+import { ACOES_COM_MOTIVO } from "../eventos";
 import { descricoesParaGravar, faltamDescricoes } from "@/domain/descricoes-itens";
 import { extrasPermitidosTenda } from "@/domain/tendas";
 import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarJanelaPreReuniao } from "./comum";
-import { enviarSolicitacao } from "./envio";
+import { enviarSolicitacao, registrarPreReuniaoNaAta } from "./envio";
 
 /* ------------------------------------------------------------------ */
 /* Rascunho                                                             */
@@ -160,6 +162,85 @@ export type DadosSolicitacaoCompleta = {
   itens: DadosItem[];
 };
 
+/** O que precisa estar preenchido para enviar (título, ao menos um item, descrições das unidades). */
+function validarParaEnvio(dados: Pick<DadosSolicitacaoCompleta, "titulo" | "itens">) {
+  const campos: Record<string, string> = {};
+  if (!dados.titulo) campos.titulo = MSG_TITULO_OBRIGATORIO;
+  if (dados.itens.length === 0) campos.itens = "Adicione ao menos um item.";
+  const semDescricao = dados.itens.filter((i) => faltamDescricoes(i) > 0).length;
+  if (semDescricao) campos.descricoes = MSG_DESCRICOES(semDescricao);
+  const faltas = Object.values(campos);
+  if (faltas.length) throw new ValidacaoError(faltas.length === 1 ? faltas[0] : "Falta preencher antes de enviar.", campos);
+}
+
+/**
+ * Necessidade pré-reunião já enviada, editada antes da reunião (evento em preparação). Tudo numa
+ * transação só: as linhas que ela tinha gerado na ata saem (ficam inativas, para consulta), os itens
+ * são trocados e o pedido é registrado de novo na ata. Se qualquer passo falhar, nada muda — o pedido
+ * original continua valendo. Linhas que a logística já ajustou travam a edição (o ajuste não se perde).
+ */
+export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: DadosSolicitacaoCompleta & { id: string }): Promise<{ id: string; codigo: string }> {
+  exigir(usuario, "solicitacao.criar");
+  validarParaEnvio(dados);
+  dados.itens.forEach((i) => validarItem(i));
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const previa = await tx.query.solicitacoes.findFirst({ where: and(eq(solicitacoes.id, dados.id), eq(solicitacoes.excluida, false)), columns: { eventoId: true, areaId: true } });
+    if (!previa) throw new NaoEncontradoError("Solicitação");
+    if (!podeEditarSolicitacao(usuario, previa)) throw new SemPermissaoError("Só usuários da área da solicitação podem editá-la.");
+    await bloquearEvento(tx, previa.eventoId);
+    const s = await tx.query.solicitacoes.findFirst({
+      where: eq(solicitacoes.id, dados.id),
+      with: { evento: true, area: { columns: { nome: true } }, itens: { columns: { id: true, eventoItemGeradoId: true, quantidadeAtendida: true, quantidadeSolicitada: true } } },
+    });
+    if (!s) throw new NaoEncontradoError("Solicitação");
+    if (!podeEditarPreReuniaoEnviada(s.tipo, s.status, s.evento.status)) {
+      throw new DomainError(s.evento.status === "PREPARACAO" ? "Esta solicitação não pode mais ser editada." : "A reunião de OS já começou: a partir de agora, mudanças entram como alteração depois da ata.");
+    }
+    await verificarJanelaPreReuniao(tx, s.evento);
+
+    // Linhas da ata geradas por este pedido: se a logística já mexeu, a edição espera por ela.
+    const geradas = s.itens.map((i) => i.eventoItemGeradoId).filter((x): x is string => Boolean(x));
+    if (geradas.length) {
+      const linhas = await tx.query.eventoItens.findMany({ where: inArray(eventoItens.id, geradas), columns: { id: true, ativo: true, quantidade: true, conferidoEm: true } });
+      const esperada = new Map(s.itens.map((i) => [i.eventoItemGeradoId, i.quantidadeAtendida ?? i.quantidadeSolicitada]));
+      const ajustesLogistica = await tx.query.historico.findMany({ where: and(eq(historico.entidade, "evento_item"), inArray(historico.entidadeId, geradas), inArray(historico.acao, ACOES_COM_MOTIVO)), columns: { id: true } });
+      const mexidas = linhas.filter((l) => !l.ativo || l.conferidoEm || l.quantidade !== esperada.get(l.id));
+      if (mexidas.length || ajustesLogistica.length) {
+        throw new DomainError("A logística já ajustou itens deste pedido na ata. Para mudar, fale com a logística ou envie outra solicitação com o que falta.");
+      }
+      await tx.update(eventoItens).set({ ativo: false, removidoEm: new Date(), removidoPorId: usuario.id }).where(inArray(eventoItens.id, geradas));
+    }
+
+    const antes = s.itens.length;
+    await tx.delete(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, s.id));
+    let ordem = 0;
+    for (const item of dados.itens) {
+      const valores = await prepararItem(tx, s, item, usuario);
+      await tx.insert(solicitacaoItens).values({ ...valores, solicitacaoId: s.id, ordem: ordem++ });
+    }
+    await tx.update(solicitacoes).set({ titulo: dados.titulo, observacao: dados.observacao, status: "ENVIADA", atualizadoPorId: usuario.id, atualizadoEm: new Date() }).where(eq(solicitacoes.id, s.id));
+    await registrarPreReuniaoNaAta(tx, usuario, s.id);
+    await registrarHistorico(tx, {
+      eventoId: s.eventoId,
+      entidade: "solicitacao",
+      entidadeId: s.id,
+      acao: "EDITADA",
+      descricao: `${s.codigo} editada antes da reunião pela ${s.area.nome} — ${dados.itens.length} ${dados.itens.length === 1 ? "item" : "itens"} (antes ${antes}); a ata foi atualizada`,
+      usuarioId: usuario.id,
+    });
+    await notificar(tx, {
+      usuarioIds: await usuariosLogistica(tx),
+      tipo: "SOLICITACAO_EDITADA",
+      titulo: `Pedido alterado: ${s.codigo} · ${s.area.nome}`,
+      mensagem: `${s.evento.nome} · agora com ${dados.itens.length} ${dados.itens.length === 1 ? "item" : "itens"}. A ata já está atualizada; confira na reunião de OS.`,
+      link: `/solicitacoes/${s.id}`,
+      excetoUsuarioId: usuario.id,
+    });
+    return { id: s.id, codigo: s.codigo };
+  });
+}
+
 /**
  * Formulário único de solicitação (handoff §5.11): cria ou atualiza o rascunho com todos os
  * itens de uma vez (uma transação só: ou grava tudo, ou nada) e, se pedido, envia. Se o envio
@@ -169,15 +250,7 @@ export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dad
   exigir(usuarioSessao, "solicitacao.criar");
   // A área escolhida agora passa a ser do usuário já nesta gravação (a sessão só a vê na próxima requisição).
   let usuario = usuarioSessao;
-  if (dados.enviar) {
-    const campos: Record<string, string> = {};
-    if (!dados.titulo) campos.titulo = MSG_TITULO_OBRIGATORIO;
-    if (dados.itens.length === 0) campos.itens = "Adicione ao menos um item.";
-    const semDescricao = dados.itens.filter((i) => faltamDescricoes(i) > 0).length;
-    if (semDescricao) campos.descricoes = MSG_DESCRICOES(semDescricao);
-    const faltas = Object.values(campos);
-    if (faltas.length) throw new ValidacaoError(faltas.length === 1 ? faltas[0] : "Falta preencher antes de enviar.", campos);
-  }
+  if (dados.enviar) validarParaEnvio(dados);
   dados.itens.forEach((i) => validarItem(i));
 
   const db = await getDb();

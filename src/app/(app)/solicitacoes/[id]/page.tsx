@@ -7,7 +7,7 @@ import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
-import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEditarPreReuniaoEnviada, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
@@ -189,7 +189,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             podeDevolver={ehLogistica && faseOk && podeDevolver(s.status, algumRespondido)}
             podeAtenderTudo={respondivel && pendentes > 0}
             pendentes={pendentes}
-            podeEditar={editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO"}
+            podeEditar={(editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO") || (dono && podeEditarPreReuniaoEnviada(s.tipo, s.status, s.evento.status))}
             podeEnviar={editavel && s.itens.length > 0 && Boolean(s.titulo?.trim()) && aceitaSolicitacao(s.evento.status, s.tipo)}
             podeCancelar={dono && podeCancelar(s.status, algumRespondido) && s.status !== "RASCUNHO"}
             podeExcluir={dono && s.status === "RASCUNHO"}

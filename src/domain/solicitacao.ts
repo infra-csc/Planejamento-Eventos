@@ -64,6 +64,14 @@ export function podeResponderNaFase(tipo: SolicitacaoTipo, statusEvento: EventoS
  * Necessidade pré-reunião com a ata ainda aberta: entrou na ata sem avaliação e só é validada
  * na reunião. Nessa fase não faz sentido dizer "atendido"/"respondida" para quem pediu.
  */
+/**
+ * Necessidade pré-reunião já enviada (e registrada na ata) pode ser editada por quem pediu enquanto o
+ * evento está em preparação — antes da reunião de OS. A troca de itens e linhas da ata é atômica.
+ */
+export function podeEditarPreReuniaoEnviada(tipo: SolicitacaoTipo, status: SolicitacaoStatus, statusEvento: EventoStatus): boolean {
+  return tipo === "PRE_REUNIAO" && (status === "ENVIADA" || status === "RESPONDIDA") && statusEvento === "PREPARACAO";
+}
+
 export function aguardaReuniao(tipo: SolicitacaoTipo, statusEvento: EventoStatus) {
   return tipo === "PRE_REUNIAO" && (statusEvento === "PREPARACAO" || statusEvento === "EM_REUNIAO");
 }

@@ -43,6 +43,29 @@ async function cancelarOrfas(ctx: ContextoTransicao, status: Array<"RASCUNHO" | 
   ctx.canceladasAuto.push(...rows.map((r) => ({ ...r, motivo })));
 }
 
+/**
+ * Rascunho (ou devolvida) de necessidade pré-reunião que não foi enviado a tempo não se perde quando a
+ * ata fecha: vira rascunho de alteração pós-ata com tudo que já foi preenchido, e quem pediu é avisado.
+ */
+async function converterRascunhosPreReuniao(ctx: ContextoTransicao) {
+  const { tx, usuario, id, ev } = ctx;
+  const rows = await tx
+    .update(solicitacoes)
+    .set({ tipo: "ALTERACAO", atualizadoPorId: usuario.id })
+    .where(and(eq(solicitacoes.eventoId, id), eq(solicitacoes.excluida, false), inArray(solicitacoes.status, ["RASCUNHO", "DEVOLVIDA"]), eq(solicitacoes.tipo, "PRE_REUNIAO")))
+    .returning({ id: solicitacoes.id, codigo: solicitacoes.codigo, areaId: solicitacoes.areaId, criadoPorId: solicitacoes.criadoPorId });
+  for (const r of rows) {
+    await registrarHistorico(tx, { eventoId: id, entidade: "solicitacao", entidadeId: r.id, acao: "CONVERTIDA", descricao: `${r.codigo}: a ata fechou antes do envio — o rascunho virou alteração pós-ata, com tudo que já estava preenchido`, usuarioId: usuario.id });
+    await notificar(tx, {
+      usuarioIds: [r.criadoPorId, ...(await usuariosDaArea(tx, r.areaId))],
+      tipo: "RASCUNHO_CONVERTIDO",
+      titulo: `${r.codigo}: agora é alteração pós-ata`,
+      mensagem: `A ata de ${ev.nome} fechou antes do envio. O rascunho continua com tudo que você preencheu; ao enviar, a logística responde item a item.`,
+      link: `/solicitacoes/nova?rascunho=${r.id}`,
+    });
+  }
+}
+
 /*
  * Solicitações já respondidas em parte (EM_ANALISE) quando o evento fecha: o que falta vira "não atendido"
  * e a solicitação fica respondida — a área nunca vê "cancelada" numa solicitação que entrou em parte na OS.
@@ -120,7 +143,7 @@ async function fecharAta(ctx: ContextoTransicao) {
   const osNumero = (await gerarOsVersao(tx, id, "ATA_FECHADA", usuario.id, "OS inicial gerada no fechamento da ata")).numero;
   patch.ataFechadaEm = agora;
   patch.ataFechadaPorId = usuario.id;
-  await cancelarOrfas(ctx, ["RASCUNHO", "DEVOLVIDA"], "Ata fechada antes do envio desta necessidade. Mudanças agora entram como alteração pós-ata.", "PRE_REUNIAO");
+  await converterRascunhosPreReuniao(ctx);
   return osNumero;
 }
 

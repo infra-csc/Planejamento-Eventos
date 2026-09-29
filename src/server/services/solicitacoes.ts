@@ -25,7 +25,7 @@ export {
   type SolicitacaoLista,
 } from "./solicitacoes/consultas";
 export { MSG_TITULO_OBRIGATORIO } from "./solicitacoes/comum";
-export { atualizarCabecalho, criarRascunho, excluirRascunho, salvarItem, salvarSolicitacaoCompleta, type DadosSolicitacaoCompleta } from "./solicitacoes/rascunho";
+export { atualizarCabecalho, criarRascunho, editarPreReuniaoEnviada, excluirRascunho, salvarItem, salvarSolicitacaoCompleta, type DadosSolicitacaoCompleta } from "./solicitacoes/rascunho";
 export { cancelarSolicitacao, devolverSolicitacao, enviarSolicitacao, registrarPreReuniaoNaAta, registrarPreReunioesPendentes } from "./solicitacoes/envio";
 export { atenderTudo, desfazerResposta, JANELA_DESFAZER_MS, responderItem, responderNaTransacao } from "./solicitacoes/resposta";
 export { listarPendenciasCompra, listarPendenciasResolvidas, resolverPendenciaCompra, type PendenciaCompra } from "./solicitacoes/pendencias";

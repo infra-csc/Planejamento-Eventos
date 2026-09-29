@@ -288,6 +288,8 @@ export async function pedidosAnterioresPorEvento(eventoIds: string[], exceto?: s
         area: areas.nome,
         pessoa: usuarios.nome,
         em: solicitacoes.enviadaEm,
+        destino: solicitacaoItens.destino,
+        descricoes: solicitacaoItens.descricoes,
       })
       .from(solicitacaoItens)
       .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
@@ -304,9 +306,9 @@ export async function pedidosAnterioresPorEvento(eventoIds: string[], exceto?: s
           sql`coalesce(${solicitacaoItens.projetoId}, ${solicitacaoItens.pecaId}) is not null`,
         ),
       )
-      .orderBy(desc(solicitacoes.enviadaEm)),
+      .orderBy(desc(solicitacoes.enviadaEm), asc(solicitacaoItens.ordem)),
     db
-      .select({ eventoId: eventoItens.eventoId, ref: sql<string>`coalesce(${eventoItens.projetoId}, ${eventoItens.pecaId})`, quantidade: eventoItens.quantidade, area: areas.nome, pessoa: usuarios.nome })
+      .select({ eventoId: eventoItens.eventoId, ref: sql<string>`coalesce(${eventoItens.projetoId}, ${eventoItens.pecaId})`, quantidade: eventoItens.quantidade, area: areas.nome, pessoa: usuarios.nome, destino: eventoItens.destino })
       .from(eventoItens)
       .leftJoin(areas, eq(eventoItens.areaId, areas.id))
       .leftJoin(usuarios, eq(eventoItens.criadoPorId, usuarios.id))
@@ -320,8 +322,8 @@ export async function pedidosAnterioresPorEvento(eventoIds: string[], exceto?: s
   for (const r of dasSolicitacoes) {
     const situacao: SituacaoPedido = r.status === "EM_ANALISE" ? (r.tipo === "PRE_REUNIAO" ? "na ata" : "aguardando resposta") : r.status === "PARCIAL" ? "atendido em parte" : r.tipo === "PRE_REUNIAO" ? "na ata" : "atendido";
     const quantidade = r.status === "PARCIAL" || r.status === "ATENDIDO" ? (r.atendida ?? r.pedida) : r.pedida;
-    incluir(r.eventoId, r.ref, { quantidade, area: r.area, pessoa: r.pessoa, codigo: r.codigo, situacao });
+    incluir(r.eventoId, r.ref, { quantidade, area: r.area, pessoa: r.pessoa, codigo: r.codigo, situacao, destino: r.destino, descricoes: r.descricoes });
   }
-  for (const r of daLogistica) incluir(r.eventoId, r.ref, { quantidade: r.quantidade, area: r.area, pessoa: r.pessoa, codigo: null, situacao: "incluído pela logística" });
+  for (const r of daLogistica) incluir(r.eventoId, r.ref, { quantidade: r.quantidade, area: r.area, pessoa: r.pessoa, codigo: null, situacao: "incluído pela logística", destino: r.destino });
   return saida;
 }

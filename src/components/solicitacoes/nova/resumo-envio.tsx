@@ -31,6 +31,7 @@ export function ResumoEnvio({
   pendente,
   bloqueadoEnvio,
   salvar,
+  edicaoEnviada = false,
   estadoSalvo,
   codigoRascunho,
 }: {
@@ -51,6 +52,8 @@ export function ResumoEnvio({
   pendente: boolean;
   bloqueadoEnvio: boolean;
   salvar: (enviar: boolean) => void;
+  /** Pedido já enviado em edição: um botão só, "Salvar alterações". */
+  edicaoEnviada?: boolean;
   estadoSalvo: EstadoSalvo;
   codigoRascunho: string | null;
 }) {
@@ -63,8 +66,9 @@ export function ResumoEnvio({
     const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
     return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
   })();
-  const textoSalvo =
-    estadoSalvo.tipo === "salvando"
+  const textoSalvo = edicaoEnviada
+    ? "As alterações ficam guardadas neste navegador até você salvar; o pedido como estava continua na ata."
+    : estadoSalvo.tipo === "salvando"
       ? "Salvando rascunho…"
       : estadoSalvo.tipo === "salvo"
         ? `Rascunho ${codigoRascunho ?? ""} salvo às ${hora(estadoSalvo.em)}`
@@ -192,11 +196,13 @@ export function ResumoEnvio({
 
           <div className="flex flex-col gap-2 max-lg:hidden">
             <Button variant="primary" size="lg" loading={pendente} onClick={() => salvar(true)} disabled={bloqueadoEnvio} motivoDesabilitado="O evento não aceita solicitações agora." className="w-full">
-              Enviar solicitação
+              {edicaoEnviada ? "Salvar alterações" : "Enviar solicitação"}
             </Button>
-            <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
-              Salvar rascunho
-            </Button>
+            {!edicaoEnviada && (
+              <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
+                Salvar rascunho
+              </Button>
+            )}
           </div>
           {textoSalvo && (
             <p className={cn("m-0 flex items-center gap-1.5 text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
@@ -218,6 +224,7 @@ export function BarraEnvioMovel({
   pendente,
   bloqueadoEnvio,
   salvar,
+  edicaoEnviada = false,
 }: {
   itens: ItemNovo[];
   pendencias: Pendencia[];
@@ -225,6 +232,7 @@ export function BarraEnvioMovel({
   pendente: boolean;
   bloqueadoEnvio: boolean;
   salvar: (enviar: boolean) => void;
+  edicaoEnviada?: boolean;
 }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-header)] border-t border-line bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-popover lg:hidden">
@@ -235,11 +243,13 @@ export function BarraEnvioMovel({
           </p>
           <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : "text-muted")}>{pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : "Pronto para enviar"}</p>
         </div>
-        <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)}>
-          Salvar
-        </Button>
+        {!edicaoEnviada && (
+          <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)}>
+            Salvar
+          </Button>
+        )}
         <Button variant="primary" size="md" loading={pendente} onClick={() => salvar(true)} disabled={bloqueadoEnvio} motivoDesabilitado="O evento não aceita solicitações agora.">
-          Enviar
+          {edicaoEnviada ? "Salvar alterações" : "Enviar"}
         </Button>
       </div>
     </div>

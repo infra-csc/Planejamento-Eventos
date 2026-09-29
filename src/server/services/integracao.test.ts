@@ -224,7 +224,7 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
     await expect(responderItem(producao, s.itens[0].id, { status: "ATENDIDO" })).rejects.toThrow(/permissão/);
   });
 
-  it("fechar a ata cancela necessidade pré-reunião que ficou em rascunho", async () => {
+  it("fechar a ata não perde a necessidade pré-reunião que ficou em rascunho: vira alteração pós-ata", async () => {
     const ev = await novoEvento();
     const r = await salvarSolicitacaoCompleta(producao, { eventoId: ev.id, titulo: "Rascunho", observacao: null, enviar: false, itens: [{ operacao: "ADICIONAR", descricaoLivre: "Totem", quantidadeSolicitada: 1, descricoes: descricoesIguais(1, "Conforme combinado") }] });
     await incluirLinhaAta(logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId, descricaoLivre: null, quantidade: 1, destino: null, areaId: producao.areaId, justificativa: null });
@@ -232,9 +232,11 @@ describe("fases do evento e permissões no service", { timeout: 30_000 }, () => 
     await conferirTodasLinhas(logistica, ev.id);
     await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
     const t = await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
-    expect(t.canceladasAuto).toBe(1);
+    expect(t.canceladasAuto).toBe(0);
     const db = await getDb();
-    expect((await db.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, r.id) }))?.status).toBe("CANCELADA");
+    const depois = await db.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, r.id) });
+    expect(depois?.status).toBe("RASCUNHO");
+    expect(depois?.tipo).toBe("ALTERACAO");
   });
 
   it("encerrar sem bloqueio cancela solicitações pendentes em vez de deixá-las órfãs", async () => {

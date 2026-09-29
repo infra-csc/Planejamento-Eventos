@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Aviso } from "@/components/ui/layout";
 import { toast, toastSucesso } from "@/components/ui/toast";
-import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
+import { editarPreReuniaoAction, salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import { faltamDescricoes } from "@/domain/descricoes-itens";
 import type { PedidosPorEvento } from "@/domain/ja-pedido";
 import { BuscaCatalogo } from "./nova/busca-catalogo";
@@ -32,7 +32,10 @@ export function NovaSolicitacaoForm({
   linhasPorEvento,
   pedidosPorEvento = {},
   slaHoras,
+  edicaoEnviada = false,
 }: {
+  /** Pré-reunião já enviada, editada antes da reunião: sem autosave; "Salvar alterações" troca itens e ata de uma vez. */
+  edicaoEnviada?: boolean;
   rascunho: RascunhoSolicitacao | null;
   eventos: EventoOpcao[];
   /** Áreas para escolher em nome de qual se pede (todo solicitante escolhe). `null` esconde a escolha. */
@@ -54,6 +57,9 @@ export function NovaSolicitacaoForm({
   const [trocandoEvento, setTrocandoEvento] = useState(false);
   const [areaId, setAreaId] = useState<string | null>(areaInicial);
   const [itens, setItens] = useState<ItemNovo[]>(itensIniciais);
+  // Cópia local das alterações de um pedido já enviado (nada se perde se a aba fechar antes de salvar).
+  const chaveCopia = edicaoEnviada && rascunho ? `norte:edicao-solicitacao:${rascunho.id}` : null;
+  const [copiaRecuperada, setCopiaRecuperada] = useState(false);
   const [modo, setModo] = useState<Modo>("projeto");
   const [titulo, setTitulo] = useState(rascunho?.titulo ?? "");
   const [observacao, setObservacao] = useState(rascunho?.observacao ?? "");
@@ -77,7 +83,53 @@ export function NovaSolicitacaoForm({
     titulo,
     observacao,
     itens,
+    desligado: edicaoEnviada,
   });
+
+  // Pedido já enviado em edição: recupera alterações não salvas (aba fechada, queda de rede) e guarda
+  // cada mudança no navegador até "Salvar alterações" dar certo. O pedido original segue na ata.
+  useEffect(() => {
+    if (!chaveCopia) return;
+    try {
+      const bruto = window.localStorage.getItem(chaveCopia);
+      if (!bruto) return;
+      const c = JSON.parse(bruto) as { titulo: string; observacao: string; itens: ItemNovo[] };
+      if (Array.isArray(c.itens)) {
+        // Leitura do armazenamento do navegador só existe no cliente: por isso num efeito, depois da hidratação.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTitulo(c.titulo ?? "");
+        setObservacao(c.observacao ?? "");
+        setItens(c.itens);
+        setCopiaRecuperada(true);
+      }
+    } catch {
+      // Sem armazenamento local (aba privada): segue com o pedido como está.
+    }
+  }, [chaveCopia]);
+  // A primeira passada é o estado de abertura (nada mudou ainda): não vira cópia.
+  const primeiraPassadaRef = useRef(true);
+  useEffect(() => {
+    if (!chaveCopia) return;
+    if (primeiraPassadaRef.current) {
+      primeiraPassadaRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(chaveCopia, JSON.stringify({ titulo, observacao, itens, em: new Date().toISOString() }));
+    } catch {
+      // idem
+    }
+    // A assinatura resume título, observação e itens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinatura, chaveCopia]);
+  useEffect(() => {
+    if (!chaveCopia) return;
+    const avisar = (e: BeforeUnloadEvent) => {
+      if (assinatura !== salvoRef.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [chaveCopia, assinatura, salvoRef]);
 
   // Erro vindo do servidor: no celular o resumo fica abaixo dos passos, então rola até a mensagem.
   useEffect(() => {
@@ -160,6 +212,35 @@ export function NovaSolicitacaoForm({
         return;
       }
     }
+    // Pedido já enviado: "Salvar alterações" troca itens e ata de uma vez; a cópia local só sai quando dá certo.
+    if (edicaoEnviada && rascunho) {
+      iniciar(async () => {
+        enviandoRef.current = true;
+        let r: Awaited<ReturnType<typeof editarPreReuniaoAction>>;
+        try {
+          r = await editarPreReuniaoAction(montarPayload(true, eventoId));
+        } catch {
+          enviandoRef.current = false;
+          setErroGeral("Não foi possível falar com o servidor. As alterações continuam aqui (e guardadas neste navegador) — tente de novo.");
+          return;
+        }
+        if (!r.ok) {
+          enviandoRef.current = false;
+          if (r.campos?.titulo) setErroTitulo(r.campos.titulo);
+          setErroGeral(r.campos ? (Object.entries(r.campos).filter(([k]) => k !== "titulo").map(([, v]) => v)[0] ?? (r.campos.titulo ? null : r.erro)) : r.erro);
+          return;
+        }
+        salvoRef.current = assinatura;
+        try {
+          if (chaveCopia) window.localStorage.removeItem(chaveCopia);
+        } catch {
+          // sem armazenamento local
+        }
+        toastSucesso(`${r.dados?.codigo ?? rascunho.codigo} atualizada — a ata já mostra os itens novos`);
+        router.push(`/solicitacoes/${rascunho.id}`);
+      });
+      return;
+    }
     iniciar(async () => {
       if (enviar) enviandoRef.current = true;
       let r: Awaited<ReturnType<typeof salvarSolicitacaoCompletaAction>>;
@@ -200,6 +281,12 @@ export function NovaSolicitacaoForm({
   return (
     // No celular a barra de envio fica fixa no rodapé: o respiro embaixo evita que ela cubra o fim do formulário.
     <div className="flex flex-col gap-4 max-lg:pb-24">
+      {edicaoEnviada && (
+        <Aviso tom="info" titulo={copiaRecuperada ? "Alterações não salvas recuperadas" : "Editando um pedido já enviado"}>
+          {copiaRecuperada ? "Você tinha começado a editar este pedido e não salvou; as alterações foram trazidas de volta. " : ""}
+          O pedido como estava continua na ata até você clicar em “Salvar alterações”. Aí os itens e a ata são trocados de uma vez.
+        </Aviso>
+      )}
       {rascunho?.devolvidaMotivo && (
         <Aviso tom="warning" titulo="Devolvida pela logística">
           {comPontoFinal(rascunho.devolvidaMotivo)} Corrija e reenvie.
@@ -252,13 +339,14 @@ export function NovaSolicitacaoForm({
           pendente={pendente}
           bloqueadoEnvio={bloqueadoEnvio}
           salvar={salvar}
+          edicaoEnviada={edicaoEnviada}
           estadoSalvo={estadoSalvo}
           codigoRascunho={codigoRascunho}
         />
       </div>
 
       {/* Barra de envio fixa no celular e tablet. */}
-      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} />
+      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} edicaoEnviada={edicaoEnviada} />
 
       <DialogoTendas tendaAberta={tendaAberta} setTendaAberta={setTendaAberta} projetos={projetos} setItens={setItens} />
 

@@ -21,7 +21,10 @@ export function useAutosaveSolicitacao({
   titulo,
   observacao,
   itens,
+  desligado = false,
 }: {
+  /** Pedido já enviado em edição: nada é gravado no servidor até "Salvar alterações". */
+  desligado?: boolean;
   rascunho: RascunhoSolicitacao | null;
   areas: Array<{ id: string; nome: string }> | null;
   areaId: string | null;
@@ -76,7 +79,7 @@ export function useAutosaveSolicitacao({
   };
   const assinatura = JSON.stringify([eventoId, titulo, observacao, itens.map((i) => [i.operacao, i.projetoId, i.pecaId, i.eventoItemId, i.descricaoLivre, i.quantidade, i.destino, i.justificativa, i.descricoes, i.locais, i.ajustes])]);
   const salvoRef = useRef(rascunho ? assinatura : "");
-  const podeAutosalvar = Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
+  const podeAutosalvar = !desligado && Boolean(evento?.aceita) && (!areas || Boolean(areaId)) && (titulo.trim() !== "" || itens.length > 0);
 
   const autosalvar = async (assin: string, evId: string) => {
     if (enviandoRef.current || assin === salvoRef.current) return;

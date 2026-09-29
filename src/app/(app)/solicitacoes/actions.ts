@@ -7,6 +7,7 @@ import {
   cancelarSolicitacao,
   desfazerResposta,
   devolverSolicitacao,
+  editarPreReuniaoEnviada,
   enviarSolicitacao,
   excluirRascunho,
   responderItem,
@@ -103,6 +104,20 @@ export async function excluirRascunhoAction(_prev: ActionResult, formData: FormD
   }
   revalidarTudo();
   redirect("/solicitacoes?filtro=RASCUNHO");
+}
+
+/** Editar necessidade pré-reunião já enviada (antes da reunião): troca itens e linhas da ata de uma vez. */
+export async function editarPreReuniaoAction(payload: unknown) {
+  const usuario = await requireUsuario();
+  try {
+    const d = solicitacaoCompletaSchema.parse(payload);
+    if (!d.id) throw new Error("Solicitação não informada.");
+    const r = await editarPreReuniaoEnviada(usuario, { ...d, id: d.id });
+    revalidarTudo();
+    return { ok: true, dados: r } as ActionResult<typeof r>;
+  } catch (e) {
+    return tratarErro(e);
+  }
 }
 
 export async function salvarSolicitacaoCompletaAction(payload: unknown) {

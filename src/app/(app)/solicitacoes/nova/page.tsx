@@ -6,7 +6,7 @@ import { obterSolicitacao, pedidosAnterioresPorEvento } from "@/server/services/
 import { obterConfiguracoes } from "@/server/services/support";
 import { getDb } from "@/server/db";
 import { daMinhaArea, pode, podeEditarSolicitacao } from "@/domain/permissions";
-import { podeEnviar } from "@/domain/solicitacao";
+import { podeEditarPreReuniaoEnviada, podeEnviar } from "@/domain/solicitacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
 import { PageHeader } from "@/components/ui/layout";
@@ -29,7 +29,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         throw e;
       })
     : null;
-  if (rascunho && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
+  // Pré-reunião já enviada, com o evento em preparação: abre para editar (troca itens e ata ao salvar).
+  const edicaoEnviada = Boolean(rascunho && podeEditarPreReuniaoEnviada(rascunho.tipo, rascunho.status, rascunho.evento.status) && podeEditarSolicitacao(usuario, rascunho));
+  if (rascunho && !edicaoEnviada && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
 
   const [{ aceitando, linhasTodas, jaPedidos }, opcoes, config, todasAreas] = await Promise.all([
     // Linhas da ata de todos os eventos abertos numa consulta só, encadeada aos eventos e em paralelo com o resto.
@@ -111,6 +113,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         areas={areasEscolha}
         areaInicial={rascunho?.areaId ?? (usuario.perfil === "ADMIN" ? null : usuario.areaId)}
         comoAdministrador={usuario.perfil === "ADMIN"}
+        edicaoEnviada={edicaoEnviada}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
