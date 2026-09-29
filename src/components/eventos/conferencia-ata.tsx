@@ -178,7 +178,7 @@ function Linha({
 }) {
   const conferida = Boolean(l.conferidoEm);
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
-  const dicas = [l.origem?.observacao ? `Obs.: ${l.origem.observacao}` : null, l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
+  const dicas = [l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   const temAcoes = editavel || l.tipo === "PROJETO";
   return (
     <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
@@ -202,6 +202,19 @@ function Linha({
           <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>
           <PedidoPor l={l} />
         </p>
+        {/* O que quem pediu escreveu: descrição das unidades e observação, inteiras (a reunião confere por elas). */}
+        {l.origem?.descricao && (
+          <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
+            <span className="text-muted">Descrição: </span>
+            {l.origem.descricao}
+          </p>
+        )}
+        {l.origem?.observacao && (
+          <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
+            <span className="text-muted">Obs.: </span>
+            {l.origem.observacao}
+          </p>
+        )}
         {dicas && (
           <p title={dicas} className={cn("m-0 mt-0.5 line-clamp-2 text-rotulo", l.ultimoAjuste ? "text-warning" : "text-muted")}>
             {l.ultimoAjuste && <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />}
@@ -292,7 +305,7 @@ export function ConferenciaAta({
         (l) =>
           (filtro === "pendentes" ? !l.conferidoEm : filtro === "conferidas" ? Boolean(l.conferidoEm) : true) &&
           (!areaAtiva || areaDe(l) === areaAtiva) &&
-          (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""}`, busca)),
+          (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""} ${l.origem?.descricao ?? ""}`, busca)),
       ),
     [linhas, filtro, areaAtiva, busca],
   );

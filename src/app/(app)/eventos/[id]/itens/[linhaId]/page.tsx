@@ -6,14 +6,16 @@ import { obterEventoCache } from "@/server/cache";
 import { detalheLinha } from "@/server/services/linha-do-tempo";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { NaoEncontradoError } from "@/domain/errors";
-import { pode } from "@/domain/permissions";
+import { daMinhaArea, pode } from "@/domain/permissions";
+import { obterConferencia } from "@/server/services/conferencia";
+import { MesmoItemNoEvento, type LinhaMesmoItem } from "@/components/eventos/mesmo-item-no-evento";
 import { aguardaReuniao, SOLICITACAO_TIPO_LABEL } from "@/domain/solicitacao";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, ListaDados, Section } from "@/components/ui/layout";
 import { ItemStatusBadge, Tag } from "@/components/ui/badge";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { Icone } from "@/components/ui/icons";
-import { Codigo } from "@/components/ui/numero";
+import { Codigo, Numero } from "@/components/ui/numero";
 import { iconeHistorico, LinhaTempoAgrupada, type TomEntrada } from "@/components/eventos/linha-tempo-agrupada";
 import type { TomLinhaTempo } from "@/server/services/linha-do-tempo";
 import { PecasProjeto } from "@/components/eventos/pecas-projeto";
@@ -40,13 +42,35 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ItemEventoPage({ params }: { params: Promise<{ id: string; linhaId: string }> }) {
   const usuario = await requireUsuario();
   const { id, linhaId } = await params;
-  const [ev, d] = await Promise.all([
+  const [ev, d, todasAsLinhas] = await Promise.all([
     obterEventoCache(usuario, id),
     detalheLinhaCache(usuario, id, linhaId).catch((e) => {
       if (e instanceof NaoEncontradoError) notFound();
       throw e;
     }),
+    obterConferencia(id),
   ]);
+  // Todas as linhas do mesmo projeto/peça no evento (ex.: todas as tendas pedidas), com o que cada área
+  // escreveu. Dados do pedido de outra área (quem, código, descrição) só para quem vê todas as áreas.
+  const veTodas = pode(usuario, "solicitacao.ver_todas");
+  const mesmoItem: LinhaMesmoItem[] = todasAsLinhas
+    .filter((l) => l.tipo === d.tipo && (d.tipo === "AVULSO" ? l.nome === d.nome : l.codigo === d.codigo))
+    .map((l) => {
+      const ve = veTodas || !l.origem || daMinhaArea(usuario, l.areaId);
+      return {
+        id: l.id,
+        quantidade: l.quantidade,
+        destino: l.destino,
+        area: l.areaNome,
+        solicitante: ve ? (l.origem?.solicitante ?? (l.incluidaPor ? `incluída por ${l.incluidaPor}` : null)) : null,
+        codigo: ve ? (l.origem?.codigo ?? null) : null,
+        descricao: ve ? (l.origem?.descricao ?? null) : null,
+        observacao: ve ? (l.origem?.observacao ?? null) : null,
+        conferidoEm: l.conferidoEm,
+        conferidoPor: l.conferidoPor,
+      };
+    });
+  const totalMesmoItem = mesmoItem.reduce((a, l) => a + l.quantidade, 0);
   const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   const opcoes = editavel ? await opcoesReferenciasResumidas() : null;
@@ -105,6 +129,19 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
+          {mesmoItem.length > 0 && (
+            <Section
+              titulo={`${d.nome} no evento`}
+              sub={
+                <>
+                  <Numero valor={totalMesmoItem} /> no total em {mesmoItem.length} {mesmoItem.length === 1 ? "linha" : "linhas"}
+                  {pode(usuario, "ata.consolidar") && antesDaAta ? " · confira cada uma aqui ou na conferência" : ""}
+                </>
+              }
+            >
+              <MesmoItemNoEvento eventoId={id} atualId={d.id} linhas={mesmoItem} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} />
+            </Section>
+          )}
           {d.tipo === "PROJETO" && (
             <Section titulo="Peças deste projeto" sub={editavel ? "Ajuste peça a peça quando a reunião decidir (só neste evento). Cada ajuste pede motivo." : "Lista de peças que este projeto leva no evento."}>
               <PecasProjeto eventoId={id} linhaId={d.id} quantidadeProjeto={d.quantidade} pecas={d.pecasDoProjeto} editavel={editavel} opcoesPecas={opcoes?.pecas ?? []} depoisDaAta={!antesDaAta} />

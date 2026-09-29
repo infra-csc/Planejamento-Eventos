@@ -8,7 +8,7 @@ import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
 import { bloquearEvento, notificar, notificarAjusteLinha, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
-import { observacaoDoItem } from "@/domain/descricoes-itens";
+import { textoDescricoes } from "@/domain/descricoes-itens";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -100,6 +100,7 @@ export async function obterConferencia(eventoId: string) {
       quantidade: l.quantidade,
       destino: l.destino,
       areaNome: l.areaNome,
+      areaId: l.registro.areaId ?? null,
       capaId: l.capaId ?? null,
       conferidoEm: l.conferidoEm ? l.conferidoEm.toISOString() : null,
       conferidoPor: l.conferidoPor ?? null,
@@ -111,7 +112,10 @@ export async function obterConferencia(eventoId: string) {
             solicitante: o.solicitante,
             enviadaEm: o.enviadaEm ? o.enviadaEm.toISOString() : null,
             quantidadeSolicitada: o.quantidadeSolicitada,
-            observacao: observacaoDoItem(o),
+            /** Descrição das unidades, como quem pediu escreveu (texto, arte, medida). */
+            descricao: textoDescricoes(o.descricoes, o.quantidadeSolicitada),
+            /** Observação do solicitante sobre o item. */
+            observacao: o.justificativa?.trim() || null,
             ajustes: resumirAjustes(o.ajustesBom),
           }
         : null,
