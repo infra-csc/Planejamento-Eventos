@@ -15,7 +15,7 @@ import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui
 import { Codigo } from "@/components/ui/numero";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
-import { DicaAtalhos, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
+import { DicaAtalhos, GrupoItens, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
 import { AcoesSolicitacao } from "@/components/solicitacoes/acoes-solicitacao";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { LinhaDoTempo } from "@/components/ui/linha-do-tempo";
@@ -79,6 +79,15 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     corrigivel: corrigivel && i.status !== "EM_ANALISE",
     aguardandoReuniao: naAta,
   }));
+  // O mesmo item pedido para vários locais vira um grupo (nome + total, uma linha por local), na ordem em
+  // que aparece; a navegação por teclado segue a mesma ordem da tela.
+  const grupos = new Map<string, ItemParaResposta[]>();
+  s.itens.forEach((si, n) => {
+    const chave = [si.operacao, si.projetoId ?? "", si.pecaId ?? "", si.eventoItemId ?? "", si.descricaoLivre ?? ""].join("|");
+    grupos.set(chave, [...(grupos.get(chave) ?? []), itens[n]]);
+  });
+  const gruposItens = [...grupos.values()];
+  const itensNaOrdem = gruposItens.flat();
   // "Outro item (descrever)": fora do catálogo até a logística cadastrar ou vincular.
   const foraCatalogo = s.itens.filter((i) => i.operacao === "ADICIONAR" && !i.projetoId && !i.pecaId && i.descricaoLivre);
   const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
@@ -271,17 +280,17 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               <p className="m-0 whitespace-pre-wrap px-cartao py-3.5 text-corpo leading-relaxed text-ink-2">{s.observacao}</p>
             </Section>
           )}
-          <RespostaProvider itens={itens} sufixoToast={sufixo}>
+          <RespostaProvider itens={itensNaOrdem} sufixoToast={sufixo}>
             <Section
               titulo={
                 <span className="inline-flex items-center gap-2">
-                  Itens <ChipMono tom="control">{s.itens.length}</ChipMono>
+                  Itens <ChipMono tom="control">{gruposItens.length}</ChipMono>
                 </span>
               }
               sub={respondivel ? (pendentes > 0 ? `${pendentes} ${pendentes === 1 ? "aguarda" : "aguardam"} resposta. Parcial e não atendido exigem motivo.` : "Todos os itens respondidos.") : undefined}
               acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}
             >
-              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : itens.map((i) => <ItemResposta key={i.id} item={i} semStatus={semStatus} />)}
+              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : gruposItens.map((g) => (g.length === 1 ? <ItemResposta key={g[0].id} item={g[0]} semStatus={semStatus} /> : <GrupoItens key={g[0].id} itens={g} semStatus={semStatus} />))}
             </Section>
           </RespostaProvider>
           <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>

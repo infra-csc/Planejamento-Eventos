@@ -37,8 +37,10 @@ export function DialogoTendas({
         quantidadeAtual: null,
         destino: x.destino,
         justificativa: "",
-        descricoes: x.descricoes,
-        locais: x.locais,
+        // O local já diz onde cada tenda vai: sem descrição por unidade (quem quiser, desmarca e descreve).
+        descricoes: [],
+        semDescricao: true,
+        locais: [x.destino],
         ajustes: x.ajustes,
         rotulo: r.nome,
         meta: `${r.codigo} · projeto padrão`,

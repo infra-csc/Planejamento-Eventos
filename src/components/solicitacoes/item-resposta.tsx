@@ -362,7 +362,40 @@ function DescricoesUnidades({ lista, quantidade }: { lista: string[] | null | un
 
 const ROTULO_OPERACAO: Partial<Record<ItemOperacao, string>> = { ALTERAR_QUANTIDADE: "mudar quantidade", REMOVER: "remover da ata" };
 
-export function ItemResposta({ item, semStatus = false }: { item: ItemParaResposta; semStatus?: boolean }) {
+/**
+ * O mesmo item pedido para vários locais (tendas no Depósito, no GV…) aparece junto: um cabeçalho com
+ * o nome e o total, e uma linha por local — cada uma com status, descrição e resposta próprios.
+ */
+export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaResposta[]; semStatus?: boolean }) {
+  const total = itens.reduce((a, i) => a + i.quantidadeSolicitada, 0);
+  // Mesma situação em todos os locais: o selo (e o "aguarda conferência") aparece uma vez, no cabeçalho.
+  const primeiro = itens[0];
+  const naAtaGrupo = Boolean(primeiro.aguardandoReuniao) && primeiro.status === "ATENDIDO";
+  const mesmoEstado = itens.every((i) => i.status === primeiro.status && Boolean(i.aguardandoReuniao) === Boolean(primeiro.aguardandoReuniao)) && (primeiro.status === "EM_ANALISE" || naAtaGrupo);
+  return (
+    <div role="group" aria-label={`${itens[0].descricao}: ${total} no total em ${itens.length} locais`} className="border-b border-line-row last:border-b-0">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-cartao pb-1 pt-4">
+        <p className="m-0 min-w-0 flex-1 break-words text-corpo font-medium text-ink">{itens[0].descricao}</p>
+        <span className="shrink-0 text-pequeno text-muted">
+          <Numero valor={total} className="font-semibold text-ink" /> no total · {itens.length} locais
+        </span>
+        {!semStatus && mesmoEstado && <ItemStatusBadge status={primeiro.status} naAta={naAtaGrupo} className="shrink-0" />}
+      </div>
+      {mesmoEstado && naAtaGrupo && <p className="m-0 px-cartao pb-1 text-pequeno text-ink-2">Aguarda conferência na reunião de OS.</p>}
+      <div className="ml-cartao border-l-2 border-line-soft [&>*:last-child]:border-b-0">
+        {itens.map((i) => (
+          <ItemResposta key={i.id} item={i} semStatus={semStatus} emGrupo estadoNoGrupo={mesmoEstado} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Descrição gerada que só repete o local ("Tenda 3×3 — Buffet"): dentro do grupo por local, não informa nada. */
+const soRepeteLocal = (d: string, destino: string | null) => Boolean(destino) && d.trim().toLowerCase().endsWith(`— ${destino!.trim().toLowerCase()}`);
+
+export function ItemResposta({ item: itemOriginal, semStatus = false, emGrupo = false, estadoNoGrupo = false }: { item: ItemParaResposta; semStatus?: boolean; emGrupo?: boolean; /** O grupo já mostra a situação (igual em todos os locais). */ estadoNoGrupo?: boolean }) {
+  const item = emGrupo && itemOriginal.descricoes?.every((d) => !d.trim() || soRepeteLocal(d, itemOriginal.destino)) ? { ...itemOriginal, descricoes: null } : itemOriginal;
   const { foco, setFoco, edicao, setEdicao, enviar, pendente, compacto } = useResposta();
   const selecionado = foco === item.id;
   const editando = edicao?.id === item.id ? edicao : null;
@@ -370,22 +403,22 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
   const naAta = Boolean(item.aguardandoReuniao) && item.status === "ATENDIDO";
   const podeResponder = emAnalise && item.respondivel;
   const temContexto = Boolean(item.descricoes?.some((d) => d.trim()) || item.justificativa);
-  const observacao = naAta ? "Aguarda conferência na reunião de OS." : item.observacaoLogistica;
+  const observacao = naAta ? (estadoNoGrupo ? null : "Aguarda conferência na reunião de OS.") : item.observacaoLogistica;
   const rotuloOp = ROTULO_OPERACAO[item.operacao];
 
   return (
     <div
       tabIndex={0}
       role="group"
-      aria-label={`${item.descricao}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
+      aria-label={`${item.descricao}${emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
       aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}
       onFocus={(e) => {
         if (e.target === e.currentTarget) setFoco(item.id);
       }}
       className={cn(
-        "relative border-b border-line-row py-4 transition-colors duration-150 last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
-        compacto ? "px-4" : "px-cartao",
+        "relative border-b border-line-row transition-colors duration-150 last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+        emGrupo ? "py-3 pl-4 pr-cartao" : cn("py-4", compacto ? "px-4" : "px-cartao"),
         podeResponder && "cursor-pointer",
         selecionado ? "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent" : podeResponder && "hover:bg-subtle",
       )}
@@ -393,7 +426,14 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
       {/* Cabeçalho: o que foi pedido, quanto e o estado (um selo só). */}
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>
+          {emGrupo ? (
+            <p className="m-0 flex items-center gap-1.5 break-words text-corpo font-medium text-ink">
+              <Icone nome="local" className="size-3.5 shrink-0 text-ink-3" />
+              {item.destino || <span className="font-normal text-muted">Local não informado</span>}
+            </p>
+          ) : (
+            <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>
+          )}
           <p className="mb-0 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-pequeno text-muted">
             {rotuloOp && <Tag tom={item.operacao === "REMOVER" ? "danger" : "muted"}>{rotuloOp}</Tag>}
             <span>
@@ -415,7 +455,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
                 Atendido <Numero valor={item.quantidadeAtendida ?? 0} className={cn("font-semibold", item.status === "ATENDIDO" ? "text-success" : item.status === "PARCIAL" ? "text-warning" : "text-danger")} />
               </span>
             )}
-            {item.destino && (
+            {item.destino && !emGrupo && (
               <span className="inline-flex items-center gap-1">
                 <Icone nome="local" className="size-3.5 text-ink-3" />
                 {item.destino}
@@ -429,7 +469,7 @@ export function ItemResposta({ item, semStatus = false }: { item: ItemParaRespos
             </p>
           )}
         </div>
-        {!semStatus && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
+        {!semStatus && !estadoNoGrupo && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
       </div>
 
       {/* O que o solicitante escreveu: descrições das unidades e observação. */}
