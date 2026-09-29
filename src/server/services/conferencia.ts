@@ -1,3 +1,4 @@
+import { ehItemPadraoAta } from "@/domain/itens-padrao";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
@@ -120,6 +121,8 @@ export async function obterConferencia(eventoId: string) {
           }
         : null,
       incluidaPor: o ? null : (criadorDe.get(l.id) ?? null),
+      /** Item padrão de toda ata (ex.: garfo de içamento), incluído sozinho na criação do evento. */
+      padrao: ehItemPadraoAta({ tipo: l.tipo, codigo: l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, temOrigem: Boolean(o) }),
       ultimoAjuste: aj ? { por: aj.por ?? "—", em: aj.criadoEm.toISOString(), descricao: textoAjuste(aj) } : null,
     };
   });

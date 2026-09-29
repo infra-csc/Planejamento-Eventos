@@ -32,7 +32,7 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
 /** Quem pediu a linha (ou quem incluiu na reunião). */
-const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? l.incluidaPor ?? "Logística";
+const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 
 /** Check da linha (40 px, alvo de toque em qualquer tela): um clique confere, outro desfaz. Otimista, volta se o servidor recusar. */
@@ -157,6 +157,8 @@ function PedidoPor({ l }: { l: LinhaConferencia }) {
         <Codigo>{l.origem.codigo}</Codigo>
       </Link>
     </>
+  ) : l.padrao ? (
+    <>item padrão de toda ata</>
   ) : (
     <>incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>
   );

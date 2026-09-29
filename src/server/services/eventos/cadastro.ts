@@ -4,6 +4,7 @@ import { eventos } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { formatarDataHora } from "@/lib/format";
+import { incluirItensPadraoAta } from "./itens-padrao";
 import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosRequisitantes } from "../support";
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +84,8 @@ export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
       usuarioId: usuario.id,
       dadosDepois: dados,
     });
+    // Itens de toda ata (ex.: 2 garfos de içamento): já entram para conferir na reunião.
+    await incluirItensPadraoAta(tx, ev.id, usuario.id);
     await notificar(tx, {
       usuarioIds: await usuariosRequisitantes(tx),
       tipo: "EVENTO_CRIADO",
