@@ -14,6 +14,7 @@ export const ACOES = [
   "evento.reabrir",
   "ata.consolidar",
   "ata.ajustar",
+  "conferencia.editar_descricao", // corrigir a descrição das unidades que veio do pedido
   "solicitacao.criar",
   "solicitacao.ver_todas",
   "solicitacao.responder",
@@ -55,6 +56,7 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "evento.reabrir": ["GESTAO", "ADMIN"],
   "ata.consolidar": ["LOGISTICA", "ADMIN"],
   "ata.ajustar": ["LOGISTICA", "ADMIN"],
+  "conferencia.editar_descricao": ["ADMIN"],
   "solicitacao.criar": [...REQUISITANTES, "ADMIN"],
   "solicitacao.ver_todas": ["LOGISTICA", "GESTAO", "ADMIN"],
   "solicitacao.responder": ["LOGISTICA", "ADMIN"],

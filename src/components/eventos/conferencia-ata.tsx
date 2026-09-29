@@ -16,7 +16,8 @@ import { Pills } from "@/components/ui/pills";
 import { Select } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
-import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
+import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
+import { IconButton } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
@@ -143,6 +144,71 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
   );
 }
 
+/** Administrador corrige a descrição das unidades que veio do pedido: cada texto com quantas unidades levam ele. */
+function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId: string; onFechar: () => void }) {
+  const total = l.quantidade > 0 ? l.quantidade : (l.origem?.quantidadeSolicitada ?? 1);
+  const [grupos, setGrupos] = useState(() => (l.origem?.descricoes.length ? l.origem.descricoes.map((g) => ({ ...g })) : [{ texto: "", unidades: total }]));
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  const soma = grupos.reduce((a, g) => a + (g.texto.trim() ? g.unidades : 0), 0);
+  const mudar = (n: number, patch: Partial<{ texto: string; unidades: number }>) => setGrupos((gs) => gs.map((g, i) => (i === n ? { ...g, ...patch } : g)));
+
+  const salvar = () => {
+    setErro(null);
+    iniciar(async () => {
+      const r = await editarDescricoesLinhaAction(eventoId, l.id, grupos);
+      if (!r.ok) return setErro(r.erro);
+      toastSucesso(r.dados?.mudou === false ? "A descrição já estava assim." : `Descrição de ${l.nome} atualizada`);
+      onFechar();
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent title={`Descrição de ${l.nome}`} description={`${l.origem ? `Pedido ${l.origem.codigo} · ${l.origem.solicitante}. ` : ""}A alteração fica no histórico com seu nome, e quem pediu passa a ver a descrição nova.`} width={560}>
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[112px_minmax(0,1fr)_36px] gap-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted">
+            <span>Unidades</span>
+            <span>Descrição</span>
+            <span />
+          </div>
+          {grupos.map((g, n) => (
+            <div key={n} className="grid grid-cols-[112px_minmax(0,1fr)_36px] items-center gap-2">
+              <Stepper tamanho="sm" valor={g.unidades} min={1} onChange={(v) => mudar(n, { unidades: v })} label={`Unidades da descrição ${n + 1}`} />
+              <Input value={g.texto} maxLength={300} onChange={(e) => mudar(n, { texto: e.target.value })} placeholder="Ex.: PALCO, arte da marca, 2×1 m" aria-label={`Descrição ${n + 1}`} autoFocus={n === 0} />
+              {grupos.length > 1 ? (
+                <IconButton label={`Tirar a descrição ${n + 1}`} onClick={() => setGrupos((gs) => gs.filter((_, i) => i !== n))}>
+                  <Icone nome="lixeira" />
+                </IconButton>
+              ) : (
+                <span />
+              )}
+            </div>
+          ))}
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setGrupos((gs) => [...gs, { texto: "", unidades: 1 }])}>
+            <Icone nome="mais" />
+            Outra descrição
+          </Button>
+          <p className={cn("m-0 text-pequeno", grupos.length > 1 && soma !== total ? "text-warning" : "text-muted")}>
+            {grupos.length === 1 ? (total === 1 ? "" : `Uma descrição só vale para todas as ${total} unidades.`) : `${soma} de ${total} unidades descritas.`} Deixe em branco para tirar a descrição.
+          </p>
+          <FormError message={erro} />
+        </div>
+        <DialogFooter>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+            Salvar descrição
+          </Button>
+          <DialogClose asChild>
+            <Button variant="secondary" size="lg" disabled={pendente}>
+              Cancelar
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /**
  * Grade da linha. Celular (cartão): check · item · qtd, e as ações numa faixa abaixo, alinhadas ao texto.
  * md+: check · item (com quem pediu) · destino · qtd · ações, numa linha só.
@@ -200,7 +266,10 @@ function Linha({
   opcoes,
   podeCadastrar,
   emGrupo = false,
+  onEditarDescricao,
 }: {
+  /** Administrador: corrigir a descrição das unidades (só linha que veio de pedido). */
+  onEditarDescricao?: (l: LinhaConferencia) => void;
   /** Dentro do bloco do item: o nome já está no cabeçalho, a linha mostra quem pediu. */
   emGrupo?: boolean;
   l: LinhaConferencia;
@@ -255,6 +324,12 @@ function Linha({
         </p>
         {/* O que quem pediu escreveu: descrição das unidades e observação, inteiras (a reunião confere por elas). */}
         {l.origem && l.origem.descricoes.length > 0 && <Descricoes grupos={l.origem.descricoes} />}
+        {onEditarDescricao && l.origem && (
+          <button type="button" onClick={() => onEditarDescricao(l)} className="mt-1 inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-rotulo text-accent hover:underline">
+            <Icone nome="lapis" className="size-3" />
+            {l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"}
+          </button>
+        )}
         {l.origem?.observacao && (
           <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
             <span className="text-muted">Obs.: </span>
@@ -312,8 +387,11 @@ export function ConferenciaAta({
   opcoes,
   areas,
   podeCadastrar = false,
+  podeEditarDescricao = false,
 }: {
   eventoId: string;
+  /** Administrador corrige a descrição das unidades na conferência. */
+  podeEditarDescricao?: boolean;
   linhas: LinhaConferencia[];
   editavel: boolean;
   opcoes: OpcoesReferencia;
@@ -335,6 +413,8 @@ export function ConferenciaAta({
   const [pessoa, setPessoa] = useState("");
   const [busca, setBusca] = useState("");
   const [ajustando, setAjustando] = useState<LinhaConferencia | null>(null);
+  const [descrevendo, setDescrevendo] = useState<LinhaConferencia | null>(null);
+  const editarDescricao = podeEditarDescricao ? setDescrevendo : undefined;
   const [incluir, setIncluir] = useState(false);
   const [conferindo, iniciarTodas] = useTransition();
   const [confirmarTodas, setConfirmarTodas] = useState(false);
@@ -505,7 +585,7 @@ export function ConferenciaAta({
                   const l = ls[0];
                   return (
                     <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
-                      <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                      <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} />
                     </ul>
                   );
                 }
@@ -533,7 +613,7 @@ export function ConferenciaAta({
                     </h4>
                     <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
                       {ls.map((l) => (
-                        <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} emGrupo />
+                        <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo />
                       ))}
                     </ul>
                   </section>
@@ -588,6 +668,7 @@ export function ConferenciaAta({
         )}
       </Dialog>
       {ajustando && <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />}
+      {descrevendo && <DescricaoModal l={descrevendo} eventoId={eventoId} onFechar={() => setDescrevendo(null)} />}
       <Dialog open={incluir} onOpenChange={setIncluir}>
         {incluir && (
           <DialogContent title="Incluir linha na ata" description="Projeto padrão, peça do catálogo ou item fora do catálogo decidido na reunião. Já entra conferida." width={520}>

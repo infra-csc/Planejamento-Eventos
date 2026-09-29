@@ -86,7 +86,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+        <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} podeEditarDescricao={pode(usuario, "conferencia.editar_descricao")} />
         <PainelReuniao
           eventoId={id}
           resumo={ev.reuniaoIniciadaEm && ev.status === "EM_REUNIAO" ? `Iniciada ${diaMesHora(ev.reuniaoIniciadaEm)} · ${ev.responsavel.nome}` : `Marcada para ${diaMesHora(ev.dataReuniao)} · ${ev.responsavel.nome}`}

@@ -21,7 +21,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto } from "@/server/services/conferencia";
+import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, editarDescricoesLinha } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { pecaSchema } from "@/lib/schemas";
@@ -201,6 +201,19 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
   if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: "Dados inválidos." } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo, { quantidadeEsperada }));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
+export async function editarDescricoesLinhaAction(eventoId: string, linhaId: string, grupos: unknown) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || !Array.isArray(grupos) || grupos.length > 1000) return { ok: false, erro: "Dados inválidos." } as const;
+  const lista = grupos.map((g) => {
+    const o = (g ?? {}) as Record<string, unknown>;
+    return { texto: typeof o.texto === "string" ? o.texto : "", unidades: Number(o.unidades) };
+  });
+  const r = await executar(() => editarDescricoesLinha(usuario, eventoId, linhaId, lista));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

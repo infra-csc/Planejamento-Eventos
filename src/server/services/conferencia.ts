@@ -370,3 +370,49 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
     return { texto };
   });
 }
+
+/**
+ * O administrador corrige, na conferência, a descrição das unidades que veio do pedido (texto, arte,
+ * medida). Grava no item da solicitação: é a mesma descrição que quem pediu vê. O texto anterior fica
+ * no histórico da linha. `grupos`: cada texto com quantas unidades levam ele; um grupo só vale para todas.
+ */
+export async function editarDescricoesLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string, grupos: ReadonlyArray<{ texto: string; unidades: number }>) {
+  exigir(usuario, "conferencia.editar_descricao");
+  const limpos = grupos.map((g) => ({ texto: g.texto.trim(), unidades: g.unidades })).filter((g) => g.texto);
+  if (limpos.some((g) => !Number.isInteger(g.unidades) || g.unidades < 1)) throw new ValidacaoError("Cada descrição precisa de ao menos 1 unidade.");
+  if (limpos.some((g) => g.texto.length > 300)) throw new ValidacaoError("Cada descrição tem até 300 caracteres.");
+  const total = limpos.reduce((a, g) => a + g.unidades, 0);
+  if (total > 1000) throw new ValidacaoError("Descreva no máximo 1.000 unidades.");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    if (ev.status === "ENCERRADO" || ev.status === "CANCELADO") throw new DomainError("Evento encerrado ou cancelado: a descrição não muda mais.");
+    const linha = await tx.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaId), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)), columns: { id: true, solicitacaoItemId: true } });
+    if (!linha) throw new NaoEncontradoError("Linha da ata");
+    if (!linha.solicitacaoItemId) throw new DomainError("Esta linha não veio de um pedido, então não tem descrição de unidades para editar.");
+    const item = await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.solicitacaoItemId), columns: { id: true, descricoes: true, quantidadeSolicitada: true, semDescricao: true } });
+    if (!item) throw new NaoEncontradoError("Item do pedido");
+    // Um texto só = vale para todas as unidades; vários = um por unidade, na ordem.
+    const novas = limpos.length === 0 ? null : limpos.length === 1 ? [limpos[0].texto] : limpos.flatMap((g) => Array.from({ length: g.unidades }, () => g.texto));
+    const antes = textoDescricoes(item.descricoes, item.quantidadeSolicitada);
+    const depois = textoDescricoes(novas, item.quantidadeSolicitada);
+    if ((antes ?? "") === (depois ?? "")) return { mudou: false as const };
+    await tx
+      .update(solicitacaoItens)
+      .set({ descricoes: novas, semDescricao: novas ? false : item.semDescricao, atualizadoEm: new Date() })
+      .where(eq(solicitacaoItens.id, item.id));
+    await registrarHistorico(tx, {
+      eventoId,
+      entidade: "evento_item",
+      entidadeId: linha.id,
+      acao: "DESCRICAO_EDITADA",
+      descricao: `Descrição alterada na conferência: ${depois ?? "sem descrição"}${antes ? ` (antes: ${antes})` : ""}`,
+      usuarioId: usuario.id,
+      dadosAntes: { descricoes: item.descricoes },
+      dadosDepois: { descricoes: novas },
+    });
+    return { mudou: true as const };
+  });
+}
