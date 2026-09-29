@@ -67,9 +67,9 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "projeto.gerenciar": ["CENOGRAFIA", "ADMIN"],
   // Por enquanto só o administrador: demanda de peças ainda em validação.
   "consolidacao.ver": ["ADMIN"],
-  // Mapa 3D: todo mundo vê; quem monta o mapa (logística) e o administrador editam.
+  // Mapa 3D: todo mundo vê o que já existe; só o administrador cria, edita e exclui.
   "arena.ver": TODOS,
-  "arena.editar": ["LOGISTICA", "ADMIN"],
+  "arena.editar": ["ADMIN"],
   "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
   "pendencias.resolver": ["LOGISTICA", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],

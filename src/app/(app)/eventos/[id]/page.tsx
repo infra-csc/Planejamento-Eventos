@@ -407,7 +407,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             <Atalho href={`/eventos/${id}/solicitacoes`} icone="solicitacoes">
               Solicitações do evento
             </Atalho>
-            {veArena && (
+            {/* Quem só vê o mapa não tem "criar": o atalho aparece quando o evento já tem arena. */}
+            {veArena && (slugArena || pode(usuario, "arena.editar")) && (
               <Atalho href={slugArena ? `/arena/${slugArena}` : `/arena/nova?evento=${id}`} icone="arena">
                 {slugArena ? "Mapa da arena" : "Criar mapa da arena"}
               </Atalho>

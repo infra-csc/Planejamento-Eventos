@@ -105,7 +105,8 @@ describe("permissões", () => {
     expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "ata.ajustar")).toBe(false);
     expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "arena.ver")).toBe(true);
     expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "arena.editar")).toBe(false);
-    expect(pode({ perfil: "LOGISTICA", areaId: null }, "arena.editar")).toBe(true);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "arena.editar")).toBe(false);
+    expect(pode({ perfil: "ADMIN", areaId: null }, "arena.editar")).toBe(true);
     expect(pode({ perfil: "LOGISTICA", areaId: null }, "consolidacao.ver")).toBe(false);
     expect(pode({ perfil: "ADMIN", areaId: null }, "arena.ver")).toBe(true);
     expect(pode({ perfil: "CENOGRAFIA", areaId: "a" }, "projeto.gerenciar")).toBe(true);
