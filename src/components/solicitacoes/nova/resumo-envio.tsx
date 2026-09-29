@@ -8,7 +8,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { hora } from "@/lib/format";
 import { Passo } from "./passo";
-import { irPara } from "./utilidades";
+import { agruparItensNovos, irPara } from "./utilidades";
 import type { EstadoSalvo } from "./use-autosave-solicitacao";
 import type { EventoOpcao, ItemNovo, Pendencia, Referencia } from "./tipos";
 
@@ -61,7 +61,7 @@ export function ResumoEnvio({
   const nomeCurto = (i: ItemNovo) => (i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? i.rotulo) : i.rotulo);
   // Título sugerido a partir dos itens: só placeholder e um atalho "Usar sugestão"; nunca preenche sozinho.
   const sugestaoTitulo = (() => {
-    const nomes = itens.map(nomeCurto);
+    const nomes = [...new Set(itens.map(nomeCurto))];
     if (nomes.length === 0) return null;
     const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
     return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
@@ -87,7 +87,7 @@ export function ResumoEnvio({
         sub={
           evento ? (
             <>
-              <Numero valor={itens.length} /> {itens.length === 1 ? "item" : "itens"} para {evento.nome}
+              <Numero valor={agruparItensNovos(itens).length} /> {agruparItensNovos(itens).length === 1 ? "item" : "itens"} para {evento.nome}
             </>
           ) : (
             "Escolha o evento e adicione itens."
@@ -96,10 +96,13 @@ export function ResumoEnvio({
       >
         {itens.length > 0 && (
           <ul className="m-0 max-h-[200px] list-none overflow-y-auto border-b border-line-soft p-0">
-            {itens.map((i) => {
-              const falta = semDescricao.some((x) => x.chave === i.chave);
+            {agruparItensNovos(itens).map(({ chave, itens: doGrupo }) => {
+              const i = doGrupo[0];
+              const falta = doGrupo.some((x) => semDescricao.some((y) => y.chave === x.chave));
+              const total = doGrupo.reduce((a, x) => a + x.quantidade, 0);
+              const nLocais = new Set(doGrupo.map((x) => x.destino.trim().toLocaleLowerCase("pt-BR"))).size;
               return (
-                <li key={i.chave}>
+                <li key={chave}>
                   <button
                     type="button"
                     onClick={() => irPara(`item-${i.chave}`)}
@@ -108,8 +111,9 @@ export function ResumoEnvio({
                     {falta && <Icone nome="alerta" className="size-3.5 text-warning" title="Faltam descrições" />}
                     <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
                       {i.rotulo}
+                      {nLocais > 1 && <span className="text-muted"> · {nLocais} locais</span>}
                     </span>
-                    <span className="numero shrink-0 text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${i.quantidade}`}</span>
+                    <span className="numero shrink-0 text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${total}`}</span>
                   </button>
                 </li>
               );

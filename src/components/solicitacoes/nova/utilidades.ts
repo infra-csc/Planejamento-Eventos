@@ -1,6 +1,6 @@
 import type { ActionResult } from "@/lib/action";
 import { kitDaTenda } from "@/domain/tendas";
-import type { Referencia } from "./tipos";
+import type { ItemNovo, Referencia } from "./tipos";
 
 let seq = 0;
 export const novaChave = () => `n${Date.now()}-${seq++}`;
@@ -21,3 +21,17 @@ export const irPara = (id: string) => {
 
 /** Projeto de tenda: o kit (tamanho e peças) reconhecido pelo padrão do projeto; `null` se não for tenda. */
 export const kitDe = (r: Referencia) => (r.bom?.length ? kitDaTenda(r.bom.map((b) => b.codigo)) : null);
+
+/**
+ * Itens do mesmo projeto adicionados à solicitação ficam juntos, num cartão só (ex.: tenda 5×5 em
+ * 3 locais = 1 item "Tenda 5×5 m × 10" com os locais dentro). Cada local continua uma linha, porque
+ * as peças ajustadas (fechamentos, calhas) podem mudar de um local para outro. Ordem da 1ª aparição.
+ */
+export function agruparItensNovos(itens: readonly ItemNovo[]): Array<{ chave: string; itens: ItemNovo[] }> {
+  const grupos = new Map<string, ItemNovo[]>();
+  for (const i of itens) {
+    const k = i.operacao === "ADICIONAR" && i.projetoId ? `projeto:${i.projetoId}` : i.chave;
+    grupos.set(k, [...(grupos.get(k) ?? []), i]);
+  }
+  return [...grupos.entries()].map(([chave, lista]) => ({ chave, itens: lista }));
+}

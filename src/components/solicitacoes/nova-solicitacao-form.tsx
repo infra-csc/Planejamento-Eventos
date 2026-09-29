@@ -171,6 +171,14 @@ export function NovaSolicitacaoForm({
     });
   };
 
+  // Tira várias linhas de uma vez (ex.: a tenda com todos os locais), com um "desfazer" só.
+  const removerItens = (lista: ItemNovo[], rotulo: string) => {
+    const antes = itens;
+    const chaves = new Set(lista.map((x) => x.chave));
+    setItens((l) => l.filter((x) => !chaves.has(x.chave)));
+    toast(`${rotulo} removido da solicitação`, { desfazer: () => setItens(antes) });
+  };
+
   const validarTitulo = (v: string) => setErroTitulo(v.trim() ? null : "Dê um título para a logística identificar a solicitação na fila.");
 
   const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes, semDescricao: i.semDescricao }) > 0);
@@ -317,7 +325,7 @@ export function NovaSolicitacaoForm({
           <BuscaCatalogo modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
 
           {/* 3 · Detalhar itens */}
-          <ListaItens itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} />
+          <ListaItens itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />
         </div>
 
         {/* 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */}
@@ -348,7 +356,7 @@ export function NovaSolicitacaoForm({
       {/* Barra de envio fixa no celular e tablet. */}
       <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} edicaoEnviada={edicaoEnviada} />
 
-      <DialogoTendas tendaAberta={tendaAberta} setTendaAberta={setTendaAberta} projetos={projetos} setItens={setItens} />
+      <DialogoTendas tendaAberta={tendaAberta} setTendaAberta={setTendaAberta} projetos={projetos} itens={itens} setItens={setItens} />
 
       <ConfirmDialog
         open={troca !== null}

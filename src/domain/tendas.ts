@@ -186,3 +186,30 @@ export function itensDoQuadro(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, lo
   }
   return itens;
 }
+
+/**
+ * Caminho de volta do `itensDoQuadro`: os itens da tenda já na solicitação (um por local, ou mais de
+ * um quando o total não dividia igual) viram de novo as linhas do quadro, somando por local. Só marca
+ * como "digitado" o total que foge do padrão × tendas (o resto segue o padrão se mudar a quantidade).
+ * `ajustes` por código da peça (delta por unidade).
+ */
+export function locaisDosItens(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, itens: ReadonlyArray<{ destino: string; quantidade: number; ajustes: Record<string, number> }>): LocalTenda[] {
+  const papeis = papeisDoKit(kit);
+  const norm = (s: string) => s.trim().toLocaleLowerCase("pt-BR");
+  const locais: Array<{ local: string; quantidade: number; somas: Partial<Record<PapelTenda, number>> }> = [];
+  for (const it of itens) {
+    if (it.quantidade <= 0) continue;
+    let l = locais.find((x) => norm(x.local) === norm(it.destino));
+    if (!l) {
+      l = { local: it.destino.trim(), quantidade: 0, somas: {} };
+      locais.push(l);
+    }
+    l.quantidade += it.quantidade;
+    for (const { papel, codigo } of papeis) l.somas[papel] = (l.somas[papel] ?? 0) + it.quantidade * Math.max(0, padraoPorTenda(kit, bom, papel) + (it.ajustes[codigo] ?? 0));
+  }
+  return locais.map((l) => ({
+    local: l.local,
+    quantidade: l.quantidade,
+    totais: Object.fromEntries(papeis.flatMap(({ papel }) => (l.somas[papel] !== padraoPorTenda(kit, bom, papel) * l.quantidade ? [[papel, l.somas[papel]!]] : []))),
+  }));
+}

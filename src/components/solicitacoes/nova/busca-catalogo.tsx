@@ -280,8 +280,8 @@ export function BuscaCatalogo({
                           <span aria-hidden />
                         )}
                         {kit ? (
-                          <Button variant="secondary" size="sm" onClick={() => setTendaAberta(r.id)} aria-label={`Pedir ${r.nome} por local`}>
-                            Pedir por local
+                          <Button variant="secondary" size="sm" onClick={() => setTendaAberta(r.id)} aria-label={`${jaNaLista ? "Editar" : "Pedir"} ${r.nome} por local`}>
+                            {jaNaLista ? "Editar tendas" : "Pedir por local"}
                           </Button>
                         ) : (
                           <span

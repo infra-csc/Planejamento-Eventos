@@ -26,8 +26,23 @@ type Linha = { pecaId: string; codigo: string; quantidade: number };
  * mais próxima — a soma sempre bate com o que foi digitado.
  * Vive dentro de um DialogContent (o rodapé usa DialogFooter).
  */
-export function QuadroTendas({ kit, bom, extras, onConfirmar, onCancelar }: { kit: KitTenda; bom: ReadonlyArray<Linha>; extras: ReadonlyArray<Linha>; onConfirmar: (itens: ItemTenda[]) => void; onCancelar: () => void }) {
-  const [locais, setLocais] = useState<LocalTenda[]>(() => locaisIniciaisTenda(kit.tamanho));
+export function QuadroTendas({
+  kit,
+  bom,
+  extras,
+  iniciais,
+  onConfirmar,
+  onCancelar,
+}: {
+  kit: KitTenda;
+  bom: ReadonlyArray<Linha>;
+  extras: ReadonlyArray<Linha>;
+  /** Tendas já na solicitação (editar): o quadro abre com elas em vez dos locais padrão. */
+  iniciais?: LocalTenda[];
+  onConfirmar: (itens: ItemTenda[]) => void;
+  onCancelar: () => void;
+}) {
+  const [locais, setLocais] = useState<LocalTenda[]>(() => (iniciais?.length ? iniciais : locaisIniciaisTenda(kit.tamanho)));
   const [erro, setErro] = useState<{ linha: number | null; msg: string } | null>(null);
   const sugestoes = [...(LOCAIS_PADRAO_TENDA[kit.tamanho] ?? []).map((l) => l.local), ...(LOCAIS_SUGERIDOS_TENDA[kit.tamanho] ?? [])];
   const idSugestoes = `tenda-locais-${kit.tamanho.replace("×", "x")}`;
@@ -178,7 +193,7 @@ export function QuadroTendas({ kit, bom, extras, onConfirmar, onCancelar }: { ki
 
       <DialogFooter>
         <Button variant="primary" size="lg" onClick={confirmar} disabled={tendas === 0} motivoDesabilitado="Informe ao menos uma tenda.">
-          {tendas === 1 ? "Adicionar 1 tenda" : `Adicionar ${tendas} tendas`}
+          {iniciais?.length ? "Salvar tendas" : tendas === 1 ? "Adicionar 1 tenda" : `Adicionar ${tendas} tendas`}
         </Button>
         <Button variant="secondary" size="lg" onClick={onCancelar}>
           Cancelar

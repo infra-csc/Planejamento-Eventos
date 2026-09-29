@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisIniciaisTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
+import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -105,5 +105,18 @@ describe("itensDoQuadro", () => {
     expect(t.fechamento).toBe(17);
     expect(t.cantoneira).toBe(32);
     expect(locaisIniciaisTenda("9×9")).toEqual([{ local: "", quantidade: 0, totais: {} }]);
+  });
+
+  it("volta dos itens para o quadro: soma por local e só marca o que foge do padrão", () => {
+    const locais = [
+      { local: "Depósito", quantidade: 2, totais: { fechamento: 6, calha: 1 } },
+      { local: "GV", quantidade: 3, totais: {} },
+      { local: "Médica", quantidade: 1, totais: { cantoneira: 6 } },
+    ];
+    const itens = itensDoQuadro(kit, bom5, locais).map((i) => ({ destino: i.local, quantidade: i.quantidade, ajustes: i.ajustes }));
+    const volta = locaisDosItens(kit, bom5, itens);
+    expect(volta).toEqual(locais);
+    // E o quadro de volta gera os mesmos itens.
+    expect(itensDoQuadro(kit, bom5, volta)).toEqual(itensDoQuadro(kit, bom5, locais));
   });
 });
