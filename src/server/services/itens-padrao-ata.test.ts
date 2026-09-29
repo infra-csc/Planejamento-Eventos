@@ -26,7 +26,7 @@ beforeAll(async () => {
   garfoId = g.id;
   const [e] = await db.insert(pecas).values({ codigo: "ESTACA", nome: "Estaca de estaiamento", setor: "ESTRUTURA" }).returning();
   estacaId = e.id;
-  await db.insert(pecas).values({ codigo: "CORDA", nome: "Corda de estaiamento", setor: "ESTRUTURA" });
+  await db.insert(pecas).values([{ codigo: "CORDA", nome: "Corda de estaiamento", setor: "ESTRUTURA" }, { codigo: "QUADRO-METAL", nome: "Quadro de metal", setor: "ESTRUTURA" }, { codigo: "GRADE-2X1", nome: "Grade 2×1 m", setor: "ESTRUTURA" }]);
 }, 120_000);
 
 const linhasGarfo = async (eventoId: string) => (await getDb()).select().from(eventoItens).where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, garfoId)));
@@ -57,7 +57,7 @@ describe("itens padrão da ata", () => {
     const db = await getDb();
     const [estaca] = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.pecaId, estacaId)));
     expect(estaca).toMatchObject({ quantidade: 0, ativo: true });
-    expect((await obterConferencia(ev.id)).filter((l) => l.padrao).map((l) => l.codigo).sort()).toEqual(["CORDA", "ESTACA", "GARFO"]);
+    expect((await obterConferencia(ev.id)).filter((l) => l.padrao).map((l) => l.codigo).sort()).toEqual(["CORDA", "ESTACA", "GARFO", "GRADE-2X1", "QUADRO-METAL"]);
     await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
     await fecharAta(E.admin, ev.id);
     // Enquanto 0, não entra na OS.
