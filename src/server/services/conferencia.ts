@@ -9,7 +9,15 @@ import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
 import { bloquearEvento, notificar, notificarAjusteLinha, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
-import { textoDescricoes } from "@/domain/descricoes-itens";
+
+/** Descrições das unidades agrupadas por texto; uma descrição só num pedido de várias vale para todas. */
+function gruposDescricao(lista: readonly string[] | null | undefined, quantidade: number) {
+  const itens = (lista ?? []).map((d) => d.trim());
+  if (!itens.some(Boolean)) return [];
+  if (itens.length === 1) return [{ texto: itens[0], unidades: quantidade }];
+  return agruparDescricoes(itens);
+}
+import { agruparDescricoes, textoDescricoes } from "@/domain/descricoes-itens";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -95,7 +103,8 @@ export async function obterConferencia(eventoId: string) {
     return {
       id: l.id,
       tipo: l.tipo,
-      nome: l.nome,
+      // Peça: só o nome (o código já vai à parte, no selo).
+      nome: l.tipo === "PECA" && l.peca ? l.peca.nome : l.nome,
       codigo: l.tipo === "PROJETO" ? (l.projeto?.codigo ?? null) : l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null,
       versao: l.versao,
       quantidade: l.quantidade,
@@ -115,6 +124,8 @@ export async function obterConferencia(eventoId: string) {
             quantidadeSolicitada: o.quantidadeSolicitada,
             /** Descrição das unidades, como quem pediu escreveu (texto, arte, medida). */
             descricao: textoDescricoes(o.descricoes, o.quantidadeSolicitada),
+            /** As mesmas descrições em lista: quantas unidades levam cada texto. */
+            descricoes: gruposDescricao(o.descricoes, o.quantidadeSolicitada),
             /** Observação do solicitante sobre o item. */
             observacao: o.justificativa?.trim() || null,
             ajustes: resumirAjustes(o.ajustesBom),

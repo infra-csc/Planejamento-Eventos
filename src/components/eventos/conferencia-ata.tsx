@@ -147,7 +147,33 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
  * Grade da linha. Celular (cartão): check · item · qtd, e as ações numa faixa abaixo, alinhadas ao texto.
  * md+: check · item (com quem pediu) · destino · qtd · ações, numa linha só.
  */
-const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_minmax(0,0.55fr)_76px_auto]";
+// Destino, quantidade e ações com largura fixa: alinham em todas as linhas (também nas recuadas dos blocos por item).
+const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_140px_64px_96px]";
+
+/** Descrição das unidades como quem pediu escreveu: uma linha por texto, com quantas unidades levam ele. */
+function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidades: number }> }) {
+  const total = grupos.reduce((a, g) => a + g.unidades, 0);
+  if (grupos.length === 1)
+    return (
+      <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
+        <span className="text-muted">Descrição{total > 1 ? ` (todas as ${total})` : ""}: </span>
+        {grupos[0].texto || <span className="text-meta">sem descrição</span>}
+      </p>
+    );
+  return (
+    <div className="mt-1.5 text-pequeno">
+      <span className="text-muted">Descrição por unidade</span>
+      <ul className="m-0 mt-0.5 grid list-none gap-px p-0">
+        {grupos.map((g, i) => (
+          <li key={i} className="flex items-baseline gap-2">
+            <span className="numero w-7 shrink-0 text-right text-muted">{g.unidades}×</span>
+            <span className="min-w-0 whitespace-pre-line break-words text-ink-2">{g.texto || <span className="text-meta">sem descrição</span>}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 /** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
 function PedidoPor({ l }: { l: LinhaConferencia }) {
@@ -221,12 +247,7 @@ function Linha({
           <PedidoPor l={l} />
         </p>
         {/* O que quem pediu escreveu: descrição das unidades e observação, inteiras (a reunião confere por elas). */}
-        {l.origem?.descricao && (
-          <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
-            <span className="text-muted">Descrição: </span>
-            {l.origem.descricao}
-          </p>
-        )}
+        {l.origem && l.origem.descricoes.length > 0 && <Descricoes grupos={l.origem.descricoes} />}
         {l.origem?.observacao && (
           <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
             <span className="text-muted">Obs.: </span>
@@ -241,7 +262,7 @@ function Linha({
         )}
       </div>
 
-      <span className="hidden truncate text-pequeno text-ink-2 md:block" title={l.destino ?? undefined}>
+      <span className="hidden break-words text-pequeno text-ink-2 md:line-clamp-2" title={l.destino ?? undefined}>
         {l.destino ?? <span className="text-meta">—</span>}
       </span>
 
@@ -251,7 +272,7 @@ function Linha({
       </span>
 
       {temAcoes ? (
-        <span className="col-span-full flex flex-wrap items-center justify-start gap-1.5 pl-[52px] md:col-span-1 md:justify-end md:pl-0">
+        <span className="col-span-full flex flex-wrap items-center justify-start gap-1.5 pl-[52px] md:col-span-1 md:pl-0">
           {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
           {editavel && (
             <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar quantidade de ${l.nome}`} title="Ajustar quantidade">
@@ -399,18 +420,18 @@ export function ConferenciaAta({
             ]}
           />
         </div>
-        <div className="flex min-w-0 flex-1 gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
           {areasNaAta.length > 1 && (
-            <div className="w-44 shrink-0 max-sm:w-[42%]">
+            <div className="min-w-0 flex-1 basis-36 sm:max-w-44">
               <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} placeholder="Todas as áreas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
             </div>
           )}
           {pessoasNaAta.length > 1 && (
-            <div className="w-48 shrink-0 max-sm:w-[42%]">
+            <div className="min-w-0 flex-1 basis-36 sm:max-w-48">
               <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} placeholder="Todas as pessoas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
             </div>
           )}
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-0 flex-[2] basis-48">
             <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Item, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
           </div>
