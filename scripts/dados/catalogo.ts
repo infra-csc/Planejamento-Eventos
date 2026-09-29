@@ -632,8 +632,8 @@ export const PROJETOS: ProjetoCatalogo[] = [
     nome: "Tenda 5×5 m",
     imagens: ["tenda-5x5-esquema.jpg"],
     categoria: "Tenda",
-    descricao: "Estrutura da tenda 5×5 com lona. Fechamentos laterais e calha de união pedidos por unidade.",
-    itens: [["TND5-CANT", 4], ["TND5-TRAV", 4], ["TND5-PE", 4], ["TND5-MASTRO", 1], ["TND5-CABO", 1], ["TND5-LONA", 1]],
+    descricao: "Estrutura da tenda 5×5 com lona e calha de união (1 por tenda). Fechamentos laterais pedidos por local; a quantidade de calhas também se ajusta por local no quadro de tendas.",
+    itens: [["TND5-CANT", 4], ["TND5-TRAV", 4], ["TND5-PE", 4], ["TND5-MASTRO", 1], ["TND5-CABO", 1], ["TND5-LONA", 1], ["TND5-CALHA", 1]],
   },
   {
     nome: "Tenda 3×3 m",

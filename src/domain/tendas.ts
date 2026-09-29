@@ -6,7 +6,8 @@
  * fechamento de um dos kits abaixo (códigos do catálogo real, scripts/dados/catalogo.ts). O tamanho
  * da tenda vem do kit encontrado.
  *
- * Fechamento e calha variam por local, então não fazem parte do padrão do projeto (a lista de peças
+ * Fechamento e calha variam por local. O fechamento não faz parte do padrão do projeto; a calha da
+ * 5×5 faz (1 por tenda) e o quadro ajusta o total do local. O que não está no padrão (a lista de peças
  * de um projeto não aceita quantidade 0): entram como ajuste "extra" da linha, permitido só para as
  * peças por local do kit da própria tenda (ver `extrasPermitidosTenda`).
  */
