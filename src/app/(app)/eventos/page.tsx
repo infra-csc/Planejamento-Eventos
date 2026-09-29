@@ -17,6 +17,8 @@ import { LinhaLink } from "@/components/ui/linha-link";
 import { BarrasFase } from "@/components/eventos/fases";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
+import { listarAreasCache } from "@/server/cache";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -49,13 +51,41 @@ const exigeAcao = (e: EventoLista) => e.status === "EM_REUNIAO" || (e.solicitaco
 /** Sem ordenação escolhida, a lista mantém a prioridade dos antigos grupos: ação agora, em andamento, encerrados e cancelados. */
 const prioridade = (e: EventoLista) => (exigeAcao(e) ? 0 : e.status === "PREPARACAO" || e.status === "ABERTO" ? 1 : 2);
 
+/** Selos das áreas: cheio = já enviou pedido para o evento; apagado = ainda não. */
+function AreasQuePediram({ areas, pediram }: { areas: Array<{ id: string; nome: string }>; pediram: string[] }) {
+  if (areas.length === 0) return null;
+  const n = areas.filter((a) => pediram.includes(a.id)).length;
+  return (
+    <span className="flex flex-wrap items-center gap-1" aria-label={`${n} de ${areas.length} áreas já pediram`}>
+      {areas.map((a) => {
+        const pediu = pediram.includes(a.id);
+        return (
+          <span
+            key={a.id}
+            title={pediu ? `${a.nome}: já pediu` : `${a.nome}: ainda não pediu`}
+            className={cn("inline-flex items-center gap-1 rounded-chip border px-1.5 py-px text-rotulo", pediu ? "border-success-border bg-success-bg font-medium text-success" : "border-dashed border-line-strong text-meta")}
+          >
+            {pediu && <Icone nome="check" className="size-3" />}
+            {a.nome}
+          </span>
+        );
+      })}
+      <span className="numero ml-0.5 text-rotulo text-muted">
+        {n}/{areas.length}
+      </span>
+    </span>
+  );
+}
+
 export default async function EventosPage({ searchParams }: { searchParams: Promise<{ q?: string; fase?: string; acao?: string; ordem?: string; dir?: string; pagina?: string }> }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const hoje = hojeISO();
   const busca = sp.q?.trim().slice(0, 80) || null;
   // Busca por nome/código/cliente/local no banco; fase "Realizado" depende de hoje, então as abas contam em memória.
-  const encontrados = await listarEventos(usuario, busca ? { busca } : {});
+  const [encontrados, todasAreas] = await Promise.all([listarEventos(usuario, busca ? { busca } : {}), listarAreasCache()]);
+  // Áreas que pedem (a logística responde, não pede): cada evento mostra quais já enviaram pedido.
+  const areasQuePedem = todasAreas.filter((a) => a.nome.toLowerCase() !== "logística").map((a) => ({ id: a.id, nome: a.nome }));
   const fase: Fase = FASES.find(([v]) => v === sp.fase)?.[0] ?? "TODOS";
   const faseDe = (e: EventoLista) => statusExibicao(e.status, e.dataFim, hoje);
   const ehLogistica = pode(usuario, "solicitacao.responder");
@@ -168,6 +198,9 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         {sp.ordem === "periodo" && <Icone nome={sp.dir === "desc" ? "seta-baixo" : "seta-cima"} className="size-3.5" />}
                       </Link>
                     </th>
+                    <Th className="hidden md:table-cell" largura={240}>
+                      Áreas que pediram
+                    </Th>
                     {th("pendencias", "Pendências", 140, "right")}
                     <Th largura={44}>
                       <span className="sr-only">Abrir</span>
@@ -207,6 +240,9 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         <td className="hidden border-b border-line-row px-3 py-3 lg:table-cell">
                           <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
                           <span className="block text-rotulo text-muted">{marco(e)}</span>
+                        </td>
+                        <td className="hidden border-b border-line-row px-3 py-3 md:table-cell">
+                          <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
                         </td>
                         <td className="border-b border-line-row px-3 py-3 text-right">
                           <span className={e.solicitacoesAbertas > 0 ? "block text-pequeno font-medium text-warning" : "block text-pequeno font-medium text-meta"}>

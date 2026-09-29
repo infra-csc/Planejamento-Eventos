@@ -85,7 +85,10 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const temArea = areasDoUsuario(usuario).length > 0;
   const deOutraArea = (l: (typeof linhas)[number]) => temArea && !daMinhaArea(usuario, l.registro.areaId);
   // Quem pediu é assunto da área que pediu: fora dela, a origem aparece sem o código da solicitação.
-  const origemVisivel = (l: (typeof linhas)[number]) => (veTodasAsAreas || !l.origemSolicitacaoId || daMinhaArea(usuario, l.registro.areaId) ? l.origemLabel : "Pedido de área");
+  const podeVerOrigem = (l: (typeof linhas)[number]) => veTodasAsAreas || !l.origemSolicitacaoId || daMinhaArea(usuario, l.registro.areaId);
+  const origemVisivel = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemLabel : "Pedido de área");
+  // Nome de quem pediu (ou de quem incluiu), com a mesma regra do código da solicitação.
+  const quemPediu = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemPor : null);
   const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
   const ajustes = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
 
@@ -186,6 +189,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                         <span className="block truncate text-pequeno text-muted">
                           {deOutraArea(l) ? `${l.areaNome ?? "Logística"} · ` : ""}
                           {origemVisivel(l)}
+                          {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
                         </span>
                       </span>
                       <Numero valor={l.quantidade} className="shrink-0 text-corpo font-medium text-ink" />
@@ -266,6 +270,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                     {l.destino ? ` · ${l.destino}` : ""} ·{" "}
                                   </span>
                                   {origemVisivel(l)}
+                                  {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
                                 </span>
                               </span>
                             </span>
@@ -274,7 +279,10 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                             {l.areaNome ?? "Logística"}
                             {l.destino && <span className="text-muted"> · {l.destino}</span>}
                           </td>
-                          <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">{origemVisivel(l)}</td>
+                          <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">
+                            {origemVisivel(l)}
+                            {quemPediu(l) && <span className="block truncate text-rotulo text-muted">{quemPediu(l)}</span>}
+                          </td>
                           <td className="numero border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink">{l.quantidade}</td>
                         </LinhaLink>
                       ))}

@@ -45,7 +45,7 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
   const [origens, capas, nomesConferiu] = await Promise.all([
     ids.length
       ? db
-          .select({ id: solicitacaoItens.id, status: solicitacaoItens.status, codigo: solicitacoes.codigo, solicitacaoId: solicitacoes.id })
+          .select({ id: solicitacaoItens.id, status: solicitacaoItens.status, codigo: solicitacoes.codigo, solicitacaoId: solicitacoes.id, solicitanteId: solicitacoes.criadoPorId })
           .from(solicitacaoItens)
           .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
           .where(inArray(solicitacaoItens.id, ids))
@@ -53,8 +53,10 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
     projetoIds.length
       ? db.select({ projetoId: anexos.projetoId, id: anexos.id }).from(anexos).where(and(inArray(anexos.projetoId, projetoIds), eq(anexos.tipo, "IMAGEM"))).orderBy(asc(anexos.criadoEm))
       : Promise.resolve([]),
-    nomesUsuarios(db, linhas.map((l) => l.registro.conferidoPorId)),
+    // Quem conferiu e quem incluiu direto (linha sem solicitação).
+    nomesUsuarios(db, [...linhas.map((l) => l.registro.conferidoPorId), ...linhas.map((l) => l.registro.criadoPorId)]),
   ]);
+  const solicitantes = await nomesUsuarios(db, origens.map((o) => o.solicitanteId));
   const mapa = new Map(origens.map((o) => [o.id, o]));
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
@@ -73,6 +75,8 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
       descricao: descricaoLinha(l),
       origemLabel,
       origemSolicitacaoId: o?.solicitacaoId ?? null,
+      /** Quem pediu (solicitação) ou quem incluiu a linha direto na ata. */
+      origemPor: o ? (solicitantes.get(o.solicitanteId) ?? null) : l.registro.criadoPorId ? (nomesConferiu.get(l.registro.criadoPorId) ?? null) : null,
       versao,
       versaoAtual,
       versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,

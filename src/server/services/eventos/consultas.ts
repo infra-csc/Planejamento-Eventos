@@ -35,7 +35,7 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
   if (filtro.deData && dataValida(filtro.deData)) conds.push(sql`${eventos.dataFim} >= ${filtro.deData}`);
   if (filtro.ateData && dataValida(filtro.ateData)) conds.push(sql`${eventos.dataInicio} <= ${filtro.ateData}`);
 
-  const [rows, abertas, versoes] = await Promise.all([
+  const [rows, abertas, versoes, pediram] = await Promise.all([
     db.query.eventos.findMany({
       where: conds.length ? and(...conds) : undefined,
       with: { responsavel: { columns: { id: true, nome: true } } },
@@ -51,10 +51,17 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
       .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
       .from(osVersoes)
       .groupBy(osVersoes.eventoId),
+    // Áreas que já enviaram pedido para o evento (rascunho e cancelada não contam).
+    db
+      .selectDistinct({ eventoId: solicitacoes.eventoId, areaId: solicitacoes.areaId })
+      .from(solicitacoes)
+      .where(and(eq(solicitacoes.excluida, false), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA"]))),
   ]);
+  const areasQuePediram = new Map<string, string[]>();
+  for (const p of pediram) areasQuePediram.set(p.eventoId, [...(areasQuePediram.get(p.eventoId) ?? []), p.areaId]);
   const mapaAbertas = new Map(abertas.map((a) => [a.eventoId, Number(a.n)]));
   const mapaVersoes = new Map(versoes.map((v) => [v.eventoId, Number(v.v)]));
-  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapaAbertas.get(r.id) ?? 0, versaoOs: mapaVersoes.get(r.id) ?? 0 }));
+  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapaAbertas.get(r.id) ?? 0, versaoOs: mapaVersoes.get(r.id) ?? 0, areasQuePediram: areasQuePediram.get(r.id) ?? [] }));
 }
 
 export type EventoLista = Awaited<ReturnType<typeof listarEventos>>[number];
