@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import type { Arena, PontoArena } from "@/domain/arena/tipos";
-import { chaveItemAta, normalizarAngulo } from "@/domain/arena/posicoes";
+import { chaveItemAta, normalizarAngulo, podeMexerNoPonto } from "@/domain/arena/posicoes";
 import { removerPosicaoArenaAction, salvarPosicaoArenaAction } from "@/app/(app)/arena/actions";
 import { toast, toastErro } from "@/components/ui/toast";
 import type { PosicionarItem } from "./painel-ponto";
@@ -31,7 +31,10 @@ export function useEdicaoArena({
   setSelecionado,
   setPainelEsquerdo,
   medindo,
+  secoesEditaveis = null,
 }: {
+  /** null = mexe em tudo; senão, só nos pontos de itens da ata dessas seções (áreas). */
+  secoesEditaveis?: readonly string[] | null;
   arenaServidor: Arena;
   editadas: string[];
   selecionado: string | null;
@@ -76,6 +79,9 @@ export function useEdicaoArena({
     [arenaSalva, previa],
   );
   const idsEditados = useMemo(() => new Set(editadas), [editadas]);
+  /** Ponto que esta pessoa pode mexer (o da própria área; o administrador mexe em todos). */
+  const podeMexer = (p: PontoArena | null | undefined) => Boolean(p) && podeMexerNoPonto(secoesEditaveis, itemAtaDe(p as PontoArena));
+  const avisarOutraArea = (nome: string) => toastErro(`${nome} é de outra área: só quem pediu posiciona.`);
   const temRegistro = (chave: string) => (chave in registrosLocais ? registrosLocais[chave] : idsEditados.has(chave));
 
   const salvarPosicao = (dados: Parameters<typeof salvarPosicaoArenaAction>[1], rotulo: string, silencioso = false) => {
@@ -145,6 +151,7 @@ export function useEdicaoArena({
           const p = arenaSalva.pontos.find((q) => q.id === id);
           setPrevia(null);
           if (!p) return;
+          if (!podeMexer(p)) return avisarOutraArea(p.nome);
           empilhar(`mover ${p.nome}`, id);
           setLocais((l) => ({ ...l, [id]: { ...l[id], posicao: [x, z] } }));
           salvarPosicao({ chave: id, tipo: tipoRegistro(id), x, z, nome: p.nome, itemAta: itemAtaDe(p) }, "", true);
@@ -153,6 +160,7 @@ export function useEdicaoArena({
           if (!colocando) return;
           const item = colocando;
           setColocando(null);
+          if (!podeMexerNoPonto(secoesEditaveis, item.itemAta)) return avisarOutraArea(item.nome);
           empilhar(`posicionar ${item.nome}`, item.chave);
           setSelecionado(item.chave);
           salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} entrou no mapa — arraste para acertar o lugar`);
@@ -174,6 +182,10 @@ export function useEdicaoArena({
     }
     const p = pontoSelecionadoEdicao;
     if (!p) return setFormEdicao(null);
+    if (!podeMexer(p)) {
+      setFormEdicao(null);
+      return avisarOutraArea(p.nome);
+    }
     empilhar(`renomear ${p.nome}`, p.id);
     salvarPosicao({ chave: p.id, tipo: tipoRegistro(p.id), x: p.posicao[0], z: p.posicao[1], nome, categoria: formEdicao.categoria, itemAta: itemAtaDe(p) }, `${nome}: dados salvos`);
     setFormEdicao(null);
@@ -183,6 +195,7 @@ export function useEdicaoArena({
   const girar = (delta: number) => {
     const p = pontoSelecionadoEdicao;
     if (!p || medindo) return;
+    if (!podeMexer(p)) return avisarOutraArea(p.nome);
     const rotacao = normalizarAngulo((p.rotacao ?? 0) + delta);
     empilhar(`girar ${p.nome}`, p.id);
     setLocais((l) => ({ ...l, [p.id]: { ...l[p.id], rotacao } }));
@@ -207,6 +220,7 @@ export function useEdicaoArena({
   };
 
   const excluirDoMapa = (p: PontoArena) => {
+    if (!podeMexer(p)) return avisarOutraArea(p.nome);
     const livre = p.id.startsWith("novo:livre:");
     const novo = p.id.startsWith("novo:");
     empilhar(livre ? `excluir ${p.nome}` : novo ? `tirar ${p.nome} do mapa` : `voltar ${p.nome} ao lugar original`, p.id);
@@ -256,6 +270,8 @@ export function useEdicaoArena({
     excluirDoMapa,
     desfazer,
     aposRestaurar,
+    podeMexer,
+    secoesEditaveis,
   };
 }
 

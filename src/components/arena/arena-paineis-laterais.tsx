@@ -6,6 +6,7 @@ import { CATEGORIAS, type Camada } from "@/domain/arena/categorias";
 import type { MotorArena } from "./cena/motor";
 import { PainelAta, PainelPonto, PainelSemPosicao, type PosicionarItem } from "./painel-ponto";
 import { PainelConferencia } from "./painel-conferencia";
+import { podeMexerNoPonto } from "@/domain/arena/posicoes";
 import { IndicePontos } from "./indice-pontos";
 
 export type PainelEsquerdo = "indice" | "conferencia" | null;
@@ -41,6 +42,7 @@ export function PaineisLaterais({
   colocando,
   setColocando,
   medindo,
+  secoesEditaveis = null,
   pararMedicao,
 }: {
   arena: Arena;
@@ -68,6 +70,7 @@ export function PaineisLaterais({
   fecharDireito: () => void;
   devolverFoco: () => void;
   editando: boolean;
+  secoesEditaveis?: readonly string[] | null;
   colocando: PosicionarItem | null;
   setColocando: Dispatch<SetStateAction<PosicionarItem | null>>;
   medindo: boolean;
@@ -132,6 +135,7 @@ export function PaineisLaterais({
                     if (medindo) pararMedicao();
                     setColocando((c) => (c?.chave === item.chave ? null : item));
                   },
+                  podePosicionar: (item) => podeMexerNoPonto(secoesEditaveis, item.itemAta),
                 }
               : null
           }

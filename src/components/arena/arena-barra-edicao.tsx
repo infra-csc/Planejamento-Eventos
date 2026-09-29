@@ -34,6 +34,7 @@ const ATALHOS_ITEM: Array<{ nome: string; categoria: string }> = [
 export function BarraEdicao({
   slug,
   podeEditar,
+  administra = true,
   edicao,
   setSelecionado,
   medindo,
@@ -48,6 +49,8 @@ export function BarraEdicao({
 }: {
   slug: string;
   podeEditar: boolean;
+  /** Administrador: itens avulsos (poste, bueiro…) e "restaurar planta". A área só posiciona o que pediu. */
+  administra?: boolean;
   edicao: EdicaoArena;
   setSelecionado: (id: string | null) => void;
   medindo: boolean;
@@ -71,8 +74,15 @@ export function BarraEdicao({
       )}
       {editando && (
         <>
-          <Button variant="secondary" size="sm" aria-expanded={menuItens} disabled={Boolean(colocando) || medindo} onClick={() => setMenuItens((v) => !v)}>
-            + Adicionar ao mapa
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-expanded={administra ? menuItens : undefined}
+            disabled={Boolean(colocando) || medindo}
+            onClick={() => (administra ? setMenuItens((v) => !v) : abrirSemPosicao())}
+            title={administra ? undefined : "Posicione os itens que a sua área pediu"}
+          >
+            {administra ? "+ Adicionar ao mapa" : "+ Posicionar itens da minha área"}
           </Button>
           <Button
             variant="ghost"
@@ -155,7 +165,7 @@ export function BarraEdicao({
             Imprimir mapa (PDF)
           </DropdownItem>
           <DropdownItem onSelect={() => setFontesAbertas(true)}>De onde vêm os dados</DropdownItem>
-          {podeEditar && (
+          {podeEditar && administra && (
             <>
               <DropdownSeparator />
               <DropdownItem danger disabled={salvando || idsEditados.size === 0} onSelect={() => setConfirmarRestaurar(true)}>

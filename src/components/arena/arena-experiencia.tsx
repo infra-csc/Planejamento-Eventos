@@ -24,11 +24,14 @@ import { useAtalhosEdicao, useEdicaoArena } from "./use-edicao-arena";
 export function ArenaExperiencia({
   arena: arenaServidor,
   podeEditar = false,
+  secoesEditaveis = null,
   editadas = [],
   plantaImagemUrl = null,
 }: {
   arena: Arena;
   podeEditar?: boolean;
+  /** null = mexe em tudo (administrador); senão, só nos itens das seções (áreas) informadas. */
+  secoesEditaveis?: string[] | null;
   editadas?: string[];
   /** Imagem da planta do evento: fundo da Planta 2D e textura no chão do 3D, no retângulo `arena.area`. */
   plantaImagemUrl?: string | null;
@@ -38,7 +41,7 @@ export function ArenaExperiencia({
   // Régua: `a` e `b` em metros; `cursorMedida` é a prévia da segunda ponta sob o ponteiro.
   const [medindo, setMedindo] = useState(false);
   // Edição de posições (logística): estado, "Desfazer" e a arena com os ajustes ainda não refletidos pelo servidor.
-  const edicao = useEdicaoArena({ arenaServidor, editadas, selecionado, setSelecionado, setPainelEsquerdo, medindo });
+  const edicao = useEdicaoArena({ arenaServidor, editadas, selecionado, setSelecionado, setPainelEsquerdo, medindo, secoesEditaveis });
   const { arena, editando, colocando, setColocando, setMenuItens, setFormEdicao, setPrevia, edicaoPlano, pontoSelecionadoEdicao } = edicao;
   /** A cena 3D nasce com a arena do momento; depois as edições chegam por `atualizarPontos`, sem remontar a cada arraste. */
   const arenaCenaRef = useRef(arena);
@@ -458,6 +461,7 @@ export function ArenaExperiencia({
       <BarraEdicao
         slug={arena.slug}
         podeEditar={podeEditar}
+        administra={secoesEditaveis === null}
         edicao={edicao}
         setSelecionado={setSelecionado}
         medindo={medindo}
@@ -630,6 +634,7 @@ export function ArenaExperiencia({
           fecharDireito={fecharDireito}
           devolverFoco={devolverFoco}
           editando={editando}
+          secoesEditaveis={secoesEditaveis}
           colocando={colocando}
           setColocando={setColocando}
           medindo={medindo}

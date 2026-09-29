@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { arenaPosicoes, usuarios } from "@/server/db/schema";
+import { areas, arenaPosicoes, usuarios } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
-import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
+import { areasDoUsuario, pode } from "@/domain/permissions";
 import { CATEGORIAS } from "@/domain/arena/categorias";
-import { descreverGiro, normalizarAngulo, type PosicaoEditada } from "@/domain/arena/posicoes";
+import { descreverGiro, normalizarAngulo, podeMexerNoPonto, type PosicaoEditada } from "@/domain/arena/posicoes";
 import { registrarHistorico } from "./support";
 import { arenaExiste } from "./arenas";
 
@@ -44,15 +45,45 @@ export type DadosPosicao = {
 
 const LIMITE = 5000; // metros a partir do marco: bem além de qualquer planta
 
-/** Salva (cria ou substitui) a posição de um ponto da arena. Logística e administrador. */
+const MSG_OUTRA_AREA = "Você posiciona no mapa só os itens pedidos pela sua área.";
+
+/**
+ * Seções do mapa em que o usuário mexe: null = todas (administrador); senão, os nomes das áreas dele
+ * (os itens da ata de um evento ficam na seção da área que pediu). Sem área, lista vazia (só vê).
+ */
+export async function secoesEditaveisArena(usuario: UsuarioAtual): Promise<string[] | null> {
+  if (pode(usuario, "arena.editar")) return null;
+  if (!pode(usuario, "arena.ver")) return [];
+  const ids = areasDoUsuario(usuario);
+  if (ids.length === 0) return [];
+  const db = await getDb();
+  return (await db.select({ nome: areas.nome }).from(areas).where(inArray(areas.id, ids))).map((a) => a.nome);
+}
+
+/** Confere se o usuário pode mexer no ponto (o que chega e, se já existe, o que está salvo). */
+async function exigirPontoDaArea(usuario: UsuarioAtual, slug: string, chave: string, itemAtaNovo: string | null | undefined, tipo: "MOVER" | "NOVO" | null) {
+  const secoes = await secoesEditaveisArena(usuario);
+  if (secoes === null) return;
+  if (tipo === "MOVER") throw new SemPermissaoError(MSG_OUTRA_AREA);
+  const db = await getDb();
+  const [salvo] = await db.select({ itemAta: arenaPosicoes.itemAta, tipo: arenaPosicoes.tipo }).from(arenaPosicoes).where(and(eq(arenaPosicoes.arenaSlug, slug), eq(arenaPosicoes.chave, chave)));
+  if (salvo && (salvo.tipo !== "NOVO" || !podeMexerNoPonto(secoes, salvo.itemAta))) throw new SemPermissaoError(MSG_OUTRA_AREA);
+  if (itemAtaNovo !== undefined && !podeMexerNoPonto(secoes, itemAtaNovo)) throw new SemPermissaoError(MSG_OUTRA_AREA);
+}
+
+/**
+ * Salva (cria ou substitui) a posição de um ponto da arena. O administrador mexe em tudo; cada área
+ * posiciona os itens da ata que ela pediu (as outras áreas veem, sem mexer).
+ */
 export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, dados: DadosPosicao) {
-  exigir(usuario, "arena.editar");
+  exigir(usuario, "arena.ver");
   if (!dados.chave?.trim() || (dados.tipo !== "MOVER" && dados.tipo !== "NOVO")) throw new ValidacaoError("Ponto inválido.");
   if (![dados.x, dados.z].every((n) => Number.isFinite(n) && Math.abs(n) <= LIMITE)) throw new ValidacaoError("Posição fora da área do mapa.");
   if (dados.tipo === "NOVO" && !dados.nome?.trim()) throw new ValidacaoError("Informe o nome do item.");
   if (dados.categoria && !Object.hasOwn(CATEGORIAS, dados.categoria)) throw new ValidacaoError("Categoria inválida.");
   if (dados.rotacao != null && (!Number.isFinite(dados.rotacao) || Math.abs(dados.rotacao) > 100)) throw new ValidacaoError("Giro inválido.");
   if (!(await arenaExiste(slug))) throw new NaoEncontradoError("Arena");
+  await exigirPontoDaArea(usuario, slug, dados.chave, dados.itemAta ?? null, dados.tipo);
   const db = await getDb();
   const valores = {
     arenaSlug: slug,
@@ -95,7 +126,8 @@ export async function salvarPosicaoArena(usuario: UsuarioAtual, slug: string, da
 
 /** Desfaz a edição: ponto movido volta ao lugar da planta; ponto novo volta para "sem posição". */
 export async function removerPosicaoArena(usuario: UsuarioAtual, slug: string, chave: string) {
-  exigir(usuario, "arena.editar");
+  exigir(usuario, "arena.ver");
+  await exigirPontoDaArea(usuario, slug, chave, undefined, null);
   const db = await getDb();
   const [r] = await db.delete(arenaPosicoes).where(and(eq(arenaPosicoes.arenaSlug, slug), eq(arenaPosicoes.chave, chave))).returning({ tipo: arenaPosicoes.tipo, nome: arenaPosicoes.nome });
   if (!r) throw new NaoEncontradoError("Posição editada");

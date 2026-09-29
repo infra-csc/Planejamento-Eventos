@@ -274,10 +274,14 @@ export function PainelSemPosicao({
   arena: Arena;
   estreito: boolean;
   onFechar: () => void;
-  edicao?: { colocando: string | null; onPosicionar: (item: PosicionarItem) => void } | null;
+  edicao?: { colocando: string | null; onPosicionar: (item: PosicionarItem) => void; podePosicionar?: (item: PosicionarItem) => boolean } | null;
 }) {
   const botaoPosicionar = (item: PosicionarItem) =>
-    edicao ? (
+    edicao && edicao.podePosicionar && !edicao.podePosicionar(item) ? (
+      <span className="text-rotulo text-meta" title="Só a área que pediu posiciona este item">
+        outra área
+      </span>
+    ) : edicao ? (
       <Button
         size="xs"
         variant="secondary"

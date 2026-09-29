@@ -19,6 +19,17 @@ export type PosicaoEditada = {
 };
 
 export const chaveItemAta = (i: ItemAta) => `${i.secao}|${i.item}`;
+/** Seção (área que pediu) de um item da ata a partir da chave "SEÇÃO|item". */
+export const secaoDoItemAta = (itemAta: string | null | undefined) => (itemAta && itemAta.includes("|") ? itemAta.slice(0, itemAta.indexOf("|")) : null);
+/**
+ * Quem posiciona o quê no mapa: `secoes` null = tudo (administrador); senão, só pontos de itens da
+ * ata das seções (áreas) informadas. Pontos da planta e itens avulsos ficam com o administrador.
+ */
+export function podeMexerNoPonto(secoes: readonly string[] | null, itemAta: string | null | undefined): boolean {
+  if (secoes === null) return true;
+  const secao = secaoDoItemAta(itemAta);
+  return Boolean(secao) && secoes.includes(secao as string);
+}
 /** Chave estável de um ponto novo, derivada da origem (linha da ata ou item da legenda). */
 export const chavePontoNovo = (origem: "ata" | "planta" | "livre", nome: string) => `novo:${origem}:${nome}`;
 /** Item que ainda não está na planta nem na ata, criado direto no mapa. */
