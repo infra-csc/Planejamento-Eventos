@@ -390,6 +390,8 @@ export const solicitacaoItens = pgTable(
     ajustesBom: jsonb("ajustes_bom").$type<AjusteBom[]>(),
     /** Descrição de cada unidade adicionada (10 pedidas, 10 descrições); acima do limite, uma só para todas. */
     descricoes: jsonb("descricoes").$type<string[]>(),
+    /** Quem pediu marcou que o item não precisa de descrição por unidade (ex.: 20 grades iguais). */
+    semDescricao: boolean("sem_descricao").notNull().default(false),
     justificativa: text("justificativa"),
     status: itemStatusEnum("status").notNull().default("EM_ANALISE"),
     quantidadeAtendida: integer("quantidade_atendida"),

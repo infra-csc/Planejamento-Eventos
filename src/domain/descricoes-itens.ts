@@ -7,9 +7,12 @@
 export const MAX_DESCRICOES_POR_UNIDADE = 50;
 export const TAMANHO_DESCRICAO = 300;
 
-/** Quantos campos de descrição o item pede para a quantidade informada (0 quando não se aplica). */
-export function descricoesEsperadas(operacao: string, quantidade: number): number {
-  if (operacao !== "ADICIONAR" || !Number.isInteger(quantidade) || quantidade <= 0) return 0;
+/**
+ * Quantos campos de descrição o item pede para a quantidade informada (0 quando não se aplica).
+ * `semDescricao`: quem pediu marcou que este item não precisa descrever cada unidade.
+ */
+export function descricoesEsperadas(operacao: string, quantidade: number, semDescricao = false): number {
+  if (semDescricao || operacao !== "ADICIONAR" || !Number.isInteger(quantidade) || quantidade <= 0) return 0;
   return quantidade <= MAX_DESCRICOES_POR_UNIDADE ? quantidade : 1;
 }
 
@@ -21,15 +24,15 @@ export function ajustarDescricoes(lista: readonly string[] | null | undefined, e
 }
 
 /** Quantas descrições ainda faltam (vazias) para o item poder ser enviado. */
-export function faltamDescricoes(item: { operacao: string; quantidadeSolicitada: number; descricoes?: readonly string[] | null }): number {
-  const esperadas = descricoesEsperadas(item.operacao, item.quantidadeSolicitada);
+export function faltamDescricoes(item: { operacao: string; quantidadeSolicitada: number; descricoes?: readonly string[] | null; semDescricao?: boolean | null }): number {
+  const esperadas = descricoesEsperadas(item.operacao, item.quantidadeSolicitada, Boolean(item.semDescricao));
   const preenchidas = ajustarDescricoes(item.descricoes, esperadas).filter((d) => d.trim()).length;
   return esperadas - preenchidas;
 }
 
 /** Normaliza para gravar: texto aparado, no tamanho certo; nada quando o item não pede descrição. */
-export function descricoesParaGravar(operacao: string, quantidade: number, lista: readonly string[] | null | undefined): string[] | null {
-  const esperadas = descricoesEsperadas(operacao, quantidade);
+export function descricoesParaGravar(operacao: string, quantidade: number, lista: readonly string[] | null | undefined, semDescricao = false): string[] | null {
+  const esperadas = descricoesEsperadas(operacao, quantidade, semDescricao);
   if (!esperadas) return null;
   const limpas = ajustarDescricoes(lista, esperadas).map((d) => d.trim().slice(0, TAMANHO_DESCRICAO));
   return limpas.some(Boolean) ? limpas : null;
@@ -53,11 +56,11 @@ export function observacaoDoItem(item: { justificativa?: string | null; descrico
 /**
  * "Onde vai ficar" é por unidade (a mesma tenda pode ir para o Depósito e para o GV). Na hora de
  * gravar, unidades no mesmo local viram um item (destino = local) com as descrições delas, na ordem
- * em que os locais aparecem. Item sem descrição por unidade (alteração, remoção, >50 unidades) fica
- * inteiro num item só, com o primeiro local informado.
+ * em que os locais aparecem. Item sem descrição por unidade (alteração, remoção, >50 unidades, ou
+ * marcado "não precisa") fica inteiro num item só, com o primeiro local informado.
  */
-export function agruparPorLocal(operacao: string, quantidade: number, descricoes: readonly string[] | null | undefined, locais: readonly string[] | null | undefined): Array<{ destino: string; quantidade: number; descricoes: string[] }> {
-  const esperadas = descricoesEsperadas(operacao, quantidade);
+export function agruparPorLocal(operacao: string, quantidade: number, descricoes: readonly string[] | null | undefined, locais: readonly string[] | null | undefined, semDescricao = false): Array<{ destino: string; quantidade: number; descricoes: string[] }> {
+  const esperadas = descricoesEsperadas(operacao, quantidade, semDescricao);
   const locs = ajustarDescricoes(locais, esperadas).map((l) => l.trim().slice(0, 60));
   if (esperadas !== quantidade) return [{ destino: locs[0] ?? (locais?.[0] ?? "").trim().slice(0, 60), quantidade, descricoes: ajustarDescricoes(descricoes, esperadas) }];
   const descs = ajustarDescricoes(descricoes, esperadas);

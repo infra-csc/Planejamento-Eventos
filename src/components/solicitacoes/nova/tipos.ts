@@ -16,6 +16,8 @@ export type ItemNovo = {
   descricoes: string[];
   /** Onde cada unidade vai ficar (mesmo tamanho de `descricoes`); ao gravar, unidades no mesmo local viram um item. */
   locais: string[];
+  /** Quem pede marcou que este item não precisa de descrição por unidade: um "onde vai ficar" só, sem descrição. */
+  semDescricao?: boolean;
   /** Projeto: delta por peça (pecaId → unidades a mais ou a menos). */
   ajustes: Record<string, number>;
   rotulo: string;

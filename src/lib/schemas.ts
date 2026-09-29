@@ -177,6 +177,7 @@ export const solicitacaoCompletaSchema = z.object({
         destino: textoLivre(LIMITES.destino),
         justificativa: textoLivre(LIMITES.justificativa),
         descricoes: z.array(z.string().max(300, "Descrição com até 300 caracteres")).max(1000).nullable().optional(),
+        semDescricao: z.boolean().optional().default(false),
         ajustesBom: z
           .array(z.object({ pecaId: z.string().min(1), quantidade: z.coerce.number().int().min(-QTD_MAX).max(QTD_MAX) }))
           .max(200)

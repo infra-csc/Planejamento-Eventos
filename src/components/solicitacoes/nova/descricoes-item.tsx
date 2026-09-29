@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/field";
+import { Checkbox, Input } from "@/components/ui/field";
 import { ajustarDescricoes, descricoesEsperadas, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
 import { ErroCampo } from "./passo";
 import type { ItemNovo } from "./tipos";
@@ -18,11 +18,46 @@ const LOCAIS_COMUNS = ["Palco", "Largada", "Chegada", "Dispersão", "Depósito",
  * Cada unidade adicionada tem onde vai ficar e a descrição (texto, arte, medida): 10 pedidas, 10 linhas
  * numeradas. Acima de 50 unidades, uma linha só vale para todas. A descrição é obrigatória para
  * enviar; o local é opcional. Unidades em locais diferentes viram itens separados ao gravar.
+ * Nem todo item precisa disso (20 grades iguais): quem pede marca "não precisa descrever cada
+ * unidade" e fica só um "onde vai ficar" para o item inteiro.
  */
-export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (patch: { descricoes?: string[]; locais?: string[] }) => void }) {
+export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (patch: { descricoes?: string[]; locais?: string[]; semDescricao?: boolean }) => void }) {
   const [expandido, setExpandido] = useState(false);
-  const esperadas = descricoesEsperadas(item.operacao, item.quantidade);
-  if (!esperadas) return null;
+  const esperadasComDescricao = descricoesEsperadas(item.operacao, item.quantidade);
+  if (!esperadasComDescricao) return null;
+  const idDispensa = `sem-descricao-${item.chave}`;
+  const dispensa = (
+    <Checkbox
+      id={idDispensa}
+      label="Não precisa descrever cada unidade"
+      checked={Boolean(item.semDescricao)}
+      onChange={(marcado) =>
+        onChange(marcado ? { semDescricao: true, locais: [item.locais[0] ?? ""] } : { semDescricao: false, locais: Array.from({ length: esperadasComDescricao }, () => item.locais[0] ?? "") })
+      }
+    />
+  );
+  if (item.semDescricao) {
+    return (
+      <div id={`descricoes-${item.chave}`} tabIndex={-1} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 focus:outline-none sm:ml-[76px]">
+        <Input
+          value={item.locais[0] ?? ""}
+          maxLength={60}
+          list={`locais-comuns-${item.chave}`}
+          onChange={(e) => onChange({ locais: [e.target.value] })}
+          aria-label={`Onde vai ficar ${item.rotulo}`}
+          placeholder="Onde vai ficar (opcional)"
+          className="w-44 shrink-0 sm:w-56"
+        />
+        {dispensa}
+        <datalist id={`locais-comuns-${item.chave}`}>
+          {LOCAIS_COMUNS.map((l) => (
+            <option key={l} value={l} />
+          ))}
+        </datalist>
+      </div>
+    );
+  }
+  const esperadas = esperadasComDescricao;
   const lista = ajustarDescricoes(item.descricoes, esperadas);
   const locais = ajustarDescricoes(item.locais, esperadas);
   const vazias = lista.filter((d) => !d.trim()).length;
@@ -48,6 +83,7 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
             *
           </span>
         </span>
+        {dispensa}
         {!unica && (
           <span className={cn("numero text-rotulo", vazias === 0 ? "text-success" : "text-muted")}>
             {esperadas - vazias} de {esperadas} descritas

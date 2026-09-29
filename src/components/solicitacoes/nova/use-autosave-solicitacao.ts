@@ -51,7 +51,7 @@ export function useAutosaveSolicitacao({
     enviar,
     // "Onde vai ficar" é por unidade: unidades no mesmo local viram um item (destino = local).
     itens: itens.flatMap((i) =>
-      agruparPorLocal(i.operacao, i.quantidade, i.descricoes, i.operacao === "ADICIONAR" ? i.locais : [i.destino]).map((g) => ({
+      agruparPorLocal(i.operacao, i.quantidade, i.descricoes, i.operacao === "ADICIONAR" ? i.locais : [i.destino], Boolean(i.semDescricao)).map((g) => ({
         operacao: i.operacao,
         projetoId: i.projetoId,
         pecaId: i.pecaId,
@@ -61,6 +61,7 @@ export function useAutosaveSolicitacao({
         destino: g.destino,
         justificativa: i.justificativa,
         descricoes: g.descricoes,
+        semDescricao: Boolean(i.semDescricao),
         ajustesBom: Object.entries(i.ajustes)
           .filter(([, d]) => d !== 0)
           .map(([pecaId, quantidade]) => ({ pecaId, quantidade })),

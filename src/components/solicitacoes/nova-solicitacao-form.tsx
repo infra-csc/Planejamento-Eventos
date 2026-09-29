@@ -116,7 +116,7 @@ export function NovaSolicitacaoForm({
 
   const validarTitulo = (v: string) => setErroTitulo(v.trim() ? null : "Dê um título para a logística identificar a solicitação na fila.");
 
-  const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes }) > 0);
+  const semDescricao = itens.filter((i) => faltamDescricoes({ operacao: i.operacao, quantidadeSolicitada: i.quantidade, descricoes: i.descricoes, semDescricao: i.semDescricao }) > 0);
   // O que ainda falta para enviar, na ordem da tela. Cada linha leva ao campo.
   const pendencias = [
     areas && !areaId ? { alvo: "area-solicitante", texto: "Escolher a área solicitante" } : null,

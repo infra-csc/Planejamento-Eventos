@@ -67,7 +67,8 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
     quantidadeSolicitada: dados.operacao === "REMOVER" ? 0 : dados.quantidadeSolicitada,
     destino: dados.destino ?? null,
     justificativa: dados.justificativa ?? null,
-    descricoes: descricoesParaGravar(dados.operacao, dados.quantidadeSolicitada, dados.descricoes),
+    descricoes: descricoesParaGravar(dados.operacao, dados.quantidadeSolicitada, dados.descricoes, Boolean(dados.semDescricao)),
+    semDescricao: dados.operacao === "ADICIONAR" && Boolean(dados.semDescricao),
     projetoId: null,
     projetoVersaoId: null,
     pecaId: null,
@@ -151,7 +152,7 @@ export async function excluirRascunho(usuario: UsuarioAtual, id: string) {
 export type DadosSolicitacaoCompleta = {
   id?: string | null;
   eventoId: string;
-  /** Usado só quando quem cria é o Administrador. */
+  /** Área em nome da qual se pede (escolhida no formulário). */
   areaId?: string | null;
   titulo: string | null;
   observacao: string | null;

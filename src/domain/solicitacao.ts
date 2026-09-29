@@ -235,6 +235,8 @@ export type ItemRascunho = {
   ajustesBom?: Array<{ pecaId: string; quantidade: number }> | null;
   /** Descrição de cada unidade adicionada (ver domain/descricoes-itens). */
   descricoes?: string[] | null;
+  /** Quem pediu marcou que o item não precisa de descrição por unidade. */
+  semDescricao?: boolean | null;
 };
 
 /** Valida a consistência estrutural de um item de solicitação (exatamente uma referência). */
