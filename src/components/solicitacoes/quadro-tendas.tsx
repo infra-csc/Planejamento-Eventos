@@ -10,7 +10,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { descricoesIguais } from "@/domain/descricoes-itens";
-import { itensDoQuadro, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, novoLocalTenda, padraoPorTenda, papeisDoKit, previaTendas, totalDoLocal, type KitTenda, type LocalTenda, type PapelTenda } from "@/domain/tendas";
+import { itensDoQuadro, PAPEIS_POR_LOCAL, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, novoLocalTenda, padraoPorTenda, papeisDoKit, previaTendas, totalDoLocal, type KitTenda, type LocalTenda, type PapelTenda } from "@/domain/tendas";
 
 export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[]; locais: string[] };
 type Linha = { pecaId: string; codigo: string; quantidade: number };
@@ -33,7 +33,9 @@ export function QuadroTendas({ kit, bom, extras, onConfirmar, onCancelar }: { ki
   const idSugestoes = `tenda-locais-${kit.tamanho.replace("×", "x")}`;
   // Só as peças do kit que o catálogo tem (fechamento/calha vêm como extras do projeto).
   const pecaIdDe = new Map([...bom, ...extras].map((b) => [b.codigo, b.pecaId]));
-  const papeis = papeisDoKit(kit).filter((p) => pecaIdDe.has(p.codigo));
+  // No quadro só aparece o que muda por local (fechamentos e, na 5×5, calhas). Cantoneira, travessa,
+  // pé, mastro e cabo seguem o padrão do projeto × tendas e não são editáveis aqui.
+  const papeis = papeisDoKit(kit).filter((p) => pecaIdDe.has(p.codigo) && PAPEIS_POR_LOCAL.includes(p.papel));
   const mudar = (n: number, patch: Partial<LocalTenda>) => {
     setLocais((l) => l.map((x, i) => (i === n ? { ...x, ...patch } : x)));
     if (erro && (erro.linha === null || erro.linha === n)) setErro(null);
@@ -69,7 +71,7 @@ export function QuadroTendas({ kit, bom, extras, onConfirmar, onCancelar }: { ki
   return (
     <>
       <div className="-mx-1 overflow-x-auto px-1">
-        <table className="w-full min-w-[760px] border-collapse">
+        <table className="w-full min-w-[440px] border-collapse">
           <thead>
             <tr className="border-b border-line-soft">
               <th scope="col" className={cn(th, "min-w-[160px]")}>
@@ -166,7 +168,7 @@ export function QuadroTendas({ kit, bom, extras, onConfirmar, onCancelar }: { ki
           </span>
         ))}
       </div>
-      <p className="mb-0 mt-2 text-rotulo text-muted">As colunas de peças seguem o padrão do projeto × tendas; um número digitado à mão fica marcado e vale como ajuste do item.</p>
+      <p className="mb-0 mt-2 text-rotulo text-muted">A estrutura da tenda (cantoneiras, travessas, pés, mastro e cabo) segue o padrão do projeto. Aqui você ajusta só os fechamentos{papeis.some((p) => p.papel === "calha") ? " e as calhas" : ""} de cada local.</p>
       {erro && (
         <p id="tenda-erro" role="alert" className="mb-0 mt-2 flex items-start gap-1 text-pequeno text-danger">
           <Icone nome="erro" className="mt-px" />
