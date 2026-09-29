@@ -1,10 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Roboto_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
-const geist = Geist({ variable: "--font-geist", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
-const robotoMono = Roboto_Mono({ variable: "--font-roboto-mono", subsets: ["latin"], weight: ["400", "500"], display: "swap" });
+const geist = localFont({
+  src: "../../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2",
+  variable: "--font-geist",
+  weight: "100 900",
+  display: "swap",
+});
+const robotoMono = localFont({
+  src: "../../node_modules/@fontsource-variable/roboto-mono/files/roboto-mono-latin-wght-normal.woff2",
+  variable: "--font-roboto-mono",
+  weight: "100 700",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "Planejamento de Eventos · Norte Mkt", template: "%s · Norte Mkt" },
