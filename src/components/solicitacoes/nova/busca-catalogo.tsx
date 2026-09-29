@@ -13,6 +13,8 @@ import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { combinaBusca } from "@/lib/busca";
 import { Passo } from "./passo";
 import { irPara, kitDe, novaChave, POR_PAGINA } from "./utilidades";
+import type { PedidoAnterior } from "@/domain/ja-pedido";
+import { AvisoJaPedido } from "./aviso-ja-pedido";
 import type { ItemNovo, LinhaAta, Modo, Referencia } from "./tipos";
 
 /** Passo 2: abas por tipo de item, busca no catálogo (projetos e peças), item descrito à mão e linhas da ata. */
@@ -23,6 +25,7 @@ export function BuscaCatalogo({
   projetos,
   pecas,
   linhas,
+  jaPedidos = {},
   itens,
   setItens,
   setTendaAberta,
@@ -33,6 +36,8 @@ export function BuscaCatalogo({
   projetos: Referencia[];
   pecas: Referencia[];
   linhas: LinhaAta[];
+  /** Já pedido neste evento, por id de projeto/peça (aviso informativo no cartão). */
+  jaPedidos?: Record<string, PedidoAnterior[]>;
   itens: ItemNovo[];
   setItens: Dispatch<SetStateAction<ItemNovo[]>>;
   setTendaAberta: (id: string | null) => void;
@@ -256,6 +261,7 @@ export function BuscaCatalogo({
                               {r.descricao}
                             </p>
                           )}
+                          <AvisoJaPedido pedidos={jaPedidos[r.id]} className="mt-2" />
                         </div>
                       </div>
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">

@@ -13,12 +13,15 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { DescricoesItem } from "./descricoes-item";
 import { ErroCampo, Passo } from "./passo";
+import type { PedidoAnterior } from "@/domain/ja-pedido";
+import { AvisoJaPedido } from "./aviso-ja-pedido";
 import type { ItemNovo, Referencia } from "./tipos";
 
 /** Passo 3: cada item adicionado com quantidade, local e descrição de cada unidade e ajuste de peças do projeto. */
 export function ListaItens({
   itens,
   projetos,
+  jaPedidos = {},
   semDescricao,
   tentouEnviar,
   mudar,
@@ -26,6 +29,8 @@ export function ListaItens({
 }: {
   itens: ItemNovo[];
   projetos: Referencia[];
+  /** Já pedido neste evento, por id de projeto/peça (aviso informativo na linha do item). */
+  jaPedidos?: Record<string, PedidoAnterior[]>;
   semDescricao: ItemNovo[];
   tentouEnviar: boolean;
   mudar: (chave: string, patch: Partial<ItemNovo>) => void;
@@ -93,6 +98,7 @@ export function ListaItens({
                         {descricaoProjeto}
                       </p>
                     )}
+                    {i.operacao === "ADICIONAR" && <AvisoJaPedido pedidos={jaPedidos[i.projetoId ?? i.pecaId ?? ""]} className="mt-2" />}
                   </div>
                   <IconButton label={`Remover ${i.rotulo} da solicitação`} onClick={() => removerItem(i)}>
                     <Icone nome="lixeira" />

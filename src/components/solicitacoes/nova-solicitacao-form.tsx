@@ -7,6 +7,7 @@ import { Aviso } from "@/components/ui/layout";
 import { toast, toastSucesso } from "@/components/ui/toast";
 import { salvarSolicitacaoCompletaAction } from "@/app/(app)/solicitacoes/actions";
 import { faltamDescricoes } from "@/domain/descricoes-itens";
+import type { PedidosPorEvento } from "@/domain/ja-pedido";
 import { BuscaCatalogo } from "./nova/busca-catalogo";
 import { DialogoTendas } from "./nova/dialogo-tendas";
 import { EscolhaEvento } from "./nova/escolha-evento";
@@ -29,6 +30,7 @@ export function NovaSolicitacaoForm({
   projetos,
   pecas,
   linhasPorEvento,
+  pedidosPorEvento = {},
   slaHoras,
 }: {
   rascunho: RascunhoSolicitacao | null;
@@ -43,6 +45,8 @@ export function NovaSolicitacaoForm({
   projetos: Referencia[];
   pecas: Referencia[];
   linhasPorEvento: Record<string, LinhaAta[]>;
+  /** O que já foi pedido de cada projeto/peça, por evento (aviso informativo). */
+  pedidosPorEvento?: PedidosPorEvento;
   slaHoras: number;
 }) {
   const router = useRouter();
@@ -61,6 +65,7 @@ export function NovaSolicitacaoForm({
   const evento = eventos.find((e) => e.id === eventoId) ?? null;
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
+  const jaPedidos = useMemo(() => (eventoId ? (pedidosPorEvento[eventoId] ?? {}) : {}), [eventoId, pedidosPorEvento]);
 
   // Rascunho salvo automaticamente, numa fila única com o "Salvar rascunho" e o envio.
   const { rascunhoIdRef, codigoRascunho, estadoSalvo, setEstadoSalvo, enviandoRef, pendenteSalvarRef, salvoRef, assinatura, emFila, montarPayload, lembrarRascunho } = useAutosaveSolicitacao({
@@ -222,10 +227,10 @@ export function NovaSolicitacaoForm({
           />
 
           {/* 2 · Adicionar itens */}
-          <BuscaCatalogo modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
+          <BuscaCatalogo modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
 
           {/* 3 · Detalhar itens */}
-          <ListaItens itens={itens} projetos={projetos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} />
+          <ListaItens itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} />
         </div>
 
         {/* 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */}

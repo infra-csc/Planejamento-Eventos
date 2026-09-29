@@ -16,6 +16,7 @@ export {
   listarSolicitacoes,
   obterSolicitacao,
   obterSolicitacaoMemo,  paginarSolicitacoes,
+  pedidosAnterioresPorEvento,
   primeiraDaFila,
   type FiltroLista,
   type FiltroSolicitacoes,

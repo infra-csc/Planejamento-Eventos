@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
 import { linhasAtaResumidas, listarEventosAceitando, opcoesReferencias } from "@/server/services/eventos";
-import { obterSolicitacao } from "@/server/services/solicitacoes";
+import { obterSolicitacao, pedidosAnterioresPorEvento } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
 import { getDb } from "@/server/db";
 import { daMinhaArea, pode, podeEditarSolicitacao } from "@/domain/permissions";
@@ -31,12 +31,19 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     : null;
   if (rascunho && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
 
-  const [{ aceitando, linhasTodas }, opcoes, config, todasAreas] = await Promise.all([
+  const [{ aceitando, linhasTodas, jaPedidos }, opcoes, config, todasAreas] = await Promise.all([
     // Linhas da ata de todos os eventos abertos numa consulta só, encadeada aos eventos e em paralelo com o resto.
     // Filtro de status no banco, sem as contagens da lista de eventos.
     listarEventosAceitando(usuario, rascunho?.eventoId).then(async (aceitando) => {
-      const linhasTodas = await linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id));
-      return { aceitando, linhasTodas };
+      // Linhas da ata (eventos abertos) e o que já foi pedido de cada item (aviso "já pedido"), em paralelo.
+      const [linhasTodas, jaPedidos] = await Promise.all([
+        linhasAtaResumidas(aceitando.filter((e) => e.status === "ABERTO").map((e) => e.id)),
+        pedidosAnterioresPorEvento(
+          aceitando.map((e) => e.id),
+          rascunho?.id,
+        ),
+      ]);
+      return { aceitando, linhasTodas, jaPedidos };
     }),
     opcoesReferencias(),
     getDb().then(obterConfiguracoes),
@@ -109,6 +116,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
         pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
+        pedidosPorEvento={jaPedidos}
         slaHoras={Number(config.sla_resposta_horas)}
       />
     </div>

@@ -1,7 +1,8 @@
 import { cache } from "react";
-import { and, asc, desc, eq, inArray, lt, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, ne, notInArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventos, solicitacaoItens, solicitacoes, type SolicitacaoStatus } from "@/server/db/schema";
+import { areas, eventoItens, eventos, solicitacaoItens, solicitacoes, usuarios, type SolicitacaoStatus } from "@/server/db/schema";
+import type { PedidoAnterior, PedidosPorEvento, SituacaoPedido } from "@/domain/ja-pedido";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { areasDoUsuario, pode, podeVerSolicitacao } from "@/domain/permissions";
@@ -262,4 +263,65 @@ export function descricaoItem(i: {
   if (i.projeto) return i.projeto.nome;
   if (i.peca) return `${i.peca.codigo} · ${i.peca.nome}`;
   return i.descricaoLivre ?? "Item";
+}
+
+/**
+ * O que já foi pedido de cada projeto/peça nos eventos informados, para o aviso "já pedido" do
+ * formulário: itens de solicitações enviadas (não os rascunhos, as devolvidas nem as canceladas, e
+ * não os itens recusados) e linhas que a logística incluiu direto na ata. `exceto` tira a própria
+ * solicitação em edição. Só informa — não restringe nada.
+ */
+export async function pedidosAnterioresPorEvento(eventoIds: string[], exceto?: string | null): Promise<PedidosPorEvento> {
+  const saida: PedidosPorEvento = Object.fromEntries(eventoIds.map((id) => [id, {}]));
+  if (eventoIds.length === 0) return saida;
+  const db = await getDb();
+  const [dasSolicitacoes, daLogistica] = await Promise.all([
+    db
+      .select({
+        eventoId: solicitacoes.eventoId,
+        ref: sql<string>`coalesce(${solicitacaoItens.projetoId}, ${solicitacaoItens.pecaId})`,
+        pedida: solicitacaoItens.quantidadeSolicitada,
+        atendida: solicitacaoItens.quantidadeAtendida,
+        status: solicitacaoItens.status,
+        tipo: solicitacoes.tipo,
+        codigo: solicitacoes.codigo,
+        area: areas.nome,
+        pessoa: usuarios.nome,
+        em: solicitacoes.enviadaEm,
+      })
+      .from(solicitacaoItens)
+      .innerJoin(solicitacoes, eq(solicitacaoItens.solicitacaoId, solicitacoes.id))
+      .leftJoin(areas, eq(solicitacoes.areaId, areas.id))
+      .leftJoin(usuarios, eq(solicitacoes.criadoPorId, usuarios.id))
+      .where(
+        and(
+          inArray(solicitacoes.eventoId, eventoIds),
+          eq(solicitacoes.excluida, false),
+          notInArray(solicitacoes.status, ["RASCUNHO", "DEVOLVIDA", "CANCELADA"]),
+          exceto ? ne(solicitacoes.id, exceto) : undefined,
+          eq(solicitacaoItens.operacao, "ADICIONAR"),
+          ne(solicitacaoItens.status, "NAO_ATENDIDO"),
+          sql`coalesce(${solicitacaoItens.projetoId}, ${solicitacaoItens.pecaId}) is not null`,
+        ),
+      )
+      .orderBy(desc(solicitacoes.enviadaEm)),
+    db
+      .select({ eventoId: eventoItens.eventoId, ref: sql<string>`coalesce(${eventoItens.projetoId}, ${eventoItens.pecaId})`, quantidade: eventoItens.quantidade, area: areas.nome, pessoa: usuarios.nome })
+      .from(eventoItens)
+      .leftJoin(areas, eq(eventoItens.areaId, areas.id))
+      .leftJoin(usuarios, eq(eventoItens.criadoPorId, usuarios.id))
+      .where(and(inArray(eventoItens.eventoId, eventoIds), eq(eventoItens.ativo, true), isNull(eventoItens.solicitacaoItemId), sql`coalesce(${eventoItens.projetoId}, ${eventoItens.pecaId}) is not null`))
+      .orderBy(desc(eventoItens.criadoEm)),
+  ]);
+  const incluir = (eventoId: string, ref: string, p: PedidoAnterior) => {
+    const ev = (saida[eventoId] ??= {});
+    (ev[ref] ??= []).push(p);
+  };
+  for (const r of dasSolicitacoes) {
+    const situacao: SituacaoPedido = r.status === "EM_ANALISE" ? (r.tipo === "PRE_REUNIAO" ? "na ata" : "aguardando resposta") : r.status === "PARCIAL" ? "atendido em parte" : r.tipo === "PRE_REUNIAO" ? "na ata" : "atendido";
+    const quantidade = r.status === "PARCIAL" || r.status === "ATENDIDO" ? (r.atendida ?? r.pedida) : r.pedida;
+    incluir(r.eventoId, r.ref, { quantidade, area: r.area, pessoa: r.pessoa, codigo: r.codigo, situacao });
+  }
+  for (const r of daLogistica) incluir(r.eventoId, r.ref, { quantidade: r.quantidade, area: r.area, pessoa: r.pessoa, codigo: null, situacao: "incluído pela logística" });
+  return saida;
 }
