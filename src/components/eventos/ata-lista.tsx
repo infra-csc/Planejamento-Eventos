@@ -19,6 +19,7 @@ import { toast, toastErro } from "@/components/ui/toast";
 import { alterarQuantidadeLinhaAction, atualizarVersaoLinhaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
+import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import type { EventoStatus } from "@/server/db/schema";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
@@ -217,7 +218,7 @@ export function AtaLista({
                       )}
                       {l.codigo && <Codigo className="mt-px block text-rotulo text-muted">{l.codigo}</Codigo>}
                     </th>
-                    <td className="border-b border-line-row px-2.5 py-2.5 numero text-right text-corpo font-medium">{l.quantidade}</td>
+                    <td className="border-b border-line-row px-2.5 py-2.5 text-right text-corpo font-medium"><QuantidadeAta valor={l.quantidade} /></td>
                     {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
                     {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
                     <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">

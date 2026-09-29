@@ -19,6 +19,7 @@ import { toastErro, toastSucesso } from "@/components/ui/toast";
 import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction } from "@/app/(app)/eventos/actions";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
+import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
@@ -109,7 +110,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
           <dl className="m-0 grid grid-cols-2 gap-3 rounded-controle border border-line-soft bg-subtle px-3.5 py-2.5">
             <div>
               <dt className="text-pequeno text-muted">Na ata agora</dt>
-              <dd className="numero m-0 text-destaque font-semibold text-ink">{l.quantidade}</dd>
+              <dd className="m-0 text-destaque font-semibold text-ink"><QuantidadeAta valor={l.quantidade} /></dd>
             </div>
             <div>
               <dt className="text-pequeno text-muted">{l.origem ? <>Pedido em <Codigo>{l.origem.codigo}</Codigo></> : "Origem"}</dt>
@@ -245,7 +246,7 @@ function Linha({
       </span>
 
       <span className="text-right">
-        <span className="numero block text-secao font-semibold text-ink">{l.quantidade}</span>
+        <span className="block text-secao font-semibold text-ink"><QuantidadeAta valor={l.quantidade} /></span>
         {pedidoDiferente && <span className="numero block text-rotulo text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 

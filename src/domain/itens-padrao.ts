@@ -1,8 +1,15 @@
 /**
  * Itens que entram em toda ata como padrão, sem ninguém pedir: a logística só confere na reunião
  * (pode ajustar ou tirar como qualquer linha). Pela peça do catálogo (código) e quantidade.
+ * Quantidade 0 = "a definir": a linha vem pré-preenchida, a ata fecha mesmo assim e a projetista
+ * coloca o número depois (enquanto for 0, não entra na OS).
  */
-export const ITENS_PADRAO_ATA: ReadonlyArray<{ codigoPeca: string; quantidade: number }> = [{ codigoPeca: "GARFO", quantidade: 2 }];
+export const ITENS_PADRAO_ATA: ReadonlyArray<{ codigoPeca: string; quantidade: number }> = [
+  { codigoPeca: "GARFO", quantidade: 2 },
+  // Estaiamento: a projetista define a quantidade.
+  { codigoPeca: "ESTACA", quantidade: 0 },
+  { codigoPeca: "CORDA", quantidade: 0 },
+];
 
 const CODIGOS = new Set(ITENS_PADRAO_ATA.map((i) => i.codigoPeca));
 

@@ -29,7 +29,7 @@ export async function incluirItensPadraoAta(tx: Executor, eventoId: string, usua
       entidade: "evento_item",
       entidadeId: linha.id,
       acao: "ATA_INCLUSAO",
-      descricao: `Item padrão da ata: ${p.nome} × ${item.quantidade}`,
+      descricao: `Item padrão da ata: ${p.nome} × ${item.quantidade || "a definir (projetista)"}`,
       usuarioId,
       dadosDepois: { pecaId: p.id, quantidade: item.quantidade },
     });

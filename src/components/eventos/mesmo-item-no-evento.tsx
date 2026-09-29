@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { conferirLinhaAction } from "@/app/(app)/eventos/actions";
 import { Icone } from "@/components/ui/icons";
-import { Codigo, Numero } from "@/components/ui/numero";
+import { Codigo } from "@/components/ui/numero";
+import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
 
 export type LinhaMesmoItem = {
@@ -82,7 +83,7 @@ export function MesmoItemNoEvento({ eventoId, atualId, linhas, podeConferir }: {
             )}
             <div className="min-w-0 flex-1">
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <Numero valor={l.quantidade} className="text-corpo font-semibold text-ink" />
+                <QuantidadeAta valor={l.quantidade} className="text-corpo font-semibold text-ink" />
                 <span className="text-corpo text-ink">{l.destino ?? <span className="text-muted">local não informado</span>}</span>
                 <span className="text-pequeno text-muted">· {l.area ?? "Logística"}</span>
                 {atual ? (

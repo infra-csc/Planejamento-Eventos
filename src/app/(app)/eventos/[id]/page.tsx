@@ -16,6 +16,7 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { EmptyState, Metric, MetricStrip, Section, type TomSemantico } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
+import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
 
 const diasAte = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hojeISO()}T00:00:00Z`)) / 86_400_000);
@@ -192,7 +193,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                           {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
                         </span>
                       </span>
-                      <Numero valor={l.quantidade} className="shrink-0 text-corpo font-medium text-ink" />
+                      <QuantidadeAta valor={l.quantidade} className="shrink-0 text-corpo font-medium text-ink" />
                     </Link>
                   </li>
                 ))}
@@ -283,7 +284,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                             {origemVisivel(l)}
                             {quemPediu(l) && <span className="block truncate text-rotulo text-muted">{quemPediu(l)}</span>}
                           </td>
-                          <td className="numero border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink">{l.quantidade}</td>
+                          <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink"><QuantidadeAta valor={l.quantidade} /></td>
                         </LinhaLink>
                       ))}
                     </tbody>
