@@ -3,7 +3,7 @@ import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
 import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services/eventos";
 import type { AtaConteudo, AtaReuniao } from "@/server/db/schema";
-import { pode } from "@/domain/permissions";
+import { daMinhaArea, pode } from "@/domain/permissions";
 
 /** Observações da reunião são nota interna de quem conduz: não saem para as áreas. */
 const veObservacoes = (usuario: UsuarioAtual) => pode(usuario, "ata.consolidar") || pode(usuario, "historico.ver_tudo");
@@ -12,7 +12,7 @@ const veObservacoes = (usuario: UsuarioAtual) => pode(usuario, "ata.consolidar")
 function filtrarPorArea(usuario: UsuarioAtual, lista: AtaConteudo["solicitacoesPreReuniao"]) {
   if (pode(usuario, "solicitacao.ver_todas")) return lista;
   // Pelo id da área (o nome pode mudar depois do fechamento); atas antigas, sem id, pelo nome.
-  return lista.filter((s) => (s.areaId ? s.areaId === usuario.areaId : s.area === usuario.areaNome));
+  return lista.filter((s) => (s.areaId ? daMinhaArea(usuario, s.areaId) : s.area === usuario.areaNome));
 }
 
 /**
@@ -33,7 +33,7 @@ export type AtaExport = {
  * solicitações não vê o código de pedido de outra área (a tela da ata também esconde).
  */
 function origemVisivel(usuario: UsuarioAtual, l: { origemLabel: string; origemSolicitacaoId: string | null; registro: { areaId: string | null } }) {
-  if (!l.origemSolicitacaoId || pode(usuario, "solicitacao.ver_todas") || l.registro.areaId === usuario.areaId) return l.origemLabel;
+  if (!l.origemSolicitacaoId || pode(usuario, "solicitacao.ver_todas") || daMinhaArea(usuario, l.registro.areaId)) return l.origemLabel;
   return "Pedido de outra área";
 }
 

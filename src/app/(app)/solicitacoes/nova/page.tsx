@@ -5,7 +5,7 @@ import { linhasAtaResumidas, listarEventosAceitando, opcoesReferencias } from "@
 import { obterSolicitacao } from "@/server/services/solicitacoes";
 import { obterConfiguracoes } from "@/server/services/support";
 import { getDb } from "@/server/db";
-import { pode, podeEditarSolicitacao } from "@/domain/permissions";
+import { daMinhaArea, pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { podeEnviar } from "@/domain/solicitacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
@@ -40,13 +40,13 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     }),
     opcoesReferencias(),
     getDb().then(obterConfiguracoes),
-    usuario.perfil === "ADMIN" ? listarAreasCache() : Promise.resolve(null),
+    listarAreasCache(),
   ]);
-  // Administrador pede em nome de uma área: escolhe qual no formulário.
-  const areasAdmin = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
+  // Todo solicitante escolhe a área em nome da qual está pedindo (a área fixa do cadastro vem marcada).
+  const areasEscolha = todasAreas.map((a) => ({ id: a.id, nome: a.nome }));
   // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
-  const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || l.areaId === usuario.areaId)]));
+  const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,
@@ -100,8 +100,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       <NovaSolicitacaoForm
         rascunho={rascunho ? { id: rascunho.id, codigo: rascunho.codigo, titulo: rascunho.titulo ?? "", observacao: rascunho.observacao ?? "", eventoId: rascunho.eventoId, devolvidaMotivo: rascunho.status === "DEVOLVIDA" ? rascunho.devolvidaMotivo : null } : null}
         eventos={eventos}
-        areas={areasAdmin}
-        areaInicial={rascunho?.areaId ?? null}
+        areas={areasEscolha}
+        areaInicial={rascunho?.areaId ?? (usuario.perfil === "ADMIN" ? null : usuario.areaId)}
+        comoAdministrador={usuario.perfil === "ADMIN"}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}

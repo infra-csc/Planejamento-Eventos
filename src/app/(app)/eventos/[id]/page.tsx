@@ -6,7 +6,7 @@ import { slugArenaDoEvento } from "@/server/services/arenas";
 import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
 import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
-import { pode } from "@/domain/permissions";
+import { areasDoUsuario, daMinhaArea, pode } from "@/domain/permissions";
 import { classificarHistorico } from "@/domain/historico";
 import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -82,10 +82,10 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const porArea = new Map<string, number>();
   for (const l of linhas) porArea.set(l.areaNome ?? "Logística", (porArea.get(l.areaNome ?? "Logística") ?? 0) + 1);
   const areasEnvolvidas = [...porArea.entries()].sort((a, b) => b[1] - a[1]);
-  const minhaArea = usuario.areaId;
-  const deOutraArea = (l: (typeof linhas)[number]) => Boolean(minhaArea) && l.registro.areaId !== minhaArea;
+  const temArea = areasDoUsuario(usuario).length > 0;
+  const deOutraArea = (l: (typeof linhas)[number]) => temArea && !daMinhaArea(usuario, l.registro.areaId);
   // Quem pediu é assunto da área que pediu: fora dela, a origem aparece sem o código da solicitação.
-  const origemVisivel = (l: (typeof linhas)[number]) => (veTodasAsAreas || !l.origemSolicitacaoId || l.registro.areaId === minhaArea ? l.origemLabel : "Pedido de área");
+  const origemVisivel = (l: (typeof linhas)[number]) => (veTodasAsAreas || !l.origemSolicitacaoId || daMinhaArea(usuario, l.registro.areaId) ? l.origemLabel : "Pedido de área");
   const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
   const ajustes = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
 

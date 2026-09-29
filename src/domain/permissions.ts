@@ -75,15 +75,29 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "admin.configuracoes": ["ADMIN"],
 };
 
-export type UsuarioPermissao = { perfil: Perfil; areaId: string | null };
+export type UsuarioPermissao = { perfil: Perfil; areaId: string | null; areasPedidas?: readonly string[] };
+
+/**
+ * Áreas em nome das quais o usuário age: a área fixa do cadastro (se tiver) e as áreas que ele já
+ * escolheu ao pedir. O solicitante escolhe a área em cada solicitação, então é por essas áreas que
+ * ele enxerga pedidos, linhas da ata e motivos da logística.
+ */
+export function areasDoUsuario(usuario: UsuarioPermissao): string[] {
+  return [...new Set([usuario.areaId, ...(usuario.areasPedidas ?? [])].filter((a): a is string => Boolean(a)))];
+}
+
+/** A área informada é uma das áreas do usuário (null = linha da logística, de ninguém). */
+export function daMinhaArea(usuario: UsuarioPermissao, areaId: string | null | undefined): boolean {
+  return Boolean(areaId) && areasDoUsuario(usuario).includes(areaId as string);
+}
 
 export function pode(usuario: UsuarioPermissao, acao: Acao): boolean {
   return MATRIZ[acao].includes(usuario.perfil);
 }
 
-/** Requisitantes e Cenografia só enxergam solicitações da própria área. */
+/** Requisitantes e Cenografia só enxergam solicitações das próprias áreas (fixa ou escolhidas ao pedir). */
 export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string; status?: string }): boolean {
-  if (usuario.areaId !== null && usuario.areaId === solicitacao.areaId) return true;
+  if (daMinhaArea(usuario, solicitacao.areaId)) return true;
   // Quem vê todas as áreas ainda não vê rascunho não enviado (só o administrador, que edita qualquer um).
   if (pode(usuario, "solicitacao.ver_todas")) return solicitacao.status !== "RASCUNHO" || usuario.perfil === "ADMIN";
   return false;
@@ -92,7 +106,7 @@ export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { are
 /** Rascunhos pertencem à área (RV-07): qualquer usuário da mesma área pode editar e enviar. O Administrador edita os de qualquer área. */
 export function podeEditarSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string }): boolean {
   if (!pode(usuario, "solicitacao.criar")) return false;
-  return usuario.perfil === "ADMIN" || usuario.areaId === solicitacao.areaId;
+  return usuario.perfil === "ADMIN" || daMinhaArea(usuario, solicitacao.areaId);
 }
 
 export function ehRequisitante(perfil: Perfil): boolean {

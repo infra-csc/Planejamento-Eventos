@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { listarAtaVersoes, obterLinhasAta } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
-import { pode } from "@/domain/permissions";
+import { daMinhaArea, pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
 import { Aviso, BarraProgresso, EmptyState, ListaDados, RodapeTabela, Section } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   // Código e link da solicitação são de quem pediu: outra área vê só "Pedido de área".
   const esconderOrigemAlheia = (v: ReturnType<typeof paraView>, areaDaLinha: string | null) =>
-    veTodas || areaDaLinha == null || areaDaLinha === usuario.areaId ? v : { ...v, origemSolicitacaoId: null, origemLabel: v.origemSolicitacaoId ? "Pedido de área" : v.origemLabel };
+    veTodas || areaDaLinha == null || daMinhaArea(usuario, areaDaLinha) ? v : { ...v, origemSolicitacaoId: null, origemLabel: v.origemSolicitacaoId ? "Pedido de área" : v.origemLabel };
   const veObservacoes = pode(usuario, "historico.ver_tudo") || pode(usuario, "ata.consolidar");
   const podeAjustarOs = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
 

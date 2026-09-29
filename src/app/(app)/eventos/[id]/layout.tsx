@@ -3,7 +3,7 @@ import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { contarItensPendentesPreReuniao, resumoAbasEvento, solicitacoesPendentes } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { getDb } from "@/server/db";
-import { pode } from "@/domain/permissions";
+import { daMinhaArea, pode } from "@/domain/permissions";
 import { statusExibicao } from "@/domain/evento";
 import { NaoEncontradoError } from "@/domain/errors";
 import { diaMes, diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
@@ -47,7 +47,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
   });
   // Só contagens: este layout roda em todas as abas do evento.
   const [resumo, pendentesPre, abertasTodas, cfg] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), getDb().then((db) => solicitacoesPendentes(db, id)), obterConfiguracoesCache()]);
-  const abertas = pode(usuario, "solicitacao.ver_todas") ? abertasTodas : abertasTodas.filter((s) => s.areaId === usuario.areaId);
+  const abertas = pode(usuario, "solicitacao.ver_todas") ? abertasTodas : abertasTodas.filter((s) => daMinhaArea(usuario, s.areaId));
   const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
   const { versaoOs, preEnviadas } = resumo;

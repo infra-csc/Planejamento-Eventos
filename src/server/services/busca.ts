@@ -3,7 +3,7 @@ import { buscaSemAcento } from "./support";
 import { getDb } from "@/server/db";
 import { eventos, pecas, projetos, solicitacoes } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
-import { pode } from "@/domain/permissions";
+import { areasDoUsuario, pode } from "@/domain/permissions";
 import { EVENTO_STATUS_LABEL } from "@/domain/evento";
 import { SETOR_LABEL } from "@/domain/os";
 import { hojeISO, hora, isoSP } from "@/lib/format";
@@ -32,13 +32,14 @@ export async function buscar(usuario: UsuarioAtual, termoBruto: string): Promise
   const agora = new Date();
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   // Rascunho não enviado é da área: logística e gestão não o veem (mesma regra da lista de solicitações).
-  const escopoSolicitacoes = veTodas ? (usuario.perfil === "ADMIN" ? [] : [ne(solicitacoes.status, "RASCUNHO")]) : [eq(solicitacoes.areaId, usuario.areaId ?? "__nenhuma__")];
+  const minhas = areasDoUsuario(usuario);
+  const escopoSolicitacoes = veTodas ? (usuario.perfil === "ADMIN" ? [] : [ne(solicitacoes.status, "RASCUNHO")]) : [inArray(solicitacoes.areaId, minhas.length ? minhas : ["__nenhuma__"])];
 
   const [reunioes, atrasadas, evs, sols, projs, pcs] = await Promise.all([
     pode(usuario, "ata.consolidar")
       ? db.query.eventos.findMany({ where: inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]), columns: { id: true, nome: true, dataReuniao: true }, orderBy: [asc(eventos.dataReuniao)] })
       : Promise.resolve([]),
-    veTodas || usuario.areaId
+    veTodas || minhas.length
       ? db
           .select({ n: count() })
           .from(solicitacoes)

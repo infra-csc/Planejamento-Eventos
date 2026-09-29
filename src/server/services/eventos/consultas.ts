@@ -3,11 +3,17 @@ import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
-import { pode } from "@/domain/permissions";
+import { areasDoUsuario, pode } from "@/domain/permissions";
 import { numeroOsAtual } from "../os";
 import { buscaSemAcento, type Executor } from "../support";
 import { nomeLinha } from "./comum";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+
+/** Áreas do usuário para `in (...)`; sem nenhuma, um valor que não casa com área alguma. */
+const minhasOuNenhuma = (usuario: Parameters<typeof areasDoUsuario>[0]) => {
+  const a = areasDoUsuario(usuario);
+  return a.length ? a : ["__nenhuma__"];
+};
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -39,7 +45,7 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
       .select({ eventoId: solicitacoes.eventoId, n: count() })
       .from(solicitacoes)
       // Quem não vê todas as áreas conta só o que é da própria área: a fila das outras não é assunto dele.
-      .where(and(inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.excluida, false), pode(usuario, "solicitacao.ver_todas") ? undefined : eq(solicitacoes.areaId, usuario.areaId ?? "")))
+      .where(and(inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.excluida, false), pode(usuario, "solicitacao.ver_todas") ? undefined : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario))))
       .groupBy(solicitacoes.eventoId),
     db
       .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
@@ -89,18 +95,18 @@ export const ACOES_COM_MOTIVO = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE", "ATA_RE
 export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string, limite = 300) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
-  const areaId = usuario.areaId ?? "";
+  const areaIds = sql.join(minhasOuNenhuma(usuario).map((a) => sql`${a}`), sql`, `);
   const escopo = pode(usuario, "historico.ver_tudo")
     ? eq(historico.eventoId, eventoId)
     : and(
         eq(historico.eventoId, eventoId),
         or(
           eq(historico.entidade, "evento"),
-          and(eq(historico.entidade, "evento_item"), or(notInArray(historico.acao, ACOES_COM_MOTIVO), sql`${historico.entidadeId} in (select id from evento_itens where area_id = ${areaId})`)),
-          and(eq(historico.entidade, "solicitacao"), sql`${historico.entidadeId} in (select id from solicitacoes where area_id = ${areaId})`),
+          and(eq(historico.entidade, "evento_item"), or(notInArray(historico.acao, ACOES_COM_MOTIVO), sql`${historico.entidadeId} in (select id from evento_itens where area_id in (${areaIds}))`)),
+          and(eq(historico.entidade, "solicitacao"), sql`${historico.entidadeId} in (select id from solicitacoes where area_id in (${areaIds}))`),
           and(
             eq(historico.entidade, "solicitacao_item"),
-            sql`${historico.entidadeId} in (select si.id from solicitacao_itens si join solicitacoes s on s.id = si.solicitacao_id where s.area_id = ${areaId})`,
+            sql`${historico.entidadeId} in (select si.id from solicitacao_itens si join solicitacoes s on s.id = si.solicitacao_id where s.area_id in (${areaIds}))`,
           ),
         ),
       );
@@ -119,7 +125,7 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
 export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) {
   const db = await getDb();
   // Quem vê todas não conta rascunho de outra área (ainda não foi enviado); o admin vê tudo.
-  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : ne(solicitacoes.status, "RASCUNHO")) : eq(solicitacoes.areaId, usuario.areaId ?? "");
+  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : ne(solicitacoes.status, "RASCUNHO")) : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario));
   const [[linhas], sols, versaoOs] = await Promise.all([
     db
       .select({ n: count() })

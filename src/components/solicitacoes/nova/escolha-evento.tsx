@@ -12,7 +12,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { Passo } from "./passo";
 import type { EventoOpcao } from "./tipos";
 
-/** Passo 1: área solicitante (só Administrador) e escolha do evento. */
+/** Passo 1: área solicitante (todo solicitante escolhe) e escolha do evento. */
 export function EscolhaEvento({
   temRascunho,
   eventos,
@@ -20,6 +20,7 @@ export function EscolhaEvento({
   eventoId,
   ehAlteracao,
   areas,
+  comoAdministrador = false,
   areaId,
   setAreaId,
   trocandoEvento,
@@ -34,6 +35,7 @@ export function EscolhaEvento({
   eventoId: string | null;
   ehAlteracao: boolean;
   areas: Array<{ id: string; nome: string }> | null;
+  comoAdministrador?: boolean;
   areaId: string | null;
   setAreaId: (v: string | null) => void;
   trocandoEvento: boolean;
@@ -67,7 +69,7 @@ export function EscolhaEvento({
     >
       {areas && (
         <div className="border-b border-line-soft px-cartao py-3.5">
-          <Field label="Área solicitante" htmlFor="area-solicitante" obrigatorio hint="Você está pedindo como administrador, em nome desta área." error={tentouEnviar && !areaId ? "Escolha a área que está pedindo." : null}>
+          <Field label="Área solicitante" htmlFor="area-solicitante" obrigatorio hint={comoAdministrador ? "Você está pedindo como administrador, em nome desta área." : "A área para a qual você está pedindo. A logística responde para ela."} error={tentouEnviar && !areaId ? "Escolha a área que está pedindo." : null}>
             <Select id="area-solicitante" value={areaId ?? ""} disabled={temRascunho} onValueChange={(v) => setAreaId(v || null)} invalid={tentouEnviar && !areaId} placeholder="Selecione a área" className="sm:max-w-[320px]" opcoes={areas.map((a) => ({ value: a.id, label: a.nome }))} />
           </Field>
         </div>

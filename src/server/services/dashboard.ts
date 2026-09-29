@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm
 import { getDb } from "@/server/db";
 import { areas, eventoItens, eventos, historico, solicitacaoItens, solicitacoes, usuarios, type EventoStatus, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
-import { ehRequisitante, pode } from "@/domain/permissions";
+import { areasDoUsuario, ehRequisitante, pode } from "@/domain/permissions";
 import { addDiasISO, diaMesHora, diaMesISO, diaSemanaCurto, hojeISO, hora, isoSP } from "@/lib/format";
 import { aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { descricaoItem } from "./solicitacoes";
@@ -116,22 +116,22 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   } as const;
 
   if (req) {
-    const areaId = usuario.areaId;
+    const areaIds = areasDoUsuario(usuario);
     // Eventos da área → mudanças neles (dependentes); as solicitações da área correm em paralelo.
     const [evs, [meusEventos, mudancas], minhas] = await Promise.all([
       consultaEventos,
       (async () => {
         // Eventos em que a área está metida: é por evento que o solicitante pensa, não por solicitação.
-        const meus = areaId ? await resumoEventosDaArea(db, areaId, hoje) : [];
-        return [meus, await mudancasRecentes(db, meus.map((e) => e.id), areaId)] as const;
+        const meus = areaIds.length ? await resumoEventosDaArea(db, areaIds, hoje) : [];
+        return [meus, await mudancasRecentes(db, meus.map((e) => e.id), areaIds)] as const;
       })(),
       // Só o que o painel mostra: abertas/rascunhos (fila) e respondidas dos últimos 7 dias.
       // Sem isso o histórico inteiro da área viria a cada visita.
-      areaId
+      areaIds.length
         ? db.query.solicitacoes.findMany({
             where: and(
               eq(solicitacoes.excluida, false),
-              eq(solicitacoes.areaId, areaId),
+              inArray(solicitacoes.areaId, areaIds),
               or(
                 inArray(solicitacoes.status, [...STATUS_EDITAVEIS, ...STATUS_ABERTOS]),
                 and(eq(solicitacoes.status, "RESPONDIDA"), gt(solicitacoes.respondidaEm, new Date(agora.getTime() - 7 * 86_400_000))),
@@ -280,10 +280,10 @@ export type DadosPainel = Awaited<ReturnType<typeof dadosPainel>>;
 const ACOES_MUDANCA = ["ATA_INCLUSAO", "AJUSTE_INCLUSAO", "ATA_QUANTIDADE", "ATA_REMOCAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"];
 
 /** Um cartão por evento onde a área tem item ou pedido: fase, datas, quantos itens e o que mudou. */
-async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId: string, hoje: string) {
+async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaIds: string[], hoje: string) {
   // Linhas ativas (já somadas por evento no banco) e pedidos da área nos eventos em curso: em paralelo.
   // Antes vinha uma linha por item de ata de todos os eventos em andamento, somada em memória.
-  const daArea = sql`${eventoItens.areaId} = ${areaId}`;
+  const daArea = sql`${eventoItens.areaId} in (${sql.join(areaIds.map((a) => sql`${a}`), sql`, `)})`;
   const posAta = sql`${eventoItens.criadoEm} > coalesce((select min(criado_em) from ata_versoes av where av.evento_id = ${eventoItens.eventoId}), 'infinity')`;
   const [totais, pedidos] = await Promise.all([
     db
@@ -302,7 +302,7 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
       .select({ eventoId: solicitacoes.eventoId, status: solicitacoes.status })
       .from(solicitacoes)
       .innerJoin(eventos, eq(solicitacoes.eventoId, eventos.id))
-      .where(and(eq(solicitacoes.areaId, areaId), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA"), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`)),
+      .where(and(inArray(solicitacoes.areaId, areaIds), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA"), ne(eventos.status, "CANCELADO"), sql`${eventos.dataFim} >= ${hoje}`)),
   ]);
 
   const totalDe = new Map(totais.map((t) => [t.eventoId, t]));
@@ -338,7 +338,7 @@ async function resumoEventosDaArea(db: Awaited<ReturnType<typeof getDb>>, areaId
 }
 
 /** Últimas mudanças de item nos eventos da área. Motivo interno de outra área não vem junto. */
-async function mudancasRecentes(db: Awaited<ReturnType<typeof getDb>>, eventoIds: string[], areaId: string | null) {
+async function mudancasRecentes(db: Awaited<ReturnType<typeof getDb>>, eventoIds: string[], areaIds: string[]) {
   if (eventoIds.length === 0) return [];
   const rows = await db
     .select({
@@ -363,7 +363,7 @@ async function mudancasRecentes(db: Awaited<ReturnType<typeof getDb>>, eventoIds
     .orderBy(desc(historico.criadoEm))
     .limit(12);
   return rows.map((r) => {
-    const daArea = r.linhaArea == null || r.linhaArea === areaId;
+    const daArea = r.linhaArea == null || areaIds.includes(r.linhaArea);
     return {
       id: r.id,
       eventoId: r.eventoId!,

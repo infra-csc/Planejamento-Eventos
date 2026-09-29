@@ -23,6 +23,7 @@ export function NovaSolicitacaoForm({
   eventos,
   areas,
   areaInicial,
+  comoAdministrador = false,
   eventoInicial,
   itensIniciais,
   projetos,
@@ -32,9 +33,11 @@ export function NovaSolicitacaoForm({
 }: {
   rascunho: RascunhoSolicitacao | null;
   eventos: EventoOpcao[];
-  /** Só para o Administrador, que pede em nome de uma área. `null` para os demais perfis. */
+  /** Áreas para escolher em nome de qual se pede (todo solicitante escolhe). `null` esconde a escolha. */
   areas: Array<{ id: string; nome: string }> | null;
   areaInicial: string | null;
+  /** Só muda o texto de ajuda da área ("pedindo como administrador"). */
+  comoAdministrador?: boolean;
   eventoInicial: string | null;
   itensIniciais: ItemNovo[];
   projetos: Referencia[];
@@ -208,6 +211,7 @@ export function NovaSolicitacaoForm({
             eventoId={eventoId}
             ehAlteracao={ehAlteracao}
             areas={areas}
+            comoAdministrador={comoAdministrador}
             areaId={areaId}
             setAreaId={setAreaId}
             trocandoEvento={trocandoEvento}

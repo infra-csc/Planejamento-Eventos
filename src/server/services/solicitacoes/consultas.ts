@@ -4,7 +4,7 @@ import { getDb } from "@/server/db";
 import { eventos, solicitacaoItens, solicitacoes, type SolicitacaoStatus } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
-import { pode, podeVerSolicitacao } from "@/domain/permissions";
+import { areasDoUsuario, pode, podeVerSolicitacao } from "@/domain/permissions";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
 
 /* ------------------------------------------------------------------ */
@@ -23,8 +23,9 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
   const db = await getDb();
   const conds = [eq(solicitacoes.excluida, false)];
   if (!pode(usuario, "solicitacao.ver_todas") || filtro.somenteMinhaArea) {
-    if (!usuario.areaId) return [];
-    conds.push(eq(solicitacoes.areaId, usuario.areaId));
+    const minhas = areasDoUsuario(usuario);
+    if (!minhas.length) return [];
+    conds.push(inArray(solicitacoes.areaId, minhas));
   } else if (usuario.perfil !== "ADMIN") {
     // Rascunho ainda não enviado é da área (mesma regra de paginarSolicitacoes e da busca).
     conds.push(ne(solicitacoes.status, "RASCUNHO"));
@@ -68,8 +69,9 @@ export async function eventosComSolicitacoes(usuario: UsuarioAtual) {
   const db = await getDb();
   const escopo = [eq(solicitacoes.excluida, false)];
   if (!pode(usuario, "solicitacao.ver_todas")) {
-    if (!usuario.areaId) return [];
-    escopo.push(eq(solicitacoes.areaId, usuario.areaId));
+    const minhas = areasDoUsuario(usuario);
+    if (!minhas.length) return [];
+    escopo.push(inArray(solicitacoes.areaId, minhas));
   } else if (usuario.perfil !== "ADMIN") escopo.push(ne(solicitacoes.status, "RASCUNHO"));
   const rows = await db
     .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataInicio: eventos.dataInicio, n: sql<number>`count(*)` })
@@ -87,8 +89,9 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
   const vazio = { itens: [] as SolicitacaoLista[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
   const base = [eq(solicitacoes.excluida, false)];
   if (!pode(usuario, "solicitacao.ver_todas")) {
-    if (!usuario.areaId) return vazio;
-    base.push(eq(solicitacoes.areaId, usuario.areaId));
+    const minhas = areasDoUsuario(usuario);
+    if (!minhas.length) return vazio;
+    base.push(inArray(solicitacoes.areaId, minhas));
   } else if (usuario.perfil !== "ADMIN") {
     // Rascunho ainda não enviado é da área (a tela promete que "a logística nunca chegou a vê-lo").
     base.push(ne(solicitacoes.status, "RASCUNHO"));
@@ -187,7 +190,8 @@ export async function listarFila(usuario: UsuarioAtual) {
   // Mesmo escopo de `listarSolicitacoes(usuario, { status: "ABERTAS" })`, sem carregar evento, área, autor e itens:
   // quem usa a fila só navega pelos ids.
   const veTodas = pode(usuario, "solicitacao.ver_todas");
-  if (!veTodas && !usuario.areaId) return [];
+  const minhas = areasDoUsuario(usuario);
+  if (!veTodas && !minhas.length) return [];
   const db = await getDb();
   return db
     .select({ id: solicitacoes.id, prazoRespostaEm: solicitacoes.prazoRespostaEm })
@@ -195,7 +199,7 @@ export async function listarFila(usuario: UsuarioAtual) {
     .where(
       and(
         eq(solicitacoes.excluida, false),
-        veTodas ? undefined : eq(solicitacoes.areaId, usuario.areaId!),
+        veTodas ? undefined : inArray(solicitacoes.areaId, minhas),
         inArray(solicitacoes.status, STATUS_ABERTOS),
         eq(solicitacoes.tipo, "ALTERACAO"),
       ),

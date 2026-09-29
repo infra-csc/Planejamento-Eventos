@@ -9,6 +9,8 @@ export type UsuarioAtual = {
   perfil: Perfil;
   areaId: string | null;
   areaNome: string | null;
+  /** Áreas que o usuário já escolheu ao pedir (ver `areasDoUsuario`). */
+  areasPedidas?: string[];
   /** Administrador vendo o app como outro perfil: permissões e área seguem o perfil visto; o id (e o histórico) continuam sendo do administrador. */
   verComo?: { perfilReal: Perfil } | null;
   /** Senha provisória: enquanto true, só a página de perfil (troca de senha) abre. */

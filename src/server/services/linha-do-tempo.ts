@@ -3,7 +3,7 @@ import { getDb } from "@/server/db";
 import { areas, eventoItens, historico, solicitacaoItens, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
-import { pode, PERFIL_LABEL } from "@/domain/permissions";
+import { daMinhaArea, pode, PERFIL_LABEL } from "@/domain/permissions";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { resumirAjustes } from "@/domain/os";
 import { ACOES_COM_MOTIVO, obterLinhasAta } from "./eventos";
@@ -163,7 +163,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
 
   // Quem não vê todas as áreas enxerga o detalhe completo só das linhas da própria área.
   const areaDaLinha = origem ? origem.areaId : linha.registro.areaId;
-  const veTudo = pode(usuario, "solicitacao.ver_todas") || areaDaLinha == null || areaDaLinha === usuario.areaId;
+  const veTudo = pode(usuario, "solicitacao.ver_todas") || areaDaLinha == null || daMinhaArea(usuario, areaDaLinha);
   const respondidoPorId = origem?.respondidoPorId ?? null;
 
   // Motivos e observações da logística sobre itens de outra área ficam fora da linha do tempo.

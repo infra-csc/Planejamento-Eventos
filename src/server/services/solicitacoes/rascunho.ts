@@ -19,12 +19,12 @@ import { enviarSolicitacao } from "./envio";
 
 async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: string, areaEscolhida?: string | null) {
   exigir(usuario, "solicitacao.criar");
-  const admin = usuario.perfil === "ADMIN";
-  // O Administrador pede em nome de uma área que ele escolhe; os demais perfis, pela própria área.
-  const areaId = admin ? (areaEscolhida ?? usuario.areaId) : usuario.areaId;
-  if (!areaId) throw new ValidacaoError(admin ? "Escolha a área que está pedindo." : "Seu usuário não está vinculado a uma área. Peça ao administrador.", admin ? { areaId: "Escolha a área." } : undefined);
+  // Quem pede escolhe a área em nome da qual está pedindo (a área fixa do cadastro vem sugerida).
+  // No "ver como" o administrador fica preso à área que escolheu ver.
+  const areaId = usuario.verComo ? usuario.areaId : (areaEscolhida ?? usuario.areaId);
+  if (!areaId) throw new ValidacaoError("Escolha a área que está pedindo.", { areaId: "Escolha a área." });
   const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)), columns: { id: true } });
-  if (!area) throw new ValidacaoError(admin ? "Área inativa ou inexistente." : "Sua área está desativada. Peça ao administrador.", admin ? { areaId: "Escolha outra área." } : undefined);
+  if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
   if (!ev) throw new NaoEncontradoError("Evento");
   const tipo = tipoSolicitacaoParaStatus(ev.status);
@@ -164,8 +164,10 @@ export type DadosSolicitacaoCompleta = {
  * itens de uma vez (uma transação só: ou grava tudo, ou nada) e, se pedido, envia. Se o envio
  * falhar por regra do evento, o rascunho fica salvo e o erro volta em `erroEnvio`.
  */
-export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: DadosSolicitacaoCompleta): Promise<{ id: string; codigo: string; enviada: boolean; erroEnvio: string | null }> {
-  exigir(usuario, "solicitacao.criar");
+export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dados: DadosSolicitacaoCompleta): Promise<{ id: string; codigo: string; enviada: boolean; erroEnvio: string | null }> {
+  exigir(usuarioSessao, "solicitacao.criar");
+  // A área escolhida agora passa a ser do usuário já nesta gravação (a sessão só a vê na próxima requisição).
+  let usuario = usuarioSessao;
   if (dados.enviar) {
     const campos: Record<string, string> = {};
     if (!dados.titulo) campos.titulo = MSG_TITULO_OBRIGATORIO;
@@ -185,6 +187,7 @@ export async function salvarSolicitacaoCompleta(usuario: UsuarioAtual, dados: Da
       if (s.eventoId !== dados.eventoId) throw new DomainError("Para trocar de evento, exclua este rascunho e crie outro.");
     } else {
       const novo = await criarRascunhoTx(tx, usuario, dados.eventoId, dados.areaId);
+      usuario = { ...usuario, areasPedidas: [...(usuario.areasPedidas ?? []), novo.areaId] };
       s = await carregarEditavel(tx, usuario, novo.id);
     }
     await tx
