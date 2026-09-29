@@ -1,0 +1,1 @@
+- [Publish-time font resolution](publish-font-resolution.md) — a clean local Next build may pass while Publish fails on Google font resolution; prefer bundled fonts.
