@@ -1,1 +1,2 @@
 - [Publish-time font resolution](publish-font-resolution.md) — a clean local Next build may pass while Publish fails on Google font resolution; prefer bundled fonts.
+- [Publish schema timing](publish-schema-timing.md) — do not begin Publish while development migrations are pending or running; the schema diff may remove a column required by the new code.
