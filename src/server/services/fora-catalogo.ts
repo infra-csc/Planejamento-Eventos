@@ -8,6 +8,7 @@ import { criarPecaNaTransacao, type DadosPeca } from "./catalogo";
 import { snapshotBom } from "./eventos";
 import { gerarOsVersao } from "./os";
 import { bloquearEvento, notificar, registrarHistorico, usuariosDaArea } from "./support";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
 
 /**
  * Itens pedidos como "Outro item (descrever)" que estão na ata/OS sem vínculo com o catálogo,
@@ -131,6 +132,7 @@ export async function vincularAoCatalogo(usuario: UsuarioAtual, ref: RefVinculo,
       dadosAntes: { tipo: "AVULSO", descricaoLivre: original },
       dadosDepois: { tipo: projetoId ? "PROJETO" : "PECA", projetoId, projetoVersaoId, pecaId },
     });
+    await sincronizarRegrasAta(tx, ev.id, null);
     if (linhaPendente && linha?.ativo && ev.status === "ABERTO") await gerarOsVersao(tx, ev.id, "AJUSTE_LOGISTICA", usuario.id, texto);
     if (sol) {
       await notificar(tx, {

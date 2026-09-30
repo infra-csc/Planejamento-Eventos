@@ -5,7 +5,8 @@ import { pode } from "@/domain/permissions";
 import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
-import { SETOR_LABEL } from "@/domain/os";
+import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
+import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import type { OsConteudo } from "@/server/db/schema";
 import { blocoDados, CHECK, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
@@ -17,7 +18,10 @@ import { NaoEncontradoError } from "@/domain/errors";
  * filtros, listras, linha de totais com fórmula e coluna de separação para marcar no galpão.
  */
 
-function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | null; local: string | null; dataInicio: string; dataFim: string; dataReuniao: Date; responsavel: { nome: string } }, os: OsConteudo, versao: string, geradaPor: string) {
+function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | null; local: string | null; dataInicio: string; dataFim: string; dataReuniao: Date; responsavel: { nome: string } }, os: OsConteudo, versao: string, geradaPor: string, mapa: MapaGrupos) {
+  // Separação dos materiais como na lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena).
+  const porGrupo = totaisPorGrupo(os.setores, mapa);
+  const material = (codigo: string, setor: string) => GRUPO_LABEL[grupoDoCodigo(mapa, codigo, setor)];
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";
   wb.created = new Date();
@@ -61,14 +65,14 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   );
   l = Math.max(fimEsq, fimDir) + 1;
 
-  l = tituloSecao(capa, l, 6, "Resumo por setor", "Quantas peças de cada setor vão no caminhão.");
-  const porSetor = os.setores.map((s) => [SETOR_LABEL[s.setor], s.linhas.length, s.linhas.reduce((a, x) => a + x.total, 0)] as Array<string | number>);
+  l = tituloSecao(capa, l, 6, "Resumo por material", "Quantas peças de cada grupo de material vão no caminhão.");
+  const porSetor = porGrupo.map((g) => [GRUPO_LABEL[g.grupo], g.linhas.length, g.linhas.reduce((a, x) => a + x.total, 0)] as Array<string | number>);
   l = tabela(
     capa,
     "ResumoSetor",
     l,
     [
-      { nome: "Setor", largura: 24, rotuloTotal: "Total" },
+      { nome: "Material", largura: 24, rotuloTotal: "Total" },
       { nome: "Tipos de peça", largura: 30, numero: true, total: "sum" },
       { nome: "Unidades", largura: 14, numero: true, total: "sum" },
     ],
@@ -101,13 +105,13 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Totais por peça ---------- */
   const tot = wb.addWorksheet("Totais por peça", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
   faixaTitulo(tot, 7, "NORTE MKT", "Totais por peça", `${cab} · carregar o caminhão`);
-  const linhasTot = os.setores.flatMap((s) => s.linhas.map((x) => [SETOR_LABEL[s.setor], x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
+  const linhasTot = porGrupo.flatMap((g) => g.linhas.map((x) => [GRUPO_LABEL[g.grupo], x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
   tabela(
     tot,
     "TotaisPorPeca",
     5,
     [
-      { nome: "Setor", largura: 22, rotuloTotal: "Total geral" },
+      { nome: "Material", largura: 22, rotuloTotal: "Total geral" },
       { nome: "Código", largura: 14, mono: true },
       { nome: "Peça", largura: 44 },
       { nome: "Total", largura: 10, numero: true, total: "sum" },
@@ -122,7 +126,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Por projeto ---------- */
   const proj = wb.addWorksheet("Por projeto", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
   faixaTitulo(proj, 11, "NORTE MKT", "Por projeto", `${cab} · montar`);
-  const linhasProj = (os.projetos ?? []).flatMap((p) => p.pecas.map((x) => [p.nome, p.quantidade, p.destino ?? "—", p.area ?? "Logística", x.codigo, x.nome, SETOR_LABEL[x.setor], x.porUnidade, x.total, x.unidade, CHECK] as Array<string | number>));
+  const linhasProj = (os.projetos ?? []).flatMap((p) => p.pecas.map((x) => [p.nome, p.quantidade, p.destino ?? "—", p.area ?? "Logística", x.codigo, x.nome, material(x.codigo, x.setor), x.porUnidade, x.total, x.unidade, CHECK] as Array<string | number>));
   if (!os.projetos) {
     proj.getCell(5, 1).value = "Esta versão da OS foi gerada antes da visão por projeto. Abra a versão atual.";
     proj.mergeCells(5, 1, 5, 11);
@@ -138,7 +142,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
         { nome: "Área", largura: 16 },
         { nome: "Código", largura: 14, mono: true },
         { nome: "Peça", largura: 40 },
-        { nome: "Setor", largura: 22 },
+        { nome: "Material", largura: 22 },
         { nome: "Por unidade", largura: 11, numero: true },
         { nome: "Total", largura: 10, numero: true, total: "sum" },
         { nome: "Un.", largura: 6, alinhar: "center" },
@@ -152,7 +156,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Peças soltas ---------- */
   const solt = wb.addWorksheet("Peças soltas", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
   faixaTitulo(solt, 8, "NORTE MKT", "Peças soltas", `${cab} · pedidas fora de projeto`);
-  const linhasSolt = (os.individuais ?? []).map((x) => [x.codigo, x.nome, SETOR_LABEL[x.setor], x.quantidade, x.unidade, x.destino ?? "—", x.area ?? "—", CHECK] as Array<string | number>);
+  const linhasSolt = (os.individuais ?? []).map((x) => [x.codigo, x.nome, material(x.codigo, x.setor), x.quantidade, x.unidade, x.destino ?? "—", x.area ?? "—", CHECK] as Array<string | number>);
   tabela(
     solt,
     "PecasSoltas",
@@ -160,7 +164,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
     [
       { nome: "Código", largura: 14, mono: true, rotuloTotal: "Total" },
       { nome: "Peça", largura: 44 },
-      { nome: "Setor", largura: 22 },
+      { nome: "Material", largura: 22 },
       { nome: "Qtd.", largura: 10, numero: true, total: "sum" },
       { nome: "Un.", largura: 6, alinhar: "center" },
       { nome: "Destino", largura: 26 },
@@ -211,7 +215,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const ehAtual = pedida && versoes[0]?.numero === pedida.numero;
   const os = gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id);
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
-  const wb = montarPastaOs(ev, os, rotulo, usuario.nome);
+  const wb = montarPastaOs(ev, os, rotulo, usuario.nome, await mapaGruposPecas());
   const buffer = await wb.xlsx.writeBuffer();
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {

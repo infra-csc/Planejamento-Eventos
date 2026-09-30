@@ -1,5 +1,6 @@
 import { SETOR_LABEL } from "@/domain/os";
-import type { OsConteudo, Setor } from "@/server/db/schema";
+import type { OsConteudo } from "@/server/db/schema";
+import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { ChipMono } from "@/components/ui/badge";
 import { Icone } from "@/components/ui/icons";
@@ -41,6 +42,7 @@ export function OsVisoes({
   visao,
   hrefVisao,
   csvHref,
+  grupos,
   titulo,
   composicao,
   semNavegacao = false,
@@ -48,7 +50,10 @@ export function OsVisoes({
   os: OsConteudo;
   visao: VisaoOs;
   hrefVisao: (v: VisaoOs) => string;
-  csvHref?: (setor: Setor) => string;
+  /** CSV de uma seção dos totais (grupo de material, ou setor quando não há mapa de grupos). */
+  csvHref?: (secao: string) => string;
+  /** Código → grupo de material: separa a OS como a lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena). */
+  grupos?: MapaGrupos;
   titulo: string;
   /** Quarta aba: os itens que compõem a OS (onde a logística ajusta depois da ata fechada). */
   composicao?: { n: number; conteudo: React.ReactNode; ajustavel?: boolean };
@@ -103,7 +108,7 @@ export function OsVisoes({
                     <tr>
                       <Th largura={120}>Código</Th>
                       <Th>Peça</Th>
-                      <Th largura={150}>Setor</Th>
+                      <Th largura={150}>{grupos ? "Material" : "Setor"}</Th>
                       <Th largura={96} alinhar="right">
                         Por un.
                       </Th>
@@ -121,7 +126,7 @@ export function OsVisoes({
                         <th scope="row" className={`${td} text-left text-corpo font-normal text-ink`}>
                           {x.nome}
                         </th>
-                        <td className={`${td} text-pequeno text-muted`}>{SETOR_LABEL[x.setor]}</td>
+                        <td className={`${td} text-pequeno text-muted`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
                         <td className={tdNumero}>{x.porUnidade}</td>
                         <td className={tdTotal}>
                           <Total n={x.total} unidade={x.unidade} />
@@ -153,7 +158,7 @@ export function OsVisoes({
                     <tr>
                       <Th largura={120}>Código</Th>
                       <Th>Peça</Th>
-                      <Th largura={140}>Setor</Th>
+                      <Th largura={140}>{grupos ? "Material" : "Setor"}</Th>
                       <Th largura="24%">Destino · área</Th>
                       <Th largura={110} alinhar="right">
                         Qtd.
@@ -169,7 +174,7 @@ export function OsVisoes({
                         <th scope="row" className={`${td} text-left text-corpo font-normal text-ink`}>
                           {x.nome}
                         </th>
-                        <td className={`${td} text-pequeno text-muted`}>{SETOR_LABEL[x.setor]}</td>
+                        <td className={`${td} text-pequeno text-muted`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
                         <td className={`${td} text-pequeno text-ink-2`}>{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
                         <td className={tdTotal}>
                           <Total n={x.quantidade} unidade={x.unidade} />
@@ -185,16 +190,16 @@ export function OsVisoes({
       )}
 
       {visao === "totais" &&
-        os.setores.map((s) => {
+        (grupos ? totaisPorGrupo(os.setores, grupos).map((g) => ({ chave: g.grupo.toLowerCase(), rotulo: GRUPO_LABEL[g.grupo], linhas: g.linhas })) : os.setores.map((x) => ({ chave: x.setor as string, rotulo: SETOR_LABEL[x.setor], linhas: x.linhas }))).map((s) => {
           const soma = s.linhas.reduce((a, l) => a + l.total, 0);
           return (
             <Section
-              key={s.setor}
-              titulo={SETOR_LABEL[s.setor]}
+              key={s.chave}
+              titulo={s.rotulo}
               sub={`${s.linhas.length} ${s.linhas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${unidades(soma)}`}
               acoes={
                 csvHref && (
-                  <a href={csvHref(s.setor)} className={buttonClasses({ variant: "ghost", size: "sm", className: "no-underline" })} title={`Baixar ${SETOR_LABEL[s.setor]} em CSV`}>
+                  <a href={csvHref(s.chave)} className={buttonClasses({ variant: "ghost", size: "sm", className: "no-underline" })} title={`Baixar ${s.rotulo} em CSV`}>
                     <Icone nome="download" />
                     CSV
                   </a>
@@ -203,7 +208,7 @@ export function OsVisoes({
             >
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[600px] border-collapse">
-                  <CaptionOculta>{`${titulo} · ${SETOR_LABEL[s.setor]}`}</CaptionOculta>
+                  <CaptionOculta>{`${titulo} · ${s.rotulo}`}</CaptionOculta>
                   <thead>
                     <tr>
                       <Th largura={120}>Código</Th>

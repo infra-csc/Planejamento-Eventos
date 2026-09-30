@@ -3,6 +3,7 @@ import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
 import { calcularOsAoVivo, listarOsResumo, totalPecasOs } from "@/server/services/os";
 import { slugArenaDoEvento } from "@/server/services/arenas";
+import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
 import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
@@ -70,10 +71,11 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const veArena = pode(usuario, "arena.ver");
   // Leituras independentes em paralelo. As leituras por peça vêm do estado de agora (ata + o que
   // entrou depois), igual à OS em vigor.
-  const [osAgora, totalOs, slugArena] = await Promise.all([
+  const [osAgora, totalOs, slugArena, gruposMaterial] = await Promise.all([
     leitura === "lista" ? null : calcularOsAoVivo(id),
     veOs && versoes[0] ? totalPecasOs(id, versoes[0].numero) : 0,
     veArena ? slugArenaDoEvento(id) : null,
+    leitura === "lista" ? undefined : mapaGruposPecas(),
   ]);
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
@@ -218,7 +220,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                 <EmptyState compact title="Nenhum item ainda" description="Quando as áreas enviarem necessidades, os itens aparecem aqui." />
               ) : osAgora ? (
                 <div className="flex flex-col gap-4 bg-subtle p-3 sm:p-4">
-                  <OsVisoes os={osAgora} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
+                  <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
                 </div>
               ) : (
                 <table className="w-full border-collapse">

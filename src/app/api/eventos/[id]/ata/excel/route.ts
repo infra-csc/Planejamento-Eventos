@@ -7,6 +7,8 @@ import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { blocoDados, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
 import { NaoEncontradoError } from "@/domain/errors";
+import { GRUPO_LABEL, ordemGrupo, type GrupoMaterial, type MapaGrupos } from "@/domain/grupos-material";
+import { mapaGruposPecas, mapaGruposProjetos } from "@/server/services/grupos-material";
 
 /*
  * Ata da reunião de OS em Excel: cabeçalho com os campos da ata (reunião, presentes, público, carga),
@@ -14,6 +16,12 @@ import { NaoEncontradoError } from "@/domain/errors";
  */
 
 const TIPO_LABEL = { PROJETO: "Projeto padrão", PECA: "Peça", AVULSO: "Fora do catálogo" } as const;
+
+/** Grupo de material de uma linha gravada na ata (pelo código do projeto ou da peça). */
+function grupoDaLinhaExport(x: { tipo: "PROJETO" | "PECA" | "AVULSO"; codigo: string | null }, grupos: { pecas: MapaGrupos; projetos: MapaGrupos }): GrupoMaterial {
+  if (!x.codigo || x.tipo === "AVULSO") return "OUTROS";
+  return (x.tipo === "PROJETO" ? grupos.projetos[x.codigo] : grupos.pecas[x.codigo]) ?? "ESTRUTURA";
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -27,6 +35,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
   if (!ata) return NextResponse.json({ erro: "Evento ou versão da ata não encontrados" }, { status: 404 });
   const ev = ata.evento;
+  const [gPecas, gProjetos] = await Promise.all([mapaGruposPecas(), mapaGruposProjetos()]);
+  const grupos = { pecas: gPecas, projetos: gProjetos };
   const reu = ata.reuniao;
   const rotuloVersao = ata.versao ? `v${ata.versao}` : "em construção";
   const cab = `Ata ${ev.codigo} · ${ev.nome} · ${rotuloVersao}`;
@@ -97,7 +107,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       { nome: "Origem", largura: 24 },
       { nome: "Conferido por", largura: 22 },
     ],
-    ata.linhas.map((x) => [x.codigo ?? "", `${x.descricao.replace(/\s*\(v\d+\)$/, "")}${x.versao ? ` (v${x.versao})` : ""} · ${TIPO_LABEL[x.tipo]}`, x.quantidade, x.destino ?? "—", x.area ?? "Logística", x.origem, x.conferidoPor ? `☑ ${x.conferidoPor}` : "—"]),
+    // Separado por material, como a lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena).
+    [...ata.linhas]
+      .map((x) => ({ x, g: grupoDaLinhaExport(x, grupos) }))
+      .sort((a, b) => ordemGrupo(a.g) - ordemGrupo(b.g))
+      .map(({ x, g }) => [x.codigo ?? "", `${x.descricao.replace(/\s*\(v\d+\)$/, "")}${x.versao ? ` (v${x.versao})` : ""} · ${TIPO_LABEL[x.tipo]} · ${GRUPO_LABEL[g]}`, x.quantidade, x.destino ?? "—", x.area ?? "Logística", x.origem, x.conferidoPor ? `☑ ${x.conferidoPor}` : "—"]),
   );
   l += 1;
 

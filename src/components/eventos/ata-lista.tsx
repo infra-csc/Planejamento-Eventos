@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -21,6 +21,7 @@ import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import type { EventoStatus } from "@/server/db/schema";
+import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
@@ -36,6 +37,8 @@ export type LinhaAtaView = {
   quantidade: number;
   destino: string | null;
   areaNome: string | null;
+  /** Grupo de material (Estrutura, Tendas, Ativação, Percurso, Arena): a lista separa por ele. */
+  grupo?: GrupoMaterial;
   origemLabel: string;
   origemSolicitacaoId: string | null;
   versao: number | null;
@@ -158,6 +161,9 @@ export function AtaLista({
   const [ajustar, setAjustar] = useState<LinhaAtaView | null>(null);
   const exigeJustificativa = status === "ABERTO";
   const soma = linhas.reduce((a, l) => a + l.quantidade, 0);
+  // Separação dos materiais como na lista da ata; sem grupo (visões antigas) tudo fica junto.
+  const porGrupo = GRUPOS_MATERIAL.map((g) => ({ grupo: g, ls: linhas.filter((l) => (l.grupo ?? "OUTROS") === g) })).filter((x) => x.ls.length > 0);
+  const colunas = 3 + (compacta ? 0 : 2) + (conferivel || editavel ? 1 : 0);
 
   const botaoIncluir = editavel && (
     <Button variant="link" size="sm" onClick={() => setIncluir(true)}>
@@ -193,7 +199,16 @@ export function AtaLista({
                 </tr>
               </thead>
               <tbody>
-                {linhas.map((l) => (
+                {porGrupo.map(({ grupo, ls }) => (
+                  <Fragment key={grupo}>
+                    {porGrupo.length > 1 && (
+                      <tr className="bg-subtle/60">
+                        <th scope="colgroup" colSpan={colunas} className="border-b border-line-soft px-cartao pb-1.5 pt-3 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
+                          {GRUPO_LABEL[grupo]} <span className="numero font-normal normal-case tracking-normal text-muted">· {ls.length}</span>
+                        </th>
+                      </tr>
+                    )}
+                {ls.map((l) => (
                   <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
                     <th scope="row" className="border-b border-line-row px-cartao py-2.5 text-left font-normal">
                       {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
@@ -239,6 +254,8 @@ export function AtaLista({
                       </td>
                     )}
                   </tr>
+                ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

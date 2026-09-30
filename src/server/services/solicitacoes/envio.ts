@@ -12,6 +12,7 @@ import { faltamDescricoes } from "@/domain/descricoes-itens";
 import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarFaseResposta, verificarJanelaPreReuniao } from "./comum";
 import { atenderPendentesNaTransacao } from "./resposta";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
 
 /* ------------------------------------------------------------------ */
 /* Enviar / cancelar / devolver                                         */
@@ -36,6 +37,8 @@ export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtu
       .set({ acao: "REGISTRADO_NA_ATA" })
       .where(and(eq(historico.entidade, "solicitacao_item"), inArray(historico.entidadeId, ids), eq(historico.acao, "RESPONDIDO")));
   }
+  const s = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, solicitacaoId), columns: { eventoId: true } });
+  if (s) await sincronizarRegrasAta(tx, s.eventoId, null);
   return pendentes.length;
 }
 

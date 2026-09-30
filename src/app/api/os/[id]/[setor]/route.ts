@@ -8,6 +8,8 @@ import { SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
 import { SETOR_LABEL } from "@/domain/os";
 import { NaoEncontradoError } from "@/domain/errors";
+import { GRUPO_LABEL, GRUPOS_MATERIAL, totaisPorGrupo, type GrupoMaterial } from "@/domain/grupos-material";
+import { mapaGruposPecas } from "@/server/services/grupos-material";
 
 /**
  * Escapa uma célula para CSV aberto no Excel. Valores que começam com = + - @ tab ou CR viram texto
@@ -24,7 +26,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const { id, setor } = await params;
-  if (!(SETORES as readonly string[]).includes(setor)) return NextResponse.json({ erro: "Setor inválido" }, { status: 400 });
+  // Seção dos totais: grupo de material (como a lista da ata) ou, em links antigos, o setor.
+  const grupo = GRUPOS_MATERIAL.find((g) => g.toLowerCase() === setor.toLowerCase()) as GrupoMaterial | undefined;
+  if (!grupo && !(SETORES as readonly string[]).includes(setor)) return NextResponse.json({ erro: "Setor inválido" }, { status: 400 });
   // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
   const ev = await obterEvento(usuario, id).catch((e: unknown) => {
     if (e instanceof NaoEncontradoError) return null;
@@ -36,8 +40,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const sel = Number.isInteger(v) && v > 0 ? (await obterConteudosOs(id, [v])).get(v) : undefined;
   const os = sel ?? (await calcularOsAtual(await getDb(), id));
   const rotulo = sel ? `v${v}` : "atual";
-  const s = os.setores.find((x) => x.setor === (setor as Setor));
-  const linhas = [["Evento", ev.codigo, ev.nome], ["Setor", SETOR_LABEL[setor as Setor]], ["Versão", rotulo], [], ["Código", "Peça", "Unidade", "Total", "Composição"]];
+  const s = grupo ? totaisPorGrupo(os.setores, await mapaGruposPecas()).find((x) => x.grupo === grupo) : os.setores.find((x) => x.setor === (setor as Setor));
+  const linhas = [["Evento", ev.codigo, ev.nome], grupo ? ["Material", GRUPO_LABEL[grupo]] : ["Setor", SETOR_LABEL[setor as Setor]], ["Versão", rotulo], [], ["Código", "Peça", "Unidade", "Total", "Composição"]];
   for (const l of s?.linhas ?? []) linhas.push([l.codigo, l.nome, l.unidade, String(l.total), l.origens.map((o) => `${o.descricao} -> ${o.quantidade}`).join(" | ")]);
   const csv = "﻿" + linhas.map((r) => r.map(csvEscape).join(";")).join("\r\n");
   return new NextResponse(csv, {

@@ -10,6 +10,7 @@ export function paraView(l: LinhaAtaDetalhe): LinhaAtaView {
     quantidade: l.quantidade,
     destino: l.destino,
     areaNome: l.areaNome,
+    grupo: l.grupo,
     origemLabel: l.origemLabel,
     origemSolicitacaoId: l.origemSolicitacaoId,
     versao: l.versao,

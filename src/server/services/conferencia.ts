@@ -1,4 +1,6 @@
 import { ehItemPadraoAta } from "@/domain/itens-padrao";
+import { grupoDaLinha } from "@/domain/grupos-material";
+import { descricaoDaRegra } from "@/domain/regras-kit";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
@@ -18,6 +20,7 @@ function gruposDescricao(lista: readonly string[] | null | undefined, quantidade
   return agruparDescricoes(itens);
 }
 import { agruparDescricoes, textoDescricoes } from "@/domain/descricoes-itens";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -133,6 +136,10 @@ export async function obterConferencia(eventoId: string) {
         : null,
       incluidaPor: o ? null : (criadorDe.get(l.id) ?? null),
       /** Item padrão de toda ata (ex.: garfo de içamento), incluído sozinho na criação do evento. */
+      /** Grupo de material, como na lista de materiais da ata (Estrutura, Tendas, Ativação, Percurso, Arena). */
+      grupo: grupoDaLinha({ tipo: l.tipo, projeto: l.registro.projeto, peca: l.registro.peca }),
+      /** Linha criada por regra da logística (ex.: "2 por estande + 6 por palco show"). */
+      regra: descricaoDaRegra(l.registro.regra),
       padrao: ehItemPadraoAta({ tipo: l.tipo, codigo: l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, temOrigem: Boolean(o) }),
       ultimoAjuste: aj ? { por: aj.por ?? "—", em: aj.criadoEm.toISOString(), descricao: textoAjuste(aj) } : null,
     };
@@ -231,13 +238,15 @@ export async function ajustarQuantidadeLinha(
     // A resposta aplica só a diferença em relação à resposta anterior; o ajuste define o valor absoluto
     // da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
     // Quantidade mudou antes da ata: na conferência a linha fica conferida; pela aba Ata, volta a conferir.
+    // Linha de regra (tina, pallet, ráfia) ajustada à mão: a regra deixa de mexer nela.
+    const manual = linha.registro.regra ? { regraManual: true } : {};
     const conferenciaCampos = conferencia ? { conferidoEm: agora, conferidoPorId: usuario.id } : antesDaAta ? { conferidoEm: null, conferidoPorId: null } : {};
     await tx
       .update(eventoItens)
       .set(
         remover
-          ? { ativo: false, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null }
-          : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao, ...conferenciaCampos },
+          ? { ativo: false, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null, ...manual }
+          : { ativo: true, quantidade, removidoEm: null, removidoPorId: null, justificativaAjuste: razao, ...conferenciaCampos, ...manual },
       )
       .where(eq(eventoItens.id, linhaId));
 
@@ -266,6 +275,7 @@ export async function ajustarQuantidadeLinha(
           },
     );
 
+    await sincronizarRegrasAta(tx, eventoId, null);
     if (posAta) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} ${remover ? "removido" : `${antes} → ${quantidade}`} — ${razao}`);
       const texto = `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}`;
@@ -339,6 +349,7 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
     }
     // Composição mudou antes da ata: a conferência da linha é refeita na reunião.
     await tx.update(eventoItens).set(aberto ? { bomSnapshot: bom } : { bomSnapshot: bom, conferidoEm: null, conferidoPorId: null }).where(eq(eventoItens.id, linhaId));
+    await sincronizarRegrasAta(tx, eventoId, null);
 
     const projeto = linha.projeto?.nome ?? "Projeto";
     const acaoTexto = antes === 0 ? `incluída com ${quantidadePorUnidade} por unidade` : quantidadePorUnidade === 0 ? `retirada (eram ${antes} por unidade)` : `${antes} → ${quantidadePorUnidade} por unidade`;

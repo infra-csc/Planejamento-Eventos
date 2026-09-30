@@ -9,6 +9,7 @@ import { bloquearEvento, notificar, obterConfiguracoes, registrarHistorico, usua
 import { montarAtaConteudo } from "./ata";
 import { solicitacoesPendentes } from "./consultas";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
 
 /* ------------------------------------------------------------------ */
 /* Máquina de estados                                                   */
@@ -108,6 +109,8 @@ async function voltarPreparacao({ tx, id, patch }: ContextoTransicao) {
 
 async function fecharAta(ctx: ContextoTransicao) {
   const { tx, usuario, id, ev, agora, patch } = ctx;
+  // Regras da logística em dia antes de conferir e fechar (tina, pallet, ráfia).
+  await sincronizarRegrasAta(tx, id, null);
   const pend = await tx
     .select({ n: count() })
     .from(solicitacaoItens)

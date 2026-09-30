@@ -7,8 +7,8 @@ import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { bloquearEvento, registrarHistorico, type Executor } from "./support";
 
 type RegistroLinha = typeof eventoItens.$inferSelect & {
-  projeto: { id: string; codigo: string; nome: string; versaoAtual: number } | null;
-  peca: { id: string; codigo: string; nome: string; setor: Setor; unidade: string } | null;
+  projeto: { id: string; codigo: string; nome: string; versaoAtual: number; categoria: string } | null;
+  peca: { id: string; codigo: string; nome: string; setor: Setor; unidade: string; familia: string } | null;
   area: { id: string; nome: string } | null;
   projetoVersao: { numero: number } | null;
 };

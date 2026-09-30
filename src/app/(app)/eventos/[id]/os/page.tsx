@@ -19,6 +19,7 @@ import { pode } from "@/domain/permissions";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
 import { listarAreasCache } from "@/server/cache";
+import { mapaGruposPecas } from "@/server/services/grupos-material";
 
 const GATILHO_LABEL: Record<OsGatilho, string> = {
   ATA_FECHADA: "ata fechada",
@@ -46,7 +47,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes, complemento] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id)]);
+  const [ev, versoes, complemento, grupos] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id), mapaGruposPecas()]);
 
   if (versoes.length === 0) {
     // Antes do fechamento da ata, a logística confere o que a OS vai conter: mesma leitura, calculada ao vivo da ata em construção.
@@ -60,7 +61,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             Leitura atual da ata em construção. A v1 nasce no fechamento da ata; até lá, tudo pode mudar na reunião.
           </Aviso>
           {temAlgo ? (
-            <OsVisoes os={previa} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
+            <OsVisoes os={previa} grupos={grupos} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
           ) : (
             <Section>
               <EmptyState title="A ata ainda não tem linhas" description="As solicitações pré-reunião entram na ata automaticamente e aparecem aqui como prévia da OS." />
@@ -182,10 +183,11 @@ export default async function OsPage({ params, searchParams }: { params: Promise
 
         <OsVisoes
           os={os}
+          grupos={grupos}
           visao={visao}
           titulo={`OS v${exibida.numero}`}
           hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, paramsAtuais, { visao: v === "totais" ? null : v })}
-          csvHref={(setor) => `/api/os/${id}/${setor}${qsExport}`}
+          csvHref={(secao) => `/api/os/${id}/${secao}${qsExport}`}
           composicao={composicao}
         />
       </div>

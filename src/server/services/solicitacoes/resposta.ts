@@ -18,6 +18,7 @@ import { snapshotBom } from "../eventos";
 import { bloquearEvento, notificar, registrarHistorico, registrarHistoricos, usuariosDaArea, type Executor } from "../support";
 import { eventoDoItem, verificarFaseResposta } from "./comum";
 import { descricaoItem } from "./consultas";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
 
 /* ------------------------------------------------------------------ */
 /* Resposta por item (RN-03..RN-07)                                     */
@@ -156,6 +157,7 @@ export async function responderNaTransacao(
     dadosDepois: r,
   });
 
+  await sincronizarRegrasAta(tx, s.eventoId, null);
   if (opcoes.gerarOs && s.tipo === "ALTERACAO") {
     await gerarOsVersao(tx, s.eventoId, correcao ? "CORRECAO_RESPOSTA" : "RESPOSTA_SOLICITACAO", usuario.id, `${s.codigo} · ${desc} — ${ITEM_STATUS_LABEL[r.status].toLowerCase()}`);
   }
@@ -391,6 +393,7 @@ export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
     verificarFaseResposta(s);
 
     const efeito = await aplicarEfeito(tx, usuario, s, item, { status: "EM_ANALISE", quantidadeAtendida: null });
+    await sincronizarRegrasAta(tx, s.eventoId, null);
     await tx
       .update(solicitacaoItens)
       .set({ status: "EM_ANALISE", quantidadeAtendida: null, observacaoLogistica: null, pendenciaCompra: false, respondidoPorId: null, respondidoEm: null, quantidadeAnterior: efeito.quantidadeAnterior })

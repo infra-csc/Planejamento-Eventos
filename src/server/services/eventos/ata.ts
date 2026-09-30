@@ -22,6 +22,8 @@ import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
 import { gerarOsVersao, montarLinhasAta } from "../os";
 import { bloquearEvento, notificarAjusteLinha, registrarHistorico, type Executor } from "../support";
 import { nomeLinha, nomesUsuarios } from "./comum";
+import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
+import { grupoDaLinha } from "@/domain/grupos-material";
 
 /* ------------------------------------------------------------------ */
 /* Linhas da ata (leitura, conteúdo congelado e versões)                */
@@ -64,7 +66,9 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
     const o = l.registro.solicitacaoItemId ? mapa.get(l.registro.solicitacaoItemId) : undefined;
     const origemLabel = o
       ? `${o.codigo}${o.status === "PARCIAL" ? " (parcial)" : ""}`
-      : !ev?.ataFechadaEm || l.registro.criadoEm <= ev.ataFechadaEm
+      : l.registro.regra
+        ? "Regra da logística"
+        : !ev?.ataFechadaEm || l.registro.criadoEm <= ev.ataFechadaEm
         ? "Incluída na reunião"
         : "Ajuste da logística";
     const versao = l.registro.projetoVersao?.numero ?? null;
@@ -73,6 +77,8 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
       ...l,
       nome: nomeLinha(l),
       descricao: descricaoLinha(l),
+      /** Grupo de material, como na lista de materiais da ata. */
+      grupo: grupoDaLinha({ tipo: l.tipo, projeto: l.registro.projeto, peca: l.registro.peca }),
       origemLabel,
       origemSolicitacaoId: o?.solicitacaoId ?? null,
       /** Quem pediu (solicitação) ou quem incluiu a linha direto na ata. */
@@ -250,6 +256,7 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
         excetoUsuarioId: usuario.id,
       });
     }
+    await sincronizarRegrasAta(tx, eventoId, null);
     return linha;
   });
 }
@@ -290,6 +297,7 @@ export async function atualizarVersaoLinha(usuario: UsuarioAtual, eventoId: stri
     const origem = linha.solicitacaoItemId ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.solicitacaoItemId), columns: { ajustesBom: true } }) : null;
     const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
     await tx.update(eventoItens).set({ projetoVersaoId: snap.versaoId, bomSnapshot: aplicarAjustesBom(snap.bom, origem?.ajustesBom), ...(antesDaAta ? { conferidoEm: null, conferidoPorId: null } : {}) }).where(eq(eventoItens.id, linhaId));
+    await sincronizarRegrasAta(tx, eventoId, null);
     await registrarHistorico(tx, {
       eventoId,
       entidade: "evento_item",

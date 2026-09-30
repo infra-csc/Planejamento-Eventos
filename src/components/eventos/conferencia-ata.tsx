@@ -21,6 +21,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
+import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
@@ -34,7 +35,7 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
 /** Quem pediu a linha (ou quem incluiu na reunião). */
-const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
+const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 
 /** Check da linha (40 px, alvo de toque em qualquer tela): um clique confere, outro desfaz. Otimista, volta se o servidor recusar. */
@@ -250,6 +251,8 @@ function PedidoPor({ l }: { l: LinhaConferencia }) {
         <Codigo>{l.origem.codigo}</Codigo>
       </Link>
     </>
+  ) : l.regra ? (
+    <>regra da logística: {l.regra}</>
   ) : l.padrao ? (
     <>item padrão de toda ata</>
   ) : (
@@ -298,7 +301,7 @@ function Linha({
         {emGrupo ? (
           <p className="m-0 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
-              {l.origem?.solicitante ?? (l.padrao ? "Item padrão da ata" : "Incluída na reunião")}
+              {l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}
             </Link>
           </p>
         ) : (
@@ -307,6 +310,7 @@ function Linha({
               {l.nome}
             </Link>
             <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>
+            <span className="text-rotulo text-muted">{GRUPO_LABEL[l.grupo]}</span>
             {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
           </p>
         )}
@@ -411,6 +415,8 @@ export function ConferenciaAta({
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [area, setArea] = useState("");
   const [pessoa, setPessoa] = useState("");
+  // Separação dos materiais como na lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena).
+  const [grupo, setGrupo] = useState<GrupoMaterial | "">("");
   const [busca, setBusca] = useState("");
   const [ajustando, setAjustando] = useState<LinhaConferencia | null>(null);
   const [descrevendo, setDescrevendo] = useState<LinhaConferencia | null>(null);
@@ -427,6 +433,8 @@ export function ConferenciaAta({
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
   const pessoasNaAta = useMemo(() => [...new Set(linhas.map(pessoaDe))].sort(porNome), [linhas]);
   const pessoaAtiva = pessoa && pessoasNaAta.includes(pessoa) ? pessoa : "";
+  const gruposNaAta = useMemo(() => GRUPOS_MATERIAL.filter((g) => linhas.some((l) => l.grupo === g)), [linhas]);
+  const grupoAtivo = grupo && gruposNaAta.includes(grupo) ? grupo : "";
 
   const visiveis = useMemo(
     () =>
@@ -435,9 +443,10 @@ export function ConferenciaAta({
           (filtro === "pendentes" ? !l.conferidoEm : filtro === "conferidas" ? Boolean(l.conferidoEm) : true) &&
           (!areaAtiva || areaDe(l) === areaAtiva) &&
           (!pessoaAtiva || pessoaDe(l) === pessoaAtiva) &&
+          (!grupoAtivo || l.grupo === grupoAtivo) &&
           (!busca.trim() || combinaBusca(`${l.nome} ${l.codigo ?? ""} ${l.destino ?? ""} ${l.areaNome ?? ""} ${l.origem?.codigo ?? ""} ${l.origem?.solicitante ?? ""} ${l.origem?.descricao ?? ""}`, busca)),
       ),
-    [linhas, filtro, areaAtiva, pessoaAtiva, busca],
+    [linhas, filtro, areaAtiva, pessoaAtiva, grupoAtivo, busca],
   );
 
   // Seção por área; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por destino e pessoa.
@@ -464,7 +473,7 @@ export function ConferenciaAta({
     const ls = linhas.filter((l) => areaDe(l) === a);
     return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length };
   };
-  const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(busca.trim());
+  const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(grupoAtivo) || Boolean(busca.trim());
   const conferirGrupo = (ls: readonly LinhaConferencia[]) => {
     const ids = ls.filter((l) => !l.conferidoEm).map((l) => l.id);
     if (!ids.length) return;
@@ -507,6 +516,18 @@ export function ConferenciaAta({
         </div>
       </div>
 
+      {gruposNaAta.length > 1 && (
+        <div className="-mx-1 overflow-x-auto border-b border-line-soft px-cartao pt-2.5">
+          <Pills
+            rotulo="Separar por material"
+            className="!flex-nowrap"
+            itens={[
+              { label: "Todos os materiais", n: linhas.length, ativo: !grupoAtivo, onSelect: () => setGrupo("") },
+              ...gruposNaAta.map((g) => ({ label: GRUPO_LABEL[g], n: linhas.filter((l) => l.grupo === g).length, ativo: grupoAtivo === g, onSelect: () => setGrupo(g) })),
+            ]}
+          />
+        </div>
+      )}
       <div className="flex flex-col gap-2 border-b border-line-soft px-cartao py-2.5 md:flex-row md:flex-wrap md:items-center">
         <div className="-mx-1 overflow-x-auto px-1">
           <Pills
@@ -552,6 +573,7 @@ export function ConferenciaAta({
                   setFiltro("todas");
                   setArea("");
                   setPessoa("");
+                  setGrupo("");
                   setBusca("");
                 }}
               >
@@ -597,6 +619,7 @@ export function ConferenciaAta({
                     <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 bg-subtle/60 px-cartao pb-1.5 pt-3 font-normal">
                       <span className="text-corpo font-medium text-ink">{p0.nome}</span>
                       <Tag tom={p0.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[p0.tipo]}</Tag>
+                      <span className="text-rotulo text-muted">{GRUPO_LABEL[p0.grupo]}</span>
                       {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
                       <span className="text-pequeno text-muted">
                         <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} linhas

@@ -348,6 +348,10 @@ export const eventoItens = pgTable(
     origem: eventoItemOrigemEnum("origem").notNull(),
     solicitacaoItemId: text("solicitacao_item_id").references((): AnyPgColumn => solicitacaoItens.id, { onDelete: "set null" }),
     justificativaAjuste: text("justificativa_ajuste"),
+    /** Linha criada por uma regra da logística (domain/regras-kit): a quantidade acompanha a ata até ela fechar. */
+    regra: text("regra"),
+    /** A logística ajustou a linha da regra à mão: a regra não mexe mais nela. */
+    regraManual: boolean("regra_manual").notNull().default(false),
     /** Conferida na reunião de OS: a ata só fecha com todas as linhas conferidas. */
     conferidoEm: ts("conferido_em"),
     conferidoPorId: text("conferido_por_id").references(() => usuarios.id),

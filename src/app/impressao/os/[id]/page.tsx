@@ -3,7 +3,8 @@ import Link from "next/link";
 import { obterEventoCache } from "@/server/cache";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
-import { SETOR_LABEL } from "@/domain/os";
+import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo } from "@/domain/grupos-material";
+import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
@@ -35,7 +36,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
   const { v } = await searchParams;
-  const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id)]);
+  const [ev, versoes, mapa] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas()]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
   const os = (sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id));
 
@@ -86,9 +87,9 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       </header>
 
       <h2 className="mb-3 mt-0 text-titulo font-semibold">Totais por peça</h2>
-      {os.setores.map((s) => (
-        <section key={s.setor} className="mb-8 break-inside-avoid">
-          <h3 className="mb-2 mt-0 text-destaque font-semibold">{SETOR_LABEL[s.setor]}</h3>
+      {totaisPorGrupo(os.setores, mapa).map((s) => (
+        <section key={s.grupo} className="mb-8 break-inside-avoid">
+          <h3 className="mb-2 mt-0 text-destaque font-semibold">{GRUPO_LABEL[s.grupo]}</h3>
           <Rolagem>
             <table className={tabela}>
               <thead>
@@ -140,7 +141,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                     <tr className={cabecalho}>
                       <th scope="col" className={th}>Código</th>
                       <th scope="col" className={th}>Peça</th>
-                      <th scope="col" className={th}>Setor</th>
+                      <th scope="col" className={th}>Material</th>
                       <th scope="col" className={`${th} text-right`}>Por un.</th>
                       <th scope="col" className={`${th} text-right`}>Total</th>
                       <th scope="col" className={th}>Un.</th>
@@ -154,7 +155,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                           <Codigo>{x.codigo}</Codigo>
                         </td>
                         <td className={td}>{x.nome}</td>
-                        <td className={`${td} text-rotulo text-ink-3`}>{SETOR_LABEL[x.setor]}</td>
+                        <td className={`${td} text-rotulo text-ink-3`}>{GRUPO_LABEL[grupoDoCodigo(mapa, x.codigo, x.setor)]}</td>
                         <td className={num}>{x.porUnidade}</td>
                         <td className={`${num} font-semibold`}>{x.total}</td>
                         <td className={`${td} text-pequeno text-ink-2`}>{x.unidade}</td>
@@ -179,7 +180,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                 <tr className={cabecalho}>
                   <th scope="col" className={th}>Código</th>
                   <th scope="col" className={th}>Peça</th>
-                  <th scope="col" className={th}>Setor</th>
+                  <th scope="col" className={th}>Material</th>
                   <th scope="col" className={`${th} text-right`}>Qtd.</th>
                   <th scope="col" className={th}>Un.</th>
                   <th scope="col" className={th}>Destino · área</th>
@@ -193,7 +194,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                       <Codigo>{x.codigo}</Codigo>
                     </td>
                     <td className={td}>{x.nome}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{SETOR_LABEL[x.setor]}</td>
+                    <td className={`${td} text-rotulo text-ink-3`}>{GRUPO_LABEL[grupoDoCodigo(mapa, x.codigo, x.setor)]}</td>
                     <td className={`${num} font-semibold`}>{x.quantidade}</td>
                     <td className={`${td} text-pequeno text-ink-2`}>{x.unidade}</td>
                     <td className={`${td} text-rotulo text-ink-3`}>{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
