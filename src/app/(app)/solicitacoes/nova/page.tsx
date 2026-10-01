@@ -49,10 +49,12 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     }),
     opcoesReferencias(),
     getDb().then(obterConfiguracoes),
-    usuario.perfil === "ADMIN" ? listarAreasCache() : Promise.resolve(null),
+    listarAreasCache(),
   ]);
   // Só o Administrador escolhe a área (pede em nome dela); o solicitante pede pela área do cadastro.
-  const areasEscolha = todasAreas?.map((a) => ({ id: a.id, nome: a.nome })) ?? null;
+  const areasEscolha = usuario.perfil === "ADMIN" ? todasAreas.map((a) => ({ id: a.id, nome: a.nome })) : null;
+  // Nome da área de quem pede (lista de itens da área já vem na solicitação).
+  const areaUsuarioNome = todasAreas.find((a) => a.id === usuario.areaId)?.nome ?? null;
   const semArea = usuario.perfil !== "ADMIN" && !usuario.areaId;
   // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
@@ -118,6 +120,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         eventos={eventos}
         areas={areasEscolha}
         areaInicial={rascunho?.areaId ?? null}
+        areaUsuarioNome={areaUsuarioNome}
         comoAdministrador={usuario.perfil === "ADMIN"}
         edicaoEnviada={edicaoEnviada}
         eventoInicial={eventoInicial}
