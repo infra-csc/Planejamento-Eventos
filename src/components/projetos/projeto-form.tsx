@@ -19,7 +19,7 @@ export type PecaOpcao = { id: string; codigo: string; nome: string; setor: Setor
 type Linha = { pecaId: string; quantidade: number };
 
 /** Categorias que o catálogo real usa; as que já existem no banco entram junto (prop `categorias`). */
-export const CATEGORIAS_PADRAO = ["Pórtico", "Quadro", "Estande", "Palco", "Ativação", "Obstáculo", "Tenda", "Percurso", "Estrutura", "Marcenaria"];
+export const CATEGORIAS_PADRAO = ["Pórtico", "Quadro", "Stand", "Palco", "Ativação", "Obstáculo", "Tenda", "Percurso", "Estrutura", "Marcenaria"];
 const ORDEM_SETOR: Record<Setor, number> = { ESTRUTURA: 0, TENDA: 1, ARENA: 2, MARCENARIA: 3 };
 const SETOR_CURTO: Record<Setor, string> = { ESTRUTURA: "Estrutura", TENDA: "Tenda", MARCENARIA: "Marcenaria", ARENA: "Arena" };
 

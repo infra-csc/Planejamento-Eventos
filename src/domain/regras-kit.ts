@@ -1,15 +1,16 @@
 /**
  * Regras da logística que dependem do que está na ata (observações das reuniões de OS):
- * - tina de 500 l (contrapeso): 2 por estande + 6 por palco show;
- * - pallet de ferro: 2 por estande;
+ * - tina de 500 l (contrapeso): 2 por stand + 6 por palco show;
+ * - pallet de ferro: 2 por stand + 6 por palco show;
+ * (a lona de teto já vem na lista de peças de cada stand e palco show)
  * - saco de ráfia: 1 por lixeira ultra bag.
  * A linha da regra acompanha a ata sozinha até a ata fechar; se a logística ajustar à mão, fica como ela deixou.
  */
 export type RegraKit = { regra: string; codigoPeca: string; descricao: string };
 
 export const REGRAS_KIT: readonly RegraKit[] = [
-  { regra: "tina-contrapeso", codigoPeca: "TINA-500", descricao: "2 por estande + 6 por palco show" },
-  { regra: "pallet-ferro", codigoPeca: "PALLET-FE", descricao: "2 por estande" },
+  { regra: "tina-contrapeso", codigoPeca: "TINA-500", descricao: "2 por stand + 6 por palco show" },
+  { regra: "pallet-ferro", codigoPeca: "PALLET-FE", descricao: "2 por stand + 6 por palco show" },
   { regra: "saco-rafia", codigoPeca: "SACO-RAFIA", descricao: "1 por lixeira ultra bag" },
 ];
 
@@ -24,7 +25,7 @@ export type LinhaParaRegra = {
   bom?: ReadonlyArray<{ codigo: string; quantidade: number }> | null;
 };
 
-const ehEstande = (p: { nome: string; categoria?: string | null }) => (p.categoria ?? "").toLocaleLowerCase("pt-BR") === "estande";
+const ehEstande = (p: { nome: string; categoria?: string | null }) => ["estande", "stand"].includes((p.categoria ?? "").toLocaleLowerCase("pt-BR"));
 const ehPalcoShow = (p: { nome: string }) => /^palco show/i.test(p.nome.trim());
 
 /** Quantas unidades cada regra pede, a partir das linhas ativas da ata (sem as linhas das próprias regras). */
@@ -44,7 +45,7 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
   }
   const qtd: Record<string, number> = {
     "tina-contrapeso": estandes * 2 + palcosShow * 6,
-    "pallet-ferro": estandes * 2,
+    "pallet-ferro": estandes * 2 + palcosShow * 6,
     "saco-rafia": ultrabags,
   };
   return REGRAS_KIT.map((r) => ({ ...r, quantidade: qtd[r.regra] ?? 0 }));

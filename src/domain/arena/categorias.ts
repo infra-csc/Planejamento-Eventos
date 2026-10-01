@@ -7,7 +7,7 @@ export const CAMADAS: Array<{ id: Camada; rotulo: string; descricao: string; pad
   { id: "percurso", rotulo: "Percurso", descricao: "Traçado, cones e sinalização", padrao: true },
   { id: "estruturas", rotulo: "Estruturas", descricao: "Pórticos, palco, cenografia e operação", padrao: true },
   { id: "apoio", rotulo: "Apoio ao atleta", descricao: "Hidratação, médico, GV e dispersão", padrao: true },
-  { id: "patrocinio", rotulo: "Patrocinadores", descricao: "Estandes e tendas de buffet", padrao: true },
+  { id: "patrocinio", rotulo: "Patrocinadores", descricao: "Stands e tendas de buffet", padrao: true },
   { id: "zonas", rotulo: "Áreas", descricao: "Arena, curral, apoio e acesso restrito", padrao: true },
   { id: "publico", rotulo: "Público", descricao: "Representação do público nas grades", padrao: true },
   { id: "local", rotulo: "Obstáculos do local", descricao: "Árvore, bueiro, poste, desnível: o que atrapalha a montagem", padrao: true },

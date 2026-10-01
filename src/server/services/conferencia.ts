@@ -138,7 +138,7 @@ export async function obterConferencia(eventoId: string) {
       /** Item padrão de toda ata (ex.: garfo de içamento), incluído sozinho na criação do evento. */
       /** Grupo de material, como na lista de materiais da ata (Estrutura, Tendas, Ativação, Percurso, Arena). */
       grupo: grupoDaLinha({ tipo: l.tipo, projeto: l.registro.projeto, peca: l.registro.peca }),
-      /** Linha criada por regra da logística (ex.: "2 por estande + 6 por palco show"). */
+      /** Linha criada por regra da logística (ex.: "2 por stand + 6 por palco show"). */
       regra: descricaoDaRegra(l.registro.regra),
       padrao: ehItemPadraoAta({ tipo: l.tipo, codigo: l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, temOrigem: Boolean(o) }),
       ultimoAjuste: aj ? { por: aj.por ?? "—", em: aj.criadoEm.toISOString(), descricao: textoAjuste(aj) } : null,

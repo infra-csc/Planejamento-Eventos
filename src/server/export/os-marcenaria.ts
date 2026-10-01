@@ -2,13 +2,13 @@ import type { OsConteudo } from "@/server/db/schema";
 
 /*
  * OS de marcenaria no formato da planilha da cenografia (OS CENO MARCENARIA_<evento>.xlsx, aba
- * O.S): seções na ordem da planilha (ESTANDES, PALCO, TENDAS, MESAS, ATIVAÇÃO, ITENS ESPECÍFICOS
+ * O.S): seções na ordem da planilha (STANDS, PALCO, TENDAS, MESAS, ATIVAÇÃO, ITENS ESPECÍFICOS
  * DA PROVA, GERAL), cada uma com cabeçalho ITEM | PEÇAS | QUANTIDADE | REFERENCIA | OBSERVAÇÃO e,
  * por item, o nome do projeto com "(N UNID)" na primeira linha e uma linha por peça de marcenaria.
  * Aqui só se monta a estrutura de dados; a rota /api/os/[id]/marcenaria desenha.
  */
 
-export const SECOES_MARCENARIA = ["ESTANDES", "PALCO", "TENDAS", "MESAS", "ATIVAÇÃO", "ITENS ESPECÍFICOS DA PROVA", "GERAL"] as const;
+export const SECOES_MARCENARIA = ["STANDS", "PALCO", "TENDAS", "MESAS", "ATIVAÇÃO", "ITENS ESPECÍFICOS DA PROVA", "GERAL"] as const;
 export type SecaoMarcenaria = (typeof SECOES_MARCENARIA)[number];
 
 export type ItemMarcenaria = {
@@ -28,7 +28,7 @@ const maiusculas = (s: string) => s.toLocaleUpperCase("pt-BR");
 /** Seção da planilha pela categoria do projeto no catálogo. */
 export function secaoDaCategoria(categoria: string | null | undefined): SecaoMarcenaria {
   const c = (categoria ?? "").toLocaleLowerCase("pt-BR");
-  if (c.startsWith("estande")) return "ESTANDES";
+  if (c.startsWith("estande") || c.startsWith("stand")) return "STANDS";
   if (c.startsWith("palco")) return "PALCO";
   if (c.startsWith("tenda")) return "TENDAS";
   if (c.startsWith("ativa") || c.startsWith("obst")) return "ATIVAÇÃO";

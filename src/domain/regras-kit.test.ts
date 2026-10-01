@@ -13,7 +13,7 @@ describe("regras do kit", () => {
       { tipo: "PECA", quantidade: 10, pecaCodigo: "LIXEIRA-BAG" },
       { tipo: "PROJETO", quantidade: 2, projeto: { nome: "Kit limpeza", categoria: "Arena" }, bom: [{ codigo: "LIXEIRA-BAG", quantidade: 4 }] },
     ]);
-    expect(qtd(r)).toEqual({ "TINA-500": 12, "PALLET-FE": 6, "SACO-RAFIA": 18 });
+    expect(qtd(r)).toEqual({ "TINA-500": 12, "PALLET-FE": 12, "SACO-RAFIA": 18 });
   });
 
   it("sem estande, palco show nem ultrabag, tudo zero", () => {

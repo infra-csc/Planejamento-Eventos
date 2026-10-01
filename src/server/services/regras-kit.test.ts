@@ -47,13 +47,13 @@ describe("regras da logística na ata", () => {
     expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 6, "pallet-ferro": 6 });
     await incluirProjeto(E.logistica, ev.id, palcoShow, 1, null);
     await incluirPeca(E.logistica, ev.id, ultrabag, 5, null);
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 12, "pallet-ferro": 6, "saco-rafia": 5 });
+    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 12, "pallet-ferro": 12, "saco-rafia": 5 });
     // Estande de 3 para 1: tina e pallet descem.
     await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaEstande.id, 1, "Só 1 estande");
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 8, "pallet-ferro": 2, "saco-rafia": 5 });
+    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 8, "pallet-ferro": 8, "saco-rafia": 5 });
     // Na conferência a linha da regra aparece com a explicação.
     const tina = (await obterConferencia(ev.id)).find((l) => l.codigo === "TINA-500")!;
-    expect(tina.regra).toBe("2 por estande + 6 por palco show");
+    expect(tina.regra).toBe("2 por stand + 6 por palco show");
   });
 
   it("ajuste à mão na linha da regra fica como a logística deixou; depois da ata fechada a regra para", async () => {
