@@ -80,8 +80,15 @@ const ESTAIAMENTO: ReadonlyArray<[codigo: string, rotulo: string]> = [
  * quantidade quando a peça está na OS. Itens fora do catálogo e peças soltas que não têm lugar
  * noutro bloco entram depois.
  */
-const OUTROS_FIXOS: ReadonlyArray<{ rotulo: string; codigo?: string; marca?: "X" }> = [
+const OUTROS_FIXOS: ReadonlyArray<{ rotulo: string; codigo?: string; marca?: "X"; soSeTiver?: boolean }> = [
   { rotulo: "LONA 9X6", codigo: "LONA-9X6" },
+  // Lonas de teto dos outros estandes e do palco show: a linha só aparece quando a OS tem.
+  { rotulo: "LONA 6X6", codigo: "LONA-6X6", soSeTiver: true },
+  { rotulo: "LONA 11X6", codigo: "LONA-11X6", soSeTiver: true },
+  { rotulo: "LONA 15X6", codigo: "LONA-15X6", soSeTiver: true },
+  { rotulo: "LONA 18X6", codigo: "LONA-18X6", soSeTiver: true },
+  { rotulo: "LONA 36X6", codigo: "LONA-36X6", soSeTiver: true },
+  { rotulo: "LONA 13X6", codigo: "LONA-13X6", soSeTiver: true },
   { rotulo: "GARFO", codigo: "GARFO" },
   { rotulo: "MEDALHA", marca: "X" },
   { rotulo: "AGUA DE MONTAGEM" },
@@ -217,9 +224,10 @@ export function montarOsEstrutura(os: OsConteudo): OsEstrutura {
 
   /* ---------- ESTAIAMENTO e OUTROS MATERIAIS ---------- */
   const estaiamento: LinhaRotulada[] = ESTAIAMENTO.map(([codigo, rotulo]) => ({ codigo, rotulo, total: totalPorCodigo.get(codigo)?.total ?? 0 }));
-  const outros: OsEstrutura["outros"] = OUTROS_FIXOS.map((o) => {
+  const outros: OsEstrutura["outros"] = OUTROS_FIXOS.flatMap((o) => {
     const total = o.codigo ? (totalPorCodigo.get(o.codigo)?.total ?? 0) : 0;
-    return { rotulo: o.rotulo, valor: total > 0 ? total : (o.marca ?? null) };
+    if (o.soSeTiver && total === 0) return [];
+    return [{ rotulo: o.rotulo, valor: total > 0 ? total : (o.marca ?? null) }];
   });
   const comLocal = (descricao: string, destino: string | null | undefined) => (destino?.trim() ? `${descricao} — ${destino.trim()}` : descricao);
   for (const x of os.semSetor) outros.push({ rotulo: maiusculas(comLocal(x.descricao, x.destino)), valor: x.quantidade });

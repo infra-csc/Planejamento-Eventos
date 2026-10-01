@@ -30,6 +30,8 @@ const POR_CODIGO: Record<string, GrupoMaterial> = {
 export function grupoDaPeca(p: { codigo: string; setor: string; familia?: string | null }): GrupoMaterial {
   const fixo = POR_CODIGO[p.codigo];
   if (fixo) return fixo;
+  // Lonas de teto (estandes e palco show) vão com a estrutura.
+  if (p.codigo.startsWith("LONA-")) return "ESTRUTURA";
   const familia = (p.familia ?? "").toLocaleLowerCase("pt-BR");
   if (p.setor === "TENDA" || familia.startsWith("tenda")) return "TENDAS";
   if (p.setor === "ESTRUTURA") return "ESTRUTURA";
