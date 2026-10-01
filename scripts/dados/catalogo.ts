@@ -722,7 +722,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Pórtico boca de 6 m sem orelha — Q15",
     categoria: "Pórtico",
-    descricao: "Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 4 tipos, 90 peças.",
+    descricao: "Pórtico Q15 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 4 tipos, 90 peças.",
     itens: [["Q15-1000", 2], ["Q15-3000", 10], ["Q15-CUBO", 6], ["Q15-PARAF", 72]],
   },
   {
@@ -752,7 +752,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Pórtico boca de 2 m sem orelha — Q15, testeira",
     categoria: "Pórtico",
-    descricao: "Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 112 peças.",
+    descricao: "Pórtico Q15 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 112 peças.",
     itens: [["Q15-1000", 2], ["Q15-2000", 2], ["Q15-3000", 6], ["Q15-CUBO", 6], ["Q15-PARAF", 96]],
   },
   {
@@ -842,7 +842,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Pórtico boca de 4 m sem orelha — Q15, testeira",
     categoria: "Pórtico",
-    descricao: "Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 114 peças.",
+    descricao: "Pórtico Q15 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 114 peças.",
     itens: [["Q15-1000", 2], ["Q15-2000", 4], ["Q15-3000", 6], ["Q15-CUBO", 6], ["Q15-PARAF", 96]],
   },
   {
@@ -923,7 +923,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Pórtico Q15 de campo (Copa Sabesp)",
     categoria: "Pórtico",
-    descricao: "Pórtico Q30 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 7 tipos, 224 peças.",
+    descricao: "Pórtico Q15 de largada/chegada. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 7 tipos, 224 peças.",
     itens: [["Q15-400", 8], ["Q15-700", 2], ["Q15-2000", 4], ["Q15-4000", 2], ["Q15-CUBO", 12], ["Q15-PARAF", 192], ["Q15-SAPATA", 4]],
   },
   // ---- Quadro — projetos das OS de estrutura 2026 (SharePoint) ----
@@ -954,19 +954,19 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 3,30×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 5 tipos, 74 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (9 montagens em 9 eventos): 5 tipos, 74 peças.",
     itens: [["Q15-2000", 2], ["Q15-3000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
   },
   {
     nome: "Quadro 6,30×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 74 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (4 montagens em 2 eventos): 5 tipos, 74 peças.",
     itens: [["Q15-2000", 2], ["Q15-6000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
   },
   {
     nome: "Quadro 2,45×2,45 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 2 eventos): 4 tipos, 70 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 2 eventos): 4 tipos, 70 peças.",
     itens: [["Q15-1000", 2], ["Q15-2000", 4], ["Q15-CUBO", 8], ["Q15-PARAF", 56]],
   },
   {
@@ -978,7 +978,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 6,45×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 4 tipos, 79 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (3 montagens em 3 eventos): 4 tipos, 79 peças.",
     itens: [["Q15-2000", 5], ["Q15-3000", 4], ["Q15-CUBO", 6], ["Q15-PARAF", 64]],
   },
   {
@@ -1002,7 +1002,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 5,30×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (5 montagens em 3 eventos): 5 tipos, 62 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (5 montagens em 3 eventos): 5 tipos, 62 peças.",
     itens: [["Q15-2000", 6], ["Q15-3000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 48], ["Q15-SAPATA", 2]],
   },
   {
@@ -1014,13 +1014,13 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 1,80×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 148 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 148 peças.",
     itens: [["Q15-500", 4], ["Q15-1000", 4], ["Q15-2000", 4], ["Q15-CUBO", 8], ["Q15-PARAF", 128]],
   },
   {
     nome: "Quadro 1,80×2,60 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 7 tipos, 80 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 7 tipos, 80 peças.",
     itens: [["Q15-400", 2], ["Q15-500", 2], ["Q15-900", 2], ["Q15-1000", 4], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
   },
   {
@@ -1032,7 +1032,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 3,30×3,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 4 tipos, 148 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 4 tipos, 148 peças.",
     itens: [["Q15-1000", 4], ["Q15-3000", 8], ["Q15-CUBO", 8], ["Q15-PARAF", 128]],
   },
   {
@@ -1044,7 +1044,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 3×2 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 1 evento): 5 tipos, 80 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 1 evento): 5 tipos, 80 peças.",
     itens: [["Q15-700", 4], ["Q15-1000", 2], ["Q15-2000", 6], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
   },
   {
@@ -1056,7 +1056,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 4,30×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 3 tipos, 152 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 3 tipos, 152 peças.",
     itens: [["Q15-2000", 16], ["Q15-CUBO", 8], ["Q15-PARAF", 128]],
   },
   {
@@ -1068,31 +1068,31 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 5,30×3,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 74 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 74 peças.",
     itens: [["Q15-3000", 2], ["Q15-5000", 2], ["Q15-CUBO", 4], ["Q15-PARAF", 64], ["Q15-SAPATA", 2]],
   },
   {
     nome: "Quadro 5,45×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 112 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 112 peças.",
     itens: [["Q15-2000", 6], ["Q15-3000", 2], ["Q15-CUBO", 6], ["Q15-PARAF", 96], ["Q15-SAPATA", 2]],
   },
   {
     nome: "Quadro 6,30×3,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 4 tipos, 304 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (2 montagens em 2 eventos): 4 tipos, 304 peças.",
     itens: [["Q15-1000", 8], ["Q15-3000", 24], ["Q15-CUBO", 16], ["Q15-PARAF", 256]],
   },
   {
     nome: "Quadro 7,45×2,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 111 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 111 peças.",
     itens: [["Q15-2000", 5], ["Q15-3000", 2], ["Q15-4000", 2], ["Q15-CUBO", 6], ["Q15-PARAF", 96]],
   },
   {
     nome: "Quadro 8,45×3,30 m — Q15",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 113 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 5 tipos, 113 peças.",
     itens: [["Q15-1000", 4], ["Q15-3000", 3], ["Q15-4000", 4], ["Q15-CUBO", 6], ["Q15-PARAF", 96]],
   },
   {
@@ -1110,7 +1110,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro 9,45×3,30 m — Q15, caixa",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 6 tipos, 384 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 6 tipos, 384 peças.",
     itens: [["Q15-2000", 12], ["Q15-3000", 12], ["Q15-4000", 8], ["Q15-5000", 8], ["Q15-CUBO", 24], ["Q15-PARAF", 320]],
   },
   {
@@ -1140,7 +1140,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Quadro Q15 (medida não informada na OS)",
     categoria: "Quadro",
-    descricao: "Quadro Q30 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 4 tipos, 74 peças.",
+    descricao: "Quadro Q15 para lona/painel. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 4 tipos, 74 peças.",
     itens: [["Q15-1000", 2], ["Q15-2000", 4], ["Q15-CUBO", 4], ["Q15-PARAF", 64]],
   },
   // ---- Estande — projetos das OS de estrutura 2026 (SharePoint) ----
@@ -1560,7 +1560,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
   {
     nome: "Equilibrio Q15",
     categoria: "Obstáculo",
-    descricao: "Obstáculo de prova em Q30. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 3 tipos, 71 peças.",
+    descricao: "Obstáculo de prova em Q15. Lista de peças por unidade conforme as OS de estrutura de 2026 (1 montagem em 1 evento): 3 tipos, 71 peças.",
     itens: [["Q15-2000", 4], ["Q15-CUBO", 3], ["Q15-PARAF", 64]],
   },
   {
