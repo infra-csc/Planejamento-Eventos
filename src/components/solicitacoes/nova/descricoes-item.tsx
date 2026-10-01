@@ -11,15 +11,12 @@ import type { ItemNovo } from "./tipos";
 /** Acima disto, a lista de unidades começa recolhida (mostra as primeiras). */
 const RECOLHER_ACIMA = 8;
 const VISIVEIS_RECOLHIDO = 6;
-/** Sugestões de "onde vai ficar" (locais que mais aparecem nas OS). */
-const LOCAIS_COMUNS = ["Palco", "Largada", "Chegada", "Dispersão", "Depósito", "GV", "Médica", "Buffet", "Som", "Crono", "Credenciamento", "Kit", "Hidratação", "Arena", "Extra"];
 
 /**
- * Cada unidade adicionada tem onde vai ficar e a descrição (texto, arte, medida): 10 pedidas, 10 linhas
- * numeradas. Acima de 50 unidades, uma linha só vale para todas. A descrição é obrigatória para
- * enviar; o local é opcional. Unidades em locais diferentes viram itens separados ao gravar.
- * Nem todo item precisa disso (20 grades iguais): quem pede marca "não precisa descrever cada
- * unidade" e fica só um "onde vai ficar" para o item inteiro.
+ * Cada unidade adicionada tem a descrição (texto, arte, medida): 10 pedidas, 10 linhas numeradas.
+ * Acima de 50 unidades, uma linha só vale para todas. A descrição é obrigatória para enviar.
+ * Nem todo item precisa disso (20 grades iguais): quem pede marca "não precisa descrever cada unidade".
+ * O "onde vai ficar" saiu da tela a pedido do time (o local das tendas vem do quadro de tendas).
  */
 export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (patch: { descricoes?: string[]; locais?: string[]; semDescricao?: boolean }) => void }) {
   const [expandido, setExpandido] = useState(false);
@@ -39,21 +36,7 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
   if (item.semDescricao) {
     return (
       <div id={`descricoes-${item.chave}`} tabIndex={-1} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 focus:outline-none sm:ml-[76px]">
-        <Input
-          value={item.locais[0] ?? ""}
-          maxLength={60}
-          list={`locais-comuns-${item.chave}`}
-          onChange={(e) => onChange({ locais: [e.target.value] })}
-          aria-label={`Onde vai ficar ${item.rotulo}`}
-          placeholder="Onde vai ficar (opcional)"
-          className="w-44 shrink-0 sm:w-56"
-        />
         {dispensa}
-        <datalist id={`locais-comuns-${item.chave}`}>
-          {LOCAIS_COMUNS.map((l) => (
-            <option key={l} value={l} />
-          ))}
-        </datalist>
       </div>
     );
   }
@@ -63,21 +46,18 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
   const vazias = lista.filter((d) => !d.trim()).length;
   const unica = esperadas === 1;
   const definir = (n: number, v: string) => onChange({ descricoes: lista.map((d, k) => (k === n ? v : d)) });
-  const definirLocal = (n: number, v: string) => onChange({ locais: locais.map((d, k) => (k === n ? v : d)) });
   const recolhivel = esperadas > RECOLHER_ACIMA;
   // Com erro de envio, nada que falta fica escondido.
   const aberto = !recolhivel || expandido || (destacarVazias && lista.slice(VISIVEIS_RECOLHIDO).some((d) => !d.trim()));
   const mostradas = aberto ? lista : lista.slice(0, VISIVEIS_RECOLHIDO);
   const idErro = `descricoes-${item.chave}-erro`;
-  const idLocais = `locais-comuns-${item.chave}`;
   const comErro = destacarVazias && vazias > 0;
-  const locaisVazios = locais.filter((l) => !l.trim()).length;
 
   return (
     <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 rounded-controle border bg-subtle px-3 pb-3 pt-2.5 focus:outline-none sm:ml-[76px]", comErro ? "border-danger-border" : "border-line-soft")}>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-pequeno font-medium text-ink-2">
-          {unica ? (item.quantidade > 1 ? "Onde vai ficar e descrição (valem para todas as unidades)" : "Onde vai ficar e descrição") : "Onde vai ficar e descrição de cada unidade"}
+          {unica ? (item.quantidade > 1 ? "Descrição (vale para todas as unidades)" : "Descrição") : "Descrição de cada unidade"}
           <span className="text-danger" aria-hidden>
             {" "}
             *
@@ -89,12 +69,12 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
             {esperadas - vazias} de {esperadas} descritas
           </span>
         )}
-        {!unica && ((lista[0].trim() && vazias > 0) || (locais[0].trim() && locaisVazios > 0)) ? (
+        {!unica && lista[0].trim() && vazias > 0 ? (
           <Button
             variant="link"
             size="xs"
             className="ml-auto"
-            onClick={() => onChange({ descricoes: lista.map((d) => (d.trim() ? d : lista[0])), locais: locais.map((l) => (l.trim() ? l : locais[0])) })}
+            onClick={() => onChange({ descricoes: lista.map((d) => (d.trim() ? d : lista[0])) })}
           >
             Repetir a 1ª nas vazias
           </Button>
@@ -109,15 +89,6 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
               </span>
             )}
             <Input
-              value={locais[n]}
-              maxLength={60}
-              list={idLocais}
-              onChange={(e) => definirLocal(n, e.target.value)}
-              aria-label={unica ? `Onde vai ficar ${item.rotulo}` : `Onde vai ficar a unidade ${n + 1} de ${item.rotulo}`}
-              placeholder="Onde vai ficar"
-              className="w-36 shrink-0 sm:w-44"
-            />
-            <Input
               value={d}
               maxLength={TAMANHO_DESCRICAO}
               onChange={(e) => definir(n, e.target.value)}
@@ -130,11 +101,6 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
           </li>
         ))}
       </ol>
-      <datalist id={idLocais}>
-        {LOCAIS_COMUNS.map((l) => (
-          <option key={l} value={l} />
-        ))}
-      </datalist>
       {recolhivel && !(destacarVazias && lista.slice(VISIVEIS_RECOLHIDO).some((d) => !d.trim())) && (
         <Button variant="link" size="xs" className="mt-2" aria-expanded={aberto} onClick={() => setExpandido((v) => !v)}>
           {aberto ? "Recolher" : `Mostrar as outras ${esperadas - VISIVEIS_RECOLHIDO}`}

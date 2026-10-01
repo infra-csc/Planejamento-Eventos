@@ -35,3 +35,37 @@ export function agruparItensNovos(itens: readonly ItemNovo[]): Array<{ chave: st
   }
   return [...grupos.entries()].map(([chave, lista]) => ({ chave, itens: lista }));
 }
+
+/** O cocho para água sempre vai com 2 cavaletes de ferro: a linha do cavalete acompanha o cocho sozinha. */
+export const CHAVE_CAVALETE_COCHO = "auto-cavalete-cocho";
+export function sincronizarCavaletesCocho(itens: ItemNovo[], pecas: readonly Referencia[]): ItemNovo[] {
+  const cocho = pecas.find((p) => p.codigo === "COCHO");
+  const cav = pecas.find((p) => p.codigo === "CAV-COCHO");
+  if (!cocho || !cav) return itens;
+  const cochos = itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === cocho.id).reduce((a, i) => a + i.quantidade, 0);
+  // Com cocho na lista, toda linha de cavalete vira uma só, de 2 por cocho (inclusive a que voltou de um rascunho salvo).
+  const cavaletes = itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === cav.id);
+  const atual = cavaletes[0];
+  if (cochos === 0) return atual?.chave === CHAVE_CAVALETE_COCHO ? itens.filter((i) => i !== atual) : itens;
+  if (cavaletes.length === 1 && atual.quantidade === cochos * 2 && atual.meta.startsWith("vem junto")) return itens;
+  const linha: ItemNovo = {
+    chave: atual?.chave ?? CHAVE_CAVALETE_COCHO,
+    operacao: "ADICIONAR",
+    projetoId: null,
+    pecaId: cav.id,
+    eventoItemId: null,
+    descricaoLivre: null,
+    quantidade: cochos * 2,
+    quantidadeAtual: null,
+    destino: "",
+    justificativa: "",
+    descricoes: [],
+    locais: [],
+    semDescricao: true,
+    ajustes: {},
+    rotulo: `${cav.codigo} · ${cav.nome}`,
+    meta: "vem junto com o cocho (2 por cocho)",
+  };
+  if (!atual) return [...itens, linha];
+  return itens.flatMap((i) => (i === atual ? [linha] : cavaletes.includes(i) ? [] : [i]));
+}
