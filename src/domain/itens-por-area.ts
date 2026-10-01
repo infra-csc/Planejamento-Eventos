@@ -8,7 +8,7 @@ export type ListaDaArea = { titulo: string; codigos: string[] };
 const LISTAS: Record<string, ListaDaArea[]> = {
   producao: [
     { titulo: "Percurso", codigos: ["CAV-TRANSITO", "COCHO", "CAV-COCHO", "CONE-G", "CONE-P", "RAMPA-MAD", "PRISMA"] },
-    { titulo: "Arena", codigos: ["ESCADA-ALU", "ESCADA-MAD", "GRADE-2X1", "PALETEIRA", "GERADOR", "CARRINHO-PLAT", "LIXEIRA-ARAM", "LIXEIRA-BAG"] },
+    { titulo: "Arena", codigos: ["ESCADA-ALU", "ESCADA-MAD", "GRADE-2X1", "PE-GRADE-2X1", "PALETEIRA", "GERADOR", "CARRINHO-PLAT", "LIXEIRA-ARAM", "LIXEIRA-BAG"] },
   ],
   ativacao: [{ titulo: "Ativação", codigos: ["BALCAO-120", "BANCADA-210", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] }],
 };
