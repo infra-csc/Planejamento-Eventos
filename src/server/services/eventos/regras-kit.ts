@@ -9,9 +9,10 @@ import { registrarHistorico, type Executor } from "../support";
  * Linha que a logística ajustou à mão (`regraManual`) não é mexida. Peça que o catálogo não tem é ignorada.
  * Chamar no fim de toda transação que muda as linhas da ata.
  */
-export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuarioId: string | null) {
+export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuarioId: string | null, opcoes: { ataFechada?: boolean } = {}) {
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
-  if (!ev || (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO")) return 0;
+  // Depois da ata, só quando a logística manda aplicar (correção de regra); quem chama gera a versão da OS.
+  if (!ev || (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO" && !(opcoes.ataFechada && ev.status === "ABERTO"))) return 0;
   const linhas = await tx.query.eventoItens.findMany({
     where: eq(eventoItens.eventoId, eventoId),
     with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } } },
