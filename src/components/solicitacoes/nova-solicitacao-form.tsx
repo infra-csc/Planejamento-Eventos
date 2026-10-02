@@ -15,7 +15,7 @@ import { ListaItens } from "./nova/lista-itens";
 import { BarraEnvioMovel, ResumoEnvio } from "./nova/resumo-envio";
 import { useAutosaveSolicitacao } from "./nova/use-autosave-solicitacao";
 import { ItensDaArea } from "./nova/itens-da-area";
-import { comPontoFinal, confirmarLocal, irPara, sincronizarCavaletesCocho } from "./nova/utilidades";
+import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes } from "./nova/utilidades";
 import type { EventoOpcao, ItemNovo, LinhaAta, Modo, RascunhoSolicitacao, Referencia } from "./nova/tipos";
 
 export type { EventoOpcao, ItemNovo, LinhaBom } from "./nova/tipos";
@@ -61,8 +61,8 @@ export function NovaSolicitacaoForm({
   const [trocandoEvento, setTrocandoEvento] = useState(false);
   const [areaId, setAreaId] = useState<string | null>(areaInicial);
   const [itensBrutos, setItens] = useState<ItemNovo[]>(itensIniciais);
-  // Cocho para água sempre leva 2 cavaletes de ferro: a linha do cavalete é derivada dos cochos da lista.
-  const itens = useMemo(() => sincronizarCavaletesCocho(itensBrutos, pecas), [itensBrutos, pecas]);
+  // Peças que sempre vão junto (cavaletes do cocho, da bancada e da mesa; pés da grade 2×1): linha derivada da lista.
+  const itens = useMemo(() => sincronizarAcompanhantes(itensBrutos, pecas), [itensBrutos, pecas]);
   // Cópia local das alterações de um pedido já enviado (nada se perde se a aba fechar antes de salvar).
   const chaveCopia = edicaoEnviada && rascunho ? `norte:edicao-solicitacao:${rascunho.id}` : null;
   const [copiaRecuperada, setCopiaRecuperada] = useState(false);

@@ -35,6 +35,9 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
 /** Quem pediu a linha (ou quem incluiu na reunião). */
+/** Estrutura e Tendas ficam juntas (todas as áreas numa seção só); o resto, por área. */
+const secaoDe = (l: LinhaConferencia) => (l.grupo === "ESTRUTURA" || l.grupo === "TENDAS" ? GRUPO_LABEL[l.grupo] : areaDe(l));
+const ordemSecao = (s: string) => (s === GRUPO_LABEL.ESTRUTURA ? 0 : s === GRUPO_LABEL.TENDAS ? 1 : 2);
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 
@@ -301,7 +304,7 @@ function Linha({
         {emGrupo ? (
           <p className="m-0 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
-              {l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}
+              {areaDe(l)} · {l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}
             </Link>
           </p>
         ) : (
@@ -453,9 +456,9 @@ export function ConferenciaAta({
   // A ordem só depende de área, nome, destino e pessoa: conferir uma linha não a tira do lugar.
   const secoes = useMemo(() => {
     const porArea = new Map<string, LinhaConferencia[]>();
-    for (const l of visiveis) porArea.set(areaDe(l), [...(porArea.get(areaDe(l)) ?? []), l]);
+    for (const l of visiveis) porArea.set(secaoDe(l), [...(porArea.get(secaoDe(l)) ?? []), l]);
     return [...porArea.entries()]
-      .sort(([a], [b]) => porNome(a, b))
+      .sort(([a], [b]) => ordemSecao(a) - ordemSecao(b) || porNome(a, b))
       .map(([area, doArea]) => {
         const porItem = new Map<string, LinhaConferencia[]>();
         for (const l of doArea) {
@@ -470,7 +473,7 @@ export function ConferenciaAta({
   }, [visiveis]);
   // Contagem por área sobre a ata inteira (não só o recorte), para o cabeçalho da seção.
   const totalArea = (a: string) => {
-    const ls = linhas.filter((l) => areaDe(l) === a);
+    const ls = linhas.filter((l) => secaoDe(l) === a);
     return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length };
   };
   const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(grupoAtivo) || Boolean(busca.trim());

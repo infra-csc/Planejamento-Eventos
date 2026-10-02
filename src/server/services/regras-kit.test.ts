@@ -21,7 +21,7 @@ beforeAll(async () => {
   E = await montarElenco();
   const db = await getDb();
   await db.insert(pecas).values([
-    { codigo: "TINA-500", nome: "Tina 500 l", setor: "ESTRUTURA" },
+    { codigo: "TINA-1000", nome: "Tina 1000 l", setor: "ARENA" },
     { codigo: "PALLET-FE", nome: "Pallet de ferro", setor: "ESTRUTURA" },
     { codigo: "SACO-RAFIA", nome: "Saco de ráfia", setor: "ARENA" },
   ]);
@@ -52,7 +52,7 @@ describe("regras da logística na ata", () => {
     await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaEstande.id, 1, "Só 1 estande");
     expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 8, "pallet-ferro": 8, "saco-rafia": 5 });
     // Na conferência a linha da regra aparece com a explicação.
-    const tina = (await obterConferencia(ev.id)).find((l) => l.codigo === "TINA-500")!;
+    const tina = (await obterConferencia(ev.id)).find((l) => l.codigo === "TINA-1000")!;
     expect(tina.regra).toBe("2 por stand + 6 por palco show");
   });
 

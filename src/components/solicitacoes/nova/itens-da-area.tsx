@@ -3,7 +3,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Stepper } from "@/components/ui/stepper";
 import { listasDaArea } from "@/domain/itens-por-area";
-import { novaChave } from "./utilidades";
+import { ACOMPANHANTES } from "@/domain/regras-kit";
+import { ehAcompanhante, novaChave } from "./utilidades";
 import type { ItemNovo, Referencia } from "./tipos";
 
 /**
@@ -16,10 +17,12 @@ export function ItensDaArea({ areaNome, pecas, itens, setItens }: { areaNome: st
     .map((l) => ({ ...l, pecas: l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p)) }))
     .filter((l) => l.pecas.length > 0);
   if (!listas.length) return null;
-  const qtdDe = (pecaId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === pecaId).reduce((a, i) => a + i.quantidade, 0);
+  // Só o que a área pediu; a linha automática (vem junto) aparece à parte.
+  const qtdDe = (pecaId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === pecaId && !ehAcompanhante(i)).reduce((a, i) => a + i.quantidade, 0);
+  const autoDe = (pecaId: string) => itens.filter((i) => i.pecaId === pecaId && ehAcompanhante(i)).reduce((a, i) => a + i.quantidade, 0);
   const definir = (p: Referencia, v: number) =>
     setItens((l) => {
-      const existentes = l.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === p.id);
+      const existentes = l.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === p.id && !ehAcompanhante(i));
       if (v <= 0) return l.filter((i) => !existentes.includes(i));
       if (existentes.length) return l.flatMap((i) => (i === existentes[0] ? [{ ...i, quantidade: v }] : existentes.includes(i) ? [] : [i]));
       return [
@@ -41,16 +44,22 @@ export function ItensDaArea({ areaNome, pecas, itens, setItens }: { areaNome: st
             <ul className="m-0 list-none p-0">
               {l.pecas.map((p) => {
                 const q = qtdDe(p.id);
-                const automatico = p.codigo === "CAV-COCHO";
+                // Só automático (cavalete de cocho, pé de grade): não se digita. Cavalete reto: digita extras.
+                const acomp = ACOMPANHANTES.find((a) => a.acompanhante === p.codigo);
+                const automatico = p.codigo === "CAV-COCHO" || p.codigo === "PE-GRADE-2X1";
+                const auto = autoDe(p.id);
                 return (
                   <li key={p.id} className="flex items-center gap-3 border-b border-line-faint py-1.5 last:border-b-0">
                     <span className="min-w-0 flex-1 text-pequeno text-ink">{p.nome}</span>
                     {automatico ? (
                       <span className="text-rotulo text-muted">
-                        <span className="numero font-medium text-ink">{q}</span> · 2 por cocho, automático
+                        <span className="numero font-medium text-ink">{auto}</span> · {acomp?.texto}, automático
                       </span>
                     ) : (
-                      <Stepper tamanho="sm" valor={q} min={0} onChange={(v) => definir(p, v)} label={`Quantidade de ${p.nome}`} />
+                      <span className="flex items-center gap-2">
+                        {auto > 0 && <span className="text-rotulo text-muted">+{auto} automáticos</span>}
+                        <Stepper tamanho="sm" valor={q} min={0} onChange={(v) => definir(p, v)} label={`Quantidade de ${p.nome}`} />
+                      </span>
                     )}
                   </li>
                 );

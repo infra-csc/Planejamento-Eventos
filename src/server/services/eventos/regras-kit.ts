@@ -32,7 +32,9 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
     if (!p) continue;
     const existente = linhas.find((l) => l.regra === r.regra);
     const antes = existente?.ativo ? existente.quantidade : 0;
-    if (existente?.regraManual || antes === r.quantidade) continue;
+    // Mesma quantidade e mesma peça: nada a fazer (a peça muda quando a regra troca, ex.: tina 500 → 1000 l).
+    if (existente?.regraManual || (antes === r.quantidade && (!existente || existente.pecaId === p.id))) continue;
+    if (r.quantidade === 0 && !existente?.ativo) continue;
     let linhaId: string;
     if (!existente) {
       const [nova] = await tx
@@ -48,7 +50,7 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
         .set(
           r.quantidade === 0
             ? { ativo: false, removidoEm: agora, removidoPorId: usuarioId, conferidoEm: null, conferidoPorId: null }
-            : { ativo: true, quantidade: r.quantidade, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora },
+            : { ativo: true, quantidade: r.quantidade, pecaId: p.id, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora },
         )
         .where(eq(eventoItens.id, existente.id));
     }
