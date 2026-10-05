@@ -578,6 +578,7 @@ export function ArenaExperiencia({
           editando={editando}
           mostrarMinimapa={usar3D && estado === "pronto" && !estreito}
           pegadaRef={pegadaRef}
+          fundoMinimapa={plantaImagemUrl && plantaFundo ? plantaImagemUrl : null}
           motorRef={motorRef}
           legendaAberta={legendaAberta}
           setLegendaAberta={setLegendaAberta}

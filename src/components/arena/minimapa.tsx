@@ -17,7 +17,10 @@ export function Minimapa({
   selecionado,
   pegadaRef,
   onIr,
+  fundo = null,
 }: {
+  /** Foto da planta do evento: fica de fundo, esticada na área (como no chão do 3D). */
+  fundo?: string | null;
   arena: Arena;
   camadas: Record<Camada, boolean>;
   selecionado: string | null;
@@ -46,6 +49,7 @@ export function Minimapa({
           onIr(p.x, p.y);
         }}
       >
+        {fundo && <image href={fundo} x={minX} y={minZ} width={w} height={h} preserveAspectRatio="none" />}
         {arena.zonas
           .filter((z) => z.tipo === "agua" || z.tipo === "arena")
           .map((z) => (

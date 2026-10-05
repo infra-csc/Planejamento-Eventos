@@ -141,6 +141,7 @@ export function LegendaMapa({
   editando,
   mostrarMinimapa,
   pegadaRef,
+  fundoMinimapa = null,
   motorRef,
   legendaAberta,
   setLegendaAberta,
@@ -157,6 +158,8 @@ export function LegendaMapa({
   editando: boolean;
   mostrarMinimapa: boolean;
   pegadaRef: React.RefObject<SVGPolygonElement | null>;
+  /** Foto da planta, quando ela está à mostra no mapa. */
+  fundoMinimapa?: string | null;
   motorRef: React.RefObject<MotorArena | null>;
   legendaAberta: boolean;
   setLegendaAberta: (atualizar: (aberta: boolean) => boolean) => void;
@@ -165,7 +168,7 @@ export function LegendaMapa({
 }) {
   return (
     <div className={cn("pointer-events-none absolute bottom-3 z-10 flex items-end gap-2", painelEsquerdoAberto && !estreito ? "left-[376px]" : "left-3", ((estreito && (direitaAberta || painelEsquerdoAberto)) || editando) && "hidden")}>
-      {mostrarMinimapa && <Minimapa arena={arena} camadas={camadas} selecionado={selecionado} pegadaRef={pegadaRef} onIr={(x, z) => motorRef.current?.irPara(x, z)} />}
+      {mostrarMinimapa && <Minimapa arena={arena} camadas={camadas} selecionado={selecionado} pegadaRef={pegadaRef} fundo={fundoMinimapa} onIr={(x, z) => motorRef.current?.irPara(x, z)} />}
       <div className={cn("pointer-events-auto max-w-[250px]", cartao)}>
         <button type="button" aria-expanded={legendaAberta && largo} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-pequeno font-medium text-ink-2">
           Legenda

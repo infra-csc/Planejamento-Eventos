@@ -97,6 +97,8 @@ export class MotorArena {
   private idsRealce: Set<string> | null = null;
   private medida: { linha: Line2; mat: LineMaterial } | null = null;
   private fundo: { url: string | null; visivel: boolean; mesh: THREE.Mesh | null } = { url: null, visivel: true, mesh: null };
+  /** Árvores decorativas dentro da área da planta: somem quando a foto de satélite está no chão. */
+  private vegetacaoArea: THREE.Object3D | null = null;
   private descartado = false;
   private objetosCamada = new Map<Camada, THREE.Object3D[]>();
   /** Objetos que só aparecem de longe (linha do percurso): lista fixa, sem varrer a cena por quadro. */
@@ -238,6 +240,7 @@ export class MotorArena {
     const alta = m.qualidade === "alta";
     const { base, zonas } = construirAmbiente(arena, m);
     this.scene.add(base);
+    this.vegetacaoArea = base.getObjectByName("vegetacaoArea") ?? null;
     this.registrar("zonas", zonas);
 
     const percurso = construirPercurso(arena, m);
@@ -789,6 +792,8 @@ export class MotorArena {
   definirPlantaFundo(url: string | null, visivel: boolean) {
     this.fundo.visivel = visivel;
     if (this.fundo.mesh) this.fundo.mesh.visible = visivel;
+    // Foto da planta à mostra: as árvores decorativas da área saem (as reais estão na foto).
+    if (this.vegetacaoArea) this.vegetacaoArea.visible = !(url && visivel);
     this.sujo = true;
     if (url === this.fundo.url) return;
     this.fundo.url = url;
@@ -806,7 +811,7 @@ export class MotorArena {
         const { minX, maxX, minZ, maxZ } = this.o.arena.area;
         const geo = new THREE.PlaneGeometry(maxX - minX, maxZ - minZ);
         geo.rotateX(-Math.PI / 2);
-        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false, roughness: 1 }));
+        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 1, depthWrite: false, roughness: 1 }));
         mesh.position.set((minX + maxX) / 2, 0.037, (minZ + maxZ) / 2);
         mesh.receiveShadow = this.o.qualidade === "alta";
         // Primeiro entre os transparentes: as áreas (também transparentes) desenham por cima.

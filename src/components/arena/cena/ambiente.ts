@@ -241,6 +241,20 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     }
   }
   const detalhe = alta ? 1 : 0;
+  // Árvores dentro da área da planta ficam num grupo à parte: com a foto de satélite no chão, as árvores
+  // de verdade já estão nela e as decorativas escondem tudo (o motor esconde este grupo).
+  const { minX: aX0, maxX: aX1, minZ: aZ0, maxZ: aZ1 } = arena.area;
+  const naArea = (a: { x: number; z: number }) => a.x >= aX0 && a.x <= aX1 && a.z >= aZ0 && a.z <= aZ1;
+  const vegetacaoArea = new THREE.Group();
+  vegetacaoArea.name = "vegetacaoArea";
+  base.add(vegetacaoArea);
+  for (const [lista, destino] of [[arvores.filter((a) => !naArea(a)), base], [arvores.filter(naArea), vegetacaoArea]] as const) {
+    if (lista.length) plantarArvores([...lista], destino, m, alta, detalhe, rnd, eixoY);
+  }
+  return { base, zonas: construirZonas(arena, m) };
+}
+
+function plantarArvores(arvores: Array<{ x: number; z: number; s: number; alta: boolean }>, base: THREE.Object3D, m: Materiais, alta: boolean, detalhe: number, rnd: () => number, eixoY: THREE.Vector3) {
   const troncoGeo = new THREE.CylinderGeometry(0.16, 0.3, 1, 5);
   troncoGeo.translate(0, 0.5, 0);
   const troncos = new THREE.InstancedMesh(troncoGeo, m.solido(PALETA.tronco, { rugosidade: 1 }), arvores.length);
@@ -277,8 +291,10 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     manchas.computeBoundingSphere();
     base.add(manchas);
   }
+}
 
-  // Camada "Áreas": currais coloridos por pelotão e áreas de apoio com contorno tracejado.
+/** Camada "Áreas": currais coloridos por pelotão e áreas de apoio com contorno tracejado. */
+function construirZonas(arena: Arena, m: Materiais) {
   const zonas = new THREE.Group();
   zonas.name = "zonas";
   for (const c of arena.currais) {
@@ -296,5 +312,5 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     linha.computeLineDistances();
     zonas.add(linha);
   }
-  return { base, zonas };
+  return zonas;
 }
