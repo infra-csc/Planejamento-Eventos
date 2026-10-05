@@ -270,3 +270,11 @@ describe("rótulos sem sobreposição", () => {
     for (const a of lista) for (const b of lista) if (a !== b) expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0).toBe(false);
   });
 });
+
+describe("arena só com a planta", () => {
+  it("sem nada posicionado, a câmera enquadra a área da planta (e não NaN)", async () => {
+    const { limitesArena } = await import("./geometria");
+    const vazia = { percurso: { trechos: [] }, currais: [], pontos: [], marco: null, area: { minX: -145.5, maxX: 145.5, minZ: -119, maxZ: 119 } } as unknown as Parameters<typeof limitesArena>[0];
+    expect(limitesArena(vazia)).toEqual({ minX: -145.5, maxX: 145.5, minZ: -119, maxZ: 119 });
+  });
+});

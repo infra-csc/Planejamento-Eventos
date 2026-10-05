@@ -56,6 +56,8 @@ export function comprimentoPercurso(arena: Arena): number {
 export function limitesArena(arena: Arena, margem = 40): { minX: number; maxX: number; minZ: number; maxZ: number } {
   const pts: Vec2[] = [...arena.percurso.trechos.flatMap((t) => t.eixo), ...arena.currais.flatMap((c) => c.eixo), ...arena.pontos.map((p) => p.posicao)];
   if (arena.marco) pts.push(arena.marco.posicao);
+  // Arena só com a planta (nada posicionado ainda): enquadra a área da planta, senão Math.min([]) = Infinity e a câmera vira NaN.
+  if (!pts.length) return { minX: arena.area.minX, maxX: arena.area.maxX, minZ: arena.area.minZ, maxZ: arena.area.maxZ };
   const xs = pts.map((p) => p[0]);
   const zs = pts.map((p) => p[1]);
   return { minX: Math.min(...xs) - margem, maxX: Math.max(...xs) + margem, minZ: Math.min(...zs) - margem, maxZ: Math.max(...zs) + margem };
