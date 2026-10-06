@@ -7,6 +7,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { Field, FormError, Input } from "@/components/ui/field";
 import { EmptyState, Section } from "@/components/ui/layout";
 import { cn } from "@/lib/cn";
+import { Icone } from "@/components/ui/icons";
 import { ESTADO_INICIAL } from "@/lib/action";
 import { criarArenaAction } from "../arenas-actions";
 import { LIMITES } from "@/domain/constantes";
@@ -27,6 +28,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
   const [partida, setPartida] = useState<"branco" | "copiar">("branco");
   const [origemSlug, setOrigemSlug] = useState<string | null>(arenas[0]?.slug ?? null);
   const [erroPlanta, setErroPlanta] = useState<string | null>(null);
+  const [arquivoPlanta, setArquivoPlanta] = useState<string | null>(null);
 
   if (eventos.length === 0) {
     return (
@@ -135,19 +137,31 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
       <Section titulo="Planta" sub="Opcional. A imagem fica como fundo do plano 2D; dá para enviar ou trocar depois, no índice das arenas.">
         <div className="px-cartao py-4">
           <Field label="Imagem da planta" htmlFor="planta" error={erroPlanta ?? campos?.planta} hint="PNG, JPG ou WebP · até 8 MB." optional>
-            <input
-              id="planta"
-              type="file"
-              name="planta"
-              accept="image/png,image/jpeg,image/webp"
-              className="block w-full text-pequeno text-ink-2 file:mr-3 file:cursor-pointer file:rounded-controle file:border file:border-line-control file:bg-surface file:px-3 file:py-1.5 file:text-pequeno file:text-ink"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                const grande = Boolean(f && f.size > LIMITE_PLANTA);
-                setErroPlanta(grande ? "Arquivo acima de 8 MB. Reduza a imagem e escolha de novo." : null);
-                if (grande) e.target.value = "";
-              }}
-            />
+            {/* Campo nativo escondido (o navegador mostrava "Choose File" em inglês); o rótulo faz o papel do botão. */}
+            <span className="flex flex-wrap items-center gap-3">
+              <input
+                id="planta"
+                type="file"
+                name="planta"
+                accept="image/png,image/jpeg,image/webp"
+                className="peer sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  const grande = Boolean(f && f.size > LIMITE_PLANTA);
+                  setErroPlanta(grande ? "Arquivo acima de 8 MB. Reduza a imagem e escolha de novo." : null);
+                  if (grande) e.target.value = "";
+                  setArquivoPlanta(f && !grande ? f.name : null);
+                }}
+              />
+              <label
+                htmlFor="planta"
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-controle border border-line-control bg-surface px-3 text-pequeno font-medium text-ink transition-colors hover:bg-subtle peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent"
+              >
+                <Icone nome="seta-cima" />
+                {arquivoPlanta ? "Trocar imagem" : "Escolher imagem"}
+              </label>
+              <span className={cn("min-w-0 truncate text-pequeno", arquivoPlanta ? "text-ink-2" : "text-muted")}>{arquivoPlanta ?? "Nenhuma imagem escolhida"}</span>
+            </span>
           </Field>
         </div>
       </Section>

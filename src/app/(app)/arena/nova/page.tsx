@@ -15,7 +15,7 @@ export default async function NovaArenaPage({ searchParams }: { searchParams: Pr
   const eventoInicial = eventos.some((e) => e.id === sp.evento) ? (sp.evento ?? null) : null;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <PageHeader
         title="Nova arena"
         description="O mapa da arena de um evento. A ata do evento aparece dentro da arena e acompanha cada ajuste."

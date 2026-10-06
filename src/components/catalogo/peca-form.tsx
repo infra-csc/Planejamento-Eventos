@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ActionForm } from "@/components/ui/action-form";
 import { useActionState } from "react";
 import { salvarPecaAction } from "@/app/(app)/catalogo/actions";
@@ -63,12 +64,19 @@ export function PecaForm({
 
       {usos && usos.length > 0 && (
         <Aviso tom="info" titulo={`Usada em ${usos.length} ${usos.length === 1 ? "projeto ativo" : "projetos ativos"}`}>
-          {usos.map((u, i) => (
-            <span key={u.id}>
-              {i > 0 && ", "}
-              {u.nome} (<Numero valor={u.quantidade} />)
-            </span>
-          ))}
+          {/* Lista (não parágrafo corrido): nome do projeto e quantas desta peça vão em cada unidade dele. */}
+          <ul className="m-0 mt-1 grid max-h-56 list-none gap-px overflow-y-auto p-0">
+            {usos.map((u) => (
+              <li key={u.id} className="flex items-baseline justify-between gap-3">
+                <Link href={`/projetos/${u.id}`} className="min-w-0 text-ink-2 no-underline hover:text-accent hover:underline">
+                  {u.nome}
+                </Link>
+                <span className="numero shrink-0 text-ink-3">
+                  <Numero valor={u.quantidade} /> por unidade
+                </span>
+              </li>
+            ))}
+          </ul>
         </Aviso>
       )}
 

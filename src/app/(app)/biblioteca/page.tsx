@@ -155,8 +155,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {cabecalho}
         {(projetos.length > 0 || atalhoFora) && (
           <div className={barraCls}>
-            {projetos.length > 0 && <BuscaUrl largura={320} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
-            {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto />}
+            {projetos.length > 0 && <BuscaUrl largura={360} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
+            {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
             {atalhoFora}
           </div>
         )}
