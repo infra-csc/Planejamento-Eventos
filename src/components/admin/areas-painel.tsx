@@ -110,7 +110,7 @@ export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: str
                   <td className={cn(CELULA, "numero hidden text-right text-pequeno text-ink-2 sm:table-cell")}>{a.pessoas}</td>
                   <td className={cn(CELULA, "numero hidden text-right text-pequeno text-ink-2 sm:table-cell")}>{a.solicitacoes}</td>
                   <td className={CELULA}>
-                    <Badge tom={a.ativo ? "success" : "muted"}>{a.ativo ? "Ativa" : "Inativa"}</Badge>
+                    {a.ativo ? <span className="text-pequeno text-muted">Ativa</span> : <Badge tom="warning">Inativa</Badge>}
                   </td>
                   <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">
                     <IconButton label={`Editar ${a.nome}`} onClick={() => setModal(a)}>

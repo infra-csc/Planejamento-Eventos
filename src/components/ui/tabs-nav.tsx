@@ -63,12 +63,15 @@ function useTrilhoRolavel<T extends HTMLElement>() {
   return { ref, estilo: mascara ? { maskImage: mascara, WebkitMaskImage: mascara } : undefined };
 }
 
+/** A margem padrão só entra se quem usa não pediu outra (o `cn` não resolve conflito de classes: "mb-5 mb-0" ficava com 20 px). */
+const semMargem = (className?: string) => !/(^|\s)!?mb-/.test(className ?? "");
+
 /** Abas sublinhadas por rota (aba ativa = pathname). A aba clicada pulsa o sublinhado enquanto a página carrega. */
 export function TabsNav({ tabs, className, rotulo = "Seções do evento" }: { tabs: Aba[]; className?: string; rotulo?: string }) {
   const pathname = usePathname();
   const { ref, estilo } = useTrilhoRolavel<HTMLElement>();
   return (
-    <nav ref={ref} style={estilo} className={cn("mb-5", trilho, className)} aria-label={rotulo}>
+    <nav ref={ref} style={estilo} className={cn(semMargem(className) && "mb-5", trilho, className)} aria-label={rotulo}>
       {tabs.map((t) => {
         const ativo = t.ativo ?? (t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/"));
         return (
@@ -92,7 +95,7 @@ export type AbaControlada<K extends string> = { chave: K; label: string; n?: num
 export function TabsControladas<K extends string>({ abas, valor, onChange, rotulo, className, compacta }: { abas: AbaControlada<K>[]; valor: K; onChange: (k: K) => void; rotulo: string; className?: string; compacta?: boolean }) {
   const { ref, estilo } = useTrilhoRolavel<HTMLDivElement>();
   return (
-    <div ref={ref} style={estilo} role="tablist" aria-label={rotulo} className={cn(trilho, compacta ? "mb-3" : "mb-4", className)}>
+    <div ref={ref} style={estilo} role="tablist" aria-label={rotulo} className={cn(trilho, semMargem(className) && (compacta ? "mb-3" : "mb-4"), className)}>
       {abas.map((a) => {
         const ativo = a.chave === valor;
         return (

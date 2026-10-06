@@ -75,7 +75,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     );
     const rotulos = { ATIVOS: "Ativos", INATIVOS: "Inativos", TODOS: "Todos" };
     acao = <BotaoNovo>Novo usuário</BotaoNovo>;
-    busca = <BuscaUrl key="usuarios" placeholder="Buscar por nome, e-mail ou área" ariaLabel="Buscar usuário por nome, e-mail ou área" />;
+    busca = <BuscaUrl key="usuarios" largura={340} placeholder="Buscar por nome, e-mail ou área" ariaLabel="Buscar usuário por nome, e-mail ou área" />;
     conteudo = (
       <div className={CARTAO}>
         <ContagemAoVivo oculto n={pag.total} singular="usuário" plural="usuários" complemento={[rotulos[situacao], termo ? `busca “${termo}”` : null].filter(Boolean).join(" · ")} />

@@ -10,7 +10,7 @@ import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { Paginacao } from "@/components/ui/tabela";
-import { tempoRelativo } from "@/lib/format";
+import { addDiasISO, hojeISO, hora, isoSP, tempoRelativo } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { cn } from "@/lib/cn";
 import { destinoInterno } from "@/lib/destino";
@@ -19,6 +19,17 @@ import { BotaoNotificacao } from "./botao-notificacao";
 export const metadata: Metadata = { title: "Notificações" };
 
 const POR_PAGINA = 25;
+
+/** Período da notificação para o separador da lista. */
+function periodo(d: Date | string): string {
+  const dia = isoSP(d);
+  const hoje = hojeISO();
+  if (dia === hoje) return "Hoje";
+  if (dia === addDiasISO(hoje, -1)) return "Ontem";
+  if (dia >= addDiasISO(hoje, -6)) return "Esta semana";
+  if (dia >= addDiasISO(hoje, -30)) return "Este mês";
+  return "Antes";
+}
 
 /** Ícone e cor do ícone pelo tipo da notificação. Só prazo vencido ganha cor de erro. */
 function aparencia(tipo: string): { icone: NomeIcone; cor: string } {
@@ -120,10 +131,13 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
         ) : (
           <>
             <ul className="m-0 list-none p-0">
-              {itens.map((n) => {
+              {itens.map((n, i) => {
+                const grupo = periodo(n.criadoEm);
+                const novoGrupo = i === 0 || periodo(itens[i - 1].criadoEm) !== grupo;
                 const { icone, cor } = aparencia(n.tipo);
                 const naoLida = !n.lidaEm;
-                const quando = tempoRelativo(n.criadoEm);
+                // Hoje: "há 2 h" (com a hora no título); antes, o separador já diz o período.
+                const quando = grupo === "Hoje" ? tempoRelativo(n.criadoEm) : grupo === "Ontem" ? hora(n.criadoEm) : tempoRelativo(n.criadoEm);
                 const conteudo = (
                   <>
                     <span aria-hidden className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-neutral-bg">
@@ -136,24 +150,30 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                           {naoLida && <span className="sr-only">Não lida: </span>}
                           {n.titulo}
                         </span>
-                        <span className="numero shrink-0 text-pequeno text-meta">{quando}</span>
+                        <time dateTime={new Date(n.criadoEm).toISOString()} title={new Date(n.criadoEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} className="numero shrink-0 text-pequeno text-meta">
+                          {quando}
+                        </time>
                       </span>
                       <span className="mt-0.5 line-clamp-2 text-pequeno text-ink-2">{n.mensagem}</span>
                     </span>
-                    <span aria-hidden className="grid w-4 shrink-0 place-items-center self-center text-ink-3">
+                    <span aria-hidden className="grid w-4 shrink-0 place-items-center self-center text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent">
                       {n.link && <Icone nome="chevron-direita" />}
                     </span>
                   </>
                 );
-                const classe = cn("flex w-full items-start gap-3 border-b border-line-row px-cartao py-3 text-left", naoLida && "bg-selected");
+                // Não lida: fundo e filete na cor da marca à esquerda (o fundo sozinho quase não aparecia).
+                const classe = cn("flex w-full items-start gap-3 border-b border-line-row px-cartao py-3 text-left", naoLida ? "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]" : "bg-transparent");
                 // A linha inteira abre o destino (e marca como lida); sem destino, é só leitura.
                 return (
                   <li key={n.id} className="[&:last-child>*]:border-b-0 [&:last-child_button]:border-b-0">
+                    {novoGrupo && (
+                      <p className="m-0 border-b border-line-row bg-subtle/70 px-cartao py-1.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{grupo}</p>
+                    )}
                     {n.link ? (
                       <form action={abrirAction} className="m-0">
                         <input type="hidden" name="id" value={n.id} />
                         <input type="hidden" name="link" value={n.link} />
-                        <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "cursor-pointer border-0 border-b bg-transparent transition-colors hover:bg-subtle", naoLida && "bg-selected")}>
+                        <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "group cursor-pointer border-0 border-b transition-colors hover:bg-subtle")}>
                           {conteudo}
                         </BotaoNotificacao>
                       </form>

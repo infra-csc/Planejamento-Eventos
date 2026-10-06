@@ -83,8 +83,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const abas = <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} nFora={foraCatalogo ? foraCatalogo.length : null} />;
 
   // O que está esperando alguém: itens descritos à mão que ainda não somam peças na OS.
+  // Quem não vê a aba "Fora do catálogo" não precisa do atalho; quem vê já tem a contagem nela.
   const atalhoFora =
-    foraCatalogo && foraCatalogo.length > 0 && aba !== "fora" ? (
+    foraCatalogo && foraCatalogo.length > 0 && aba !== "fora" && !podeVincular ? (
       <Link href="/biblioteca?aba=fora" className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
         <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-warning" />
         {foraCatalogo.length} {foraCatalogo.length === 1 ? "item fora do catálogo" : "itens fora do catálogo"}
@@ -378,6 +379,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     sp.dir,
   );
   const pag = paginar(ordenadas, sp.pagina, 12);
+  const temEstoque = pecasLista.some((p) => p.estoqueProprio > 0);
   const params = { aba: "pecas", q: sp.q, setor: sp.setor, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
@@ -408,9 +410,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           {p.familia || "—"}
         </span>
       </td>
-      <td className="whitespace-nowrap border-b border-line-row px-3 py-3 text-right text-pequeno text-ink">
-        {p.estoqueProprio > 0 ? <Numero valor={p.estoqueProprio} unidade={p.unidade} /> : <span className="numero text-meta">—</span>}
-      </td>
+      {temEstoque && (
+        <td className="whitespace-nowrap border-b border-line-row px-3 py-3 text-right text-pequeno text-ink">
+          {p.estoqueProprio > 0 ? <Numero valor={p.estoqueProprio} unidade={p.unidade} /> : <span className="numero text-meta">—</span>}
+        </td>
+      )}
       {/* px-3 também na última coluna: alinha com o cabeçalho ordenável. */}
       <td className="border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3">
         <Numero valor={emBom.get(p.id) ?? 0} />
@@ -418,7 +422,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       {gerencia && (
         <td className="whitespace-nowrap border-b border-line-row py-1.5 pl-1 pr-cartao text-right text-ink-3">
           <span className="inline-flex items-center justify-end gap-1">
-            <PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="xs" />
+            <span className={p.ativo ? "transition-opacity duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100" : undefined}>
+              <PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="xs" />
+            </span>
             <SetaAbrir />
           </span>
         </td>
@@ -466,7 +472,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     <Th className="hidden xl:table-cell" largura={130}>
                       Família
                     </Th>
-                    {th("estoque", "Estoque", 100, "right")}
+                    {temEstoque && th("estoque", "Estoque", 100, "right")}
                     {th("bom", "Em projetos", 118, "right")}
                     {gerencia && (
                       <Th largura={120}>
@@ -478,7 +484,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 <tbody>
                   {pag.itens.map((p) =>
                     gerencia ? (
-                      <LinhaLink key={p.id} href={`/catalogo/${p.id}/editar`} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
+                      <LinhaLink key={p.id} className="group" href={`/catalogo/${p.id}/editar`} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
                         {celulas(p)}
                       </LinhaLink>
                     ) : (

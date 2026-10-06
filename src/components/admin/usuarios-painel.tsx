@@ -271,7 +271,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                   <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
                   <td className={cn(CELULA, "numero hidden text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
                   <td className={CELULA}>
-                    <Badge tom={u.ativo ? "success" : "muted"}>{u.ativo ? "Ativo" : "Inativo"}</Badge>
+                    {u.ativo ? <span className="text-pequeno text-muted">Ativo</span> : <Badge tom="warning">Inativo</Badge>}
                   </td>
                   <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">
                     <AcoesUsuario u={u} meuId={meuId} pendente={pendente} onEditar={() => setModal(u)} onAlternar={() => alternar(u)} />
