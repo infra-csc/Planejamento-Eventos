@@ -11,13 +11,14 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { toastSucesso } from "@/components/ui/toast";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { combinaBusca } from "@/lib/busca";
+import { cn } from "@/lib/cn";
 import { Passo } from "./passo";
 import { irPara, kitDe, novaChave, POR_PAGINA } from "./utilidades";
 import type { PedidoAnterior } from "@/domain/ja-pedido";
 import { AcoesReferencia } from "./aviso-ja-pedido";
 import type { ItemNovo, LinhaAta, Modo, Referencia } from "./tipos";
 
-/** Passo 2: abas por tipo de item, busca no catálogo (projetos e peças), item descrito à mão e linhas da ata. */
+/** Passo do catálogo: abas por tipo de item, busca no catálogo (projetos e peças), item descrito à mão e linhas da ata. */
 export function BuscaCatalogo({
   modo,
   setModo,
@@ -29,7 +30,13 @@ export function BuscaCatalogo({
   itens,
   setItens,
   setTendaAberta,
+  n,
+  temListaDaArea = false,
 }: {
+  /** Número do passo (vem depois da lista da área, quando ela existe). */
+  n: number;
+  /** A área tem lista da ata: aqui ficam só os outros itens. */
+  temListaDaArea?: boolean;
   modo: Modo;
   setModo: (m: Modo) => void;
   ehAlteracao: boolean;
@@ -152,10 +159,16 @@ export function BuscaCatalogo({
 
   return (
     <Passo
-      n={2}
-      titulo="Adicione o que precisa"
+      n={n}
+      titulo={temListaDaArea ? "Outros itens" : "Adicione o que precisa"}
       feito={itens.length > 0}
-      sub={ehAlteracao ? "Itens novos do catálogo, outro item descrito à mão ou mudança numa linha que já está na ata." : "Projetos padrão, peças do catálogo ou outro item descrito à mão."}
+      sub={
+        ehAlteracao
+          ? "Itens novos do catálogo, outro item descrito à mão ou mudança numa linha que já está na ata."
+          : temListaDaArea
+            ? "O que não está na lista da sua área: projetos padrão, peças do catálogo ou um item descrito à mão."
+            : "Projetos padrão, peças do catálogo ou outro item descrito à mão."
+      }
     >
       <div className="px-cartao pb-4 pt-3">
         <TabsControladas
@@ -232,74 +245,74 @@ export function BuscaCatalogo({
             </p>
 
             {modo !== "ata" && visiveis.length > 0 && (
-              <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 2xl:grid-cols-3">
+              <ul className="m-0 list-none divide-y divide-line-row overflow-hidden rounded-cartao border border-line p-0">
                 {visiveis.map((r) => {
                   const kit = modo === "projeto" ? kitDe(r) : null;
                   const jaNaLista = naLista.get(r.id) ?? 0;
                   const adicionar = () => adicionarRef(modo as "projeto" | "peca", r, qtdNova[r.id] ?? 1);
                   return (
-                    <li key={r.id} className="flex min-w-0 flex-col rounded-cartao border border-line bg-surface p-3 transition-colors duration-150 hover:border-line-strong">
-                      <div className="flex min-w-0 gap-3">
-                        {modo === "projeto" &&
-                          (r.capaId ? (
-                            <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-12 w-16 shrink-0 overflow-hidden rounded-controle border border-line" />
-                          ) : (
-                            <span aria-hidden className="grid h-12 w-16 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-meta">
-                              <Icone nome="camadas" />
-                            </span>
-                          ))}
-                        <div className="min-w-0 flex-1">
-                          <p className="m-0 line-clamp-2 break-words text-corpo font-medium text-ink" title={r.nome}>
+                    <li
+                      key={r.id}
+                      className={cn(
+                        // Linha de resultado: o que importa é o nome; código e categoria vêm baixo; ações à direita.
+                        "flex flex-wrap items-center gap-x-3 gap-y-2 border-l-2 px-3 py-2.5 transition-colors duration-150 sm:flex-nowrap",
+                        jaNaLista > 0 ? "border-success bg-success-bg/30" : "border-transparent hover:bg-subtle",
+                      )}
+                    >
+                      {modo === "projeto" &&
+                        (r.capaId ? (
+                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line" />
+                        ) : (
+                          <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta">
+                            <Icone nome="camadas" className="size-4" />
+                          </span>
+                        ))}
+                      <div className="min-w-0 flex-1 basis-48">
+                        <p className="m-0 flex min-w-0 items-baseline gap-2">
+                          <span className="truncate text-corpo font-medium text-ink" title={r.descricao ? `${r.nome} — ${r.descricao}` : r.nome}>
                             {r.nome}
-                          </p>
-                          <p className="mb-0 mt-0.5 line-clamp-2 text-pequeno text-muted">
+                          </span>
+                          {jaNaLista > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 text-rotulo font-medium text-success">
+                              <Icone nome="check" className="size-3" />
+                              <Numero valor={jaNaLista} /> na lista
+                            </span>
+                          )}
+                        </p>
+                        <p className="mb-0 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-rotulo text-muted">
+                          <span className="min-w-0 truncate">
                             <Codigo className="text-ink-3">{r.codigo}</Codigo>
                             {r.meta ? ` · ${r.meta}` : ""}
-                          </p>
-                          {/* No cartão, a descrição fica curta; inteira (com as peças) em "Ver peças". */}
-                          {r.descricao && (
-                            <p className="mb-0 mt-1 line-clamp-2 text-pequeno text-ink-2" title={r.descricao}>
-                              {r.descricao}
-                            </p>
-                          )}
+                          </span>
+                          {/* Descrição inteira e lista de peças ficam em "Ver peças"; o já pedido, no selo ao lado. */}
                           <AcoesReferencia
                             referencia={{ nome: r.nome, codigo: r.codigo, meta: r.meta, descricao: r.descricao, capaId: r.capaId, bom: modo === "projeto" ? r.bom : undefined }}
                             pedidos={jaPedidos[r.id]}
                             quantidade={qtdNova[r.id] ?? 1}
-                            className="mt-1.5"
                           />
-                        </div>
+                        </p>
                       </div>
-                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
-                        {jaNaLista > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-pequeno font-medium text-success">
-                            <Icone nome="check" className="size-3.5" />
-                            <Numero valor={jaNaLista} /> na lista
-                          </span>
-                        ) : (
-                          <span aria-hidden />
-                        )}
-                        {kit ? (
-                          <Button variant="secondary" size="sm" onClick={() => setTendaAberta(r.id)} aria-label={`${jaNaLista ? "Editar" : "Pedir"} ${r.nome} por local`}>
-                            {jaNaLista ? "Editar tendas" : "Pedir por local"}
+                      {kit ? (
+                        <Button variant="secondary" size="sm" className="ml-auto shrink-0" onClick={() => setTendaAberta(r.id)} aria-label={`${jaNaLista ? "Editar" : "Pedir"} ${r.nome} por local`}>
+                          {jaNaLista ? "Editar tendas" : "Pedir por local"}
+                        </Button>
+                      ) : (
+                        <span
+                          className="ml-auto flex shrink-0 items-center gap-2"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+                              e.preventDefault();
+                              adicionar();
+                            }
+                          }}
+                        >
+                          <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
+                          <Button variant={jaNaLista > 0 ? "ghost" : "secondary"} size="sm" onClick={adicionar} aria-label={`Adicionar ${r.nome}`}>
+                            <Icone nome="mais" />
+                            {jaNaLista > 0 ? "Somar" : "Adicionar"}
                           </Button>
-                        ) : (
-                          <span
-                            className="flex flex-wrap items-center justify-end gap-2"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
-                                e.preventDefault();
-                                adicionar();
-                              }
-                            }}
-                          >
-                            <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
-                            <Button variant="secondary" size="sm" onClick={adicionar} aria-label={`Adicionar ${r.nome}`}>
-                              Adicionar
-                            </Button>
-                          </span>
-                        )}
-                      </div>
+                        </span>
+                      )}
                     </li>
                   );
                 })}

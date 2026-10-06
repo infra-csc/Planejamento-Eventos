@@ -14,6 +14,7 @@ import type { EventoOpcao, ItemNovo, Pendencia, Referencia } from "./tipos";
 
 /** Passo 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */
 export function ResumoEnvio({
+  n,
   evento,
   itens,
   pecas,
@@ -35,6 +36,8 @@ export function ResumoEnvio({
   estadoSalvo,
   codigoRascunho,
 }: {
+  /** Número do passo. */
+  n: number;
   evento: EventoOpcao | null;
   itens: ItemNovo[];
   pecas: Referencia[];
@@ -81,7 +84,7 @@ export function ResumoEnvio({
   return (
     <aside className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
       <Passo
-        n={4}
+        n={n}
         titulo="Resumo e envio"
         feito={pendencias.length === 0}
         sub={

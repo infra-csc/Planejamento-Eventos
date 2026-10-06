@@ -15,7 +15,7 @@ import { DescricoesItem } from "./descricoes-item";
 import { ErroCampo, Passo } from "./passo";
 import type { PedidoAnterior } from "@/domain/ja-pedido";
 import { AcoesReferencia } from "./aviso-ja-pedido";
-import { agruparItensNovos, kitDe } from "./utilidades";
+import { agruparItensNovos, ehAcompanhante, kitDe } from "./utilidades";
 import { locaisDosItens, PAPEIS_POR_LOCAL, papeisDoKit, totalDoLocal } from "@/domain/tendas";
 import type { ItemNovo, Referencia } from "./tipos";
 
@@ -33,7 +33,10 @@ export function ListaItens({
   removerItem,
   removerItens,
   editarTendas,
+  n,
 }: {
+  /** Número do passo. */
+  n: number;
   itens: ItemNovo[];
   projetos: Referencia[];
   /** Já pedido neste evento, por id de projeto/peça (aviso informativo na linha do item). */
@@ -123,7 +126,7 @@ export function ListaItens({
         {capa ? (
           <ImagemZoom src={`/api/anexos/${capa}`} alt={i.rotulo} className="h-12 w-16 shrink-0 overflow-hidden rounded-controle border border-line" />
         ) : (
-          <span aria-hidden className="grid h-12 w-16 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-meta max-sm:hidden">
+          <span aria-hidden className="grid h-12 w-16 shrink-0 place-items-center rounded-controle bg-subtle text-meta max-sm:hidden">
             <Icone nome={i.projetoId ? "camadas" : "caixa"} />
           </span>
         )}
@@ -221,10 +224,10 @@ export function ListaItens({
 
   return (
     <Passo
-      n={3}
+      n={n}
       titulo="Detalhe cada item"
       feito={itens.length > 0 && semDescricao.length === 0}
-      sub="Quantidade e, para cada unidade, onde vai ficar e a descrição (texto, arte, medida)."
+      sub="Confira as quantidades e descreva as unidades (texto, arte, medida) quando precisar."
       acoes={itens.length > 0 ? <ChipMono tom="control">{grupos.length}</ChipMono> : undefined}
     >
       {itens.length === 0 ? (
@@ -240,10 +243,49 @@ export function ListaItens({
             const i = doGrupo[0];
             const proj = projetoDe(i);
             const ehTenda = i.operacao === "ADICIONAR" && Boolean(proj && kitDe(proj));
+            // Linha que vem sozinha (cavalete do cocho, pé da grade…): só leitura. O número segue a peça de origem;
+            // um campo editável aqui seria desfeito no próximo clique.
+            if (doGrupo.length === 1 && ehAcompanhante(i)) {
+              return (
+                <li key={chave} id={`item-${i.chave}`} tabIndex={-1} className="scroll-mt-24 animate-fade-up-rapido flex items-center gap-3 border-b border-line-row bg-subtle/50 px-cartao py-2.5 last:border-b-0 focus:outline-none">
+                  <Icone nome="camadas" className="size-4 shrink-0 text-meta" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-pequeno font-medium text-ink">{i.rotulo}</span>
+                    <span className="block text-rotulo text-muted">Vem junto automaticamente · {i.meta.replace(/^vem junto · /, "")}</span>
+                  </span>
+                  <span className="numero shrink-0 text-corpo font-semibold text-ink">× {i.quantidade}</span>
+                </li>
+              );
+            }
+            // Peça simples sem descrição por unidade (ex.: da lista da área): uma linha, sem repetir o cartão inteiro.
+            if (doGrupo.length === 1 && !ehTenda && i.operacao === "ADICIONAR" && !i.projetoId && i.semDescricao) {
+              return (
+                <li key={chave} id={`item-${i.chave}`} tabIndex={-1} className="scroll-mt-24 animate-fade-up-rapido flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-row px-cartao py-2.5 last:border-b-0 focus:outline-none">
+                  <span className="min-w-0 flex-1 basis-40">
+                    <span className="block truncate text-corpo font-medium text-ink" title={i.rotulo}>
+                      {i.rotulo}
+                    </span>
+                    <span className="block text-rotulo text-muted">
+                      {i.meta}
+                      {" · "}
+                      <button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-rotulo text-accent hover:underline" onClick={() => mudar(i.chave, { semDescricao: false })}>
+                        Descrever as unidades
+                      </button>
+                    </span>
+                  </span>
+                  <span className="ml-auto flex shrink-0 items-center gap-1">
+                    <Stepper id={`qtd-${i.chave}`} tamanho="sm" valor={i.quantidade} min={1} onChange={(v) => mudar(i.chave, { quantidade: v })} label={`Quantidade de ${i.rotulo}`} />
+                    <IconButton label={`Remover ${i.rotulo} da solicitação`} onClick={() => removerItem(i)}>
+                      <Icone nome="lixeira" />
+                    </IconButton>
+                  </span>
+                </li>
+              );
+            }
             if (doGrupo.length === 1 && !ehTenda) {
               const ajustes = resumoAjustes(i);
               return (
-                <li key={chave} id={`item-${i.chave}`} tabIndex={-1} className="scroll-mt-24 border-b border-line-row px-cartao py-3.5 last:border-b-0 focus:outline-none">
+                <li key={chave} id={`item-${i.chave}`} tabIndex={-1} className="scroll-mt-24 animate-fade-up-rapido border-b border-line-row px-cartao py-3.5 last:border-b-0 focus:outline-none">
                   {cabecalho(
                     i,
                     i.quantidade,
@@ -260,7 +302,7 @@ export function ListaItens({
             const tenda = ehTenda && proj ? quadroTenda(proj, doGrupo) : null;
             const nLocais = new Set(doGrupo.map((x) => x.destino.trim().toLocaleLowerCase("pt-BR"))).size;
             return (
-              <li key={chave} id={tenda ? `item-${i.chave}` : undefined} tabIndex={tenda ? -1 : undefined} className="scroll-mt-24 border-b border-line-row px-cartao py-3.5 last:border-b-0 focus:outline-none">
+              <li key={chave} id={tenda ? `item-${i.chave}` : undefined} tabIndex={tenda ? -1 : undefined} className="scroll-mt-24 animate-fade-up-rapido border-b border-line-row px-cartao py-3.5 last:border-b-0 focus:outline-none">
                 {cabecalho(
                   i,
                   total,

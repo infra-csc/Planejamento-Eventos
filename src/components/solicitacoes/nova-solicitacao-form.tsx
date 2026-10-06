@@ -15,6 +15,7 @@ import { ListaItens } from "./nova/lista-itens";
 import { BarraEnvioMovel, ResumoEnvio } from "./nova/resumo-envio";
 import { useAutosaveSolicitacao } from "./nova/use-autosave-solicitacao";
 import { ItensDaArea } from "./nova/itens-da-area";
+import { listasDaArea } from "@/domain/itens-por-area";
 import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes } from "./nova/utilidades";
 import type { EventoOpcao, ItemNovo, LinhaAta, Modo, RascunhoSolicitacao, Referencia } from "./nova/tipos";
 
@@ -291,6 +292,10 @@ export function NovaSolicitacaoForm({
   };
 
   const bloqueadoEnvio = Boolean(evento) && !evento?.aceita;
+  // Passos numerados na ordem da tela; a lista da área (quando existe) é o passo 2.
+  const areaNome = areas ? (areas.find((a) => a.id === areaId)?.nome ?? null) : areaUsuarioNome;
+  const temListaDaArea = !ehAlteracao && listasDaArea(areaNome).length > 0;
+  const passo = temListaDaArea ? { area: 2, catalogo: 3, itens: 4, resumo: 5 } : { area: 0, catalogo: 2, itens: 3, resumo: 4 };
 
   return (
     // No celular a barra de envio fica fixa no rodapé: o respiro embaixo evita que ela cubra o fim do formulário.
@@ -328,17 +333,18 @@ export function NovaSolicitacaoForm({
           />
 
           {/* Lista da ata da área, zerada: só preencher as quantidades. */}
-          {!ehAlteracao && <ItensDaArea areaNome={areas ? (areas.find((a) => a.id === areaId)?.nome ?? null) : areaUsuarioNome} pecas={pecas} itens={itens} setItens={setItens} />}
+          {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} itens={itens} setItens={setItens} />}
 
           {/* 2 · Adicionar itens */}
-          <BuscaCatalogo modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
+          <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
 
           {/* 3 · Detalhar itens */}
-          <ListaItens itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />
+          <ListaItens n={passo.itens} itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />
         </div>
 
         {/* 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */}
         <ResumoEnvio
+          n={passo.resumo}
           evento={evento}
           itens={itens}
           pecas={pecas}
