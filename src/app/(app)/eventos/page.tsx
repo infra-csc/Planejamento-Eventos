@@ -18,7 +18,6 @@ import { BarrasFase } from "@/components/eventos/fases";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { listarAreasCache } from "@/server/cache";
-import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -52,27 +51,30 @@ const exigeAcao = (e: EventoLista) => e.status === "EM_REUNIAO" || (e.solicitaco
 const prioridade = (e: EventoLista) => (exigeAcao(e) ? 0 : e.status === "PREPARACAO" || e.status === "ABERTO" ? 1 : 2);
 
 /** Selos das áreas: cheio = já enviou pedido para o evento; apagado = ainda não. */
+/**
+ * Quem já pediu para o evento, de relance: as áreas que pediram em destaque; as que faltam viram um
+ * "faltam N" discreto (nomes no título). Antes, todas as áreas apareciam em toda linha e o útil se perdia.
+ */
 function AreasQuePediram({ areas, pediram }: { areas: Array<{ id: string; nome: string }>; pediram: string[] }) {
   if (areas.length === 0) return null;
-  const n = areas.filter((a) => pediram.includes(a.id)).length;
+  const ja = areas.filter((a) => pediram.includes(a.id));
+  const faltam = areas.filter((a) => !pediram.includes(a.id));
+  if (ja.length === 0) return <span className="text-pequeno text-meta" title={`Nenhuma área pediu ainda: ${faltam.map((a) => a.nome).join(", ")}`}>nenhuma ainda</span>;
   return (
-    <span className="flex flex-wrap items-center gap-1" aria-label={`${n} de ${areas.length} áreas já pediram`}>
-      {areas.map((a) => {
-        const pediu = pediram.includes(a.id);
-        return (
-          <span
-            key={a.id}
-            title={pediu ? `${a.nome}: já pediu` : `${a.nome}: ainda não pediu`}
-            className={cn("inline-flex items-center gap-1 rounded-chip border px-1.5 py-px text-rotulo", pediu ? "border-success-border bg-success-bg font-medium text-success" : "border-dashed border-line-strong text-meta")}
-          >
-            {pediu && <Icone nome="check" className="size-3" />}
-            {a.nome}
-          </span>
-        );
-      })}
-      <span className="numero ml-0.5 text-rotulo text-muted">
-        {n}/{areas.length}
-      </span>
+    <span className="flex flex-wrap items-center gap-1" aria-label={`${ja.length} de ${areas.length} áreas já pediram`}>
+      {ja.map((a) => (
+        <span key={a.id} title={`${a.nome}: já pediu`} className="inline-flex items-center gap-1 rounded-chip border border-success-border bg-success-bg px-1.5 py-px text-rotulo font-medium text-success">
+          <Icone nome="check" className="size-3" />
+          {a.nome}
+        </span>
+      ))}
+      {faltam.length > 0 ? (
+        <span className="text-rotulo text-muted" title={`Ainda não pediram: ${faltam.map((a) => a.nome).join(", ")}`}>
+          faltam {faltam.length}
+        </span>
+      ) : (
+        <span className="text-rotulo font-medium text-success">todas</span>
+      )}
     </span>
   );
 }
@@ -144,7 +146,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
 
       {/* Barra de filtros compacta (template de pedidos): busca à esquerda, o que é urgente à direita. */}
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <BuscaUrl placeholder="Buscar por nome, código, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+        <BuscaUrl largura={340} placeholder="Buscar por nome, código, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
         {soAcao ? (
           <Link href={hrefCom("/eventos", params, { acao: null, pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
             Mostrando só o que {ehLogistica ? "exige ação agora" : "aguarda a logística"} · ver todos
@@ -222,7 +224,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                             <span className="text-corpo font-medium text-ink">{e.nome}</span>
                             {e.reabertoVezes > 0 && <Badge tom="warning">reaberto {e.reabertoVezes}×</Badge>}
                           </span>
-                          <span className={onde ? "mt-0.5 block text-pequeno text-muted" : "mt-0.5 block text-pequeno text-muted lg:hidden"}>
+                          <span title={onde || undefined} className={onde ? "mt-0.5 line-clamp-1 block text-pequeno text-muted" : "mt-0.5 block text-pequeno text-muted lg:hidden"}>
                             {onde}
                             {/* Período sai da coluna em telas menores e desce para cá. */}
                             <span className="lg:hidden">
@@ -245,10 +247,17 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
                         </td>
                         <td className="border-b border-line-row px-3 py-3 text-right">
-                          <span className={e.solicitacoesAbertas > 0 ? "block text-pequeno font-medium text-warning" : "block text-pequeno font-medium text-meta"}>
-                            {e.solicitacoesAbertas > 0 ? `${e.solicitacoesAbertas} aguardando` : "—"}
+                          {e.solicitacoesAbertas > 0 ? (
+                            <span className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning">
+                              <span aria-hidden className="block size-1.5 rounded-full bg-warning" />
+                              {e.solicitacoesAbertas} aguardando
+                            </span>
+                          ) : (
+                            <span className="block text-pequeno text-meta">em dia</span>
+                          )}
+                          <span className="block truncate text-rotulo text-meta" title={`Responsável: ${e.responsavel.nome}`}>
+                            {e.responsavel.nome}
                           </span>
-                          <span className="block text-rotulo text-meta">{e.responsavel.nome}</span>
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                           <Icone nome="chevron-direita" className="inline-block" />

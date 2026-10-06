@@ -74,6 +74,25 @@ function LinhaFila({ f, rapida, agora }: { f: ItemFila; rapida: boolean; agora: 
   );
 }
 
+/** Resumo da operação, na coluna da fila: 2×2 ao lado da agenda (antes ficava sozinho no rodapé). */
+function MetricasOperacao({ d, responde }: { d: Operacao; responde: boolean }) {
+  return (
+    <section aria-label="Resumo">
+      <MetricStrip className="mb-0 lg:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label={responde ? "Aguardando sua resposta" : "Aguardando resposta"}
+          valor={<Numero valor={d.metricas.aguardando} />}
+          hint={d.metricas.atrasadas > 0 ? `${d.metricas.atrasadas} ${plural(d.metricas.atrasadas, "atrasada", "atrasadas")}` : "nenhuma atrasada"}
+          href="/solicitacoes?filtro=ABERTAS"
+        />
+        <Metric label="Atrasadas" valor={<Numero valor={d.metricas.atrasadas} />} tom={d.metricas.atrasadas > 0 ? "danger" : "neutro"} hint={d.metricas.piorAtraso ? `pior: ${d.metricas.piorAtraso.codigo}` : "tudo no prazo"} href="/solicitacoes?filtro=ATRASADAS" />
+        <Metric label="Reuniões esta semana" valor={<Numero valor={d.metricas.reunioesSemana} />} hint={d.metricas.hintSemana} href="/calendario" />
+        <Metric label="Eventos em preparação" valor={<Numero valor={d.metricas.emPreparacao} />} hint={d.metricas.hintPreparacao} href="/eventos?fase=PREPARACAO" />
+      </MetricStrip>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Agenda                                                              */
 /* ------------------------------------------------------------------ */
@@ -106,7 +125,7 @@ function Agenda({ itens }: { itens: ItemAgenda[] }) {
                 <Marcador cor={TIPO_AGENDA[a.tipo].cor} quadrado={a.tipo === "reuniao"} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-corpo font-medium text-ink">{a.titulo}</span>
-                  <span className="block truncate text-pequeno text-muted">{a.sub}</span>
+                  {a.sub && a.sub.trim() !== "—" && <span className="block truncate text-pequeno text-muted">{a.sub}</span>}
                 </span>
               </Link>
             </li>
@@ -331,6 +350,7 @@ export default async function PainelPage() {
           <Agora acoes={acoesOperacao(d, usuario, responde, agora)} vazio={{ titulo: "Nada urgente agora", descricao: "Sem atrasos, sem solicitações aguardando e sem reunião hoje." }} />
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)] lg:items-start">
+            <div className="flex min-w-0 flex-col gap-5">
             <Section
               titulo={
                 <span className="inline-flex items-center gap-2">
@@ -367,6 +387,8 @@ export default async function PainelPage() {
                 </ul>
               )}
             </Section>
+            <MetricasOperacao d={d} responde={responde} />
+            </div>
 
             <div className="flex flex-col gap-5">
               {d.sistema && <SaudeSistema s={d.sistema} />}
@@ -375,19 +397,6 @@ export default async function PainelPage() {
             </div>
           </div>
 
-          <section aria-label="Resumo" className="mt-6">
-            <MetricStrip>
-            <Metric
-              label={responde ? "Aguardando sua resposta" : "Aguardando resposta"}
-              valor={<Numero valor={d.metricas.aguardando} />}
-              hint={d.metricas.atrasadas > 0 ? `${d.metricas.atrasadas} ${plural(d.metricas.atrasadas, "atrasada", "atrasadas")}` : "nenhuma atrasada"}
-              href="/solicitacoes?filtro=ABERTAS"
-            />
-            <Metric label="Atrasadas" valor={<Numero valor={d.metricas.atrasadas} />} tom={d.metricas.atrasadas > 0 ? "danger" : "neutro"} hint={d.metricas.piorAtraso ? `pior: ${d.metricas.piorAtraso.codigo}` : "tudo no prazo"} href="/solicitacoes?filtro=ATRASADAS" />
-            <Metric label="Reuniões esta semana" valor={<Numero valor={d.metricas.reunioesSemana} />} hint={d.metricas.hintSemana} href="/calendario" />
-            <Metric label="Eventos em preparação" valor={<Numero valor={d.metricas.emPreparacao} />} hint={d.metricas.hintPreparacao} href="/eventos?fase=PREPARACAO" />
-            </MetricStrip>
-          </section>
         </>
       )}
 

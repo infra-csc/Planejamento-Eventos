@@ -135,6 +135,18 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             : { rotulo: "Cancelado", valor: "—", hint: ev.canceladoMotivo ?? undefined, tom: "neutro" };
 
   const porTipo = GRUPOS_TIPO.map((g) => ({ ...g, linhas: linhas.filter((l) => l.tipo === g.tipo).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) })).filter((g) => g.linhas.length > 0);
+  // Mesmo item em vários locais (ex.: 13 tendas 3×3) vira uma linha só, com o total e os locais; o detalhe
+  // de cada local fica na página do item (que lista todas as linhas dele).
+  // Peça: só o nome (o código já está na linha de baixo e no detalhe).
+  const nomeExibido = (l: (typeof linhas)[number]) => (l.tipo === "PECA" && l.peca ? l.peca.nome : l.nome);
+  const agruparItens = (ls: typeof linhas) => {
+    const m = new Map<string, typeof linhas>();
+    for (const l of ls) {
+      const k = `${l.tipo}|${l.projeto?.codigo ?? l.peca?.codigo ?? l.nome}`;
+      m.set(k, [...(m.get(k) ?? []), l]);
+    }
+    return [...m.values()];
+  };
 
   const datas = [
     { rotulo: "Reunião de OS", quando: diaMesHora(ev.dataReuniao), feito: Boolean(ev.ataFechadaEm) || ev.status === "EM_REUNIAO", atual: ev.status === "EM_REUNIAO" },
@@ -244,51 +256,93 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                       <tr>
                         <th colSpan={4} scope="colgroup" className="border-b border-line-soft bg-subtle px-cartao py-1.5 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
                           {g.rotulo}
-                          <span className="numero ml-2 font-normal tracking-normal text-muted">{g.linhas.length}</span>
+                          <span className="numero ml-2 font-normal tracking-normal text-muted">{agruparItens(g.linhas).length}</span>
                         </th>
                       </tr>
-                      {g.linhas.map((l) => (
-                        <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
-                          <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
-                            <span className="flex min-w-0 items-center gap-2.5">
-                              {g.tipo === "PROJETO" &&
-                                (l.capaId ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
-                                ) : (
-                                  <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
-                                    <Icone nome="camadas" className="size-3.5" />
+                      {agruparItens(g.linhas).map((itensDoGrupo) => {
+                        const l = itensDoGrupo[0];
+                        if (itensDoGrupo.length > 1) {
+                          const total = itensDoGrupo.reduce((a, x) => a + x.quantidade, 0);
+                          const areasG = [...new Set(itensDoGrupo.map((x) => x.areaNome ?? "Logística"))];
+                          const destinos = itensDoGrupo.map((x) => ({ d: x.destino, q: x.quantidade })).filter((x) => x.d);
+                          const origens = [...new Set(itensDoGrupo.map((x) => origemVisivel(x)))];
+                          return (
+                            <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome} (${itensDoGrupo.length} linhas)`}>
+                              <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
+                                <span className="flex min-w-0 items-center gap-2.5">
+                                  {g.tipo === "PROJETO" &&
+                                    (l.capaId ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
+                                    ) : (
+                                      <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
+                                        <Icone nome="camadas" className="size-3.5" />
+                                      </span>
+                                    ))}
+                                  <span className="min-w-0">
+                                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                                      <span className="line-clamp-2 text-corpo text-ink" title={nomeExibido(l)}>
+                                        {nomeExibido(l)}
+                                      </span>
+                                      <Tag tom="muted">{itensDoGrupo.length} locais</Tag>
+                                    </span>
+                                    <span className="mt-0.5 line-clamp-2 block text-rotulo text-muted" title={destinos.map((x) => `${x.d} ${x.q}`).join(" · ")}>
+                                      {destinos.length > 0 ? destinos.map((x) => `${x.d} ${x.q}`).join(" · ") : "sem local informado"}
+                                    </span>
                                   </span>
-                                ))}
-                              <span className="min-w-0">
-                                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                                  <span className="line-clamp-2 text-corpo text-ink" title={l.nome}>
-                                    {l.nome}
-                                  </span>
-                                  {l.posAta ? <Tag tom="info">depois da ata</Tag> : l.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
                                 </span>
-                                <span className="block truncate text-pequeno text-muted xl:hidden">
-                                  <span className="sm:hidden">
-                                    {l.areaNome ?? "Logística"}
-                                    {l.destino ? ` · ${l.destino}` : ""} ·{" "}
+                              </th>
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 sm:table-cell">{areasG.join(", ")}</td>
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">{origens.length === 1 ? origens[0] : `${origens.length} origens`}</td>
+                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-semibold text-ink">
+                                <QuantidadeAta valor={total} />
+                              </td>
+                            </LinhaLink>
+                          );
+                        }
+                        return (
+                            <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
+                              <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
+                                <span className="flex min-w-0 items-center gap-2.5">
+                                  {g.tipo === "PROJETO" &&
+                                    (l.capaId ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
+                                    ) : (
+                                      <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
+                                        <Icone nome="camadas" className="size-3.5" />
+                                      </span>
+                                    ))}
+                                  <span className="min-w-0">
+                                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                                      <span className="line-clamp-2 text-corpo text-ink" title={nomeExibido(l)}>
+                                        {nomeExibido(l)}
+                                      </span>
+                                      {l.posAta ? <Tag tom="info">depois da ata</Tag> : l.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
+                                    </span>
+                                    <span className="block truncate text-pequeno text-muted xl:hidden">
+                                      <span className="sm:hidden">
+                                        {l.areaNome ?? "Logística"}
+                                        {l.destino ? ` · ${l.destino}` : ""} ·{" "}
+                                      </span>
+                                      {origemVisivel(l)}
+                                      {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
+                                    </span>
                                   </span>
-                                  {origemVisivel(l)}
-                                  {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
                                 </span>
-                              </span>
-                            </span>
-                          </th>
-                          <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 sm:table-cell">
-                            {l.areaNome ?? "Logística"}
-                            {l.destino && <span className="text-muted"> · {l.destino}</span>}
-                          </td>
-                          <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">
-                            {origemVisivel(l)}
-                            {quemPediu(l) && <span className="block truncate text-rotulo text-muted">{quemPediu(l)}</span>}
-                          </td>
-                          <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink"><QuantidadeAta valor={l.quantidade} /></td>
-                        </LinhaLink>
-                      ))}
+                              </th>
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 sm:table-cell">
+                                {l.areaNome ?? "Logística"}
+                                {l.destino && <span className="text-muted"> · {l.destino}</span>}
+                              </td>
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">
+                                {origemVisivel(l)}
+                                {quemPediu(l) && <span className="block truncate text-rotulo text-muted">{quemPediu(l)}</span>}
+                              </td>
+                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink"><QuantidadeAta valor={l.quantidade} /></td>
+                            </LinhaLink>
+                        );
+                      })}
                     </tbody>
                   ))}
                 </table>

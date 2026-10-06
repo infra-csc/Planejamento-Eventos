@@ -31,23 +31,24 @@ function CartaoAcao({ a }: { a: AcaoAgora }) {
   return (
     <Link
       href={a.href}
-      className="group flex min-h-16 items-center gap-3 rounded-cartao border border-line bg-surface px-4 py-3 no-underline transition-colors hover:border-line-strong hover:bg-subtle"
+      className="group flex h-full min-h-16 items-start gap-3 rounded-cartao border border-line bg-surface px-4 py-3 no-underline transition-[border-color,background-color,box-shadow] hover:border-line-strong hover:bg-subtle hover:shadow-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <span aria-hidden className={cn("grid size-9 shrink-0 place-items-center rounded-controle", TOM_ICONE[a.tom])}>
         <Icone nome={a.icone} />
       </span>
       <span className="min-w-0 flex-1">
+        {/* Título inteiro (até 2 linhas): o que precisa de atenção não pode sumir em reticências. */}
         <span className="flex items-baseline gap-1.5 text-corpo text-ink">
           {a.n != null && <span className="numero text-titulo font-semibold tracking-[-0.01em]">{a.n}</span>}
-          <span className="min-w-0 truncate font-medium">{a.titulo}</span>
+          <span className="line-clamp-2 min-w-0 font-medium">{a.titulo}</span>
         </span>
-        {a.detalhe && <span className="block truncate text-pequeno text-muted">{a.detalhe}</span>}
+        {a.detalhe && <span className="mt-0.5 line-clamp-2 block text-pequeno text-muted">{a.detalhe}</span>}
+        <span className="mt-1.5 inline-flex items-center gap-1 text-pequeno font-medium text-accent group-hover:underline">
+          {a.rotuloAcao}
+          <IndicadorLink />
+        </span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-pequeno font-medium text-accent">
-        <span className="hidden group-hover:underline sm:inline">{a.rotuloAcao}</span>
-        <IndicadorLink />
-        <Icone nome="chevron-direita" className="text-ink-3 sm:text-accent" />
-      </span>
+      <Icone nome="chevron-direita" className="mt-2.5 shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent" />
     </Link>
   );
 }
@@ -75,7 +76,7 @@ export function Agora({ acoes, vazio }: { acoes: AcaoAgora[]; vazio: { titulo: s
       ) : (
         <ul className={cn("m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2", acoes.length >= 3 && "xl:grid-cols-3")}>
           {acoes.map((a) => (
-            <li key={a.chave} className="min-w-0">
+            <li key={a.chave} className="min-w-0 animate-fade-up">
               <CartaoAcao a={a} />
             </li>
           ))}

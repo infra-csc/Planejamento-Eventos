@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
@@ -113,39 +114,74 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                           <span className="numero ml-2 font-normal tracking-normal text-muted">{ls.length}</span>
                         </th>
                       </tr>
-                      {ls.map((l) => (
-                        <tr key={l.id} className="hover:bg-subtle">
-                          <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
-                            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="text-corpo text-ink">{l.descricao.replace(/\s*\(v\d+\)$/, "")}</span>
-                              {l.tipo !== "PROJETO" && <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>}
+                      {agruparAta(ls).map(({ chave, nome, l0, linhas: doItem }) => {
+                        const conferido = (l: (typeof ls)[number]) =>
+                          l.conferidoPor ? (
+                            <span className="inline-flex items-center gap-1.5 text-ink-2">
+                              <Icone nome="check-circulo" className="shrink-0 text-success" />
+                              <span className="truncate">{l.conferidoPor}</span>
                             </span>
-                            <span className="mt-0.5 block text-rotulo text-muted">
-                              {l.codigo && (
-                                <Codigo>
-                                  {l.codigo}
-                                  {l.versao ? ` · v${l.versao}` : ""}
-                                </Codigo>
-                              )}
-                              {l.codigo ? " · " : ""}
-                              {ORIGEM[l.origem]}
-                              <span className="md:hidden">{l.destino ? ` · ${l.destino}` : ""}</span>
-                            </span>
-                          </th>
-                          <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>
-                          <td className="numero border-b border-line-row px-3 py-2.5 text-right text-corpo font-medium text-ink">{l.quantidade}</td>
-                          <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-pequeno">
-                            {l.conferidoPor ? (
-                              <span className="inline-flex items-center gap-1.5 text-ink-2">
-                                <Icone nome="check-circulo" className="shrink-0 text-success" />
-                                <span className="truncate">{l.conferidoPor}</span>
-                              </span>
-                            ) : (
-                              <span className="text-meta">—</span>
+                          ) : (
+                            <span className="text-meta">—</span>
+                          );
+                        const sub = (
+                          <span className="mt-0.5 block text-rotulo text-muted">
+                            {l0.codigo && (
+                              <Codigo>
+                                {l0.codigo}
+                                {l0.versao ? ` · v${l0.versao}` : ""}
+                              </Codigo>
                             )}
-                          </td>
-                        </tr>
-                      ))}
+                            {l0.codigo ? " · " : ""}
+                            {ORIGEM[l0.origem]}
+                          </span>
+                        );
+                        const titulo = (
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="text-corpo text-ink">{nome}</span>
+                            {l0.tipo === "AVULSO" && <Tag tom="warning">{TIPO[l0.tipo]}</Tag>}
+                          </span>
+                        );
+                        if (doItem.length === 1)
+                          return (
+                            <tr key={chave} className="hover:bg-subtle">
+                              <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
+                                {titulo}
+                                {sub}
+                                <span className="text-rotulo text-muted md:hidden">{l0.destino ? `${l0.destino}` : ""}</span>
+                              </th>
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 md:table-cell">{l0.destino ?? <span className="text-meta">—</span>}</td>
+                              <td className="numero border-b border-line-row px-3 py-2.5 text-right text-corpo font-medium text-ink">{l0.quantidade}</td>
+                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-pequeno">{conferido(l0)}</td>
+                            </tr>
+                          );
+                        // O mesmo item em vários locais: cabeçalho com o total e uma sub-linha por local (o registro continua linha a linha).
+                        const total = doItem.reduce((a, x) => a + x.quantidade, 0);
+                        return (
+                          <Fragment key={chave}>
+                            <tr>
+                              <th scope="rowgroup" className="border-b border-line-row pb-1.5 pl-cartao pr-3 pt-2.5 text-left font-normal">
+                                {titulo}
+                                {sub}
+                              </th>
+                              <td className="hidden border-b border-line-row px-3 pb-1.5 pt-2.5 text-rotulo text-muted md:table-cell">{doItem.length} locais</td>
+                              <td className="numero border-b border-line-row px-3 pb-1.5 pt-2.5 text-right text-corpo font-semibold text-ink">{total}</td>
+                              <td className="border-b border-line-row pb-1.5 pl-3 pr-cartao pt-2.5" />
+                            </tr>
+                            {doItem.map((l) => (
+                              <tr key={l.id} className="hover:bg-subtle">
+                                <th scope="row" className="border-b border-line-faint py-1.5 pl-[42px] pr-3 text-left text-pequeno font-normal text-ink-2">
+                                  <span className="md:hidden">{l.destino ?? "sem local"}</span>
+                                  <span className="hidden text-meta md:inline">↳</span>
+                                </th>
+                                <td className="hidden border-b border-line-faint px-3 py-1.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>
+                                <td className="numero border-b border-line-faint px-3 py-1.5 text-right text-pequeno text-ink-2">{l.quantidade}</td>
+                                <td className="border-b border-line-faint py-1.5 pl-3 pr-cartao text-pequeno">{conferido(l)}</td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   ))}
                 </table>
@@ -225,4 +261,17 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
       </div>
     </div>
   );
+}
+
+/** Linhas da ata congelada juntas por item (em ordem alfabética), com o nome sem o código repetido na frente. */
+function agruparAta<L extends { id: string; tipo: string; codigo: string | null; descricao: string; destino: string | null }>(ls: readonly L[]) {
+  const nomeDe = (l: L) => l.descricao.replace(/\s*\(v\d+\)$/, "").replace(l.codigo ? new RegExp(`^${l.codigo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*·\\s*`) : /^$/, "");
+  const m = new Map<string, L[]>();
+  for (const l of ls) {
+    const k = `${l.tipo}|${l.codigo ?? nomeDe(l)}`;
+    m.set(k, [...(m.get(k) ?? []), l]);
+  }
+  return [...m.entries()]
+    .map(([chave, linhas]) => ({ chave, nome: nomeDe(linhas[0]), l0: linhas[0], linhas: [...linhas].sort((a, b) => (a.destino ?? "").localeCompare(b.destino ?? "", "pt-BR")) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
