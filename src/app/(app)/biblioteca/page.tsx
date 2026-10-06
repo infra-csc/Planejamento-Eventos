@@ -101,7 +101,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {cabecalho}
         {foraCatalogo.length > 0 && (
           <div className={barraCls}>
-            <BuscaUrl key="busca-fora" placeholder="Buscar por item, evento ou área" ariaLabel="Buscar item fora do catálogo" />
+            <BuscaUrl largura={320} key="busca-fora" placeholder="Buscar por item, evento ou área" ariaLabel="Buscar item fora do catálogo" />
           </div>
         )}
         <div className={cartaoCls}>
@@ -154,7 +154,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {cabecalho}
         {(projetos.length > 0 || atalhoFora) && (
           <div className={barraCls}>
-            {projetos.length > 0 && <BuscaUrl key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
+            {projetos.length > 0 && <BuscaUrl largura={320} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
             {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto />}
             {atalhoFora}
           </div>
@@ -213,8 +213,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={`/api/anexos/${p.capa.id}?w=320`} alt="" loading="lazy" decoding="async" className="block h-10 w-14 shrink-0 rounded-controle border border-line bg-white object-contain" />
                                 ) : (
-                                  <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle border border-dashed border-line-strong text-rotulo text-meta">
-                                    sem foto
+                                  <span aria-hidden title="Sem foto" className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta">
+                                    <Icone nome="camadas" className="size-4" />
                                   </span>
                                 )}
                               </td>
@@ -436,7 +436,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     <>
       {cabecalho}
       <div className={barraCls}>
-        <BuscaUrl key="busca-pecas" placeholder="Buscar por código, nome ou família" ariaLabel="Buscar peça do catálogo" />
+        <BuscaUrl largura={320} key="busca-pecas" placeholder="Buscar por código, nome ou família" ariaLabel="Buscar peça do catálogo" />
         <Pills
           rotulo="Filtrar por setor"
           itens={[

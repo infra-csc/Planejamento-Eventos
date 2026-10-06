@@ -27,8 +27,9 @@ export function DiaBotao({ dia, numero, hoje, doMes, itens }: { dia: string; num
         aria-label={`Resumo de ${rotuloDia(dia)}${ehHoje ? ", hoje" : ""}: ${resumo}`}
         title="Ver o resumo do dia"
         className={cn(
-          "numero inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-pequeno transition-colors",
-          ehHoje ? "bg-accent font-semibold text-white hover:bg-accent-hover" : doMes ? "font-medium text-ink hover:bg-control" : "text-meta hover:bg-control",
+          "numero inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-pequeno transition-colors",
+          // O fundo vem só daqui: com "bg-transparent" fixo junto, o dia de hoje ficava branco no branco.
+          ehHoje ? "bg-accent font-semibold text-white hover:bg-accent-hover" : doMes ? "bg-transparent font-medium text-ink hover:bg-control" : "bg-transparent text-meta hover:bg-control",
         )}
       >
         {numero}

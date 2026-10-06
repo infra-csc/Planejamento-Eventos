@@ -39,9 +39,9 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
         // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
         {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
         style={atravessa ? { width: `calc(${diasNaLinha * 100}% + ${diasNaLinha - 1}px - ${margens}px)` } : undefined}
-        className={cn("block px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao ? "truncate" : "whitespace-normal break-words", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
+        className={cn("block px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao ? "truncate" : "line-clamp-2 [overflow-wrap:normal]", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
       >
-        {continuacao ? " " : i.titulo}
+        {continuacao ? " " : i.titulo}
       </Link>
     );
   }
@@ -49,10 +49,43 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
     <Link href={i.href} title={dica} className="mx-1 flex min-w-0 items-start gap-1.5 rounded-chip px-1 py-0.5 text-rotulo text-ink-2 no-underline transition-colors hover:bg-subtle">
       <span aria-hidden className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", t.ponto)} />
       {i.hora && <span className="numero shrink-0 text-ink-3">{i.hora}</span>}
-      <span className="min-w-0 whitespace-normal break-words">{semPrefixo(i.titulo)}</span>
+      <span className="line-clamp-2 min-w-0 [overflow-wrap:normal]">{semPrefixo(i.titulo)}</span>
       <span className="sr-only"> · {t.rotulo}</span>
     </Link>
   );
+}
+
+/**
+ * Faixa fixa de cada evento de vários dias dentro da semana: o mesmo evento fica na mesma altura em todos
+ * os dias que ocupa (com espaço vazio onde o dia não tem aquele evento). Sem isso, cada dia empilhava na
+ * própria ordem e a barra de um evento passava por cima do que estava no dia seguinte.
+ */
+function faixasDaSemana(dias: string[], porDia: Map<string, ItemCalendario[]>) {
+  const ordem: string[] = [];
+  const inicio = new Map<string, number>();
+  const duracao = new Map<string, number>();
+  dias.forEach((d, col) => {
+    for (const it of porDia.get(d) ?? []) {
+      if (it.tipo !== "evento" || !it.faixa || it.faixa.total < 2) continue;
+      if (!inicio.has(it.href)) {
+        inicio.set(it.href, col);
+        duracao.set(it.href, Math.min(it.faixa.total - it.faixa.dia + 1, 7 - col));
+        ordem.push(it.href);
+      }
+    }
+  });
+  // Primeiro quem começa antes; no empate, o mais longo por cima.
+  ordem.sort((a, b) => inicio.get(a)! - inicio.get(b)! || duracao.get(b)! - duracao.get(a)!);
+  const faixa = new Map<string, number>();
+  const ocupadaAte: number[] = [];
+  for (const h of ordem) {
+    const ini = inicio.get(h)!;
+    let k = ocupadaAte.findIndex((fim) => fim < ini);
+    if (k < 0) k = ocupadaAte.length;
+    ocupadaAte[k] = ini + duracao.get(h)! - 1;
+    faixa.set(h, k);
+  }
+  return { faixa, n: ocupadaAte.length };
 }
 
 /** Linha de lista por dia (agenda lateral e lista do mês no celular). */
@@ -64,7 +97,9 @@ function LinhaAgenda({ it, comFaixa }: { it: ItemCalendario; comFaixa?: boolean 
       <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
       <span className="min-w-0 flex-1">
         <span className="block text-corpo text-ink">{it.tipo === "evento" ? it.titulo : semPrefixo(it.titulo)}</span>
-        <span className="block text-pequeno text-muted">{detalhe}</span>
+        <span className="block truncate text-pequeno text-muted" title={detalhe}>
+          {detalhe}
+        </span>
       </span>
     </Link>
   );
@@ -244,6 +279,11 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           <div className="grid grid-cols-7">
             {celulas.map((c, i) => {
               const itens = porDia.get(c.dia) ?? [];
+              const semana = faixasDaSemana(celulas.slice(i - (i % 7), i - (i % 7) + 7).map((x) => x.dia), porDia);
+              // Eventos de vários dias na faixa da semana; o resto (reunião, montagem, evento de 1 dia) vem embaixo.
+              const naFaixa = (it: ItemCalendario) => it.tipo === "evento" && semana.faixa.has(it.href);
+              const faixas = Array.from({ length: semana.n }, (_, k) => itens.find((it) => naFaixa(it) && semana.faixa.get(it.href) === k) ?? null);
+              const soltos = itens.filter((it) => !naFaixa(it));
               const ehHoje = c.dia === hoje;
               const fimDeSemana = i % 7 >= 5;
               const mostrar = itens.length > 4 ? 3 : 4;
@@ -258,17 +298,18 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                     <DiaBotao dia={c.dia} numero={c.numero} hoje={hoje} doMes={c.doMes} itens={itens} />
                   </div>
                   <div className="mt-1 flex min-w-0 flex-col gap-0.5 pb-1.5">
-                    {itens.slice(0, mostrar).map((it) => (
+                    {faixas.map((it, k) => (it ? <Compromisso key={it.chave} i={it} coluna={i % 7} /> : <span key={`vazio-${k}`} aria-hidden className="block h-5" />))}
+                    {soltos.slice(0, Math.max(1, mostrar - faixas.length)).map((it) => (
                       <Compromisso key={it.chave} i={it} coluna={i % 7} />
                     ))}
-                    {itens.length > 4 && (
+                    {soltos.length > Math.max(1, mostrar - faixas.length) && (
                       <details className="group">
                         <summary className="mx-1 cursor-pointer list-none rounded-chip px-1 py-0.5 text-rotulo font-medium text-ink-3 hover:bg-subtle hover:text-ink group-open:mb-0.5 [&::-webkit-details-marker]:hidden">
-                          <span className="numero group-open:hidden">+{itens.length - 3} mais</span>
+                          <span className="numero group-open:hidden">+{soltos.length - Math.max(1, mostrar - faixas.length)} mais</span>
                           <span className="hidden group-open:inline">mostrar menos</span>
                         </summary>
                         <div className="flex flex-col gap-0.5">
-                          {itens.slice(3).map((it) => (
+                          {soltos.slice(Math.max(1, mostrar - faixas.length)).map((it) => (
                             <Compromisso key={it.chave} i={it} compacto />
                           ))}
                         </div>
