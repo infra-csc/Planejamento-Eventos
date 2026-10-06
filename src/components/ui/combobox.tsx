@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
-import { combinaBusca } from "@/lib/busca";
+import { combinaBusca, relevanciaBusca } from "@/lib/busca";
 import { Icone } from "./icons";
 
 export type OpcaoCombo = { value: string; label: string; descricao?: string; selo?: string; seloTom?: "accent" | "warning" | "muted"; disabled?: boolean };
@@ -54,7 +54,12 @@ export function ComboBox({
     const t = busca.trim().toLowerCase();
     // Com o rótulo do escolhido ainda no campo (logo após focar), mostra a lista inteira.
     if (!t || t === selecionada?.label.toLowerCase()) return base;
-    return base.filter((o) => combinaBusca(`${o.label} ${o.descricao ?? ""}`, t));
+    // Filtra e ordena pela relevância (o nome que começa pelo termo primeiro); empate fica na ordem alfabética.
+    return base
+      .filter((o) => combinaBusca(`${o.label} ${o.descricao ?? ""}`, t))
+      .map((o, i) => ({ o, i, r: relevanciaBusca(o.label, t) }))
+      .sort((a, b) => a.r - b.r || a.i - b.i)
+      .map((x) => x.o);
   }, [opcoes, busca, ordenarAlfabetico, selecionada]);
 
   useEffect(() => {

@@ -129,6 +129,76 @@ function Entrada({ e, ultima, relativo, agora }: { e: EntradaTempo; ultima: bool
   );
 }
 
+/** Tipo da ação: o texto antes de ":" ("Incluída na reunião: Tenda 3×3 × 1" → "Incluída na reunião"). */
+const tipoDe = (e: EntradaTempo) => (e.titulo.includes(":") ? e.titulo.slice(0, e.titulo.indexOf(":")).trim() : null);
+const ms = (e: EntradaTempo) => new Date(e.em).getTime();
+
+/**
+ * Sequências repetidas (3+ seguidas, mesma ação, mesmo autor, até 10 min entre uma e outra) viram um bloco
+ * só: a reunião que inclui 42 linhas não esconde o "Ata fechada" no meio de 42 registros iguais.
+ */
+function blocos(itens: EntradaTempo[]): Array<{ tipo: "um"; e: EntradaTempo } | { tipo: "varios"; titulo: string; itens: EntradaTempo[] }> {
+  const out: Array<{ tipo: "um"; e: EntradaTempo } | { tipo: "varios"; titulo: string; itens: EntradaTempo[] }> = [];
+  let i = 0;
+  while (i < itens.length) {
+    const t = tipoDe(itens[i]);
+    let j = i + 1;
+    while (t && j < itens.length && tipoDe(itens[j]) === t && itens[j].autor === itens[i].autor && Math.abs(ms(itens[j]) - ms(itens[j - 1])) <= 10 * 60_000) j++;
+    if (t && j - i >= 3) out.push({ tipo: "varios", titulo: t, itens: itens.slice(i, j) });
+    else for (let k = i; k < j; k++) out.push({ tipo: "um", e: itens[k] });
+    i = j;
+  }
+  return out;
+}
+
+function Bloco({ titulo, itens, ultima, relativo, agora }: { titulo: string; itens: EntradaTempo[]; ultima: boolean; relativo: boolean; agora: Date }) {
+  const e0 = itens[0];
+  return (
+    <li className="relative flex gap-3 pb-4 last:pb-0">
+      {!ultima && <span aria-hidden className="absolute bottom-0 left-[13px] top-7 w-px bg-line" />}
+      <span aria-hidden className={cn("relative grid size-7 shrink-0 place-items-center rounded-full border", COR[e0.tom])}>
+        <Icone nome={e0.icone} className="size-3.5" />
+      </span>
+      <details className="group min-w-0 flex-1 pt-1">
+        <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 text-corpo font-medium text-ink">
+            {titulo}
+            <span className="ml-2 rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">
+              <span className="numero">{itens.length}</span> registros
+            </span>
+            <span className="ml-2 inline-flex items-center gap-0.5 text-pequeno font-normal text-accent">
+              <span className="group-open:hidden">ver</span>
+              <span className="hidden group-open:inline">recolher</span>
+              <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
+            </span>
+          </span>
+          <time dateTime={new Date(e0.em).toISOString()} title={formatarDataHora(e0.em)} className="numero shrink-0 text-rotulo text-muted">
+            {relativo ? tempoRelativo(e0.em, agora) : hora(e0.em)}
+          </time>
+        </summary>
+        <p className="mb-0 mt-0.5 text-rotulo text-muted">{e0.autor ?? "Sistema"}</p>
+        <ul className="m-0 mt-2 list-none space-y-1 border-l-2 border-line-soft p-0 pl-3 animate-fade-up-rapido">
+          {itens.map((e) => {
+            const resto = e.titulo.slice(e.titulo.indexOf(":") + 1).trim();
+            return (
+              <li key={e.id} className="text-pequeno text-ink-2">
+                {e.href ? (
+                  <Link href={e.href} className="text-ink-2 no-underline hover:text-accent hover:underline">
+                    {resto}
+                  </Link>
+                ) : (
+                  resto
+                )}
+                {e.detalhe && <span className="block text-rotulo text-muted">{e.detalhe}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 /**
  * Linha do tempo com ícone por tipo de ação, agrupada por dia ("Hoje", "Ontem", "Há 5 dias" + a data).
  * Hora relativa nas entradas de hoje; nas outras, a hora do dia. A data e hora completas ficam no `title`.
@@ -168,9 +238,13 @@ export function LinhaTempoAgrupada({ entradas, compacta = false, vazio }: { entr
               </span>
             </h3>
             <ol className="m-0 list-none p-0">
-              {g.itens.map((e, i) => (
-                <Entrada key={e.id} e={e} ultima={i === g.itens.length - 1} relativo={g.dia === hoje} agora={agora} />
-              ))}
+              {blocos(g.itens).map((b, i, todos) =>
+                b.tipo === "um" ? (
+                  <Entrada key={b.e.id} e={b.e} ultima={i === todos.length - 1} relativo={g.dia === hoje} agora={agora} />
+                ) : (
+                  <Bloco key={b.itens[0].id} titulo={b.titulo} itens={b.itens} ultima={i === todos.length - 1} relativo={g.dia === hoje} agora={agora} />
+                ),
+              )}
             </ol>
           </section>
         );

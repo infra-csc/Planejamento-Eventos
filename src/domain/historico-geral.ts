@@ -79,6 +79,9 @@ const ROTULO_ACAO: Record<string, string> = {
   ARENA_PLANTA_REMOVIDA: "Planta removida",
   ARENA_PLANTA_RESTAURADA: "Planta restaurada",
   ARENA_POSICAO_DESFEITA: "Posição desfeita",
+  DESCRICAO_EDITADA: "Descrição alterada",
+  REGRA_KIT: "Regra da logística",
+  DESATIVADO: "Desativado",
 };
 
 /** "ATA_QUANTIDADE" → "Quantidade ajustada"; ação desconhecida vira texto legível. */

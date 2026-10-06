@@ -35,7 +35,7 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
             <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required autoFocus placeholder="Ex.: Festival de Verão 2026" />
           </Field>
           <Field label="Cliente" htmlFor="cliente" error={c?.cliente} optional>
-            <Input id="cliente" name="cliente" defaultValue={valores.cliente ?? ""} />
+            <Input id="cliente" name="cliente" placeholder="Ex.: Banco do Brasil" defaultValue={valores.cliente ?? ""} />
           </Field>
           <Field label="Local" htmlFor="local" error={c?.local} optional>
             <Input id="local" name="local" defaultValue={valores.local ?? ""} placeholder="Ex.: Parque da Cidade — Arena Sul" />

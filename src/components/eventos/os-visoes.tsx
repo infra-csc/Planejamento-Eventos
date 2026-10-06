@@ -225,16 +225,19 @@ export function OsVisoes({
                         <td className={tdCodigo}>
                           <Codigo>{l.codigo}</Codigo>
                         </td>
-                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink`}>
+                        <th scope="row" className={`${td} min-w-[180px] text-left text-corpo font-normal text-ink`}>
                           {l.nome}
                         </th>
+                        {/* Composição quebra em até 2 linhas (inteira no título): antes, sem quebra, espremia o nome e escondia o total. */}
                         <td className={`${td} text-pequeno text-muted`}>
-                          {l.origens.map((o, i) => (
-                            <span key={i} className="whitespace-nowrap">
-                              {i > 0 && <span aria-hidden> · </span>}
-                              {o.descricao} <span className="numero text-ink-2">{o.quantidade}</span>
-                            </span>
-                          ))}
+                          <span className="line-clamp-2" title={l.origens.map((o) => `${o.descricao} ${o.quantidade}`).join(" · ")}>
+                            {l.origens.map((o, i) => (
+                              <span key={i}>
+                                {i > 0 && <span aria-hidden> · </span>}
+                                {o.descricao} <span className="numero text-ink-2">{o.quantidade}</span>
+                              </span>
+                            ))}
+                          </span>
                         </td>
                         <td className={tdTotal}>
                           <Total n={l.total} unidade={l.unidade} />

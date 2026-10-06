@@ -6,6 +6,7 @@ import { NaoEncontradoError } from "@/domain/errors";
 import { daMinhaArea, pode, PERFIL_LABEL } from "@/domain/permissions";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { resumirAjustes } from "@/domain/os";
+import { rotuloAcao } from "@/domain/historico-geral";
 import { ACOES_COM_MOTIVO, obterLinhasAta } from "./eventos";
 import { descricaoItem, obterSolicitacaoMemo } from "./solicitacoes";
 import { observacaoDoItem } from "@/domain/descricoes-itens";
@@ -72,8 +73,13 @@ function rotular(acao: string, dadosDepois: unknown, perfil: Perfil | null): { t
       return { titulo: "Vinculado ao catálogo", tom: "info" };
     case "ATUALIZACAO_VERSAO":
       return { titulo: "Projeto atualizado para nova versão", tom: "info" };
+    case "DESCRICAO_EDITADA":
+      return { titulo: "Descrição alterada na conferência", tom: "atencao" };
+    case "REGRA_KIT":
+      return { titulo: "Ajustado pela regra da logística", tom: "info" };
     default:
-      return { titulo: acao.replace(/_/g, " ").toLowerCase(), tom: "neutro" };
+      // Ação sem rótulo próprio: o mesmo texto legível do histórico geral (nunca o nome interno).
+      return { titulo: rotuloAcao(acao), tom: "neutro" };
   }
 }
 

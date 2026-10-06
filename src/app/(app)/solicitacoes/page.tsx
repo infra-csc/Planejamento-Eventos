@@ -146,7 +146,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                       </span>
                       <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-pequeno">
                         <span className="numero text-ink-3">
-                          {s.itensRespondidos}/{s.totalItens} itens
+                          {s.itensRespondidos}/{s.totalItens} {s.totalItens === 1 ? "item" : "itens"}
                         </span>
                         <TipoSolicitacaoTag tipo={s.tipo} />
                         {s.foraDaJanela && <ForaJanelaTag />}
@@ -205,7 +205,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                             <span className="2xl:hidden">
                               {" · "}
                               <span className="numero">
-                                {s.itensRespondidos}/{s.totalItens} itens
+                                {s.itensRespondidos}/{s.totalItens} {s.totalItens === 1 ? "item" : "itens"}
                               </span>
                             </span>
                           </span>

@@ -10,7 +10,7 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { toastSucesso } from "@/components/ui/toast";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
-import { combinaBusca } from "@/lib/busca";
+import { combinaBusca, relevanciaBusca } from "@/lib/busca";
 import { cn } from "@/lib/cn";
 import { Passo } from "./passo";
 import { irPara, kitDe, novaChave, POR_PAGINA } from "./utilidades";
@@ -138,7 +138,13 @@ export function BuscaCatalogo({
   const resultados = useMemo(() => {
     // Lista completa (sem corte) e busca sem acento: "po" acha "Pórtico" e "Posto".
     const filtra = <T extends { codigo?: string; nome: string; categoria?: string | null; familia?: string | null }>(xs: T[]) =>
-      busca.trim() ? xs.filter((x) => combinaBusca(`${x.codigo ?? ""} ${x.nome} ${x.categoria ?? ""} ${x.familia ?? ""}`, busca)) : xs;
+      busca.trim()
+        ? xs
+            .filter((x) => combinaBusca(`${x.codigo ?? ""} ${x.nome} ${x.categoria ?? ""} ${x.familia ?? ""}`, busca))
+            .map((x, i) => ({ x, i, r: relevanciaBusca(x.nome, busca) }))
+            .sort((a, b) => a.r - b.r || a.i - b.i)
+            .map((y) => y.x)
+        : xs;
     if (modo === "projeto") return filtra(projetos);
     if (modo === "peca") return filtra(pecas);
     return [];

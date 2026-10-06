@@ -117,7 +117,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <div className="text-right">
             <span className="numero block text-metrica font-semibold tracking-[-0.02em] text-ink">{d.quantidade}</span>
-            <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : "na ata/OS"}</span>
+            <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : d.destino ? `nesta linha · ${d.destino}` : "nesta linha"}</span>
           </div>
           {d.tipo === "AVULSO" && editavel && opcoes && (
             <VincularCatalogo linha={{ linhaId: d.id, descricao: d.descricaoOriginal ?? d.nome, quantidade: d.quantidade }} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
