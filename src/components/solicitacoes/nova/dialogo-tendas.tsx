@@ -83,7 +83,7 @@ export function DialogoTendas({
               ? "As tendas que já estão nesta solicitação. Mude quantidades, fechamentos e calhas, zere o local que não vai ou acrescente outro."
               : "Os locais e quantidades mais comuns das OS já vêm preenchidos: ajuste tendas e peças de cada local, zere o que não vai e acrescente outros. Tudo fica num item só."
           }
-          width={900}
+          width={760}
         >
           <QuadroTendas kit={kitAtual} bom={tendaAtual.bom ?? []} extras={tendaAtual.extras ?? []} iniciais={iniciais} onConfirmar={(novos) => salvarTendas(tendaAtual, novos)} onCancelar={() => setTendaAberta(null)} />
         </DialogContent>

@@ -261,9 +261,9 @@ export function BuscaCatalogo({
                     >
                       {modo === "projeto" &&
                         (r.capaId ? (
-                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line" />
+                          <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line max-sm:hidden" />
                         ) : (
-                          <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta">
+                          <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta max-sm:hidden">
                             <Icone nome="camadas" className="size-4" />
                           </span>
                         ))}

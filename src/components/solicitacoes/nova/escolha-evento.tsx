@@ -93,7 +93,7 @@ export function EscolhaEvento({
                 opcoes={eventos.map((e) => ({
                   value: e.id,
                   label: e.nome,
-                  descricao: `${e.codigo} · ${e.cliente} · ${e.periodo} · ${e.marco}`,
+                  descricao: [e.codigo, e.cliente, e.periodo, e.marco].filter((x) => x && x.trim()).join(" · "),
                   selo: e.tipo === "PRE_REUNIAO" ? "até a reunião" : "alterações",
                   seloTom: e.tipo === "PRE_REUNIAO" ? "muted" : "warning",
                   disabled: !e.aceita && e.id !== eventoId,

@@ -92,11 +92,11 @@ export function QuadroTendas({
               <th scope="col" className={cn(th, "min-w-[160px]")}>
                 Local
               </th>
-              <th scope="col" className={th}>
+              <th scope="col" className={cn(th, "w-[136px]")}>
                 Tendas
               </th>
               {papeis.map((p) => (
-                <th key={p.papel} scope="col" className={cn(th, "w-[76px] min-w-[76px] text-center")}>
+                <th key={p.papel} scope="col" className={cn(th, "w-[104px] min-w-[88px] text-center")}>
                   {p.rotulo}
                 </th>
               ))}
