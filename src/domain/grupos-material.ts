@@ -17,7 +17,9 @@ export const GRUPO_LABEL: Record<GrupoMaterial, string> = {
 
 /** Onde a planilha põe a peça, quando a família sozinha não diz (ex.: pallet de ferro fica no Percurso). */
 const POR_CODIGO: Record<string, GrupoMaterial> = {
-  "PALLET-FE": "PERCURSO",
+  // Contrapeso de stand e palco show: vai com a estrutura.
+  "PALLET-FE": "ESTRUTURA",
+  "TINA-1000": "ESTRUTURA",
   "PALLET-PL": "PERCURSO",
   "TINA-500": "ARENA",
   "CAV-RETO": "ATIVACAO",

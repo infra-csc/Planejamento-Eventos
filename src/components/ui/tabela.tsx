@@ -20,6 +20,7 @@ export function ThOrdenavel({
   href,
   largura,
   alinhar = "left",
+  className,
 }: {
   label: string;
   ativo: boolean;
@@ -27,10 +28,12 @@ export function ThOrdenavel({
   href: string;
   largura?: number | string;
   alinhar?: "left" | "right";
+  /** Ex.: "hidden sm:table-cell" para a coluna sumir no celular. */
+  className?: string;
 }) {
   const ariaSort = ativo ? (dir === "desc" ? "descending" : "ascending") : "none";
   return (
-    <th scope="col" aria-sort={ariaSort} className="relative border-b border-line-soft bg-subtle p-0 font-medium" style={{ width: largura, textAlign: alinhar }}>
+    <th scope="col" aria-sort={ariaSort} className={cn("relative border-b border-line-soft bg-subtle p-0 font-medium", className)} style={{ width: largura, textAlign: alinhar }}>
       <Link
         href={href}
         scroll={false}

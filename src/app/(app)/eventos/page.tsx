@@ -114,7 +114,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
   const rotuloFase = FASES.find(([v]) => v === fase)?.[1] ?? "Todos";
   const rotuloAcao = ehLogistica ? "exige ação agora" : "aguardando a logística";
 
-  const th = (chave: string, label: string, largura?: number | string, alinhar?: "left" | "right") => {
+  const th = (chave: string, label: string, largura?: number | string, alinhar?: "left" | "right", className?: string) => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
     return (
       <ThOrdenavel
@@ -124,6 +124,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         href={hrefCom("/eventos", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })}
         largura={largura}
         alinhar={alinhar}
+        className={className}
       />
     );
   };
@@ -183,13 +184,13 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] border-collapse">
+              <table data-responsiva className="w-full border-collapse max-sm:table-fixed sm:min-w-[640px]">
                 <CaptionOculta>{`Eventos · ${rotuloFase}${soAcao ? ` · ${rotuloAcao}` : ""}`}</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    {th("codigo", "Código", 100)}
+                    {th("codigo", "Código", 100, "left", "hidden sm:table-cell")}
                     {th("nome", "Evento")}
-                    {th("fase", "Fase", 150)}
+                    {th("fase", "Fase", 150, "left", "hidden sm:table-cell")}
                     <th scope="col" aria-sort={sp.ordem === "periodo" ? (sp.dir === "desc" ? "descending" : "ascending") : "none"} className="hidden border-b border-line-soft bg-subtle p-0 font-medium lg:table-cell" style={{ width: 160 }}>
                       <Link
                         href={hrefCom("/eventos", params, { ...proximaOrdem(sp.ordem, sp.dir, "periodo"), pagina: null })}
@@ -203,7 +204,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                     <Th className="hidden md:table-cell" largura={240}>
                       Áreas que pediram
                     </Th>
-                    {th("pendencias", "Pendências", 140, "right")}
+                    {th("pendencias", "Pendências", 140, "right", "hidden sm:table-cell")}
                     <Th largura={44}>
                       <span className="sr-only">Abrir</span>
                     </Th>
@@ -216,11 +217,12 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                     const onde = [e.cliente, e.local].filter(Boolean).join(" · ");
                     return (
                       <LinhaLink key={e.id} href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
-                        <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-3">
+                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
                           <Codigo>{e.codigo}</Codigo>
                         </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-                          <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
+                            <Codigo className="text-rotulo text-ink-3 sm:hidden">{e.codigo}</Codigo>
                             <span className="text-corpo font-medium text-ink">{e.nome}</span>
                             {e.reabertoVezes > 0 && <Badge tom="warning">reaberto {e.reabertoVezes}×</Badge>}
                           </span>
@@ -232,8 +234,18 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                               <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e)}
                             </span>
                           </span>
+                          {/* Celular: fase e pendência dentro da célula do evento. */}
+                          <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
+                            <EventoStatusBadge status={st} />
+                            {e.solicitacoesAbertas > 0 && (
+                              <span className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning">
+                                <span aria-hidden className="block size-1.5 rounded-full bg-warning" />
+                                {e.solicitacoesAbertas} aguardando
+                              </span>
+                            )}
+                          </span>
                         </th>
-                        <td className="border-b border-line-row px-3 py-3">
+                        <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
                           <EventoStatusBadge status={st} />
                           <span className="mt-1.5 block max-w-[112px]">
                             <BarrasFase status={e.status} rotuloStatus={st === "REALIZADO" ? "Realizado" : EVENTO_STATUS_LABEL[st]} />
@@ -246,7 +258,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         <td className="hidden border-b border-line-row px-3 py-3 md:table-cell">
                           <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
                         </td>
-                        <td className="border-b border-line-row px-3 py-3 text-right">
+                        <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
                           {e.solicitacoesAbertas > 0 ? (
                             <span className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning">
                               <span aria-hidden className="block size-1.5 rounded-full bg-warning" />

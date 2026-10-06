@@ -28,8 +28,6 @@ const PERCURSO: ReadonlyArray<[string, string | null]> = [
   ["Cavaletes de ferro p/ cochos", "CAV-COCHO"],
   ["Cones GRANDES", "CONE-G"],
   ["Cones PEQUENOS", "CONE-P"],
-  ["Tina 1000l", "TINA-1000"],
-  ["Palet Ferro", "PALLET-FE"],
   ["Palet Plastico", "PALLET-PL"],
   ["Rampas de madeira", "RAMPA-MAD"],
   ["Prismas (cavaletes grandes)", "PRISMA"],
@@ -61,7 +59,12 @@ const ARENA: ReadonlyArray<[string, string | null]> = [
   ["Quadro Metal", "QUADRO-METAL"],
   ["Caixas de água 500 L", "TINA-500"],
 ];
-const FIXOS = new Set([...PERCURSO, ...ATIVACAO, ...ARENA].flatMap(([, c]) => (c ? [c] : [])));
+/** Contrapeso de stand e palco show: vai na seção de estrutura (box truss), não no percurso. */
+const ESTRUTURA_CONTRAPESO: ReadonlyArray<[string, string]> = [
+  ["Tina 1000l", "TINA-1000"],
+  ["Palet Ferro", "PALLET-FE"],
+];
+const FIXOS = new Set([...PERCURSO, ...ATIVACAO, ...ARENA, ...ESTRUTURA_CONTRAPESO].flatMap(([, c]) => (c ? [c] : [])));
 
 export function montarAtaLista(os: OsConteudo): AtaLista {
   const totalPorCodigo = new Map<string, { nome: string; setor: string; total: number }>();
@@ -101,10 +104,14 @@ export function montarAtaLista(os: OsConteudo): AtaLista {
     arena.total += x.quantidade;
   }
 
+  const contrapeso = ESTRUTURA_CONTRAPESO.flatMap(([item, codigo]) => {
+    const q = totalPorCodigo.get(codigo)?.total ?? 0;
+    return q > 0 ? [{ item, quantidade: q, obs: obsDe(codigo) }] : [];
+  });
   const boxTruss: SecaoLista = {
     titulo: "BOX TRUSS",
-    linhas: estrutura.estruturas.map((e) => ({ item: e.nome, quantidade: e.quantidade, obs: obsProjeto(os, e.nome) })),
-    total: estrutura.estruturas.reduce((a, e) => a + e.quantidade, 0),
+    linhas: [...estrutura.estruturas.map((e) => ({ item: e.nome, quantidade: e.quantidade, obs: obsProjeto(os, e.nome) })), ...contrapeso],
+    total: estrutura.estruturas.reduce((a, e) => a + e.quantidade, 0) + contrapeso.reduce((a, l) => a + l.quantidade, 0),
   };
 
   return { percurso, tendas: estrutura.tendas, boxTruss, ativacao, arena };

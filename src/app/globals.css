@@ -245,9 +245,10 @@
   }
 }
 
-/* Telas estreitas: tabelas rolam na horizontal dentro do próprio cartão, sem rolar a página. */
+/* Telas estreitas: tabelas rolam na horizontal dentro do próprio cartão, sem rolar a página.
+   Tabela com versão própria de celular (colunas que somem) marca data-responsiva e fica fora disso. */
 @media (max-width: 1023px) {
-  main table {
+  main table:not([data-responsiva]) {
     min-width: 640px;
   }
   main :has(> table) {

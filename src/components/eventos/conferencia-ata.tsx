@@ -24,6 +24,8 @@ import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 import { conferenciaOpcional } from "@/domain/itens-padrao";
+import { ACOMPANHANTES } from "@/domain/regras-kit";
+import { MARCA_ACOMPANHANTE } from "@/components/solicitacoes/nova/utilidades";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
@@ -343,12 +345,7 @@ function Linha({
             {l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"}
           </button>
         )}
-        {l.origem?.observacao && (
-          <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
-            <span className="text-muted">Obs.: </span>
-            {l.origem.observacao}
-          </p>
-        )}
+        {l.origem?.observacao && <ObservacaoLinha texto={l.origem.observacao} codigo={l.codigo} />}
         {dicas && (
           <p title={dicas} className={cn("m-0 mt-0.5 line-clamp-2 text-rotulo", l.ultimoAjuste ? "text-warning" : "text-muted")}>
             {l.ultimoAjuste && <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />}
@@ -385,6 +382,29 @@ function Linha({
         <span className="hidden md:block" />
       )}
     </li>
+  );
+}
+
+/**
+ * Observação de linha que veio sozinha com outra (cocho → cavaletes): mostra a regra como regra, não como
+ * se fosse um texto digitado ("Vem junto (2 por cocho)" nas linhas antigas).
+ */
+function ObservacaoLinha({ texto, codigo }: { texto: string; codigo: string | null }) {
+  if (!texto.startsWith(MARCA_ACOMPANHANTE))
+    return (
+      <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
+        <span className="text-muted">Obs.: </span>
+        {texto}
+      </p>
+    );
+  const regra = ACOMPANHANTES.find((a) => a.acompanhante === codigo)?.texto ?? texto.replace(/^Vem junto\s*\(?|\)$/g, "");
+  return (
+    <p className="m-0 mt-0.5 flex items-center gap-1.5 text-pequeno text-ink-3">
+      <Icone nome="camadas" className="size-3.5 shrink-0 text-ink-3" />
+      <span>
+        <span className="font-medium text-ink-2">Automático</span> · {regra}
+      </span>
+    </p>
   );
 }
 
@@ -468,10 +488,7 @@ function LinhaJunta({
         </p>
         {descricoes.size > 0 && <Descricoes grupos={[...descricoes.entries()].map(([texto, unidades]) => ({ texto, unidades }))} />}
         {observacoes.map((o) => (
-          <p key={o} className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
-            <span className="text-muted">Obs.: </span>
-            {o}
-          </p>
+          <ObservacaoLinha key={o} texto={o} codigo={l0.codigo} />
         ))}
         {comuns.length > 0 && <p className="m-0 mt-0.5 text-rotulo text-muted">Peças ajustadas{diferentes ? " em todas" : ""}: {comuns.join(" · ")}</p>}
         {diferentes && (

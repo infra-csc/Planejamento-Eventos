@@ -106,12 +106,14 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse">
+              <table data-responsiva className="w-full border-collapse max-md:table-fixed md:min-w-[760px]">
                 <CaptionOculta>Registros do histórico, do mais recente para o mais antigo</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    <Th largura={84}>Hora</Th>
-                    <Th largura={190}>Quem</Th>
+                    <Th largura={72}>Hora</Th>
+                    <Th className="hidden md:table-cell" largura={190}>
+                      Quem
+                    </Th>
                     <Th>O que aconteceu</Th>
                     <Th className="hidden lg:table-cell" largura={210}>
                       Evento
@@ -152,7 +154,7 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
         </time>
         {isoSP(h.em) === isoSP(agora) && <span className="block text-rotulo text-meta">{tempoRelativo(h.em, agora)}</span>}
       </td>
-      <td className={cn(td, "text-pequeno")}>
+      <td className={cn(td, "hidden text-pequeno md:table-cell")}>
         {h.autor ? (
           <>
             <span className="block truncate text-ink" title={h.autor.nome}>
@@ -195,6 +197,15 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
             </dl>
           </details>
         )}
+        <span className="mt-1 block text-rotulo text-muted lg:hidden">
+          <span className="md:hidden">{h.autor?.nome ?? "sistema"}</span>
+          {h.evento && (
+            <>
+              <span className="md:hidden"> · </span>
+              <Codigo>{h.evento.codigo}</Codigo>
+            </>
+          )}
+        </span>
       </td>
       <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
         {h.evento && h.eventoId ? (
@@ -270,7 +281,7 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
         </time>
         {hora(fim.em) !== hora(h.em) && <span className="block text-rotulo text-meta">desde {hora(fim.em)}</span>}
       </td>
-      <td className={cn(td, "text-pequeno")}>
+      <td className={cn(td, "hidden text-pequeno md:table-cell")}>
         {h.autor ? (
           <>
             <span className="block truncate text-ink" title={h.autor.nome}>
@@ -299,6 +310,15 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
             <ul className="m-0 mt-0.5 list-none space-y-0.5 p-0">{hs.slice(visiveis).map(item)}</ul>
           </details>
         )}
+        <span className="mt-1 block text-rotulo text-muted lg:hidden">
+          <span className="md:hidden">{h.autor?.nome ?? "sistema"}</span>
+          {h.evento && (
+            <>
+              <span className="md:hidden"> · </span>
+              <Codigo>{h.evento.codigo}</Codigo>
+            </>
+          )}
+        </span>
       </td>
       <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
         {h.evento && h.eventoId ? (

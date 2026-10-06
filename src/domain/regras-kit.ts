@@ -5,7 +5,7 @@
  * - saco de ráfia: 1 por lixeira ultra bag;
  * - acompanhantes que sempre vão junto: 2 cavaletes de ferro por cocho, 2 cavaletes de madeira por
  *   bancada e por mesa de medalha, 2 pés por grade 2×1;
- * - grades 2×1 do prisma: 2 por prisma, somadas às grades pedidas (e os pés contam as duas).
+ * - grades 2×1 do prisma: 2 por prisma, somadas às grades pedidas (as do prisma não levam pés).
  * (a lona de teto já vem na lista de peças de cada stand e palco show)
  * O que a área já pediu da mesma peça à parte é descontado. A linha da regra acompanha a ata sozinha
  * até a ata fechar; se a logística ajustar à mão, fica como ela deixou.
@@ -16,17 +16,17 @@ export const REGRAS_KIT: readonly RegraKit[] = [
   { regra: "tina-contrapeso", codigoPeca: "TINA-1000", descricao: "2 por stand + 6 por palco show" },
   { regra: "pallet-ferro", codigoPeca: "PALLET-FE", descricao: "2 por stand + 6 por palco show" },
   { regra: "saco-rafia", codigoPeca: "SACO-RAFIA", descricao: "1 por lixeira ultra bag" },
-  { regra: "cavalete-cocho", codigoPeca: "CAV-COCHO", descricao: "2 por cocho para água" },
-  { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "2 por bancada de madeira e por mesa de medalha" },
-  { regra: "grade-prisma", codigoPeca: "GRADE-2X1", descricao: "2 por prisma, além das grades pedidas" },
-  { regra: "pe-grade-2x1", codigoPeca: "PE-GRADE-2X1", descricao: "2 por grade 2×1 (pedidas + do prisma)" },
+  { regra: "cavalete-cocho", codigoPeca: "CAV-COCHO", descricao: "1 cocho = 2 cavaletes de ferro p/ cocho (cocho para água e posto de hidratação)" },
+  { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "1 bancada de madeira ou mesa de medalha = 2 cavaletes retos" },
+  { regra: "grade-prisma", codigoPeca: "GRADE-2X1", descricao: "1 prisma = 2 grades 2×1 (além das grades pedidas)" },
+  { regra: "pe-grade-2x1", codigoPeca: "PE-GRADE-2X1", descricao: "1 grade 2×1 = 2 pés (as grades do prisma não levam pés)" },
 ];
 
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
 export const ACOMPANHANTES: ReadonlyArray<{ bases: string[]; acompanhante: string; fator: number; texto: string }> = [
-  { bases: ["COCHO"], acompanhante: "CAV-COCHO", fator: 2, texto: "2 por cocho" },
-  { bases: ["BANCADA-210", "MESA-1X1"], acompanhante: "CAV-RETO", fator: 2, texto: "2 por bancada e por mesa de medalha" },
-  { bases: ["GRADE-2X1"], acompanhante: "PE-GRADE-2X1", fator: 2, texto: "2 por grade 2×1" },
+  { bases: ["COCHO", "POSTO-HIDRATACAO"], acompanhante: "CAV-COCHO", fator: 2, texto: "1 cocho = 2 cavaletes de ferro p/ cocho" },
+  { bases: ["BANCADA-210", "MESA-1X1"], acompanhante: "CAV-RETO", fator: 2, texto: "1 bancada ou mesa de medalha = 2 cavaletes retos" },
+  { bases: ["GRADE-2X1"], acompanhante: "PE-GRADE-2X1", fator: 2, texto: "1 grade 2×1 = 2 pés" },
 ];
 
 export const CODIGO_ULTRABAG = "LIXEIRA-BAG";
@@ -68,9 +68,8 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
     const r = REGRAS_KIT.find((x) => x.codigoPeca === a.acompanhante)!;
     precisa[r.regra] = a.bases.reduce((s, b) => s + total(b), 0) * a.fator;
   }
-  // Grades do prisma somam às pedidas (não descontam): e cada uma leva 2 pés, como as outras.
+  // Grades do prisma somam às pedidas (não descontam) e vão presas no prisma: não levam pés.
   const gradesPrisma = total(CODIGO_PRISMA) * 2;
-  precisa["pe-grade-2x1"] += gradesPrisma * 2;
   // O que já foi pedido da mesma peça (ex.: cavaletes que vieram na solicitação) conta para a regra.
   return REGRAS_KIT.map((r) => ({ ...r, quantidade: r.regra === "grade-prisma" ? gradesPrisma : Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) }));
 }

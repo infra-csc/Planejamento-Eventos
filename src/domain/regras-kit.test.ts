@@ -18,7 +18,8 @@ describe("regras do kit", () => {
 
   it("acompanhantes: cocho, bancada/mesa e grade 2×1; o que já foi pedido à parte é descontado", () => {
     const r = calcularRegrasKit([
-      { tipo: "PECA", quantidade: 20, pecaCodigo: "COCHO" },
+      { tipo: "PECA", quantidade: 15, pecaCodigo: "COCHO" },
+      { tipo: "PECA", quantidade: 5, pecaCodigo: "POSTO-HIDRATACAO" },
       { tipo: "PECA", quantidade: 40, pecaCodigo: "CAV-COCHO" },
       { tipo: "PECA", quantidade: 3, pecaCodigo: "BANCADA-210" },
       { tipo: "PECA", quantidade: 1, pecaCodigo: "MESA-1X1" },
@@ -28,13 +29,13 @@ describe("regras do kit", () => {
     expect(qtd(r)).toEqual({ "CAV-RETO": 6, "PE-GRADE-2X1": 90 });
   });
 
-  it("prisma: 2 grades 2×1 cada, somadas às pedidas; os pés contam as duas", () => {
+  it("prisma: 2 grades 2×1 cada, somadas às pedidas; os pés só das grades pedidas", () => {
     const r = calcularRegrasKit([
       { tipo: "PECA", quantidade: 10, pecaCodigo: "PRISMA" },
       { tipo: "PECA", quantidade: 5, pecaCodigo: "GRADE-2X1" },
     ]);
-    // 20 grades do prisma (além das 5 pedidas) e 2 pés por grade: (5 + 20) × 2.
-    expect(qtd(r)).toEqual({ "GRADE-2X1": 20, "PE-GRADE-2X1": 50 });
+    // 20 grades do prisma (além das 5 pedidas); pés só das 5 pedidas: 5 × 2.
+    expect(qtd(r)).toEqual({ "GRADE-2X1": 20, "PE-GRADE-2X1": 10 });
   });
 
   it("sem nada que puxe regra, tudo zero", () => {
@@ -50,7 +51,8 @@ describe("grupos de material (lista de materiais da ata)", () => {
     expect(grupoDaPeca({ codigo: "TINA-300", setor: "ARENA", familia: "Ativação" })).toBe("ATIVACAO");
     expect(grupoDaPeca({ codigo: "BALCAO-120", setor: "MARCENARIA", familia: "Mobiliário" })).toBe("ATIVACAO");
     expect(grupoDaPeca({ codigo: "GERADOR", setor: "ARENA", familia: "Arena" })).toBe("ARENA");
-    expect(grupoDaPeca({ codigo: "PALLET-FE", setor: "ESTRUTURA", familia: "Base" })).toBe("PERCURSO");
+    expect(grupoDaPeca({ codigo: "PALLET-FE", setor: "ESTRUTURA", familia: "Base" })).toBe("ESTRUTURA");
+    expect(grupoDaPeca({ codigo: "TINA-1000", setor: "ARENA", familia: "Percurso" })).toBe("ESTRUTURA");
     expect(grupoDaPeca({ codigo: "COL-TRAS", setor: "MARCENARIA", familia: "Stand" })).toBe("ESTRUTURA");
   });
 
