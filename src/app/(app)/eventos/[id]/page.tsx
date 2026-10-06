@@ -1,3 +1,4 @@
+import { conferenciaOpcional } from "@/domain/itens-padrao";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
@@ -80,7 +81,9 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   const posAta = linhas.filter((l) => l.posAta);
-  const conferidas = linhas.filter((l) => l.conferidoEm).length;
+  // Para fechar a ata contam só as obrigatórias ("a definir" e estaiamento ficam de fora).
+  const obrigatorias = linhas.filter((l) => !conferenciaOpcional({ tipo: l.tipo, codigo: l.peca?.codigo, quantidade: l.quantidade }));
+  const conferidas = obrigatorias.filter((l) => l.conferidoEm).length;
   const unidades = linhas.reduce((a, l) => a + l.quantidade, 0);
   const porArea = new Map<string, number>();
   for (const l of linhas) porArea.set(l.areaNome ?? "Logística", (porArea.get(l.areaNome ?? "Logística") ?? 0) + 1);
@@ -121,10 +124,10 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             valor: (
               <>
                 {conferidas}
-                <span className="text-destaque font-normal text-muted"> de {linhas.length}</span>
+                <span className="text-destaque font-normal text-muted"> de {obrigatorias.length}</span>
               </>
             ),
-            hint: linhas.length - conferidas > 0 ? `faltam ${linhas.length - conferidas} para fechar a ata` : "tudo conferido; falta fechar a ata",
+            hint: obrigatorias.length - conferidas > 0 ? `faltam ${obrigatorias.length - conferidas} para fechar a ata` : "tudo conferido; falta fechar a ata",
             tom: "warning",
             href: pode(usuario, "ata.consolidar") ? `/conferencia/${id}` : undefined,
           }

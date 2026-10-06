@@ -45,6 +45,8 @@ export function grupoDaPeca(p: { codigo: string; setor: string; familia?: string
 export function grupoDoProjeto(p: { categoria?: string | null; nome?: string | null }): GrupoMaterial {
   // Grades de merchandising ficam na Arena da lista da ata, mesmo cadastradas como percurso.
   if (/grade de merchandising/i.test(p.nome ?? "")) return "ARENA";
+  // Trimandala é box truss: vai com as estruturas, mesmo cadastrada como ativação.
+  if (/trimandala/i.test(p.nome ?? "")) return "ESTRUTURA";
   const c = (p.categoria ?? "").toLocaleLowerCase("pt-BR");
   if (c.startsWith("tenda")) return "TENDAS";
   if (c.startsWith("ativa")) return "ATIVACAO";

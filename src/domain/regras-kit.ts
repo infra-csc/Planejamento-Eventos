@@ -4,7 +4,8 @@
  * - pallet de ferro: 2 por stand + 6 por palco show;
  * - saco de ráfia: 1 por lixeira ultra bag;
  * - acompanhantes que sempre vão junto: 2 cavaletes de ferro por cocho, 2 cavaletes de madeira por
- *   bancada e por mesa de medalha, 2 pés por grade 2×1.
+ *   bancada e por mesa de medalha, 2 pés por grade 2×1;
+ * - grades 2×1 do prisma: 2 por prisma, somadas às grades pedidas (e os pés contam as duas).
  * (a lona de teto já vem na lista de peças de cada stand e palco show)
  * O que a área já pediu da mesma peça à parte é descontado. A linha da regra acompanha a ata sozinha
  * até a ata fechar; se a logística ajustar à mão, fica como ela deixou.
@@ -17,7 +18,8 @@ export const REGRAS_KIT: readonly RegraKit[] = [
   { regra: "saco-rafia", codigoPeca: "SACO-RAFIA", descricao: "1 por lixeira ultra bag" },
   { regra: "cavalete-cocho", codigoPeca: "CAV-COCHO", descricao: "2 por cocho para água" },
   { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "2 por bancada de madeira e por mesa de medalha" },
-  { regra: "pe-grade-2x1", codigoPeca: "PE-GRADE-2X1", descricao: "2 por grade 2×1" },
+  { regra: "grade-prisma", codigoPeca: "GRADE-2X1", descricao: "2 por prisma, além das grades pedidas" },
+  { regra: "pe-grade-2x1", codigoPeca: "PE-GRADE-2X1", descricao: "2 por grade 2×1 (pedidas + do prisma)" },
 ];
 
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
@@ -28,6 +30,7 @@ export const ACOMPANHANTES: ReadonlyArray<{ bases: string[]; acompanhante: strin
 ];
 
 export const CODIGO_ULTRABAG = "LIXEIRA-BAG";
+export const CODIGO_PRISMA = "PRISMA";
 
 export type LinhaParaRegra = {
   tipo: string;
@@ -65,8 +68,11 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
     const r = REGRAS_KIT.find((x) => x.codigoPeca === a.acompanhante)!;
     precisa[r.regra] = a.bases.reduce((s, b) => s + total(b), 0) * a.fator;
   }
+  // Grades do prisma somam às pedidas (não descontam): e cada uma leva 2 pés, como as outras.
+  const gradesPrisma = total(CODIGO_PRISMA) * 2;
+  precisa["pe-grade-2x1"] += gradesPrisma * 2;
   // O que já foi pedido da mesma peça (ex.: cavaletes que vieram na solicitação) conta para a regra.
-  return REGRAS_KIT.map((r) => ({ ...r, quantidade: Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) }));
+  return REGRAS_KIT.map((r) => ({ ...r, quantidade: r.regra === "grade-prisma" ? gradesPrisma : Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) }));
 }
 
 export const descricaoDaRegra = (regra: string | null | undefined) => (regra ? (REGRAS_KIT.find((r) => r.regra === regra)?.descricao ?? null) : null);

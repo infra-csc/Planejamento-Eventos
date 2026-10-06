@@ -318,11 +318,12 @@ export function AtaLista({
           description={
             exigeJustificativa
               ? `A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área.${ajustar.origemSolicitacaoId ? " Como a linha veio de um pedido, a resposta do item é corrigida junto." : ""}`
-              : "Quantidade 0 remove a linha da ata. O ajuste fica no histórico com o motivo."
+              : "Quantidade 0 remove a linha da ata. O ajuste fica no histórico."
           }
           confirmLabel="Salvar ajuste"
-          // Motivo sempre obrigatório (antes e depois da ata): vai para o histórico e para quem pediu.
-          reasonLabel={exigeJustificativa ? "Justificativa" : "Motivo"}
+          // Antes de fechar a ata o motivo é opcional; com a ata fechada, a justificativa é obrigatória.
+          reasonLabel={exigeJustificativa ? "Justificativa" : "Motivo (opcional)"}
+          reasonRequired={exigeJustificativa}
           action={alterarQuantidadeLinhaAction}
           // A quantidade que a tela mostra: se outra pessoa mudar a linha antes, o servidor recusa.
           hidden={{ eventoId, linhaId: ajustar.id, quantidadeEsperada: String(ajustar.quantidade) }}

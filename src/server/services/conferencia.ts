@@ -177,12 +177,9 @@ export async function ajustarQuantidadeLinha(
 ) {
   exigir(usuario, "ata.consolidar");
   const conferencia = opcoes.contexto === "conferencia";
-  const razao = motivo?.trim();
-  if (!razao) {
-    throw conferencia
-      ? new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Fica registrado no histórico e é enviado a quem pediu." })
-      : new ValidacaoError("Informe o motivo (justificativa) do ajuste.", { justificativa: "Obrigatória: fica no histórico e vai para quem pediu." });
-  }
+  // Motivo opcional na conferência e antes de fechar a ata; com a ata fechada, a justificativa é obrigatória.
+  const razao = motivo?.trim() || null;
+  const sufixo = razao ? ` — ${razao}` : "";
   if (!Number.isInteger(quantidade) || quantidade < 0 || quantidade > 1_000_000) {
     throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.", { quantidade: "Use um número inteiro." });
   }
@@ -196,6 +193,7 @@ export async function ajustarQuantidadeLinha(
     if (!antesDaAta && ev.status !== "ABERTO") throw new DomainError("O evento não aceita ajustes na ata neste estado.");
     const posAta = ev.status === "ABERTO";
     if (posAta) exigir(usuario, "ata.ajustar");
+    if (posAta && !razao) throw new ValidacaoError("Informe o motivo (justificativa) do ajuste.", { justificativa: "Obrigatória com a ata fechada: fica no histórico e vai para quem pediu." });
 
     const [linha] = await montarLinhasAta(tx, eventoId, { linhaId, incluirInativas: true });
     if (!linha) throw new NaoEncontradoError("Linha da ata");
@@ -226,8 +224,9 @@ export async function ajustarQuantidadeLinha(
           usuario,
           item.id,
           // A pendência de compra marcada antes continua (atendido integralmente a zera).
-          { status, quantidadeAtendida: atendida, observacaoLogistica: razao, pendenciaCompra: item.pendenciaCompra },
-          razao,
+          // Parcial/não atendido pedem observação: sem motivo, fica registrado que foi ajuste da reunião.
+          { status, quantidadeAtendida: atendida, observacaoLogistica: razao ?? "Ajustado na reunião de OS", pendenciaCompra: item.pendenciaCompra },
+          razao ?? "Ajustado na reunião de OS",
           // A fase já foi conferida aqui (a pré-reunião também é corrigida pela aba Ata depois do fechamento); a OS sai uma vez só, abaixo.
           { gerarOs: false, notificar: true, ignorarFase: true },
         );
@@ -258,7 +257,7 @@ export async function ajustarQuantidadeLinha(
             entidade: "evento_item",
             entidadeId: linhaId,
             acao: "CONFERENCIA_AJUSTE",
-            descricao: remover ? `${desc}: retirado da ata na reunião (era ${antes}) — ${razao}` : `${desc}: ${antes} → ${quantidade} na reunião — ${razao}`,
+            descricao: remover ? `${desc}: retirado da ata na reunião (era ${antes})${sufixo}` : `${desc}: ${antes} → ${quantidade} na reunião${sufixo}`,
             usuarioId: usuario.id,
             dadosAntes: { quantidade: antes },
             dadosDepois: { quantidade, motivo: razao },
@@ -268,7 +267,7 @@ export async function ajustarQuantidadeLinha(
             entidade: "evento_item",
             entidadeId: linhaId,
             acao: remover ? "ATA_REMOCAO" : "ATA_QUANTIDADE",
-            descricao: `${remover ? `${desc}: removido da ata (era ${antes})` : `${desc}: quantidade alterada de ${antes} para ${quantidade}`} — ${razao}`,
+            descricao: `${remover ? `${desc}: removido da ata (era ${antes})` : `${desc}: quantidade alterada de ${antes} para ${quantidade}`}${sufixo}`,
             usuarioId: usuario.id,
             dadosAntes: { quantidade: antes, ativo: true },
             dadosDepois: { quantidade, ativo: !remover, motivo: razao },
@@ -277,7 +276,7 @@ export async function ajustarQuantidadeLinha(
 
     await sincronizarRegrasAta(tx, eventoId, null);
     if (posAta) {
-      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} ${remover ? "removido" : `${antes} → ${quantidade}`} — ${razao}`);
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} ${remover ? "removido" : `${antes} → ${quantidade}`}${sufixo}`);
       const texto = `A logística ${remover ? "removeu" : "alterou"} ${desc}${remover ? "" : ` para ${quantidade}`}`;
       const base = {
         tipo: "ATA_AJUSTE",
@@ -300,7 +299,7 @@ export async function ajustarQuantidadeLinha(
 }
 
 /**
- * Canetinha da conferência: muda a quantidade de uma linha na reunião, sempre com motivo e log.
+ * Canetinha da conferência: muda a quantidade de uma linha na reunião, com log (motivo opcional).
  * Mesmo caminho do ajuste pela aba Ata (`ajustarQuantidadeLinha`).
  */
 export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, motivo: string, opcoes: { quantidadeEsperada?: number | null } = {}) {
@@ -309,13 +308,12 @@ export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId:
 
 /**
  * Edita uma peça dentro de um projeto já na ata/OS (por unidade do projeto): muda a quantidade,
- * tira a peça (0) ou inclui uma peça do catálogo que o projeto não tinha. Sempre com motivo e log.
+ * tira a peça (0) ou inclui uma peça do catálogo que o projeto não tinha. Sempre com log; motivo obrigatório só com a ata fechada.
  * Antes do fechamento é ajuste da reunião; com a ata fechada gera nova versão da OS e avisa a área.
  */
 export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: string, linhaId: string, pecaId: string, quantidadePorUnidade: number, motivo: string) {
   exigir(usuario, "ata.consolidar");
-  const razao = motivo?.trim();
-  if (!razao) throw new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Fica registrado no histórico." });
+  const razao = motivo?.trim() || null;
   if (!Number.isInteger(quantidadePorUnidade) || quantidadePorUnidade < 0 || quantidadePorUnidade > 100_000) {
     throw new ValidacaoError("Quantidade por unidade deve ser um inteiro entre 0 e 100.000.", { quantidade: "Use um número inteiro." });
   }
@@ -327,6 +325,8 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
     const aberto = ev.status === "ABERTO";
     if (!aberto && ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("O evento não aceita ajustes neste estado.");
     if (aberto) exigir(usuario, "ata.ajustar");
+    // Motivo opcional antes de fechar a ata; depois, obrigatório (nova versão da OS e aviso à área).
+    if (aberto && !razao) throw new ValidacaoError("Informe o motivo do ajuste.", { motivo: "Obrigatório com a ata fechada: fica no histórico e vai para a área." });
 
     const linha = await tx.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaId), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)), with: { projeto: { columns: { nome: true, codigo: true } } } });
     if (!linha || linha.tipo !== "PROJETO") throw new NaoEncontradoError("Projeto na ata");
@@ -353,7 +353,7 @@ export async function ajustarPecaDoProjeto(usuario: UsuarioAtual, eventoId: stri
 
     const projeto = linha.projeto?.nome ?? "Projeto";
     const acaoTexto = antes === 0 ? `incluída com ${quantidadePorUnidade} por unidade` : quantidadePorUnidade === 0 ? `retirada (eram ${antes} por unidade)` : `${antes} → ${quantidadePorUnidade} por unidade`;
-    const texto = `${projeto}: ${peca.codigo} · ${peca.nome} ${acaoTexto} (× ${linha.quantidade} = ${quantidadePorUnidade * linha.quantidade}) — ${razao}`;
+    const texto = `${projeto}: ${peca.codigo} · ${peca.nome} ${acaoTexto} (× ${linha.quantidade} = ${quantidadePorUnidade * linha.quantidade})${razao ? ` — ${razao}` : ""}`;
     await registrarHistorico(tx, {
       eventoId,
       entidade: "evento_item",

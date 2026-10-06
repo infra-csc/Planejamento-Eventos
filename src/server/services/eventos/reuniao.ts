@@ -6,6 +6,7 @@ import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { descricaoLinha } from "@/domain/os";
 import { montarLinhasAta } from "../os";
 import { bloquearEvento, registrarHistorico, registrarHistoricos } from "../support";
+import { condicaoConferenciaObrigatoria } from "./itens-padrao";
 
 /* ------------------------------------------------------------------ */
 /* Reunião de OS: observações, dados da reunião e conferência          */
@@ -69,7 +70,7 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
     const [{ total, conferidas }] = await tx
       .select({ total: count(), conferidas: sql<number>`count(${eventoItens.conferidoEm})` })
       .from(eventoItens)
-      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)));
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), await condicaoConferenciaObrigatoria(tx)));
     return { total: Number(total), conferidas: Number(conferidas) };
   });
 }

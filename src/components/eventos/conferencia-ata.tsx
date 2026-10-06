@@ -23,6 +23,7 @@ import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { LinhaConferencia } from "@/server/services/conferencia";
+import { conferenciaOpcional } from "@/domain/itens-padrao";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
@@ -77,7 +78,7 @@ function Check({ l, eventoId, onMudou }: { l: LinhaConferencia; eventoId: string
   );
 }
 
-/** Modal da canetinha: nova quantidade + motivo obrigatório; mostra o que a área vai ver. */
+/** Modal da canetinha: nova quantidade + motivo (opcional); mostra o que a área vai ver. */
 function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId: string; onFechar: () => void }) {
   const [qtd, setQtd] = useState(l.quantidade);
   const [motivo, setMotivo] = useState("");
@@ -90,14 +91,13 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
       : qtd === 0
         ? "sai da ata"
         : pedido != null && qtd < pedido
-          ? `a área vê "parcial: ${qtd} de ${pedido}" com o motivo`
+          ? `a área vê "parcial: ${qtd} de ${pedido}"${motivo.trim() ? " com o motivo" : ""}`
           : pedido != null && qtd === pedido
             ? "a área vê atendido integralmente"
             : `a ata passa a ter ${qtd}`;
 
   const salvar = () => {
     if (qtd === l.quantidade) return setErro("Altere a quantidade para salvar um ajuste.");
-    if (!motivo.trim()) return setErro("Informe o motivo. Ele fica no histórico e vai para quem pediu.");
     setErro(null);
     iniciar(async () => {
       // Vai junto a quantidade que a tela mostrava: se outra pessoa mudou a linha, o servidor recusa.
@@ -110,7 +110,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
 
   return (
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent title={`Ajustar ${l.nome}`} description="O ajuste fica registrado com seu nome, data e motivo." width={480}>
+      <DialogContent title={`Ajustar ${l.nome}`} description="O ajuste fica registrado com seu nome e a data." width={480}>
         <div className="flex flex-col gap-4">
           <dl className="m-0 grid grid-cols-2 gap-3 rounded-controle border border-line-soft bg-subtle px-3.5 py-2.5">
             <div>
@@ -127,7 +127,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
             <Stepper id="qtd-ajuste" valor={qtd} onChange={setQtd} min={0} tamanho="md" autoFocus />
           </Field>
 
-          <Field label="Motivo" htmlFor="motivo-ajuste" obrigatorio hint="Vai para o histórico e para quem pediu.">
+          <Field label="Motivo (opcional)" htmlFor="motivo-ajuste" hint="Se escrever, vai para o histórico e para quem pediu.">
             <Textarea id="motivo-ajuste" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação" className="min-h-[84px]" />
           </Field>
 
@@ -290,8 +290,9 @@ function Linha({
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
   const dicas = [l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   const temAcoes = editavel || l.tipo === "PROJETO";
+  const opcional = conferenciaOpcional(l);
   return (
-    <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
+    <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida || opcional ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
       {editavel ? (
         <Check l={l} eventoId={eventoId} onMudou={onMudou} />
       ) : (
@@ -315,6 +316,11 @@ function Linha({
             <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>
             <span className="text-rotulo text-muted">{GRUPO_LABEL[l.grupo]}</span>
             {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
+            {opcional && !conferida && (
+              <span className="text-rotulo text-muted" title="Não precisa estar conferida para fechar a ata.">
+                · {l.quantidade === 0 ? "a definir, " : ""}opcional
+              </span>
+            )}
           </p>
         )}
         <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">
@@ -382,6 +388,164 @@ function Linha({
   );
 }
 
+/** Partes de "+4 Fechamento lateral · −1 Calha de lona" (o resumo dos ajustes de peças). */
+const partesAjuste = (l: LinhaConferencia) => (l.origem?.ajustes ? l.origem.ajustes.split(" · ") : []);
+
+/**
+ * Linhas do mesmo pedido, mesma pessoa e mesmo local numa linha só (ex.: 2 tendas 5×5 da SOL-0045 no
+ * Depósito). Quando as unidades não têm as mesmas peças (uma sem calha), um alerta mostra a diferença;
+ * cada linha continua com o próprio ajuste, peças e descrição.
+ */
+function LinhaJunta({
+  ls,
+  eventoId,
+  editavel,
+  onConferir,
+  onAjustar,
+  onEditarDescricao,
+  pendente,
+}: {
+  ls: readonly LinhaConferencia[];
+  eventoId: string;
+  editavel: boolean;
+  onConferir: (ls: readonly LinhaConferencia[], v: boolean) => void;
+  onAjustar: (l: LinhaConferencia) => void;
+  onEditarDescricao?: (l: LinhaConferencia) => void;
+  pendente: boolean;
+}) {
+  const l0 = ls[0];
+  const ok = ls.filter((l) => l.conferidoEm).length;
+  const conferida = ok === ls.length;
+  const total = ls.reduce((a, l) => a + l.quantidade, 0);
+  const pedido = ls.reduce((a, l) => a + (l.origem?.quantidadeSolicitada ?? l.quantidade), 0);
+  // Descrições somadas por texto (as mesmas 2 tendas "azul" de duas linhas viram "2× azul").
+  const descricoes = new Map<string, number>();
+  for (const l of ls) for (const d of l.origem?.descricoes ?? []) descricoes.set(d.texto, (descricoes.get(d.texto) ?? 0) + d.unidades);
+  const observacoes = [...new Set(ls.map((l) => l.origem?.observacao).filter((o): o is string => Boolean(o)))];
+  // Variações de peças: o que é comum a todas fica numa linha; o que muda vira alerta.
+  const variantes = new Map<string, LinhaConferencia[]>();
+  for (const l of ls) variantes.set(l.origem?.ajustes ?? "", [...(variantes.get(l.origem?.ajustes ?? "") ?? []), l]);
+  const comuns = partesAjuste(l0).filter((p) => ls.every((l) => partesAjuste(l).includes(p)));
+  const diferentes = variantes.size > 1;
+  const ajustadas = ls.filter((l) => l.ultimoAjuste);
+  return (
+    <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
+      {editavel ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={conferida ? true : ok > 0 ? "mixed" : false}
+          aria-label={`${l0.nome}, ${ls.length} linhas: ${conferida ? "conferidas, clique para desfazer" : "marcar todas como conferidas"}`}
+          title={conferida ? "Conferidas — clique para desfazer" : `Marcar as ${ls.length} linhas como conferidas`}
+          disabled={pendente}
+          onClick={() => onConferir(ls, !conferida)}
+          className={cn(
+            "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-150 disabled:cursor-progress disabled:opacity-60",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success",
+          )}
+        >
+          {ok > 0 && !conferida ? <span className="numero text-rotulo font-semibold">{ok}/{ls.length}</span> : <Icone nome="check" tamanho={20} />}
+        </button>
+      ) : (
+        <span role="img" aria-label={conferida ? "Conferido" : `${ok} de ${ls.length} conferidas`} className={cn("grid size-10 place-items-center rounded-full border-2", conferida ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
+          <Icone nome="check" tamanho={20} />
+        </span>
+      )}
+
+      <div className="min-w-0">
+        <p className="m-0 text-corpo font-medium text-ink">
+          {areaDe(l0)} · {pessoaDe(l0)}
+          <span className="numero ml-2 rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">{ls.length} linhas</span>
+        </p>
+        <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">
+          <span className="md:hidden">{l0.destino ? `${l0.destino} · ` : ""}</span>
+          {l0.origem && (
+            <Link href={`/solicitacoes/${l0.origem.solicitacaoId}`} className="text-ink-3 no-underline hover:text-accent hover:underline">
+              <Codigo>{l0.origem.codigo}</Codigo>
+            </Link>
+          )}
+        </p>
+        {descricoes.size > 0 && <Descricoes grupos={[...descricoes.entries()].map(([texto, unidades]) => ({ texto, unidades }))} />}
+        {observacoes.map((o) => (
+          <p key={o} className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
+            <span className="text-muted">Obs.: </span>
+            {o}
+          </p>
+        ))}
+        {comuns.length > 0 && <p className="m-0 mt-0.5 text-rotulo text-muted">Peças ajustadas{diferentes ? " em todas" : ""}: {comuns.join(" · ")}</p>}
+        {diferentes && (
+          <div role="note" className="mt-1.5 rounded-controle border border-warning-border bg-warning-bg px-2.5 py-1.5 text-pequeno text-warning">
+            <p className="m-0 flex items-center gap-1.5 font-medium">
+              <Icone nome="alerta" className="size-3.5 shrink-0" />
+              As unidades não são iguais
+            </p>
+            <ul className="m-0 mt-0.5 list-none space-y-0.5 p-0 text-ink-2">
+              {[...variantes.values()].map((vs) => {
+                const extras = partesAjuste(vs[0]).filter((p) => !comuns.includes(p));
+                const q = vs.reduce((a, l) => a + l.quantidade, 0);
+                const quais = [...new Set(vs.flatMap((l) => (l.origem?.descricoes ?? []).map((d) => d.texto)).filter(Boolean))].join(", ");
+                return (
+                  <li key={vs[0].id} className="flex gap-1.5">
+                    <span className="numero shrink-0 font-medium text-ink">{q} un.</span>
+                    <span className="min-w-0">
+                      {quais && <span className="text-ink">{quais}: </span>}
+                      {extras.length ? extras.join(" · ") : variantes.size === 2 ? "sem esse ajuste" : "sem ajuste a mais"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {ajustadas.map((l) => (
+          <p key={l.id} className="m-0 mt-0.5 line-clamp-2 text-rotulo text-warning">
+            <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />
+            Ajustado por {l.ultimoAjuste!.por}: {l.ultimoAjuste!.descricao}
+          </p>
+        ))}
+        {/* Cada linha segue com o próprio ajuste de quantidade, peças e descrição. */}
+        <ul className="m-0 mt-1.5 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-rotulo">
+          {ls.map((l, i) => (
+            <li key={l.id} className="inline-flex items-center gap-1.5 text-muted">
+              <span className="numero">
+                Linha {i + 1} · {l.quantidade} un.{l.conferidoEm ? " ✓" : ""}
+              </span>
+              {editavel && (
+                <button type="button" onClick={() => onAjustar(l)} className="cursor-pointer border-0 bg-transparent p-0 text-accent hover:underline" title={`Ajustar a quantidade da linha ${i + 1}`}>
+                  ajustar
+                </button>
+              )}
+              {l.tipo === "PROJETO" && (
+                <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-accent no-underline hover:underline" title={`Peças da linha ${i + 1}`}>
+                  peças
+                </Link>
+              )}
+              {onEditarDescricao && l.origem && (
+                <button type="button" onClick={() => onEditarDescricao(l)} className="cursor-pointer border-0 bg-transparent p-0 text-accent hover:underline">
+                  descrição
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <span className="hidden break-words text-pequeno text-ink-2 md:line-clamp-2" title={l0.destino ?? undefined}>
+        {l0.destino ?? <span className="text-meta">—</span>}
+      </span>
+
+      <span className="text-right">
+        <span className="block text-secao font-semibold text-ink">
+          <QuantidadeAta valor={total} />
+        </span>
+        {pedido !== total && <span className="numero block text-rotulo text-muted">pedido {pedido}</span>}
+      </span>
+      <span className="hidden md:block" />
+    </li>
+  );
+}
+
 /**
  * Conferência da ata na reunião de OS — usada ao vivo, então vale velocidade: check grande por linha,
  * progresso sempre à vista (barra fixa no topo ao rolar), filtro por situação e por área, busca.
@@ -428,10 +592,13 @@ export function ConferenciaAta({
   const [conferindo, iniciarTodas] = useTransition();
   const [confirmarTodas, setConfirmarTodas] = useState(false);
 
-  const conferidas = linhas.filter((l) => l.conferidoEm).length;
-  const pendentes = linhas.length - conferidas;
-  const pct = linhas.length ? Math.round((conferidas / linhas.length) * 100) : 0;
-  const completo = linhas.length > 0 && pendentes === 0;
+  // Progresso sobre as linhas obrigatórias: "a definir" e estaiamento não travam o fechamento.
+  const obrigatorias = linhas.filter((l) => !conferenciaOpcional(l));
+  const conferidas = obrigatorias.filter((l) => l.conferidoEm).length;
+  const pendentes = obrigatorias.length - conferidas;
+  const pct = obrigatorias.length ? Math.round((conferidas / obrigatorias.length) * 100) : 0;
+  const completo = obrigatorias.length > 0 && pendentes === 0;
+  const opcionaisPendentes = linhas.filter((l) => conferenciaOpcional(l) && !l.conferidoEm).length;
   const areasNaAta = useMemo(() => [...new Set(linhas.map(areaDe))].sort((a, b) => a.localeCompare(b, "pt-BR")), [linhas]);
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
   const pessoasNaAta = useMemo(() => [...new Set(linhas.map(pessoaDe))].sort(porNome), [linhas]);
@@ -488,6 +655,31 @@ export function ConferenciaAta({
     });
   };
 
+  // Várias linhas de uma vez (linha junta): marca as que faltam ou desmarca todas.
+  const conferirVarias = (ls: readonly LinhaConferencia[], v: boolean) => {
+    if (v) return conferirGrupo(ls);
+    const ids = ls.filter((l) => l.conferidoEm).map((l) => l.id);
+    setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, false])) }));
+    iniciarTodas(async () => {
+      for (const id of ids) {
+        const r = await conferirLinhaAction(eventoId, id, false);
+        if (!r.ok) {
+          setOverride((o) => ({ ...o, [id]: true }));
+          toastErro(r.erro);
+        }
+      }
+    });
+  };
+  // Dentro do bloco do item: linhas do mesmo pedido, pessoa e local ficam juntas.
+  const juntar = (ls: readonly LinhaConferencia[]) => {
+    const m = new Map<string, LinhaConferencia[]>();
+    for (const l of ls) {
+      const k = l.origem ? `${l.origem.solicitacaoId}|${l.destino ?? ""}|${pessoaDe(l)}` : l.id;
+      m.set(k, [...(m.get(k) ?? []), l]);
+    }
+    return [...m.values()];
+  };
+
   return (
     <section className="min-w-0 rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
       {/* Progresso fixo: continua à vista enquanto a lista rola (a reunião acompanha por ele). */}
@@ -496,9 +688,14 @@ export function ConferenciaAta({
           <p className="m-0 flex items-baseline gap-1.5" aria-live="polite">
             <span className={cn("numero text-titulo font-semibold", completo ? "text-success" : "text-ink")}>{conferidas}</span>
             <span className="text-corpo text-ink-2">
-              de <span className="numero">{linhas.length}</span> conferidas
+              de <span className="numero">{obrigatorias.length}</span> conferidas
             </span>
             <span className="numero text-pequeno text-muted">· {pct}%</span>
+            {opcionaisPendentes > 0 && (
+              <span className="text-pequeno text-muted" title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
+                · {opcionaisPendentes} {opcionaisPendentes === 1 ? "opcional" : "opcionais"}
+              </span>
+            )}
           </p>
           {editavel && (
             <span className="ml-auto flex items-center gap-1.5">
@@ -514,7 +711,7 @@ export function ConferenciaAta({
             </span>
           )}
         </div>
-        <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={linhas.length} aria-valuenow={conferidas} className="mt-2">
+        <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={obrigatorias.length} aria-valuenow={conferidas} className="mt-2">
           <BarraProgresso pct={pct} tom={completo ? "success" : "neutro"} altura={6} />
         </div>
       </div>
@@ -638,9 +835,13 @@ export function ConferenciaAta({
                       )}
                     </h4>
                     <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
-                      {ls.map((l) => (
-                        <Linha key={l.id} l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo />
-                      ))}
+                      {juntar(ls).map((js) =>
+                        js.length > 1 ? (
+                          <LinhaJunta key={js[0].id} ls={js} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} onAjustar={setAjustando} onEditarDescricao={editarDescricao} pendente={conferindo} />
+                        ) : (
+                          <Linha key={js[0].id} l={js[0]} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo />
+                        ),
+                      )}
                     </ul>
                   </section>
                 );
@@ -676,7 +877,7 @@ export function ConferenciaAta({
                 onClick={() =>
                   iniciarTodas(async () => {
                     // Só as linhas que estão na tela: o que chegar depois continua pendente.
-                    const r = await conferirTodasAction(eventoId, linhas.filter((l) => !l.conferidoEm).map((l) => l.id));
+                    const r = await conferirTodasAction(eventoId, obrigatorias.filter((l) => !l.conferidoEm).map((l) => l.id));
                     avisarTodas(r, `${r.ok ? (r.dados?.marcadas ?? pendentes) : pendentes} linhas marcadas como conferidas`);
                     setConfirmarTodas(false);
                   })

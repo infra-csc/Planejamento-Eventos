@@ -1,3 +1,4 @@
+import { conferenciaOpcional } from "@/domain/itens-padrao";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -40,7 +41,9 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(ev.status === "ABERTO" && pode(usuario, "os.ver") ? `/eventos/${id}/os` : `/eventos/${id}/ata`);
 
   const [linhas, opcoes, areas] = await Promise.all([obterConferencia(id), opcoesReferenciasResumidas(), listarAreasCache()]);
-  const conferidas = linhas.filter((l) => l.conferidoEm).length;
+  // O fechamento só exige as linhas obrigatórias ("a definir" e estaiamento ficam de fora).
+  const obrigatorias = linhas.filter((l) => !conferenciaOpcional(l));
+  const conferidas = obrigatorias.filter((l) => l.conferidoEm).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,7 +83,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
         codigo={ev.codigo}
         status={ev.status}
         conferidas={conferidas}
-        total={linhas.length}
+        total={obrigatorias.length}
         presentesOk={Boolean(ev.reuniaoPresentes?.trim())}
         iniciadaEm={ev.status === "EM_REUNIAO" && ev.reuniaoIniciadaEm ? diaMesHora(ev.reuniaoIniciadaEm) : null}
       />

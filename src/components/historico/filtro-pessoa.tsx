@@ -25,7 +25,7 @@ export function FiltroPessoa({ pessoas }: { pessoas: Array<{ id: string; nome: s
   };
 
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto" aria-busy={pendente || undefined}>
+    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:min-w-[220px] sm:flex-1" aria-busy={pendente || undefined}>
       <label htmlFor="filtro-pessoa" className="sr-only">
         Quem fez
       </label>
@@ -33,8 +33,8 @@ export function FiltroPessoa({ pessoas }: { pessoas: Array<{ id: string; nome: s
         id="filtro-pessoa"
         value={atual}
         onChange={(v) => ir(v)}
-        placeholder="Todas as pessoas — buscar por nome"
-        className="w-full min-w-0 flex-1 sm:w-[300px] sm:flex-none"
+        placeholder="Todas as pessoas"
+        className="w-full min-w-0 flex-1"
         opcoes={pessoas.map((p) => ({ value: p.id, label: p.nome, descricao: p.perfil, selo: String(p.n), seloTom: "muted" as const }))}
       />
       {atual && (

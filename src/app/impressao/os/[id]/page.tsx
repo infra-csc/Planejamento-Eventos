@@ -1,3 +1,4 @@
+import { individuaisAgrupadas, textoLocais } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
 import { obterEventoCache } from "@/server/cache";
@@ -173,7 +174,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       {os.individuais && os.individuais.length > 0 && (
         <section className="mb-8 break-inside-avoid">
           <h2 className="mb-1 mt-0 text-destaque font-semibold">Peças pedidas soltas</h2>
-          <p className="mb-2 mt-0 text-rotulo text-ink-3">Fora de projeto padrão. Também somadas nos totais.</p>
+          <p className="mb-2 mt-0 text-rotulo text-ink-3">Fora de projeto padrão, somadas por peça. Também estão nos totais.</p>
           <Rolagem>
             <table className={tabela}>
               <thead>
@@ -188,8 +189,8 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                 </tr>
               </thead>
               <tbody>
-                {os.individuais.map((x, i) => (
-                  <tr key={`${x.codigo}-${i}`} className={linha}>
+                {individuaisAgrupadas(os.individuais).map((x) => (
+                  <tr key={x.codigo} className={linha}>
                     <td className={`${td} text-pequeno`}>
                       <Codigo>{x.codigo}</Codigo>
                     </td>
@@ -197,7 +198,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                     <td className={`${td} text-rotulo text-ink-3`}>{GRUPO_LABEL[grupoDoCodigo(mapa, x.codigo, x.setor)]}</td>
                     <td className={`${num} font-semibold`}>{x.quantidade}</td>
                     <td className={`${td} text-pequeno text-ink-2`}>{x.unidade}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
+                    <td className={`${td} text-rotulo text-ink-3`}>{textoLocais(x.locais)}</td>
                     <td className={sep}>☐</td>
                   </tr>
                 ))}

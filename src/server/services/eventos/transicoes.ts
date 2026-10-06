@@ -10,6 +10,7 @@ import { montarAtaConteudo } from "./ata";
 import { solicitacoesPendentes } from "./consultas";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
 import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
+import { condicaoConferenciaObrigatoria } from "@/server/services/eventos/itens-padrao";
 
 /* ------------------------------------------------------------------ */
 /* Máquina de estados                                                   */
@@ -127,10 +128,11 @@ async function fecharAta(ctx: ContextoTransicao) {
     throw new DomainError(`Ainda há ${Number(pend[0].n)} item(ns) de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.`);
   }
   // A ata só fecha depois de a logística conferir cada linha na reunião e registrar quem estava presente.
+  // "A definir" (quantidade 0) e estaiamento não travam: a projetista completa depois.
   const [naoConferidas] = await tx
-    .select({ n: count(), total: sql<number>`count(*)` })
+    .select({ n: count() })
     .from(eventoItens)
-    .where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+    .where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`, await condicaoConferenciaObrigatoria(tx)));
   const [ativas] = await tx.select({ n: count() }).from(eventoItens).where(and(eq(eventoItens.eventoId, id), eq(eventoItens.ativo, true)));
   if (Number(ativas.n) === 0) throw new DomainError("A ata não tem nenhuma linha. Inclua os itens do evento antes de fechar.");
   const nc = Number(naoConferidas.n);

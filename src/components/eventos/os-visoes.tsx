@@ -1,4 +1,4 @@
-import { SETOR_LABEL } from "@/domain/os";
+import { SETOR_LABEL, individuaisAgrupadas, textoLocais } from "@/domain/os";
 import type { OsConteudo } from "@/server/db/schema";
 import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -71,7 +71,7 @@ export function OsVisoes({
               [
                 ["totais", "Totais por peça", os.setores.reduce((a, s) => a + s.linhas.length, 0)],
                 ["projetos", "Por projeto", os.projetos?.length ?? 0],
-                ["individuais", "Soltas e avulsos", (os.individuais?.length ?? 0) + os.semSetor.length],
+                ["individuais", "Soltas e avulsos", individuaisAgrupadas(os.individuais ?? []).length + os.semSetor.length],
                 ...(composicao ? ([["composicao", composicao.ajustavel ? "Itens · ajustar" : "Itens da OS", composicao.n]] as const) : []),
               ] as const
             ).map(([chave, rotulo, n]) => ({ label: rotulo, n: n >= 0 ? n : undefined, ativo: visao === chave, href: hrefVisao(chave) }))}
@@ -150,7 +150,7 @@ export function OsVisoes({
             </Section>
           )}
           {os.individuais && os.individuais.length > 0 && (
-            <Section titulo="Peças do catálogo pedidas soltas" sub="Fora de projeto padrão. Também estão somadas nos totais por peça.">
+            <Section titulo="Peças do catálogo pedidas soltas" sub="Fora de projeto padrão, somadas por peça (com cada local). Também estão nos totais por peça.">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[600px] border-collapse">
                   <CaptionOculta>Peças soltas</CaptionOculta>
@@ -166,8 +166,8 @@ export function OsVisoes({
                     </tr>
                   </thead>
                   <tbody>
-                    {os.individuais.map((x, i) => (
-                      <tr key={`${x.codigo}-${i}`} className="hover:bg-subtle">
+                    {individuaisAgrupadas(os.individuais).map((x) => (
+                      <tr key={x.codigo} className="hover:bg-subtle">
                         <td className={tdCodigo}>
                           <Codigo>{x.codigo}</Codigo>
                         </td>
@@ -175,7 +175,7 @@ export function OsVisoes({
                           {x.nome}
                         </th>
                         <td className={`${td} text-pequeno text-muted`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
-                        <td className={`${td} text-pequeno text-ink-2`}>{[x.destino, x.area].filter(Boolean).join(" · ") || "—"}</td>
+                        <td className={`${td} text-pequeno text-ink-2`}>{textoLocais(x.locais)}</td>
                         <td className={tdTotal}>
                           <Total n={x.quantidade} unidade={x.unidade} />
                         </td>

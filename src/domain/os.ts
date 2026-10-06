@@ -156,6 +156,33 @@ export function resumirAjustes(ajustes: AjusteBom[] | null | undefined): string 
     .join(" · ");
 }
 
+type PecaSolta = NonNullable<OsConteudo["individuais"]>[number];
+export type PecaSoltaAgrupada = Omit<PecaSolta, "destino" | "area"> & { locais: Array<{ destino: string | null; area: string | null; quantidade: number }> };
+
+/**
+ * Peças soltas somadas por código (o mesmo cavalete pedido por duas áreas vira uma linha com o total),
+ * com cada local e área ao lado. Em ordem alfabética do nome.
+ */
+export function individuaisAgrupadas(xs: readonly PecaSolta[]): PecaSoltaAgrupada[] {
+  const m = new Map<string, PecaSoltaAgrupada>();
+  for (const x of xs) {
+    const g = m.get(x.codigo) ?? { codigo: x.codigo, nome: x.nome, setor: x.setor, unidade: x.unidade, quantidade: 0, locais: [] };
+    g.quantidade += x.quantidade;
+    const local = g.locais.find((l) => l.destino === x.destino && l.area === x.area);
+    if (local) local.quantidade += x.quantidade;
+    else g.locais.push({ destino: x.destino, area: x.area, quantidade: x.quantidade });
+    m.set(x.codigo, g);
+  }
+  return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/** "Dispersão · Produção" (um local) ou "Dispersão · Produção: 8; STAND · Ativação: 2" (vários). */
+export function textoLocais(locais: PecaSoltaAgrupada["locais"]): string {
+  const rotulo = (l: PecaSoltaAgrupada["locais"][number]) => [l.destino, l.area].filter(Boolean).join(" · ");
+  if (locais.length === 1) return rotulo(locais[0]) || "—";
+  return locais.map((l) => `${rotulo(l) || "sem local"}: ${l.quantidade}`).join("; ");
+}
+
 export function totalPecas(os: OsConteudo): number {
   return os.setores.reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
 }

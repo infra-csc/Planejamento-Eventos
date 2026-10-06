@@ -1,3 +1,4 @@
+import { individuaisAgrupadas } from "@/domain/os";
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getUsuarioAtual } from "@/server/auth/session";
@@ -156,7 +157,20 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Peças soltas ---------- */
   const solt = wb.addWorksheet("Peças soltas", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
   faixaTitulo(solt, 8, "NORTE MKT", "Peças soltas", `${cab} · pedidas fora de projeto`);
-  const linhasSolt = (os.individuais ?? []).map((x) => [x.codigo, x.nome, material(x.codigo, x.setor), x.quantidade, x.unidade, x.destino ?? "—", x.area ?? "—", CHECK] as Array<string | number>);
+  // Mesma peça pedida por várias áreas/locais: uma linha com o total, e os locais ao lado.
+  const linhasSolt = individuaisAgrupadas(os.individuais ?? []).map(
+    (x) =>
+      [
+        x.codigo,
+        x.nome,
+        material(x.codigo, x.setor),
+        x.quantidade,
+        x.unidade,
+        x.locais.length === 1 ? (x.locais[0].destino ?? "—") : x.locais.map((l) => `${l.destino ?? "sem local"} (${l.quantidade})`).join(", "),
+        [...new Set(x.locais.map((l) => l.area).filter(Boolean))].join(", ") || "—",
+        CHECK,
+      ] as Array<string | number>,
+  );
   tabela(
     solt,
     "PecasSoltas",

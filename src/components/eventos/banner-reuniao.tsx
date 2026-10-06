@@ -28,7 +28,7 @@ export function BannerReuniao({
   nome: string;
   codigo: string;
   status: EventoStatus;
-  /** Linhas da ata conferidas item a item na reunião. */
+  /** Linhas obrigatórias conferidas item a item na reunião ("a definir" e estaiamento ficam de fora). */
   conferidas: number;
   total: number;
   /** "Pessoas presentes" preenchido: exigido para fechar. */

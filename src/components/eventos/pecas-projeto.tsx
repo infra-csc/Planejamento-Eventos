@@ -55,7 +55,7 @@ export function PecasProjeto({
 
   const salvar = () => {
     if (!edicao?.pecaId) return setErro("Escolha a peça.");
-    if (!motivo.trim()) return setErro("Informe o motivo. Ele fica no histórico.");
+    if (depoisDaAta && !motivo.trim()) return setErro("Com a ata fechada, informe o motivo. Ele fica no histórico e vai para a área.");
     const pecaId = edicao.pecaId;
     iniciar(async () => {
       const r = await ajustarPecaDoProjetoAction(eventoId, linhaId, pecaId, qtd, motivo);
@@ -131,7 +131,7 @@ export function PecasProjeto({
         <Dialog open onOpenChange={(o) => !o && setEdicao(null)}>
           <DialogContent
             title={edicao.codigo ? `Ajustar ${edicao.codigo}` : "Incluir peça no projeto"}
-            description={depoisDaAta ? "A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área." : "Ajuste só deste projeto neste evento. Fica no histórico com seu nome e o motivo."}
+            description={depoisDaAta ? "A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área." : "Ajuste só deste projeto neste evento. Fica no histórico com seu nome (e o motivo, se escrever)."}
             width={460}
           >
             <div className="flex flex-col gap-3.5">
@@ -160,7 +160,7 @@ export function PecasProjeto({
                   {qtd === 0 && edicao.codigo ? " · retira a peça" : ""}
                 </p>
               </div>
-              <Field label="Motivo" htmlFor="motivo-peca" obrigatorio>
+              <Field label={depoisDaAta ? "Motivo" : "Motivo (opcional)"} htmlFor="motivo-peca" obrigatorio={depoisDaAta}>
                 <Textarea id="motivo-peca" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 2 tramos disponíveis; o cliente pediu vão menor" className="min-h-[72px]" />
               </Field>
               <FormError message={erro} />

@@ -1,6 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { eventoItens, pecas } from "@/server/db/schema";
-import { ITENS_PADRAO_ATA } from "@/domain/itens-padrao";
+import { CODIGOS_CONFERENCIA_OPCIONAL, ITENS_PADRAO_ATA } from "@/domain/itens-padrao";
 import { registrarHistorico, type Executor } from "../support";
 
 /**
@@ -36,4 +36,15 @@ export async function incluirItensPadraoAta(tx: Executor, eventoId: string, usua
     incluidas.push(linha);
   }
   return incluidas;
+}
+
+/**
+ * Condição SQL das linhas que precisam estar conferidas para fechar a ata (fora "a definir" e estaiamento,
+ * ver `conferenciaOpcional`).
+ */
+export async function condicaoConferenciaObrigatoria(tx: Executor): Promise<SQL> {
+  const opcionais = await tx.select({ id: pecas.id }).from(pecas).where(inArray(pecas.codigo, [...CODIGOS_CONFERENCIA_OPCIONAL]));
+  const base = sql`${eventoItens.quantidade} > 0`;
+  if (opcionais.length === 0) return base;
+  return and(base, or(ne(eventoItens.tipo, "PECA"), isNull(eventoItens.pecaId), notInArray(eventoItens.pecaId, opcionais.map((p) => p.id))))!;
 }

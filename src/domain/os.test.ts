@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularOS, diffOS, type LinhaAta } from "./os";
+import { calcularOS, diffOS, individuaisAgrupadas, textoLocais, type LinhaAta } from "./os";
 
 const bomPortico = [
   { pecaId: "p400", codigo: "BOX-400", nome: "Box 400", setor: "ESTRUTURA" as const, unidade: "un", quantidade: 1 },
@@ -50,5 +50,19 @@ describe("calcularOS", () => {
     expect(d).toHaveLength(4);
     expect(d.find((x) => x.codigo === "BOX-600")).toMatchObject({ antes: 5, depois: 10 });
     expect(diffOS(a, a)).toEqual([]);
+  });
+});
+
+describe("peças soltas na OS", () => {
+  it("somam por código, com cada local e área", () => {
+    const cav = { codigo: "CAV-RETO", nome: "Cavalete reto", setor: "ARENA" as const, unidade: "un" };
+    const g = individuaisAgrupadas([
+      { ...cav, quantidade: 8, destino: "Dispersão", area: "Produção" },
+      { ...cav, quantidade: 2, destino: "STAND", area: "Ativação" },
+      { codigo: "CONE-G", nome: "Cone grande", setor: "ARENA", unidade: "un", quantidade: 5, destino: null, area: "Produção" },
+    ]);
+    expect(g.map((x) => [x.codigo, x.quantidade])).toEqual([["CAV-RETO", 10], ["CONE-G", 5]]);
+    expect(textoLocais(g[0].locais)).toBe("Dispersão · Produção: 8; STAND · Ativação: 2");
+    expect(textoLocais(g[1].locais)).toBe("Produção");
   });
 });

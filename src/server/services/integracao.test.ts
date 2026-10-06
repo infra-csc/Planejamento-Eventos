@@ -413,6 +413,10 @@ describe("caminho único para mudar a quantidade de uma linha da ata", { timeout
     expect((await historicoDoItem(item.id))[0].acao).toBe("RESPOSTA_CORRIGIDA");
     // A tela ainda mostrava 5: recusa em vez de sobrescrever.
     await expect(ajustarLinhaNaConferencia(logistica, ev.id, linhaId, 3, "Outro motivo", { quantidadeEsperada: 5 })).rejects.toThrow("Outra pessoa mudou esta linha para 4 enquanto você editava. Confira e tente de novo.");
+    // Motivo é opcional antes de fechar a ata: sem ele, a resposta registra que foi ajuste da reunião.
+    await ajustarLinhaNaConferencia(logistica, ev.id, linhaId, 3, "", { quantidadeEsperada: 4 });
+    sol = await obterSolicitacao(logistica, s.id);
+    expect(sol.itens[0]).toMatchObject({ status: "PARCIAL", quantidadeAtendida: 3, observacaoLogistica: "Ajustado na reunião de OS" });
 
     await fecharAta(ev.id);
     const db = await getDb();
@@ -420,7 +424,7 @@ describe("caminho único para mudar a quantidade de uma linha da ata", { timeout
     const versoesAntes = (await listarOsResumo(ev.id)).length;
     // Aba Ata depois do fechamento: motivo obrigatório, mesma regra (pré-reunião também é corrigida aqui).
     await expect(alterarQuantidadeLinha(logistica, ev.id, linhaId, 5, null)).rejects.toThrow(/motivo/i);
-    await alterarQuantidadeLinha(logistica, ev.id, linhaId, 5, "Chegou a unidade reservada", { quantidadeEsperada: 4 });
+    await alterarQuantidadeLinha(logistica, ev.id, linhaId, 5, "Chegou a unidade reservada", { quantidadeEsperada: 3 });
     sol = await obterSolicitacao(logistica, s.id);
     expect(sol.itens[0]).toMatchObject({ status: "ATENDIDO", quantidadeAtendida: 5, pendenciaCompra: false });
     expect((await linha(linhaId)).quantidade).toBe(5);
@@ -431,6 +435,19 @@ describe("caminho único para mudar a quantidade de uma linha da ata", { timeout
     await alterarQuantidadeLinha(logistica, ev.id, linhaId, 0, "Cliente desistiu", { quantidadeEsperada: 5 });
     expect((await obterSolicitacao(logistica, s.id)).itens[0]).toMatchObject({ status: "NAO_ATENDIDO", quantidadeAtendida: 0 });
     await expect(alterarQuantidadeLinha(logistica, ev.id, linhaId, 2, "Voltou", { quantidadeEsperada: 5 })).rejects.toThrow(/removeu esta linha/);
+  });
+
+  it("linhas a definir (0) e de estaiamento não travam o fechamento da ata", async () => {
+    const { ev, linhaId } = await eventoEmReuniaoComPedido(2);
+    const db = await getDb();
+    // Uma linha "a definir" sem conferência (como os itens padrão que vêm com 0).
+    await db.insert(eventoItens).values({ eventoId: ev.id, tipo: "PECA", pecaId, quantidade: 0, origem: "AJUSTE_LOGISTICA" });
+    await conferirTodasLinhas(logistica, ev.id, [linhaId]);
+    const pendentes = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.ativo, true)));
+    expect(pendentes.some((l) => !l.conferidoEm)).toBe(true);
+    await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
+    await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
+    expect((await db.query.eventos.findFirst({ where: (e, { eq: igual }) => igual(e.id, ev.id) }))?.status).toBe("ABERTO");
   });
 
   it("atendido integralmente pela aba Ata zera a pendência de compra", async () => {

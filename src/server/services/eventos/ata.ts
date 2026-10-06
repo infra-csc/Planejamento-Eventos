@@ -264,7 +264,7 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
 /**
  * Ajuste de quantidade pela aba Ata/OS (canetinha com justificativa). Mesmo caminho da conferência
  * (`ajustarQuantidadeLinha` em conferencia.ts): linha que veio de um pedido vira resposta/correção do item;
- * linha sem origem ajusta direto. Motivo sempre obrigatório. `quantidadeEsperada` é a quantidade que a tela
+ * linha sem origem ajusta direto. Motivo opcional antes de fechar a ata; obrigatório depois. `quantidadeEsperada` é a quantidade que a tela
  * mostrava: se a linha mudou nesse meio-tempo, o ajuste é recusado.
  */
 export async function alterarQuantidadeLinha(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, justificativa: string | null, opcoes: { quantidadeEsperada?: number | null } = {}) {

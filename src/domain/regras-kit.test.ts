@@ -28,6 +28,15 @@ describe("regras do kit", () => {
     expect(qtd(r)).toEqual({ "CAV-RETO": 6, "PE-GRADE-2X1": 90 });
   });
 
+  it("prisma: 2 grades 2×1 cada, somadas às pedidas; os pés contam as duas", () => {
+    const r = calcularRegrasKit([
+      { tipo: "PECA", quantidade: 10, pecaCodigo: "PRISMA" },
+      { tipo: "PECA", quantidade: 5, pecaCodigo: "GRADE-2X1" },
+    ]);
+    // 20 grades do prisma (além das 5 pedidas) e 2 pés por grade: (5 + 20) × 2.
+    expect(qtd(r)).toEqual({ "GRADE-2X1": 20, "PE-GRADE-2X1": 50 });
+  });
+
   it("sem nada que puxe regra, tudo zero", () => {
     expect(qtd(calcularRegrasKit([{ tipo: "PECA", quantidade: 5, pecaCodigo: "CONE-G" }]))).toEqual({});
   });

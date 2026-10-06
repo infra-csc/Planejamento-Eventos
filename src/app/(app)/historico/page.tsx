@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { listarHistoricoGeral, resumoHistorico, type RegistroHistorico } from "@/server/services/historico-geral";
 import { CATEGORIAS, CATEGORIAS_HISTORICO, PERIODOS_HISTORICO, diferencas, ehCategoria, ehPeriodo, hrefHistorico, rotuloAcao, type PeriodoHistorico } from "@/domain/historico-geral";
 import { PERFIL_LABEL } from "@/domain/permissions";
-import { diaMesHora, formatarDataHora, tempoRelativo } from "@/lib/format";
+import { addDiasISO, diaMes, diaSemanaCurto, formatarDataHora, hojeISO, hora, isoSP, tempoRelativo } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
 import { Icone } from "@/components/ui/icons";
 import { EmptyState, Metric, MetricStrip, PageHeader } from "@/components/ui/layout";
-import { Badge, Tag } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/badge";
 import { Codigo } from "@/components/ui/numero";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
@@ -72,10 +73,10 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
       </MetricStrip>
 
       {/* Filtros: período, texto, evento e pessoa numa barra só. */}
-      <div className="mb-4 flex flex-col gap-2.5 lg:flex-row lg:flex-wrap lg:items-center">
+      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
         <Pills rotulo="Período" itens={(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).map((p) => ({ label: PERIODOS_HISTORICO[p].rotulo, href: hrefCom("/historico", params, { periodo: p === "30" ? null : p, pagina: null }), ativo: periodo === p }))} />
-        <BuscaUrl placeholder="Buscar no texto do registro" ariaLabel="Buscar no histórico" largura={260} />
-        {lista.eventos.length > 0 && <FiltroEvento eventos={lista.eventos.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: e.n }))} rotuloOculto />}
+        <BuscaUrl placeholder="Buscar no registro" ariaLabel="Buscar no histórico" largura={240} />
+        {lista.eventos.length > 0 && <FiltroEvento eventos={lista.eventos.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: e.n }))} rotuloOculto fluido />}
         {lista.pessoas.length > 0 && <FiltroPessoa pessoas={lista.pessoas.map((p) => ({ id: p.id, nome: p.nome, perfil: PERFIL_LABEL[p.perfil], n: p.n }))} />}
       </div>
 
@@ -109,7 +110,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                 <CaptionOculta>Registros do histórico, do mais recente para o mais antigo</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    <Th largura={118}>Quando</Th>
+                    <Th largura={84}>Hora</Th>
                     <Th largura={190}>Quem</Th>
                     <Th>O que aconteceu</Th>
                     <Th className="hidden lg:table-cell" largura={210}>
@@ -118,8 +119,15 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
                   </tr>
                 </thead>
                 <tbody>
-                  {lista.itens.map((h) => (
-                    <Linha key={h.id} h={h} agora={agora} />
+                  {porDia(lista.itens).map((d) => (
+                    <Fragment key={d.dia}>
+                      <tr>
+                        <th scope="rowgroup" colSpan={4} className="border-b border-line-row bg-subtle/70 px-cartao py-1.5 text-left text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                          {rotuloDia(d.dia)}
+                        </th>
+                      </tr>
+                      {d.blocos.map((b) => (b.length === 1 ? <Linha key={b[0].id} h={b[0]} agora={agora} /> : <LinhaSequencia key={b[0].id} hs={b} />))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -140,9 +148,9 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
     <tr className="hover:bg-subtle/60">
       <td className={cn(td, "numero whitespace-nowrap pl-cartao text-pequeno text-ink-2")}>
         <time dateTime={h.em.toISOString()} title={formatarDataHora(h.em)}>
-          {diaMesHora(h.em)}
+          {hora(h.em)}
         </time>
-        <span className="block text-rotulo text-meta">{tempoRelativo(h.em, agora)}</span>
+        {isoSP(h.em) === isoSP(agora) && <span className="block text-rotulo text-meta">{tempoRelativo(h.em, agora)}</span>}
       </td>
       <td className={cn(td, "text-pequeno")}>
         {h.autor ? (
@@ -161,14 +169,14 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
       </td>
       <td className={cn(td, "text-pequeno text-ink")}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Tag tom={h.categoria === "acesso" ? "muted" : h.categoria === "admin" ? "warning" : h.categoria === "solicitacoes" ? "accent" : h.categoria === "biblioteca" ? "success" : "info"}>{cat}</Tag>
+          <Tag tom={TOM_CATEGORIA(h.categoria)}>{cat}</Tag>
           <span className="font-medium">{rotuloAcao(h.acao)}</span>
         </div>
         <p className="m-0 mt-1 whitespace-pre-line text-ink-2">{href ? <Link href={href} className="link">{h.descricao}</Link> : h.descricao}</p>
         {dif.length > 0 && (
           <details className="mt-1 text-rotulo">
             <summary className="cursor-pointer list-none text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
-              {h.dadosAntes ? `${dif.length} ${dif.length === 1 ? "campo alterado" : "campos alterados"}` : "dados gravados"}
+              {h.dadosAntes ? `${dif.length} ${dif.length === 1 ? "campo alterado" : "campos alterados"}` : "ver dados"}
             </summary>
             <dl className="m-0 mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-controle bg-subtle px-2.5 py-1.5">
               {dif.map((d) => (
@@ -196,7 +204,110 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
         ) : (
           <span className="text-meta">—</span>
         )}
-        {!h.evento && h.categoria && <Badge tom="muted" className="mt-0.5 hidden">{cat}</Badge>}
+      </td>
+    </tr>
+  );
+}
+
+const TOM_CATEGORIA = (c: RegistroHistorico["categoria"]) => (c === "acesso" ? "muted" : c === "admin" ? "warning" : c === "solicitacoes" ? "accent" : c === "biblioteca" ? "success" : "info");
+
+/** "Hoje · seg 06/10", "Ontem · dom 05/10", "ter 29/09". */
+function rotuloDia(dia: string): string {
+  const hoje = hojeISO();
+  const d = new Date(`${dia}T12:00:00-03:00`);
+  const base = `${diaSemanaCurto(d)} ${diaMes(d)}`;
+  if (dia === hoje) return `Hoje · ${base}`;
+  if (dia === addDiasISO(hoje, -1)) return `Ontem · ${base}`;
+  return base;
+}
+
+/**
+ * Registros da página agrupados por dia e, dentro do dia, sequências repetidas (3+ seguidas, mesma ação,
+ * mesma pessoa, mesmo evento, até 10 min entre uma e outra) num bloco só: a reunião que inclui 40 linhas
+ * vira uma entrada, e o "Ata fechada" logo depois não se perde no meio.
+ */
+function porDia(itens: RegistroHistorico[]) {
+  const dias: Array<{ dia: string; n: number; blocos: RegistroHistorico[][] }> = [];
+  for (const h of itens) {
+    const dia = isoSP(h.em);
+    let d = dias.at(-1);
+    if (!d || d.dia !== dia) dias.push((d = { dia, n: 0, blocos: [] }));
+    d.n++;
+    const ult = d.blocos.at(-1);
+    const a = ult?.at(-1);
+    if (ult && a && a.acao === h.acao && a.entidade === h.entidade && a.autor?.id === h.autor?.id && a.eventoId === h.eventoId && Math.abs(a.em.getTime() - h.em.getTime()) <= 10 * 60_000) ult.push(h);
+    else d.blocos.push([h]);
+  }
+  // Sequências de 2 ficam como 2 linhas normais (agrupar não ajuda).
+  for (const d of dias) d.blocos = d.blocos.flatMap((b) => (b.length >= 3 ? [b] : b.map((h) => [h])));
+  return dias;
+}
+
+function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
+  const h = hs[0];
+  const fim = hs[hs.length - 1];
+  const cat = h.categoria ? CATEGORIAS_HISTORICO[h.categoria].rotulo : h.entidade;
+  const visiveis = 3;
+  const item = (x: RegistroHistorico) => {
+    const href = hrefHistorico(x);
+    return (
+      <li key={x.id} className="text-ink-2">
+        {href ? (
+          <Link href={href} className="link">
+            {x.descricao}
+          </Link>
+        ) : (
+          x.descricao
+        )}
+      </li>
+    );
+  };
+  return (
+    <tr className="hover:bg-subtle/60">
+      <td className={cn(td, "numero whitespace-nowrap pl-cartao text-pequeno text-ink-2")}>
+        <time dateTime={h.em.toISOString()} title={`${formatarDataHora(fim.em)} a ${formatarDataHora(h.em)}`}>
+          {hora(h.em)}
+        </time>
+        {hora(fim.em) !== hora(h.em) && <span className="block text-rotulo text-meta">desde {hora(fim.em)}</span>}
+      </td>
+      <td className={cn(td, "text-pequeno")}>
+        {h.autor ? (
+          <>
+            <span className="block truncate text-ink" title={h.autor.nome}>
+              {h.autor.nome}
+            </span>
+            <span className="block text-rotulo text-muted">{PERFIL_LABEL[h.autor.perfil]}</span>
+          </>
+        ) : (
+          <span className="text-muted">sistema</span>
+        )}
+      </td>
+      <td className={cn(td, "text-pequeno text-ink")}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Tag tom={TOM_CATEGORIA(h.categoria)}>{cat}</Tag>
+          <span className="font-medium">{rotuloAcao(h.acao)}</span>
+          <span className="numero rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{hs.length} registros</span>
+        </div>
+        <ul className="m-0 mt-1 list-none space-y-0.5 p-0">{hs.slice(0, visiveis).map(item)}</ul>
+        {hs.length > visiveis && (
+          <details className="group mt-0.5">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-0.5 text-rotulo text-accent hover:underline [&::-webkit-details-marker]:hidden">
+              <span className="group-open:hidden">mais {hs.length - visiveis}</span>
+              <span className="hidden group-open:inline">recolher</span>
+              <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
+            </summary>
+            <ul className="m-0 mt-0.5 list-none space-y-0.5 p-0">{hs.slice(visiveis).map(item)}</ul>
+          </details>
+        )}
+      </td>
+      <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
+        {h.evento && h.eventoId ? (
+          <Link href={`/eventos/${h.eventoId}`} className="link block truncate" title={h.evento.nome}>
+            <Codigo>{h.evento.codigo}</Codigo> {h.evento.nome}
+          </Link>
+        ) : (
+          <span className="text-meta">—</span>
+        )}
       </td>
     </tr>
   );
