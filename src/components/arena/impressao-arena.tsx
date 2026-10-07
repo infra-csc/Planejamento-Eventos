@@ -82,8 +82,8 @@ function PlantaImpressa({ arena, slug, temPlanta, pontos }: { arena: Arena; slug
           .map((z) => (
             <polygon key={z.id} points={pts(z.poligono)} fill={z.tipo === "agua" ? "#c5d3d3" : "#dde0cf"} />
           ))}
-        {arena.vias.map((v) => (
-          <polyline key={v.nome} points={pts(v.eixo)} fill="none" stroke="#bdb6ad" strokeWidth={v.largura} strokeLinecap="round" strokeLinejoin="round" />
+        {arena.vias.map((v, i) => (
+          <polyline key={`${v.nome}-${i}`} points={pts(v.eixo)} fill="none" stroke="#bdb6ad" strokeWidth={v.largura} strokeLinecap="round" strokeLinejoin="round" />
         ))}
         {arena.edificacoes.map((e, i) => ("centro" in e ? <circle key={i} cx={e.centro[0]} cy={e.centro[1]} r={e.raio} fill="#d6d0c9" /> : <polygon key={i} points={pts(e.poligono)} fill="#d6d0c9" />))}
       </g>

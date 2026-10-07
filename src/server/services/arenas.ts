@@ -99,6 +99,10 @@ export type ArenaResumo = {
   pontos: number;
   temPlanta: boolean;
   atualizadoEm: Date | null;
+  /** Onde a planta fica no mundo, se já informado (pré-preenche o entorno 3D). */
+  geo: { lat: number; lon: number; giro: number } | null;
+  /** Prédios reais do entorno (OpenStreetMap) já importados. */
+  prediosEntorno: number;
 };
 
 /** Todas as arenas: as fixas primeiro, depois as de evento (mais recentes primeiro). */
@@ -112,6 +116,8 @@ export async function listarArenasResumo(): Promise<ArenaResumo[]> {
         atualizadoEm: arenas.atualizadoEm,
         temPlanta: sql<boolean>`${arenas.plantaMime} is not null`,
         pontos: sql<number>`coalesce(jsonb_array_length(${arenas.base}->'pontos'), 0)`,
+        geo: sql<{ lat: number; lon: number; giro: number } | null>`${arenas.base}->'geo'`,
+        prediosEntorno: sql<number>`(select count(*) from jsonb_array_elements(coalesce(${arenas.base}->'edificacoes', '[]'::jsonb)) e where e->>'origem' = 'osm')`,
         eventoId: eventos.id,
         eventoCodigo: eventos.codigo,
         eventoNome: eventos.nome,
@@ -133,12 +139,14 @@ export async function listarArenasResumo(): Promise<ArenaResumo[]> {
     pontos: Number(a.pontos) + (novosPor.get(a.slug) ?? 0),
     temPlanta: Boolean(a.temPlanta),
     atualizadoEm: a.atualizadoEm,
+    geo: a.geo ?? null,
+    prediosEntorno: Number(a.prediosEntorno ?? 0),
   }));
   // Fixa que ainda não foi importada para o banco: entra pelo arquivo de dados (reserva).
   const noBanco = new Set(resumos.map((a) => a.slug));
   const doArquivo = await Promise.all(SLUGS_ARENAS_FIXAS.filter((s) => !noBanco.has(s)).map(arenaFixaDoArquivo));
   for (const a of doArquivo) {
-    if (a) resumos.push({ slug: a.slug, nome: a.evento.nome, origem: "fixa", evento: null, pontos: a.pontos.length + (novosPor.get(a.slug) ?? 0), temPlanta: false, atualizadoEm: null });
+    if (a) resumos.push({ slug: a.slug, nome: a.evento.nome, origem: "fixa", evento: null, pontos: a.pontos.length + (novosPor.get(a.slug) ?? 0), temPlanta: false, atualizadoEm: null, geo: null, prediosEntorno: 0 });
   }
   return [...resumos.filter((a) => a.origem === "fixa"), ...resumos.filter((a) => a.origem === "evento")];
 }

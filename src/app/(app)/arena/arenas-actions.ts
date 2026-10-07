@@ -7,6 +7,7 @@ import { requireUsuario } from "@/server/auth/session";
 import { exigir } from "@/server/auth/autorizacao";
 import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import { criarArena, excluirArena, removerPlantaArena, trocarPlantaArena, type DadosNovaArena } from "@/server/services/arenas";
+import { importarEntornoArena, removerEntornoArena } from "@/server/services/arena-entorno";
 import { LIMITES } from "@/domain/constantes";
 
 const metros = (rotulo: string) =>
@@ -103,5 +104,47 @@ export async function excluirArenaAction(_prev: ActionResult, formData: FormData
   revalidatePath("/arena");
   revalidatePath(`/arena/${slug.data}`);
   if (r.ok && r.dados?.eventoId) revalidatePath(`/eventos/${r.dados.eventoId}`);
+  return r;
+}
+
+/**
+ * Coordenadas coladas do Google Maps ("-20.276480, -40.284020") ou digitadas com vírgula decimal
+ * ("-20,27648; -40,28402"). Devolve [lat, lon] ou null.
+ */
+function lerCoordenadas(texto: string): [number, number] | null {
+  const t = texto.trim();
+  const ponto = t.match(/(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/);
+  if (ponto && t.includes(".")) return [Number(ponto[1]), Number(ponto[2])];
+  const virgula = t.match(/(-?\d+(?:,\d+)?)\s*[;\s]\s*(-?\d+(?:,\d+)?)/);
+  if (virgula) return [Number(virgula[1].replace(",", ".")), Number(virgula[2].replace(",", "."))];
+  return null;
+}
+
+export async function importarEntornoArenaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const usuario = await requireUsuario();
+  const slug = slugSchema.safeParse(formData.get("slug"));
+  if (!slug.success) return { ok: false, erro: "Arena inválida." };
+  const coords = lerCoordenadas(String(formData.get("coordenadas") ?? ""));
+  if (!coords) return { ok: false, erro: "Cole as coordenadas do centro da planta.", campos: { coordenadas: "Ex.: -20.27648, -40.28402 (Google Maps: botão direito no lugar → copiar as coordenadas)." } };
+  const giro = Number(String(formData.get("giro") ?? "0").replace(",", ".") || 0);
+  let r: ActionResult;
+  try {
+    const res = await importarEntornoArena(usuario, slug.data, { lat: coords[0], lon: coords[1], giro });
+    r = { ok: true, mensagem: res.predios || res.ruas ? `Entorno 3D importado: ${res.predios} prédios e ${res.ruas} trechos de rua.` : "O OpenStreetMap não tem prédios mapeados nesse lugar. Confira as coordenadas." };
+  } catch (e) {
+    r = tratarErro(e);
+  }
+  revalidatePath("/arena");
+  revalidatePath(`/arena/${slug.data}`);
+  return r;
+}
+
+export async function removerEntornoArenaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const usuario = await requireUsuario();
+  const slug = slugSchema.safeParse(formData.get("slug"));
+  if (!slug.success) return { ok: false, erro: "Arena inválida." };
+  const r = await executar(() => removerEntornoArena(usuario, slug.data), "Entorno 3D removido.");
+  revalidatePath("/arena");
+  revalidatePath(`/arena/${slug.data}`);
   return r;
 }

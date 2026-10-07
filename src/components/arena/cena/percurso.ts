@@ -147,15 +147,16 @@ export function construirPublico(arena: Arena, m: Materiais): THREE.InstancedMes
   const palco = arena.pontos.find((p) => p.id === "palco");
   if (palco) locais.push(() => [palco.posicao[0] - 8 - r() * 22, palco.posicao[1] + (r() - 0.5) * 24]);
 
-  // Arena sem percurso, estandes nem palco (ex.: mapa de evento recém-criado em branco): o público
-  // fica espalhado pela área do mapa, até as áreas posicionarem os itens.
+  // Arena sem percurso, estandes nem palco (mapa de evento): o público fica em volta dos itens já
+  // posicionados. Sem nenhum item, ninguém (espalhado ao acaso, caía na rua e no mar).
   if (locais.length === 0) {
-    const a = arena.area;
-    locais.push(() => [a.minX + r() * (a.maxX - a.minX), a.minZ + r() * (a.maxZ - a.minZ)]);
+    const comItem = arena.pontos.filter((p) => p.modelos.length > 0 || p.itensAta.length > 0);
+    for (const p of comItem) locais.push(() => [p.posicao[0] + (r() - 0.5) * 16, p.posicao[1] + (r() - 0.5) * 16]);
   }
-  const mesh = new THREE.InstancedMesh(geometriaPessoa(), m.solido(0xffffff, { rugosidade: 1 }), n);
+  const total = locais.length ? (arena.percurso.trechos.length || arena.pontos.length > 8 ? n : Math.min(n, locais.length * 14)) : 0;
+  const mesh = new THREE.InstancedMesh(geometriaPessoa(), m.solido(0xffffff, { rugosidade: 1 }), total);
   const cor = new THREE.Color();
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < total; i++) {
     const [x, z] = locais[i % locais.length]();
     mesh.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x, 0.02, z));
     mesh.setColorAt(i, cor.setHex(CORES_ROUPA[Math.floor(r() * CORES_ROUPA.length)]));

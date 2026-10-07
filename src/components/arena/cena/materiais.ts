@@ -180,6 +180,45 @@ export class Materiais {
   }
 
   /**
+   * Fachada de prédio: um módulo de 3 × 3 m (um andar, uma janela) repetido nas paredes. UV em metros/3.
+   * Usa as cores de vértice (tom do prédio e base mais escura).
+   */
+  fachada(cor: number): THREE.MeshStandardMaterial {
+    const chave = `fachada|${cor}`;
+    const existente = this.cache.get(chave) as THREE.MeshStandardMaterial | undefined;
+    if (existente) return existente;
+    const n = this.qualidade === "alta" ? 128 : 64;
+    const c = document.createElement("canvas");
+    c.width = c.height = n;
+    const g = c.getContext("2d")!;
+    const k = n / 64;
+    g.fillStyle = "#ffffff";
+    g.fillRect(0, 0, n, n);
+    // Laje entre andares, levemente mais escura.
+    g.fillStyle = "#e6e2dc";
+    g.fillRect(0, n - 6 * k, n, 6 * k);
+    // Janela: vidro escuro com reflexo do céu em cima e caixilho claro.
+    const [x0, y0, w, h] = [12 * k, 14 * k, 40 * k, 30 * k];
+    const vidro = g.createLinearGradient(0, y0, 0, y0 + h);
+    vidro.addColorStop(0, "#9aa7b2");
+    vidro.addColorStop(0.35, "#5b6670");
+    vidro.addColorStop(1, "#46505a");
+    g.fillStyle = vidro;
+    g.fillRect(x0, y0, w, h);
+    g.fillStyle = "#f2efea";
+    g.fillRect(x0 + w / 2 - k, y0, 2 * k, h);
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.qualidade === "alta" ? 8 : 2;
+    this.texturas.push(tex);
+    // Dois lados: contorno do OSM pode vir em qualquer sentido, e a parede não some vista de fora.
+    const m = new THREE.MeshStandardMaterial({ color: cor, map: tex, roughness: 0.9, vertexColors: true, side: THREE.DoubleSide });
+    this.cache.set(chave, m);
+    return m;
+  }
+
+  /**
    * Superfície com variação sutil (gramado, asfalto): quebra o aspecto de plástico sem foto.
    * `metrosPorTile` define a escala sobre UVs em metros/4.
    */

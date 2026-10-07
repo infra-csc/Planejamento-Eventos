@@ -5,13 +5,14 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
-import { Field } from "@/components/ui/field";
-import { excluirArenaAction, removerPlantaArenaAction, trocarPlantaArenaAction } from "./arenas-actions";
+import { Field, Input } from "@/components/ui/field";
+import { Aviso } from "@/components/ui/layout";
+import { excluirArenaAction, importarEntornoArenaAction, removerEntornoArenaAction, removerPlantaArenaAction, trocarPlantaArenaAction } from "./arenas-actions";
 
-type Dialogo = "planta" | "remover-planta" | "excluir" | null;
+type Dialogo = "planta" | "remover-planta" | "entorno" | "remover-entorno" | "excluir" | null;
 
-/** Menu da linha de uma arena de evento no índice: planta (trocar/remover) e exclusão. */
-export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: string; temPlanta: boolean }) {
+/** Menu da linha de uma arena de evento no índice: planta (trocar/remover), entorno 3D e exclusão. */
+export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno = 0 }: { slug: string; nome: string; temPlanta: boolean; geo?: { lat: number; lon: number; giro: number } | null; prediosEntorno?: number }) {
   const [aberto, setAberto] = useState<Dialogo>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const fechar = (o: boolean) => {
@@ -36,6 +37,9 @@ export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: stri
         <DropdownContent>
           <DropdownItem onSelect={() => setAberto("planta")}>{temPlanta ? "Trocar planta" : "Enviar planta"}</DropdownItem>
           {temPlanta && <DropdownItem onSelect={() => setAberto("remover-planta")}>Remover planta</DropdownItem>}
+          <DropdownSeparator />
+          <DropdownItem onSelect={() => setAberto("entorno")}>{prediosEntorno > 0 ? "Atualizar prédios do entorno (3D)" : "Prédios do entorno (3D)"}</DropdownItem>
+          {prediosEntorno > 0 && <DropdownItem onSelect={() => setAberto("remover-entorno")}>Remover prédios do entorno</DropdownItem>}
           <DropdownSeparator />
           <DropdownItem danger onSelect={() => setAberto("excluir")}>
             Excluir arena
@@ -73,6 +77,28 @@ export function ArenaAcoes({ slug, nome, temPlanta }: { slug: string; nome: stri
       )}
       {aberto === "remover-planta" && (
         <ConfirmDialog open onOpenChange={fechar} title="Remover planta" description={`${nome}: o plano 2D fica sem a imagem de fundo. Pontos e posições continuam.`} confirmLabel="Remover" danger action={removerPlantaArenaAction} hidden={{ slug }} />
+      )}
+      {aberto === "entorno" && (
+        <ConfirmDialog
+          open
+          onOpenChange={fechar}
+          title="Prédios do entorno (3D)"
+          description={`${nome}: os prédios reais (com altura) e as ruas em volta vêm do OpenStreetMap e aparecem na vista em perspectiva.`}
+          confirmLabel={prediosEntorno > 0 ? "Atualizar entorno" : "Importar entorno"}
+          action={importarEntornoArenaAction}
+          hidden={{ slug }}
+        >
+          <Field label="Centro da planta" htmlFor="entorno-coordenadas" hint="Latitude e longitude do meio da imagem. No Google Maps: botão direito no lugar → clique nas coordenadas para copiar." obrigatorio>
+            <Input id="entorno-coordenadas" name="coordenadas" required autoFocus inputMode="text" placeholder="-20.27648, -40.28402" defaultValue={geo ? `${geo.lat}, ${geo.lon}` : ""} className="numero" />
+          </Field>
+          <Field label="Giro da planta" htmlFor="entorno-giro" hint="0 se o norte está para cima na imagem. Se a planta está deitada, o ângulo que leva o leste para a direita (ex.: 90 ou -90)." optional>
+            <Input id="entorno-giro" name="giro" type="number" step="0.5" min={-180} max={180} defaultValue={geo?.giro ?? 0} className="numero w-28" />
+          </Field>
+          <Aviso>Prédios e ruas importados antes são substituídos; os itens do mapa não mudam. Dados © colaboradores do OpenStreetMap.</Aviso>
+        </ConfirmDialog>
+      )}
+      {aberto === "remover-entorno" && (
+        <ConfirmDialog open onOpenChange={fechar} title="Remover prédios do entorno" description={`${nome}: os ${prediosEntorno} prédios e as ruas importados do OpenStreetMap saem da vista 3D. A planta e os itens continuam.`} confirmLabel="Remover" cancelLabel="Voltar" danger action={removerEntornoArenaAction} hidden={{ slug }} />
       )}
       {aberto === "excluir" && (
         <ConfirmDialog

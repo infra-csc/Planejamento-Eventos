@@ -6,6 +6,8 @@
  * integração com o CAD) não muda a interface.
  */
 
+import type { ArenaGeo } from "./entorno";
+
 export type Vec2 = [x: number, z: number];
 
 /** Linha da ata de reunião de OS, como está na planilha do evento. */
@@ -101,7 +103,8 @@ export type Corredor = {
   tempo?: string;
 };
 
-export type Via = { nome: string; eixo: Vec2[]; largura: number };
+/** `origem: "osm"`: rua do entorno importada do OpenStreetMap (substituída a cada nova importação). */
+export type Via = { nome: string; eixo: Vec2[]; largura: number; origem?: "osm" };
 
 export type TrechoPercurso = {
   id: string;
@@ -115,8 +118,8 @@ export type TrechoPercurso = {
 /** Faixa de curral de largada (pelotão), com metragem e grades informadas na planta. */
 export type Curral = { id: string; nome: string; cor: string; metros: number; grades: number; eixo: Vec2[]; largura: number };
 
-/** Edificação de contexto, só volume (sem nome: a planta não identifica). */
-export type Edificacao = { poligono: Vec2[]; altura: number } | { centro: Vec2; raio: number; altura: number };
+/** Edificação de contexto, só volume (sem nome: a planta não identifica). `origem: "osm"`: prédio real do OpenStreetMap. */
+export type Edificacao = ({ poligono: Vec2[]; altura: number } | { centro: Vec2; raio: number; altura: number }) & { origem?: "osm" };
 
 export type Arena = {
   slug: string;
@@ -155,4 +158,6 @@ export type Arena = {
   marco: { nome: string; posicao: Vec2; altura: number; raioPraca: number } | null;
   /** Retângulo coberto pela planta, em metros. */
   area: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** Onde a planta fica no mundo (centro e giro): com isso o entorno real (prédios, ruas) vem do OpenStreetMap. */
+  geo?: ArenaGeo;
 };

@@ -76,6 +76,8 @@ const ROTULO_ACAO: Record<string, string> = {
   ARENA_CRIADA: "Arena criada",
   ARENA_EXCLUIDA: "Arena excluída",
   ARENA_PLANTA_TROCADA: "Planta trocada",
+  ARENA_ENTORNO_IMPORTADO: "Entorno 3D importado",
+  ARENA_ENTORNO_REMOVIDO: "Entorno 3D removido",
   ARENA_PLANTA_REMOVIDA: "Planta removida",
   ARENA_PLANTA_RESTAURADA: "Planta restaurada",
   ARENA_POSICAO_DESFEITA: "Posição desfeita",

@@ -99,7 +99,7 @@ export default async function ArenaIndicePage() {
                       <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-2">
                         <Data valor={a.atualizadoEm} hora />
                       </td>
-                      <td className="border-b border-line-row py-2 pl-2 pr-1 text-right">{podeEditar && a.origem === "evento" && <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} />}</td>
+                      <td className="border-b border-line-row py-2 pl-2 pr-1 text-right">{podeEditar && a.origem === "evento" && <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} geo={a.geo} prediosEntorno={a.prediosEntorno} />}</td>
                       <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                         <Icone nome="chevron-direita" className="inline-block align-middle" />
                       </td>
@@ -143,7 +143,7 @@ export default async function ArenaIndicePage() {
                   </Link>
                   {a.origem === "evento" && (
                     <span className="shrink-0 pt-2.5">
-                      <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} />
+                      <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} geo={a.geo} prediosEntorno={a.prediosEntorno} />
                     </span>
                   )}
                 </li>

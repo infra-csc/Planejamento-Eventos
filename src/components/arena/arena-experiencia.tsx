@@ -11,7 +11,6 @@ import type { MotorArena } from "./cena/motor";
 import type { Qualidade } from "./cena/materiais";
 import { restaurarPlantaArenaFormAction } from "@/app/(app)/arena/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { EmptyState } from "@/components/ui/layout";
 import { Plano2D } from "./plano-2d";
 import { CabecalhoArena } from "./arena-cabecalho";
 import { AcoesPontoEdicao, BarraEdicao } from "./arena-barra-edicao";
@@ -602,10 +601,11 @@ export function ArenaExperiencia({
           <AcoesPontoEdicao ponto={pontoSelecionadoEdicao} pontoEditado={edicao.pontoEditado} girar={edicao.girar} setFormEdicao={setFormEdicao} excluirDoMapa={edicao.excluirDoMapa} />
         )}
         {arena.pontos.length === 0 && !editando && (
-          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
-            <div className="pointer-events-auto rounded-cartao border border-line bg-surface">
-              <EmptyState compact title="Nada posicionado ainda" description={podeEditar ? "Clique em Editar mapa e use + Adicionar ao mapa para posicionar estruturas, obstáculos e os itens da ata." : "A logística ainda não posicionou estruturas neste mapa."} />
-            </div>
+          // Embaixo e compacto: no meio, o aviso cobria justamente o mapa (planta e prédios do entorno).
+          <div className="pointer-events-none absolute inset-x-3 bottom-16 z-10 flex justify-center sm:bottom-4">
+            <p role="status" className="pointer-events-auto m-0 max-w-md rounded-cartao border border-line bg-surface/95 px-4 py-2.5 text-center text-pequeno text-ink-2 shadow-pill backdrop-blur-sm">
+              <span className="font-medium text-ink">Nada posicionado ainda.</span> {podeEditar ? "Use Editar mapa → + Adicionar ao mapa para posicionar estruturas e os itens da ata." : "A logística ainda não posicionou estruturas neste mapa."}
+            </p>
           </div>
         )}
 

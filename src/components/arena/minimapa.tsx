@@ -55,10 +55,10 @@ export function Minimapa({
           .map((z) => (
             <polygon key={z.id} points={pts(z.poligono)} fill={z.tipo === "agua" ? "#b9c9ca" : "#d6dac6"} />
           ))}
-        {arena.vias.map((v) => (
-          <polyline key={v.nome} points={pts(v.eixo)} fill="none" stroke="#b1aaa2" strokeWidth={v.largura} strokeLinecap="round" strokeLinejoin="round" />
+        {arena.vias.map((v, i) => (
+          <polyline key={`${v.nome}-${i}`} points={pts(v.eixo)} fill="none" stroke="#b1aaa2" strokeWidth={v.largura} strokeLinecap="round" strokeLinejoin="round" />
         ))}
-        {arena.edificacoes.map((e, i) => ("centro" in e ? <circle key={i} cx={e.centro[0]} cy={e.centro[1]} r={e.raio} fill="#cbc4bb" /> : <polygon key={i} points={pts(e.poligono)} fill="#cbc4bb" />))}
+        {arena.edificacoes.map((e, i) => ("centro" in e ? <circle key={i} cx={e.centro[0]} cy={e.centro[1]} r={e.raio} fill="#cbc4bb" fillOpacity={fundo ? 0.35 : 1} /> : <polygon key={i} points={pts(e.poligono)} fill="#cbc4bb" fillOpacity={fundo ? 0.35 : 1} />))}
         {arena.currais.map((c) => (
           <polygon key={c.id} points={pts(poligonoFaixa(c.eixo, c.largura))} fill={c.cor} />
         ))}

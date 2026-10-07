@@ -19,7 +19,7 @@ function aleatorio(semente: number) {
 }
 
 /** Escurece a base e clareia o topo: oclusão falsa, barata e convincente de longe. */
-function gradienteVertical(g: THREE.BufferGeometry, baixo: number, alto: number) {
+function gradienteVertical(g: THREE.BufferGeometry, baixo: number, alto: number, tom: readonly [number, number, number] = [1, 1, 1]) {
   g.computeBoundingBox();
   const { min, max } = g.boundingBox!;
   const pos = g.getAttribute("position") as THREE.BufferAttribute;
@@ -27,7 +27,9 @@ function gradienteVertical(g: THREE.BufferGeometry, baixo: number, alto: number)
   for (let i = 0; i < pos.count; i++) {
     const t = (pos.getY(i) - min.y) / Math.max(0.001, max.y - min.y);
     const k = baixo + (alto - baixo) * Math.pow(t, 0.8);
-    cores[i * 3] = cores[i * 3 + 1] = cores[i * 3 + 2] = k;
+    cores[i * 3] = k * tom[0];
+    cores[i * 3 + 1] = k * tom[1];
+    cores[i * 3 + 2] = k * tom[2];
   }
   g.setAttribute("color", new THREE.BufferAttribute(cores, 3));
   return g;
@@ -74,6 +76,59 @@ function juntar(geos: THREE.BufferGeometry[], mat: THREE.Material, sombra: boole
   return mesh;
 }
 
+/**
+ * Paredes de um prédio extrudado, com UV em metros/3 (u ao longo do contorno, v na altura): a textura
+ * de fachada repete uma janela por andar. Contorno forçado no sentido que deixa as faces para fora.
+ */
+function paredesDoPredio(poligono: Vec2[], altura: number): THREE.BufferGeometry {
+  let area = 0;
+  for (let i = 0; i < poligono.length; i++) {
+    const [x1, z1] = poligono[i];
+    const [x2, z2] = poligono[(i + 1) % poligono.length];
+    area += x1 * z2 - x2 * z1;
+  }
+  const pts = area < 0 ? poligono : [...poligono].reverse();
+  const pos: number[] = [];
+  const uv: number[] = [];
+  let u = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[i];
+    const [bx, bz] = pts[(i + 1) % pts.length];
+    const l = Math.hypot(bx - ax, bz - az);
+    const u0 = u / 3;
+    const u1 = (u + l) / 3;
+    const v1 = altura / 3;
+    pos.push(ax, 0, az, bx, 0, bz, bx, altura, bz, ax, 0, az, bx, altura, bz, ax, altura, az);
+    uv.push(u0, 0, u1, 0, u1, v1, u0, 0, u1, v1, u0, v1);
+    u += l;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Laje (teto plano) do prédio na altura dele, voltada para cima. */
+function lajeDoPredio(poligono: Vec2[], altura: number): THREE.BufferGeometry {
+  const forma = new THREE.Shape(poligono.map(([x, z]) => new THREE.Vector2(x, -z)));
+  const g = new THREE.ShapeGeometry(forma).toNonIndexed();
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, altura, 0);
+  g.deleteAttribute("uv");
+  return g;
+}
+
+/** Matizes dos prédios reais (multiplicam a cor base): concreto, bege, branco e grafite. */
+const TONS_PREDIO: ReadonlyArray<readonly [number, number, number]> = [
+  [1, 1, 1],
+  [1.05, 1.0, 0.92],
+  [1.08, 1.07, 1.06],
+  [0.92, 0.95, 1.0],
+  [0.8, 0.8, 0.82],
+  [1.02, 0.96, 0.9],
+];
+
 export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Group; zonas: THREE.Group } {
   const base = new THREE.Group();
   base.name = "ambiente";
@@ -89,7 +144,9 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
   const chaoGeo = new THREE.PlaneGeometry(larguraChao, alturaChao);
   const uvChao = chaoGeo.getAttribute("uv") as THREE.BufferAttribute;
   for (let i = 0; i < uvChao.count; i++) uvChao.setXY(i, (uvChao.getX(i) * larguraChao) / 4, (uvChao.getY(i) * alturaChao) / 4);
-  const chao = new THREE.Mesh(chaoGeo, m.ruido(PALETA.parque, { variacao: 0.16, metrosPorTile: 60 }));
+  // Arena amarrada ao mundo (entorno do OpenStreetMap) é cidade: o chão em volta da planta é calçada, não parque.
+  const urbana = Boolean(arena.geo);
+  const chao = new THREE.Mesh(chaoGeo, m.ruido(urbana ? 0xbdb6ad : PALETA.parque, { variacao: urbana ? 0.08 : 0.16, metrosPorTile: 60 }));
   chao.rotation.x = -Math.PI / 2;
   chao.position.set(cx, -0.02, cz);
   chao.receiveShadow = alta;
@@ -158,7 +215,8 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
   postesMesh.castShadow = alta;
   base.add(postesMesh);
 
-  const avenida = arena.vias[0];
+  // Nome só da avenida desenhada à mão (as ruas do OpenStreetMap não ganham letreiro no chão).
+  const avenida = arena.vias.find((v) => !v.origem);
   if (avenida) base.add(rotuloNaVia(m, avenida.nome.toUpperCase(), avenida.eixo, comprimento(avenida.eixo) * 0.28, 70));
 
   // Obelisco: praça em leque voltada para a avenida, eixo monumental e o fuste de 72 m.
@@ -187,8 +245,18 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
   }
 
   // Edificações do entorno: volume com base mais escura e laje clara; uma malha só.
+  // Prédios reais (OpenStreetMap) ganham fachada com janelas por andar e laje lisa por cima.
   const predios: THREE.BufferGeometry[] = [];
+  const paredes: THREE.BufferGeometry[] = [];
+  const lajes: THREE.BufferGeometry[] = [];
   for (const e of arena.edificacoes) {
+    // Prédios com andares (6 m ou mais) ganham fachada com janelas; galpões e casas ficam lisos (janela cheia parecia prédio).
+    if (e.origem === "osm" && "poligono" in e && e.altura >= 6) {
+      const tom = TONS_PREDIO[Math.floor(rnd() * TONS_PREDIO.length)];
+      paredes.push(gradienteVertical(paredesDoPredio(e.poligono, e.altura), 0.66, 1.0, tom));
+      lajes.push(gradienteVertical(lajeDoPredio(e.poligono, e.altura), 1.12, 1.12, tom));
+      continue;
+    }
     let geo: THREE.BufferGeometry;
     if ("centro" in e) {
       geo = new THREE.SphereGeometry(e.raio, alta ? 32 : 16, alta ? 12 : 6, 0, Math.PI * 2, 0, Math.PI / 2).toNonIndexed();
@@ -210,6 +278,13 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     prediosMesh.castShadow = alta;
     base.add(prediosMesh);
   }
+  const paredesMesh = juntar(paredes, m.fachada(PALETA.predio), alta);
+  if (paredesMesh) {
+    paredesMesh.castShadow = alta;
+    base.add(paredesMesh);
+  }
+  const lajesMesh = juntar(lajes, m.comVertices(PALETA.predio, 0.95), alta);
+  if (lajesMesh) base.add(lajesMesh);
 
   // Vegetação: densa no parque, rala no gramado da arena, nunca sobre vias, lago, estruturas ou percurso.
   const lago = arena.zonas.filter((z) => z.tipo === "agua").map((z) => z.poligono);
@@ -226,7 +301,8 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     return true;
   };
   const arvores: Array<{ x: number; z: number; s: number; alta: boolean }> = [];
-  const alvo = alta ? 1900 : 620;
+  // Na cidade (entorno do OpenStreetMap), nenhuma árvore sorteada: caíam na areia, no mar e nas ruas reais.
+  const alvo = urbana ? 0 : alta ? 1900 : 620;
   for (let t = 0; arvores.length < alvo && t < alvo * 8; t++) {
     // Agrupamentos: sorteia um centro e espalha ao redor, como bosques reais.
     const x0 = minX - 140 + rnd() * (maxX - minX + 280);
