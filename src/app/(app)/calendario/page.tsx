@@ -238,16 +238,43 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           {diasComItens.length === 0 ? (
             <EmptyState compact title={filtrado ? "Nada com estes filtros" : "Nada marcado neste mês"} description={filtrado ? undefined : "Use as setas para ver outros meses."} action={filtrado ? limparFiltros : undefined} />
           ) : (
-            diasComItens.map(([dia, itens]) => (
-              <div key={dia} className="border-b border-line-row last:border-b-0">
-                <CabecalhoDia dia={dia} hoje={hoje} as="h2" />
-                <div className="py-1">
-                  {itens.map((it) => (
-                    <LinhaAgenda key={it.chave} it={it} comFaixa />
-                  ))}
+            (() => {
+              // Mês atual: os dias que já passaram ficam recolhidos; a lista começa em hoje.
+              // Evento longo (7+ dias) aparece uma vez por bloco, no primeiro dia listado: repetido em todo dia, escondia o resto.
+              const semRepetir = (dias: typeof diasComItens) => {
+                const vistos = new Set<string>();
+                return dias
+                  .map(([dia, its]) => [dia, its.filter((it) => !(it.tipo === "evento" && it.faixa && it.faixa.total >= 7) || (!vistos.has(it.href) && vistos.add(it.href)))] as const)
+                  .filter(([, its]) => its.length > 0);
+              };
+              const passados = semRepetir(diasComItens.filter(([dia]) => dia < hoje));
+              const proximos = semRepetir(diasComItens.filter(([dia]) => dia >= hoje));
+              const blocoDia = ([dia, itens]: (typeof diasComItens)[number]) => (
+                <div key={dia} className="border-b border-line-row last:border-b-0">
+                  <CabecalhoDia dia={dia} hoje={hoje} as="h2" />
+                  <div className="py-1">
+                    {itens.map((it) => (
+                      <LinhaAgenda key={it.chave} it={it} comFaixa />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+              if (passados.length === 0 || proximos.length === 0) return semRepetir(diasComItens).map(blocoDia);
+              return (
+                <>
+                  <details className="group border-b border-line-row">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-cartao py-2.5 text-pequeno text-ink-3 [&::-webkit-details-marker]:hidden">
+                      <span>
+                        <span className="numero">{passados.length}</span> {passados.length === 1 ? "dia anterior" : "dias anteriores"} neste mês
+                      </span>
+                      <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
+                    </summary>
+                    <div className="border-t border-line-row">{passados.map(blocoDia)}</div>
+                  </details>
+                  {proximos.map(blocoDia)}
+                </>
+              );
+            })()
           )}
         </section>
 
@@ -322,7 +349,8 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           </div>
         </section>
 
-        <aside aria-labelledby="calendario-agenda" className="overflow-hidden rounded-cartao border border-line bg-surface xl:sticky xl:top-topo-fixo">
+        {/* No celular a lista do mês já mostra os mesmos compromissos: a agenda só a partir do tablet. */}
+        <aside aria-labelledby="calendario-agenda" className="overflow-hidden rounded-cartao border border-line bg-surface max-md:hidden xl:sticky xl:top-topo-fixo">
           <div className="border-b border-line-soft px-cartao py-3.5">
             <h2 id="calendario-agenda" className="m-0 text-secao font-semibold tracking-[-0.01em]">
               Próximos 21 dias
