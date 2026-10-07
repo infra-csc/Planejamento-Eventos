@@ -238,15 +238,15 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                   <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
                 </div>
               ) : (
-                <table className="w-full border-collapse">
+                <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere]">
                   <CaptionOculta>Itens do evento por tipo</CaptionOculta>
                   <thead>
                     <tr>
                       <Th>Item</Th>
-                      <Th className="hidden sm:table-cell" largura="30%">
+                      <Th className="hidden sm:table-cell sm:w-[30%]">
                         Área · destino
                       </Th>
-                      <Th className="hidden xl:table-cell" largura="20%">
+                      <Th className="hidden xl:table-cell xl:w-[20%]">
                         Origem
                       </Th>
                       <Th largura={72} alinhar="right">
@@ -323,7 +323,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                       </span>
                                       {l.posAta ? <Tag tom="info">depois da ata</Tag> : l.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
                                     </span>
-                                    <span className="block truncate text-pequeno text-muted xl:hidden">
+                                    <span className="line-clamp-2 text-pequeno text-muted xl:hidden">
                                       <span className="sm:hidden">
                                         {l.areaNome ?? "Logística"}
                                         {l.destino ? ` · ${l.destino}` : ""} ·{" "}

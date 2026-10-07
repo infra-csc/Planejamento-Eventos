@@ -233,19 +233,23 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
         <EmptyState title={vazio.titulo} description={vazio.descricao} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse">
+          <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[560px]">
             <CaptionOculta>Usuários</CaptionOculta>
             <thead>
               <tr className="bg-subtle">
                 <Th>Nome</Th>
-                <Th largura={140}>Perfil</Th>
+                <Th className="hidden sm:table-cell" largura={140}>
+                  Perfil
+                </Th>
                 <Th className="hidden lg:table-cell" largura={150}>
                   Área
                 </Th>
                 <Th className="hidden lg:table-cell" largura={130}>
                   Último acesso
                 </Th>
-                <Th largura={104}>Situação</Th>
+                <Th className="hidden sm:table-cell" largura={104}>
+                  Situação
+                </Th>
                 <Th largura={56}>
                   <span className="sr-only">Ações</span>
                 </Th>
@@ -259,18 +263,23 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                       {u.nome}
                       {u.id === meuId && <span className="ml-1.5 text-rotulo font-normal text-muted">você</span>}
                     </span>
-                    <span className="mt-0.5 block text-pequeno text-muted">{u.email}</span>
+                    <span className="mt-0.5 block truncate text-pequeno text-muted">{u.email}</span>
+                    {/* Celular: perfil e situação dentro da célula do nome. */}
+                    <span className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
+                      <PerfilBadge perfil={u.perfil} />
+                      {!u.ativo && <Badge tom="warning">Inativo</Badge>}
+                    </span>
                     <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
                       {u.areaNome ? `${u.areaNome} · ` : ""}
                       <span className="numero">{u.ultimoAcesso}</span>
                     </span>
                   </th>
-                  <td className={CELULA}>
+                  <td className={cn(CELULA, "hidden sm:table-cell")}>
                     <PerfilBadge perfil={u.perfil} />
                   </td>
                   <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
                   <td className={cn(CELULA, "numero hidden text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
-                  <td className={CELULA}>
+                  <td className={cn(CELULA, "hidden sm:table-cell")}>
                     {u.ativo ? <span className="text-pequeno text-muted">Ativo</span> : <Badge tom="warning">Inativo</Badge>}
                   </td>
                   <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">

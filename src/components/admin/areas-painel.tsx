@@ -81,7 +81,7 @@ export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: str
         <EmptyState title={vazio.titulo} description={vazio.descricao} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] border-collapse">
+          <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
             <CaptionOculta>Áreas</CaptionOculta>
             <thead>
               <tr className="bg-subtle">

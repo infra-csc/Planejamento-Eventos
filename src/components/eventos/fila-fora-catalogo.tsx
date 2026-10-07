@@ -18,19 +18,21 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] border-collapse">
+      <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[560px]">
         <CaptionOculta>Itens fora do catálogo</CaptionOculta>
         <thead>
           <tr className="bg-subtle">
             <Th>Item</Th>
-            <Th className="hidden lg:table-cell" largura="24%">
+            <Th className="hidden lg:table-cell lg:w-[24%]">
               Evento
             </Th>
             <Th largura={64} alinhar="right">
               Qtd.
             </Th>
-            <Th largura={120}>Situação</Th>
-            <Th largura={190} alinhar="right">
+            <Th className="hidden sm:table-cell" largura={120}>
+              Situação
+            </Th>
+            <Th className="hidden sm:table-cell" largura={190} alinhar="right">
               <span className="sr-only">Ação</span>
             </Th>
           </tr>
@@ -41,7 +43,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
             return (
               <tr key={i.id} className="hover:bg-subtle">
                 <th scope="row" className="border-b border-line-row py-3 pl-cartao pr-3 text-left font-normal">
-                  <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={descricao}>
+                  <span className="line-clamp-2 block text-corpo font-medium text-ink sm:min-w-[220px]" title={descricao}>
                     {descricao}
                   </span>
                   <span className="mt-0.5 block text-pequeno text-muted">
@@ -57,6 +59,11 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                     {" · "}
                     {diaMesHora(i.criadoEm)}
                   </span>
+                  {/* Celular: situação e ação embaixo do item (as colunas somem). */}
+                  <span className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+                    {i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}
+                    <VincularCatalogo linha={{ linhaId: i.id, descricao: i.descricao ?? "item", quantidade: i.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
+                  </span>
                 </th>
                 <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">
                   <Link href={`/eventos/${i.eventoId}`} className="link font-mono">
@@ -67,8 +74,8 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                   </span>
                 </td>
                 <td className="border-b border-line-row px-3 py-3 numero text-right text-pequeno font-medium text-ink">{i.quantidade}</td>
-                <td className="border-b border-line-row px-3 py-3">{i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}</td>
-                <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right">
+                <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">{i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}</td>
+                <td className="hidden border-b border-line-row py-2.5 pl-3 pr-cartao text-right sm:table-cell">
                   <VincularCatalogo linha={{ linhaId: i.id, descricao: i.descricao ?? "item", quantidade: i.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                 </td>
               </tr>

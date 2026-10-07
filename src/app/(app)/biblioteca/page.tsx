@@ -181,7 +181,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[300px] table-fixed border-collapse sm:min-w-[390px] [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
+                    <table data-responsiva className="w-full min-w-[300px] table-fixed border-collapse sm:min-w-[390px] [&_tbody_tr:last-child_td]:border-b-0 [&_tbody_tr:last-child_th]:border-b-0">
                       <CaptionOculta>Projetos padrão</CaptionOculta>
                       <thead>
                         <tr className="bg-subtle">
@@ -381,18 +381,19 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const pag = paginar(ordenadas, sp.pagina, 12);
   const temEstoque = pecasLista.some((p) => p.estoqueProprio > 0);
   const params = { aba: "pecas", q: sp.q, setor: sp.setor, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
-  const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
+  const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right", className?: string) => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
-    return <ThOrdenavel label={label} ativo={sp.ordem === chave} dir={sp.ordem === chave ? (sp.dir === "desc" ? "desc" : "asc") : undefined} href={hrefCom("/biblioteca", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })} largura={largura} alinhar={alinhar} />;
+    return <ThOrdenavel label={label} ativo={sp.ordem === chave} dir={sp.ordem === chave ? (sp.dir === "desc" ? "desc" : "asc") : undefined} href={hrefCom("/biblioteca", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })} largura={largura} alinhar={alinhar} className={className} />;
   };
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
-      <td className="border-b border-line-row px-3 py-3 text-pequeno font-medium text-ink">
+      <td className="hidden border-b border-line-row px-3 py-3 text-pequeno font-medium text-ink sm:table-cell">
         <Codigo>{p.codigo}</Codigo>
       </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-        <span className="flex min-w-[220px] flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
+          <Codigo className="text-rotulo text-ink-3 sm:hidden">{p.codigo}</Codigo>
           <span className="line-clamp-2 text-corpo font-medium text-ink" title={p.nome}>
             {p.nome}
           </span>
@@ -402,6 +403,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         </span>
         <span className="mt-0.5 block text-pequeno text-muted xl:hidden">
           {SETOR_LABEL[p.setor]} · {p.familia || "sem família"}
+          <span className="numero sm:hidden"> · em {emBom.get(p.id) ?? 0} {(emBom.get(p.id) ?? 0) === 1 ? "projeto" : "projetos"}</span>
         </span>
       </th>
       <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">{SETOR_LABEL[p.setor]}</td>
@@ -416,13 +418,13 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         </td>
       )}
       {/* px-3 também na última coluna: alinha com o cabeçalho ordenável. */}
-      <td className="border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3">
+      <td className="hidden border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3 sm:table-cell">
         <Numero valor={emBom.get(p.id) ?? 0} />
       </td>
       {gerencia && (
         <td className="whitespace-nowrap border-b border-line-row py-1.5 pl-1 pr-cartao text-right text-ink-3">
           <span className="inline-flex items-center justify-end gap-1">
-            <span className={p.ativo ? "transition-opacity duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100" : undefined}>
+            <span className={p.ativo ? "max-sm:hidden transition-opacity duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100" : undefined}>
               <PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="xs" />
             </span>
             <SetaAbrir />
@@ -460,11 +462,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse">
+              <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[620px]">
                 <CaptionOculta>Catálogo de peças</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    {th("codigo", "Código", 120)}
+                    {th("codigo", "Código", 120, "left", "hidden sm:table-cell")}
                     {th("nome", "Peça")}
                     <Th className="hidden xl:table-cell" largura={150}>
                       Setor
@@ -473,9 +475,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       Família
                     </Th>
                     {temEstoque && th("estoque", "Estoque", 100, "right")}
-                    {th("bom", "Em projetos", 118, "right")}
+                    {th("bom", "Em projetos", 118, "right", "hidden sm:table-cell")}
                     {gerencia && (
-                      <Th largura={120}>
+                      <Th largura={120} className="max-sm:!w-11">
                         <span className="sr-only">Inativar, reativar ou editar</span>
                       </Th>
                     )}

@@ -18,7 +18,7 @@ export function visaoDe(v?: string): VisaoOs {
 /* Células no padrão das tabelas: código mono discreto, nome no corpo, números tabulares à direita. */
 const base = "border-b border-line-row py-2.5 align-top";
 const td = `${base} px-3`;
-const tdCodigo = `${base} pl-cartao pr-3 text-pequeno text-ink-2`;
+const tdCodigo = `${base} hidden pl-cartao pr-3 text-pequeno text-ink-2 sm:table-cell`;
 const tdNumero = `${td} numero text-right text-corpo text-ink-2`;
 const tdTotal = `${base} numero pl-3 pr-cartao text-right text-corpo font-semibold text-ink`;
 
@@ -102,14 +102,18 @@ export function OsVisoes({
               sub={[p.destino ? `Destino: ${p.destino}` : null, p.area, `${p.pecas.length} ${p.pecas.length === 1 ? "tipo de peça" : "tipos de peça"} · ${unidades(p.pecas.reduce((a, x) => a + x.total, 0))}`].filter(Boolean).join(" · ")}
             >
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] border-collapse">
+                <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
                   <CaptionOculta>{`Peças de ${p.nome} × ${p.quantidade}`}</CaptionOculta>
                   <thead>
                     <tr>
-                      <Th largura={120}>Código</Th>
-                      <Th>Peça</Th>
-                      <Th largura={150}>{grupos ? "Material" : "Setor"}</Th>
-                      <Th largura={96} alinhar="right">
+                      <Th className="hidden sm:table-cell" largura={120}>
+                        Código
+                      </Th>
+                      <Th className="max-sm:pl-cartao">Peça</Th>
+                      <Th className="hidden md:table-cell" largura={150}>
+                        {grupos ? "Material" : "Setor"}
+                      </Th>
+                      <Th className="hidden sm:table-cell" largura={96} alinhar="right">
                         Por un.
                       </Th>
                       <Th largura={110} alinhar="right">
@@ -123,11 +127,17 @@ export function OsVisoes({
                         <td className={tdCodigo}>
                           <Codigo>{x.codigo}</Codigo>
                         </td>
-                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink`}>
+                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink max-sm:pl-cartao`}>
                           {x.nome}
+                          <span className="mt-0.5 block text-rotulo text-muted md:hidden">
+                            <Codigo className="sm:hidden">{x.codigo}</Codigo>
+                            <span className="sm:hidden"> · </span>
+                            {grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}
+                            <span className="numero sm:hidden"> · {x.porUnidade} por un.</span>
+                          </span>
                         </th>
-                        <td className={`${td} text-pequeno text-muted`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
-                        <td className={tdNumero}>{x.porUnidade}</td>
+                        <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
+                        <td className={`${tdNumero} hidden sm:table-cell`}>{x.porUnidade}</td>
                         <td className={tdTotal}>
                           <Total n={x.total} unidade={x.unidade} />
                         </td>
@@ -152,14 +162,20 @@ export function OsVisoes({
           {os.individuais && os.individuais.length > 0 && (
             <Section titulo="Peças do catálogo pedidas soltas" sub="Fora de projeto padrão, somadas por peça (com cada local). Também estão nos totais por peça.">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] border-collapse">
+                <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
                   <CaptionOculta>Peças soltas</CaptionOculta>
                   <thead>
                     <tr>
-                      <Th largura={120}>Código</Th>
-                      <Th>Peça</Th>
-                      <Th largura={140}>{grupos ? "Material" : "Setor"}</Th>
-                      <Th largura="24%">Destino · área</Th>
+                      <Th className="hidden sm:table-cell" largura={120}>
+                        Código
+                      </Th>
+                      <Th className="max-sm:pl-cartao">Peça</Th>
+                      <Th className="hidden md:table-cell" largura={140}>
+                        {grupos ? "Material" : "Setor"}
+                      </Th>
+                      <Th className="hidden sm:table-cell sm:w-[24%]">
+                        Destino · área
+                      </Th>
                       <Th largura={110} alinhar="right">
                         Qtd.
                       </Th>
@@ -171,11 +187,17 @@ export function OsVisoes({
                         <td className={tdCodigo}>
                           <Codigo>{x.codigo}</Codigo>
                         </td>
-                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink`}>
+                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink max-sm:pl-cartao`}>
                           {x.nome}
+                          <span className="mt-0.5 block text-rotulo text-muted md:hidden">
+                            <Codigo className="sm:hidden">{x.codigo}</Codigo>
+                            <span className="sm:hidden"> · </span>
+                            {grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}
+                          </span>
+                          <span className="mt-0.5 block text-rotulo text-ink-2 sm:hidden">{textoLocais(x.locais)}</span>
                         </th>
-                        <td className={`${td} text-pequeno text-muted`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
-                        <td className={`${td} text-pequeno text-ink-2`}>{textoLocais(x.locais)}</td>
+                        <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
+                        <td className={`${td} hidden text-pequeno text-ink-2 sm:table-cell`}>{textoLocais(x.locais)}</td>
                         <td className={tdTotal}>
                           <Total n={x.quantidade} unidade={x.unidade} />
                         </td>
@@ -207,13 +229,17 @@ export function OsVisoes({
               }
             >
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] border-collapse">
+                <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
                   <CaptionOculta>{`${titulo} · ${s.rotulo}`}</CaptionOculta>
                   <thead>
                     <tr>
-                      <Th largura={120}>Código</Th>
-                      <Th>Peça</Th>
-                      <Th largura="36%">Composição</Th>
+                      <Th className="hidden sm:table-cell" largura={120}>
+                        Código
+                      </Th>
+                      <Th className="max-sm:pl-cartao">Peça</Th>
+                      <Th className="hidden md:table-cell md:w-[36%]">
+                        Composição
+                      </Th>
                       <Th largura={110} alinhar="right">
                         Total
                       </Th>
@@ -225,11 +251,16 @@ export function OsVisoes({
                         <td className={tdCodigo}>
                           <Codigo>{l.codigo}</Codigo>
                         </td>
-                        <th scope="row" className={`${td} min-w-[180px] text-left text-corpo font-normal text-ink`}>
+                        <th scope="row" className={`${td} text-left text-corpo font-normal text-ink max-sm:pl-cartao sm:min-w-[180px]`}>
                           {l.nome}
+                          <span className="mt-0.5 block text-rotulo text-muted md:hidden">
+                            <Codigo className="sm:hidden">{l.codigo}</Codigo>
+                            <span className="sm:hidden"> · </span>
+                            <span className="line-clamp-2">{l.origens.map((o) => `${o.descricao} ${o.quantidade}`).join(" · ")}</span>
+                          </span>
                         </th>
                         {/* Composição quebra em até 2 linhas (inteira no título): antes, sem quebra, espremia o nome e escondia o total. */}
-                        <td className={`${td} text-pequeno text-muted`}>
+                        <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>
                           <span className="line-clamp-2" title={l.origens.map((o) => `${o.descricao} ${o.quantidade}`).join(" · ")}>
                             {l.origens.map((o, i) => (
                               <span key={i}>
@@ -262,12 +293,14 @@ export function OsVisoes({
       {(visao === "totais" || visao === "individuais") && os.semSetor.length > 0 && (
         <Section titulo="Itens fora do catálogo" sub="Sem peça de catálogo: separação manual, fora da soma por peça.">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] border-collapse">
+            <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
               <CaptionOculta>Itens fora do catálogo</CaptionOculta>
               <thead>
                 <tr>
                   <Th>Item</Th>
-                  <Th largura="36%">Destino · área</Th>
+                  <Th className="hidden sm:table-cell sm:w-[36%]">
+                    Destino · área
+                  </Th>
                   <Th largura={90} alinhar="right">
                     Qtd.
                   </Th>
@@ -278,8 +311,9 @@ export function OsVisoes({
                   <tr key={i} className="hover:bg-subtle">
                     <th scope="row" className={`${base} pl-cartao pr-3 text-left text-corpo font-normal text-ink`}>
                       {a.descricao}
+                      <span className="mt-0.5 block text-rotulo text-muted sm:hidden">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>
                     </th>
-                    <td className={`${td} text-pequeno text-ink-2`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
+                    <td className={`${td} hidden text-pequeno text-ink-2 sm:table-cell`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
                     <td className={tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
                   </tr>
                 ))}

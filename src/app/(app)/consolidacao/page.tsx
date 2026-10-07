@@ -198,7 +198,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                   <tr className="bg-subtle">
                     <Th largura={104}>Solicitação</Th>
                     <Th>Item</Th>
-                    <Th className="hidden lg:table-cell" largura="22%">
+                    <Th className="hidden lg:table-cell lg:w-[22%]">
                       Evento
                     </Th>
                     <Th className="hidden xl:table-cell" largura={130}>
@@ -305,7 +305,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                     {th("pico", "Necessidade", 124, "right")}
                     {temEstoque && th("estoque", "Estoque", 120, "right")}
                     {temEstoque && th("falta", "Falta", 110, "right")}
-                    <Th className="hidden lg:table-cell" largura="30%">
+                    <Th className="hidden lg:table-cell lg:w-[30%]">
                       Eventos no pico
                     </Th>
                   </tr>

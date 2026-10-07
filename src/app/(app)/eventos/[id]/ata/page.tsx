@@ -92,18 +92,20 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
               <EmptyState compact title="A ata foi fechada sem linhas" description="Tudo o que entrou depois está na OS." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] border-collapse">
+                <table data-responsiva className="w-full border-collapse sm:min-w-[520px]">
                   <CaptionOculta>Linhas da ata congelada, por área</CaptionOculta>
                   <thead>
                     <tr>
                       <Th>Item</Th>
-                      <Th className="hidden md:table-cell" largura="22%">
+                      <Th className="hidden md:table-cell md:w-[22%]">
                         Destino
                       </Th>
                       <Th largura={72} alinhar="right">
                         Qtd.
                       </Th>
-                      <Th largura="24%">Conferido</Th>
+                      <Th className="hidden sm:table-cell sm:w-[24%]">
+                        Conferido
+                      </Th>
                     </tr>
                   </thead>
                   {areas.map(([area, ls]) => (
@@ -149,10 +151,11 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                                 {titulo}
                                 {sub}
                                 <span className="text-rotulo text-muted md:hidden">{l0.destino ? `${l0.destino}` : ""}</span>
+                                <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l0)}</span>
                               </th>
                               <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 md:table-cell">{l0.destino ?? <span className="text-meta">—</span>}</td>
                               <td className="numero border-b border-line-row px-3 py-2.5 text-right text-corpo font-medium text-ink">{l0.quantidade}</td>
-                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-pequeno">{conferido(l0)}</td>
+                              <td className="hidden border-b border-line-row py-2.5 pl-3 pr-cartao text-pequeno sm:table-cell">{conferido(l0)}</td>
                             </tr>
                           );
                         // O mesmo item em vários locais: cabeçalho com o total e uma sub-linha por local (o registro continua linha a linha).
@@ -166,17 +169,18 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                               </th>
                               <td className="hidden border-b border-line-row px-3 pb-1.5 pt-2.5 text-rotulo text-muted md:table-cell">{doItem.length} locais</td>
                               <td className="numero border-b border-line-row px-3 pb-1.5 pt-2.5 text-right text-corpo font-semibold text-ink">{total}</td>
-                              <td className="border-b border-line-row pb-1.5 pl-3 pr-cartao pt-2.5" />
+                              <td className="hidden border-b border-line-row pb-1.5 pl-3 pr-cartao pt-2.5 sm:table-cell" />
                             </tr>
                             {doItem.map((l) => (
                               <tr key={l.id} className="hover:bg-subtle">
                                 <th scope="row" className="border-b border-line-faint py-1.5 pl-[42px] pr-3 text-left text-pequeno font-normal text-ink-2">
                                   <span className="md:hidden">{l.destino ?? "sem local"}</span>
+                                  <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l)}</span>
                                   <span className="hidden text-meta md:inline">↳</span>
                                 </th>
                                 <td className="hidden border-b border-line-faint px-3 py-1.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>
                                 <td className="numero border-b border-line-faint px-3 py-1.5 text-right text-pequeno text-ink-2">{l.quantidade}</td>
-                                <td className="border-b border-line-faint py-1.5 pl-3 pr-cartao text-pequeno">{conferido(l)}</td>
+                                <td className="hidden border-b border-line-faint py-1.5 pl-3 pr-cartao text-pequeno sm:table-cell">{conferido(l)}</td>
                               </tr>
                             ))}
                           </Fragment>

@@ -184,7 +184,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table data-responsiva className="w-full border-collapse max-sm:table-fixed sm:min-w-[640px]">
+              <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px]">
                 <CaptionOculta>{`Eventos · ${rotuloFase}${soAcao ? ` · ${rotuloAcao}` : ""}`}</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
@@ -201,7 +201,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         {sp.ordem === "periodo" && <Icone nome={sp.dir === "desc" ? "seta-baixo" : "seta-cima"} className="size-3.5" />}
                       </Link>
                     </th>
-                    <Th className="hidden md:table-cell" largura={240}>
+                    <Th className="hidden xl:table-cell" largura={240}>
                       Áreas que pediram
                     </Th>
                     {th("pendencias", "Pendências", 140, "right", "hidden sm:table-cell")}
@@ -255,7 +255,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
                           <span className="block text-rotulo text-muted">{marco(e)}</span>
                         </td>
-                        <td className="hidden border-b border-line-row px-3 py-3 md:table-cell">
+                        <td className="hidden border-b border-line-row px-3 py-3 xl:table-cell">
                           <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">

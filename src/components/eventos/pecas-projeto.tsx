@@ -72,13 +72,15 @@ export function PecasProjeto({
     <>
       {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-corpo">
+        <table data-responsiva className="w-full border-collapse text-corpo max-sm:[overflow-wrap:anywhere] sm:min-w-[480px]">
           <CaptionOculta>Peças do projeto nesta linha</CaptionOculta>
           <thead>
             <tr className="bg-subtle">
-              <Th largura={120}>Código</Th>
-              <Th>Peça</Th>
-              <Th largura={90} alinhar="right">
+              <Th className="hidden sm:table-cell" largura={120}>
+                Código
+              </Th>
+              <Th className="max-sm:pl-cartao">Peça</Th>
+              <Th className="hidden sm:table-cell" largura={90} alinhar="right">
                 Por un.
               </Th>
               <Th largura={96} alinhar="right">
@@ -94,11 +96,17 @@ export function PecasProjeto({
           <tbody>
             {pecas.map((p) => (
               <tr key={p.pecaId} className="border-b border-line-row last:border-b-0 hover:bg-subtle">
-                <td className="py-2 pl-cartao pr-2 text-pequeno text-ink-2">
+                <td className="hidden py-2 pl-cartao pr-2 text-pequeno text-ink-2 sm:table-cell">
                   <Codigo>{p.codigo}</Codigo>
                 </td>
-                <td className="px-2 py-2 text-ink">{p.nome}</td>
-                <td className="numero px-2 py-2 text-right text-ink-2">{p.porUnidade}</td>
+                <td className="px-2 py-2 text-ink max-sm:pl-cartao">
+                  {p.nome}
+                  {/* Celular: código e quantidade por unidade embaixo do nome (as colunas somem). */}
+                  <span className="mt-0.5 block text-rotulo text-muted sm:hidden">
+                    <Codigo>{p.codigo}</Codigo> · <span className="numero">{p.porUnidade}</span> por un.
+                  </span>
+                </td>
+                <td className="numero hidden px-2 py-2 text-right text-ink-2 sm:table-cell">{p.porUnidade}</td>
                 <td className="numero px-2 py-2 text-right font-medium text-ink">
                   {p.total} <span className="text-rotulo font-normal text-muted">{p.unidade}</span>
                 </td>

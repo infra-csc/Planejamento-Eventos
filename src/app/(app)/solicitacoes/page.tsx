@@ -49,7 +49,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
   ]);
   const params = { filtro: sp.filtro, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, evento: sp.evento, q: sp.q };
 
-  const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right") => {
+  const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right", className?: string) => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
     return (
       <ThOrdenavel
@@ -59,6 +59,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
         href={hrefCom("/solicitacoes", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })}
         largura={largura}
         alinhar={alinhar}
+        className={className}
       />
     );
   };
@@ -162,13 +163,13 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
               })}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[640px] border-collapse">
+              <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px]">
                 <CaptionOculta>{`Solicitações · ${ROTULO_FILTRO[filtro]}`}</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    {th("codigo", "Código", 100)}
+                    {th("codigo", "Código", 100, "left", "hidden sm:table-cell")}
                     {th("titulo", "Solicitação")}
-                    <Th className="hidden xl:table-cell" largura="17%">
+                    <Th className="hidden xl:table-cell xl:w-[17%]">
                       Evento
                     </Th>
                     <Th className="hidden lg:table-cell" largura={120}>
@@ -177,8 +178,8 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                     <Th className="hidden 2xl:table-cell" largura={64}>
                       Itens
                     </Th>
-                    {th("status", "Status", 124)}
-                    {th("prazo", "Prazo", 110, "right")}
+                    {th("status", "Status", 124, "left", "hidden sm:table-cell")}
+                    {th("prazo", "Prazo", 110, "right", "hidden sm:table-cell")}
                     <Th largura={44}>
                       <span className="sr-only">Abrir</span>
                     </Th>
@@ -189,11 +190,12 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                     const pi = prazoInfo(s, agora);
                     return (
                       <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                        <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-3">
+                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
                           <Codigo>{s.codigo}</Codigo>
                         </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-                          <span className="flex min-w-[240px] flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[240px]">
+                            <Codigo className="text-rotulo text-ink-3 sm:hidden">{s.codigo}</Codigo>
                             <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
                             <TipoSolicitacaoTag tipo={s.tipo} />
                             {s.foraDaJanela && <ForaJanelaTag />}
@@ -209,6 +211,14 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                               </span>
                             </span>
                           </span>
+                          {/* Celular: status e prazo dentro da célula da solicitação. */}
+                          <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
+                            <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                            <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                              {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
+                              {pi.vencido ? "atrasada" : pi.label}
+                            </span>
+                          </span>
                         </th>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">
                           <span className="line-clamp-2" title={s.evento.nome}>
@@ -219,10 +229,10 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                         <td className="numero hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 2xl:table-cell">
                           {s.itensRespondidos}/{s.totalItens}
                         </td>
-                        <td className="border-b border-line-row px-3 py-3">
+                        <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
                           <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                         </td>
-                        <td className="border-b border-line-row px-3 py-3 text-right">
+                        <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
                           <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                             {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
                             {pi.vencido ? "atrasada" : pi.label}

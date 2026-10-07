@@ -118,7 +118,7 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
                 <thead>
                   <tr className="bg-subtle">
                     <Th>Item</Th>
-                    <Th className="hidden lg:table-cell" largura="20%">
+                    <Th className="hidden lg:table-cell lg:w-[20%]">
                       Evento
                     </Th>
                     <Th className="hidden xl:table-cell" largura={130}>
@@ -204,7 +204,7 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
                 <thead>
                   <tr className="bg-subtle">
                     <Th>Item</Th>
-                    <Th className="hidden lg:table-cell" largura="20%">
+                    <Th className="hidden lg:table-cell lg:w-[20%]">
                       Evento
                     </Th>
                     <Th className="hidden xl:table-cell" largura={130}>

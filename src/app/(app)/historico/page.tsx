@@ -106,7 +106,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table data-responsiva className="w-full border-collapse max-md:table-fixed md:min-w-[760px]">
+              <table data-responsiva className="w-full border-collapse max-lg:[overflow-wrap:anywhere] lg:min-w-[760px]">
                 <CaptionOculta>Registros do histórico, do mais recente para o mais antigo</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">

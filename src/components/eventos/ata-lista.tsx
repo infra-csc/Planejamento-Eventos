@@ -180,7 +180,7 @@ export function AtaLista({
         <>
           {/* Rolagem própria no celular: sem ela, colunas como Total ficavam cortadas pelo cartão. */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse">
+            <table data-responsiva className="w-full border-collapse max-md:[overflow-wrap:anywhere] md:min-w-[560px]">
               <CaptionOculta>Linhas da ata</CaptionOculta>
               <thead>
                 <tr className="bg-subtle">
@@ -188,9 +188,19 @@ export function AtaLista({
                   <Th largura={compacta ? 52 : 70} alinhar="right">
                     Qtd.
                   </Th>
-                  {!compacta && <Th largura={130}>Destino</Th>}
-                  {!compacta && <Th largura={120}>Área</Th>}
-                  <Th largura={compacta ? 120 : 170}>Origem</Th>
+                  {!compacta && (
+                    <Th className="hidden md:table-cell" largura={130}>
+                      Destino
+                    </Th>
+                  )}
+                  {!compacta && (
+                    <Th className="hidden md:table-cell" largura={120}>
+                      Área
+                    </Th>
+                  )}
+                  <Th className="hidden md:table-cell" largura={compacta ? 120 : 170}>
+                    Origem
+                  </Th>
                   {(conferivel || editavel) && (
                     <Th largura={conferivel && editavel ? 76 : 44}>
                       <span className="sr-only">Conferir e ajustar</span>
@@ -232,11 +242,13 @@ export function AtaLista({
                         </span>
                       )}
                       {l.codigo && <Codigo className="mt-px block text-rotulo text-muted">{l.codigo}</Codigo>}
+                      {/* Celular: destino, área e origem descem para baixo do item (as colunas somem). */}
+                      <span className="mt-0.5 block text-rotulo text-muted md:hidden">{[!compacta ? l.destino : null, !compacta ? (l.areaNome ?? "Logística") : null, l.origemLabel].filter(Boolean).join(" · ")}</span>
                     </th>
                     <td className="border-b border-line-row px-2.5 py-2.5 text-right text-corpo font-medium"><QuantidadeAta valor={l.quantidade} /></td>
-                    {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.destino ?? <span className="text-meta">—</span>}</td>}
-                    {!compacta && <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
-                    <td className="border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3">
+                    {!compacta && <td className="hidden border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>}
+                    {!compacta && <td className="hidden border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2 md:table-cell">{l.areaNome ?? <span className="text-meta">Logística</span>}</td>}
+                    <td className="hidden border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-3 md:table-cell">
                       {l.origemSolicitacaoId ? (
                         <Link href={`/solicitacoes/${l.origemSolicitacaoId}`} className="font-mono text-ink-2 no-underline hover:underline">
                           {l.origemLabel}
