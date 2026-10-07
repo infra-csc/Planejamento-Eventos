@@ -67,7 +67,7 @@ function ModalArea({ area, onClose }: { area: A | null; onClose: () => void }) {
 
 const CELULA = "border-b border-line-row px-3 py-3";
 
-export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: string; descricao?: string } }) {
+export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: string; descricao?: string; acao?: React.ReactNode } }) {
   const [modal, setModal] = useState<A | "nova" | null>(null);
   // "Nova área" do cabeçalho (e o link direto /admin?aba=areas&novo=1) abre o modal de criação.
   const limparPedido = usePedidoNovo(() => setModal("nova"));
@@ -78,7 +78,7 @@ export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: str
   return (
     <>
       {areas.length === 0 ? (
-        <EmptyState title={vazio.titulo} description={vazio.descricao} />
+        <EmptyState title={vazio.titulo} description={vazio.descricao} action={vazio.acao} />
       ) : (
         <div className="overflow-x-auto">
           <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">

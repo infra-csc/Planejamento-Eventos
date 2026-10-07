@@ -112,7 +112,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             <p className="m-0 border-b border-line-soft px-cartao py-2.5 text-pequeno text-muted">Itens que as áreas descreveram à mão. Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça.</p>
           )}
           {foraCatalogo.length > 0 && pag.total === 0 ? (
-            <EmptyState title={`Nada encontrado para “${busca}”`} description="Confira a descrição ou tente o código do evento." />
+            <EmptyState icone="busca" title={`Nada encontrado para “${busca}”`} description="Confira a descrição ou tente o código do evento." action={<Link href={hrefCom("/biblioteca", params, { q: null, pagina: null })} className="link text-corpo">Limpar busca</Link>} />
           ) : (
             <>
               <FilaForaCatalogo itens={pag.itens} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
@@ -176,7 +176,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 </p>
               )}
               {pag.total === 0 ? (
-                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : "Nenhum projeto na ata deste evento"} description={busca ? "Confira o código ou tente outra palavra do nome ou da categoria." : "Quando as solicitações forem atendidas, os projetos aparecem aqui."} />
+                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : "Nenhum projeto na ata deste evento"} description={busca ? "Confira o código ou tente outra palavra do nome ou da categoria." : "Quando as solicitações forem atendidas, os projetos aparecem aqui."} icone={busca ? "busca" : undefined} action={busca ? <Link href={hrefCom("/biblioteca", params, { q: null, pagina: null })} className="link text-corpo">Limpar busca</Link> : undefined} />
               ) : (
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
@@ -458,7 +458,18 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")} />
         {abas}
         {pag.total === 0 ? (
-          <EmptyState title={vazio[0]} description={vazio[1]} />
+          <EmptyState
+            title={vazio[0]}
+            description={vazio[1]}
+            icone={busca ? "busca" : undefined}
+            action={
+              busca || setor ? (
+                <Link href={hrefCom("/biblioteca", params, { q: null, setor: null, pagina: null })} className="link text-corpo">
+                  {busca && setor ? "Limpar busca e setor" : busca ? "Limpar busca" : "Ver todos os setores"}
+                </Link>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             <div className="overflow-x-auto">

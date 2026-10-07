@@ -128,13 +128,21 @@ export function AcoesEvento({
           action={transicionarEventoAction}
           hidden={{ eventoId: evento.id, acao }}
         >
-          {acao === "ENCERRAR" && <Aviso>Depois disto nenhuma alteração entra e a OS final fica fixada. Só a Gestão reabre, em exceção e com justificativa.</Aviso>}
+          {/* Um aviso só, em tópicos: antes eram dois quadros iguais empilhados. */}
+          {acao === "ENCERRAR" && (
+            <Aviso titulo="O que acontece ao encerrar">
+              <ul className="m-0 mt-0.5 list-disc space-y-0.5 pl-4">
+                <li>Nenhuma alteração entra e a OS final fica fixada.</li>
+                <li>Rascunhos e solicitações devolvidas que não foram reenviadas são cancelados.</li>
+                <li>Só a Gestão reabre, em exceção e com justificativa.</li>
+              </ul>
+            </Aviso>
+          )}
           {abertasNoEncerramento && (
             <Aviso tom="warning" titulo={`${solicitacoesAbertas.length} ${solicitacoesAbertas.length === 1 ? "solicitação sem resposta" : "solicitações sem resposta"}`}>
               {solicitacoesAbertas.join(", ")}: as que não tiveram nenhuma resposta são canceladas; nas respondidas em parte, o que falta fica como não atendido. As áreas são avisadas.
             </Aviso>
           )}
-          {acao === "ENCERRAR" && <Aviso>Rascunhos e solicitações devolvidas que não foram reenviadas são canceladas.</Aviso>}
           {acao === "FECHAR_ATA" && <Aviso>A ata é congelada e a OS de cada setor é gerada a partir dela. As áreas são notificadas.</Aviso>}
           {acao === "INICIAR_REUNIAO" && <Aviso>Os envios de necessidades ficam bloqueados enquanto a reunião acontece. Rascunhos das áreas continuam salvos.</Aviso>}
           {acao === "REABRIR" && <Aviso tom="warning">O evento volta a aceitar alterações. A reabertura fica marcada no evento e no histórico.</Aviso>}

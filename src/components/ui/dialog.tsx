@@ -34,20 +34,24 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-[calc(var(--z-dialogo)+1)] flex max-h-[calc(100dvh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-modal border border-line-strong bg-surface shadow-modal focus:outline-none",
+          // Celular: painel que sobe da borda de baixo, na largura toda (mais fácil com o polegar e com o teclado aberto).
+          "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[92dvh] max-sm:!w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:animate-sheet-up max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0",
           className,
         )}
         style={{ width: `min(${w}px, 94vw)` }}
       >
-        <div className="border-b border-line-soft py-4 pl-5 pr-14">
+        <span aria-hidden className="mx-auto mt-2 block h-1 w-10 shrink-0 rounded-full bg-line-strong sm:hidden" />
+        <div className="border-b border-line-soft py-4 pl-5 pr-14 max-sm:pt-2.5">
           <DialogPrimitive.Title className="m-0 text-titulo font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
           <DialogPrimitive.Description className={description ? "mt-1 text-pequeno text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">{children}</div>
+        {/* Com rodapé, o corpo não tem respiro embaixo: o rodapé encosta na borda (a margem negativa não anulava o padding num flex). */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4 [&:has(.rodape-dialogo)]:pb-0">{children}</div>
         {/* Por último no DOM: o foco inicial continua no primeiro campo/ação, não no fechar. */}
         <DialogPrimitive.Close
           aria-label="Fechar"
           title="Fechar (Esc)"
-          className="absolute right-3 top-3 grid size-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-ink-3 transition-colors duration-150 hover:bg-black/[0.05] hover:text-ink max-md:size-10"
+          className="absolute right-3 top-3 grid size-8 max-sm:top-4 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-ink-3 transition-colors duration-150 hover:bg-black/[0.05] hover:text-ink max-md:size-10"
         >
           <Icone nome="fechar" />
         </DialogPrimitive.Close>
@@ -62,5 +66,6 @@ export function DialogContent({
  * com as secundárias à esquerda dela. No celular os botões empilham, a principal em cima.
  */
 export function DialogFooter({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("-mx-5 -mb-4 mt-4 flex flex-row-reverse flex-wrap items-center justify-start gap-2 rounded-b-modal border-t border-line-soft bg-subtle px-5 py-3.5 max-sm:flex-col max-sm:items-stretch", className)}>{children}</div>;
+  // Grudado embaixo: com conteúdo longo, os botões continuam à vista enquanto o corpo rola.
+  return <div className={cn("rodape-dialogo sticky bottom-0 z-[1] -mx-5 mt-4 flex flex-row-reverse flex-wrap items-center justify-start gap-2 rounded-b-modal border-t border-line-soft bg-subtle px-5 py-3.5 max-sm:flex-col max-sm:items-stretch max-sm:rounded-b-none max-sm:pb-[max(14px,env(safe-area-inset-bottom))]", className)}>{children}</div>;
 }

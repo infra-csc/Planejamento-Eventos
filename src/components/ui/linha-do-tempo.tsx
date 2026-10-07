@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
 import { diaMesHora } from "@/lib/format";
+import { Icone } from "@/components/ui/icons";
 import type { EntradaLinhaTempo, TomLinhaTempo } from "@/server/services/linha-do-tempo";
 
 const COR: Record<TomLinhaTempo, string> = {
@@ -11,35 +12,91 @@ const COR: Record<TomLinhaTempo, string> = {
 };
 
 /**
+ * Sequências repetidas (3+ seguidas, mesma ação, mesma pessoa, até 10 min entre uma e outra) viram um
+ * bloco só: "Entrou na ata · 4 registros", com os detalhes ao abrir.
+ */
+function blocos(entradas: EntradaLinhaTempo[]): EntradaLinhaTempo[][] {
+  const out: EntradaLinhaTempo[][] = [];
+  for (const e of entradas) {
+    const ult = out.at(-1);
+    const a = ult?.at(-1);
+    if (ult && a && a.titulo === e.titulo && a.por?.nome === e.por?.nome && Math.abs(new Date(a.em).getTime() - new Date(e.em).getTime()) <= 10 * 60_000) ult.push(e);
+    else out.push([e]);
+  }
+  return out.flatMap((b) => (b.length >= 3 ? [b] : b.map((e) => [e])));
+}
+
+function Autor({ e }: { e: EntradaLinhaTempo }) {
+  return (
+    <p className="mb-0 mt-0.5 text-pequeno text-ink-3">
+      {e.por ? (
+        <>
+          <span className="text-ink-2">{e.por.nome}</span>
+          {e.por.perfil ? ` · ${e.por.perfil}` : ""}
+        </>
+      ) : (
+        "Sistema"
+      )}
+    </p>
+  );
+}
+
+/**
  * Linha do tempo de auditoria: o que aconteceu, quem fez (nome e perfil), quando e o detalhe registrado.
  * `rotuloItem` marca a que item da solicitação a entrada se refere.
  */
 export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ainda." }: { entradas: EntradaLinhaTempo[]; rotuloItem?: (itemId: string) => string | null; vazio?: string }) {
   if (entradas.length === 0) return <p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">{vazio}</p>;
+  const lista = blocos(entradas);
   return (
     <ol className="m-0 list-none px-cartao py-3">
-      {entradas.map((e, i) => {
+      {lista.map((b, i) => {
+        const e = b[0];
         const item = e.itemId && rotuloItem ? rotuloItem(e.itemId) : null;
+        const linha = i < lista.length - 1 && <span aria-hidden className="absolute left-[4.5px] top-3 h-full w-px bg-line" />;
+        const ponto = <span aria-hidden className={cn("relative mt-[5px] block size-[10px] shrink-0 rounded-full ring-2 ring-surface", COR[e.tom])} />;
+        if (b.length > 1)
+          return (
+            <li key={e.id} className="relative flex gap-3 pb-3.5 last:pb-0">
+              {linha}
+              {ponto}
+              <details className="group min-w-0 flex-1">
+                <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-corpo [&::-webkit-details-marker]:hidden">
+                  <span className="font-medium text-ink">{e.titulo}</span>
+                  <span className="numero rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{b.length} registros</span>
+                  <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
+                  <span className="inline-flex items-center gap-0.5 text-pequeno text-accent">
+                    <span className="group-open:hidden">ver</span>
+                    <span className="hidden group-open:inline">recolher</span>
+                    <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
+                  </span>
+                </summary>
+                <Autor e={e} />
+                <ul className="m-0 mt-1.5 list-none space-y-0.5 border-l-2 border-line-soft p-0 pl-3">
+                  {b.map((x) => {
+                    const it = x.itemId && rotuloItem ? rotuloItem(x.itemId) : null;
+                    return (
+                      <li key={x.id} className="break-words text-pequeno text-ink-2">
+                        {it && <span className="mr-1.5 rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{it}</span>}
+                        {x.descricao}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            </li>
+          );
         return (
           <li key={e.id} className="relative flex gap-3 pb-3.5 last:pb-0">
-            {i < entradas.length - 1 && <span aria-hidden className="absolute left-[4.5px] top-3 h-full w-px bg-line" />}
-            <span aria-hidden className={cn("relative mt-[5px] block size-[10px] shrink-0 rounded-full ring-2 ring-surface", COR[e.tom])} />
+            {linha}
+            {ponto}
             <div className="min-w-0 flex-1">
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo">
                 <span className="font-medium text-ink">{e.titulo}</span>
                 {item && <span className="rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{item}</span>}
                 <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
               </p>
-              <p className="mb-0 mt-0.5 text-pequeno text-ink-3">
-                {e.por ? (
-                  <>
-                    <span className="text-ink-2">{e.por.nome}</span>
-                    {e.por.perfil ? ` · ${e.por.perfil}` : ""}
-                  </>
-                ) : (
-                  "Sistema"
-                )}
-              </p>
+              <Autor e={e} />
               <p className="mb-0 mt-0.5 break-words text-pequeno text-ink-2">{e.descricao}</p>
             </div>
           </li>

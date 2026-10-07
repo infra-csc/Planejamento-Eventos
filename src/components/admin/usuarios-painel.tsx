@@ -208,7 +208,7 @@ function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar }: { u: U; meuI
 
 const CELULA = "border-b border-line-row px-3 py-3";
 
-export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; vazio: { titulo: string; descricao?: string } }) {
+export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; vazio: { titulo: string; descricao?: string; acao?: React.ReactNode } }) {
   const [modal, setModal] = useState<U | "novo" | null>(null);
   const [link, setLink] = useState<{ nome: string; link: string } | null>(null);
   const [pendente, iniciar] = useTransition();
@@ -230,7 +230,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
   return (
     <>
       {usuarios.length === 0 ? (
-        <EmptyState title={vazio.titulo} description={vazio.descricao} />
+        <EmptyState title={vazio.titulo} description={vazio.descricao} action={vazio.acao} />
       ) : (
         <div className="overflow-x-auto">
           <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[560px]">

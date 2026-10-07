@@ -173,8 +173,13 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
           <EmptyState
             title={busca ? `Nada encontrado para “${busca}”` : semFiltro ? "Nenhum evento cadastrado" : "Nenhum evento corresponde aos filtros"}
             description={busca ? "Confira o código ou tente outra palavra do nome, do cliente ou do local." : semFiltro ? "Quando a logística criar um evento, ele aparece aqui." : "Volte para todas as fases ou mostre todos os eventos."}
+            icone={busca ? "busca" : semFiltro ? "eventos" : undefined}
             action={
-              semFiltro && pode(usuario, "evento.criar") ? (
+              busca ? (
+                <Link href={hrefCom("/eventos", params, { q: null, pagina: null })} className="link text-corpo">
+                  Limpar busca
+                </Link>
+              ) : semFiltro && pode(usuario, "evento.criar") ? (
                 <ButtonLink href="/eventos/novo" variant="primary" size="md" className="no-underline">
                   Novo evento
                 </ButtonLink>

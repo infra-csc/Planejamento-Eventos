@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { listarAreasComContagem, listarUsuarios, obterConfig } from "@/server/services/admin";
 import { ultimoAcesso } from "@/lib/format";
@@ -61,6 +62,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const params = { aba: aba === "usuarios" ? undefined : aba, filtro: sp.filtro, q: sp.q, pagina: sp.pagina };
   const abaSituacao = (s: Situacao, rotulos: Record<Situacao, string>, n: number) => ({ href: hrefCom("/admin", params, { filtro: s === "TODOS" ? null : s, pagina: null }), label: rotulos[s], n, ativo: situacao === s });
   const hrefPagina = (p: number) => hrefCom("/admin", params, { pagina: p === 1 ? null : p });
+  const limparBusca = (
+    <Link href={hrefCom("/admin", params, { q: null, pagina: null })} className="link text-corpo">
+      Limpar busca
+    </Link>
+  );
 
   let conteudo: React.ReactNode;
   let acao: React.ReactNode = null;
@@ -89,7 +95,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             todos.length === 0
               ? { titulo: "Nenhum usuário cadastrado", descricao: "Crie o primeiro acesso em “Novo usuário”." }
               : termo
-                ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia ou busque pelo e-mail." }
+                ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia ou busque pelo e-mail.", acao: limparBusca }
                 : { titulo: situacao === "INATIVOS" ? "Nenhum usuário inativo" : "Nenhum usuário ativo" }
           }
         />
@@ -121,7 +127,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             areas.length === 0
               ? { titulo: "Nenhuma área cadastrada", descricao: "Todas as áreas ativas participam de qualquer evento." }
               : termo
-                ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia do nome da área." }
+                ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia do nome da área.", acao: limparBusca }
                 : { titulo: situacao === "INATIVOS" ? "Nenhuma área inativa" : "Nenhuma área ativa" }
           }
         />

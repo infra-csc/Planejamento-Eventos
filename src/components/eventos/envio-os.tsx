@@ -123,7 +123,7 @@ export function EnvioOs({
             }
             width={480}
           >
-            <DialogFooter className="!mt-0">
+            <DialogFooter className="!-mt-4 border-t-0">
               <Button variant="primary" size="lg" loading={pendente} onClick={marcar}>
                 {incorporar ? "Incorporar e marcar como enviada" : "Marcar como enviada"}
               </Button>

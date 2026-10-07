@@ -886,7 +886,7 @@ export function ConferenciaAta({
       <Dialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>
         {confirmarTodas && (
           <DialogContent title={`Conferir as ${pendentes} linhas restantes`} description="Elas ficam marcadas como conferidas em seu nome, com data e hora. Depois disso a ata pode ser fechada." width={460}>
-            <DialogFooter className="!mt-0">
+            <DialogFooter className="!-mt-4 border-t-0">
               <Button
                 variant="primary"
                 size="lg"

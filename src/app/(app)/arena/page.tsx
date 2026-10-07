@@ -87,7 +87,7 @@ export default async function ArenaIndicePage() {
                             <Codigo>{a.evento.codigo}</Codigo> · {a.evento.nome}
                           </Link>
                         ) : a.origem === "fixa" ? (
-                          <span className="text-muted">Dados da planta e ata importadas</span>
+                          <span className="text-muted">Arena de referência · sem evento</span>
                         ) : (
                           <span className="text-muted">Evento excluído</span>
                         )}
@@ -130,7 +130,7 @@ export default async function ArenaIndicePage() {
                             <Codigo>{a.evento.codigo}</Codigo> · {a.evento.nome}
                           </>
                         ) : a.origem === "fixa" ? (
-                          <span className="text-muted">Dados da planta e ata importadas</span>
+                          <span className="text-muted">Arena de referência · sem evento</span>
                         ) : (
                           <span className="text-muted">Evento excluído</span>
                         )}

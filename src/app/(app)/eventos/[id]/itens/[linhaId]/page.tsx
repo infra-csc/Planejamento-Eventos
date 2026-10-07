@@ -143,7 +143,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
             </Section>
           )}
           {d.tipo === "PROJETO" && (
-            <Section titulo="Peças deste projeto" sub={editavel ? "Ajuste peça a peça quando a reunião decidir (só neste evento). Cada ajuste pede motivo." : "Lista de peças que este projeto leva no evento."}>
+            <Section titulo="Peças deste projeto" sub={editavel ? "Ajuste peça a peça quando a reunião decidir (só neste evento). Cada ajuste fica no histórico." : "Lista de peças que este projeto leva no evento."}>
               <PecasProjeto eventoId={id} linhaId={d.id} quantidadeProjeto={d.quantidade} pecas={d.pecasDoProjeto} editavel={editavel} opcoesPecas={opcoes?.pecas ?? []} depoisDaAta={!antesDaAta} />
             </Section>
           )}

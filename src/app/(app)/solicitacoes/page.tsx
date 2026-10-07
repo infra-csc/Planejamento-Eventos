@@ -118,8 +118,13 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
           <EmptyState
             title={busca ? `Nada encontrado para “${busca}”` : vazio[0]}
             description={busca ? "Confira o código ou tente outra palavra do título." : vazio[1]}
+            icone={busca ? "busca" : undefined}
             action={
-              !busca && filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 ? (
+              busca ? (
+                <Link href={hrefCom("/solicitacoes", params, { q: null, pagina: null })} className="link text-corpo">
+                  Limpar busca
+                </Link>
+              ) : filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 ? (
                 <Link href="/solicitacoes?filtro=RASCUNHO" className="link text-corpo">
                   Você tem {pag.contagens.RASCUNHO} {pag.contagens.RASCUNHO === 1 ? "rascunho ou devolvida" : "rascunhos ou devolvidas"} esperando você
                 </Link>
