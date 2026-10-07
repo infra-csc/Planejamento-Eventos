@@ -79,10 +79,11 @@ export function BarraFerramentasMapa({
   alternarTelaCheia: () => void;
 }) {
   const opcaoAtiva = buscaAberta ? resultados[indiceBusca] : undefined;
+  // Celular: vista e botões numa linha, busca e índice na de baixo (numa linha só, o botão do índice cobria a vista).
   return (
-    <div className="pointer-events-none absolute inset-x-3 top-3 z-30 flex items-start justify-between gap-2">
-      <div className="flex min-w-0 flex-1 items-start gap-2">
-        <div className="pointer-events-auto relative min-w-0 max-w-[320px] flex-[1_1_200px]">
+    <div className="pointer-events-none absolute inset-x-3 top-3 z-30 flex items-start justify-between gap-2 max-sm:flex-col-reverse max-sm:items-stretch">
+      <div className="flex min-w-0 flex-1 items-start gap-2 max-sm:flex-none">
+        <div className="pointer-events-auto relative min-w-0 max-w-[320px] flex-[1_1_200px] max-sm:max-w-none">
           <label htmlFor="arena-busca" className="sr-only">
             Encontrar ponto na arena
           </label>
@@ -122,9 +123,9 @@ export function BarraFerramentasMapa({
             aria-controls="arena-busca-lista"
             aria-autocomplete="list"
             aria-activedescendant={opcaoAtiva ? `arena-opcao-${opcaoAtiva.id}` : undefined}
-            className="pl-9 pr-10 shadow-pill"
+            className="pl-9 pr-10 shadow-pill [@media(hover:none)]:pr-3"
           />
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 [@media(hover:none)]:hidden">
             <Kbd>/</Kbd>
           </span>
           {buscaAberta && (
@@ -162,7 +163,7 @@ export function BarraFerramentasMapa({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-start gap-2">
+      <div className="flex shrink-0 items-start gap-2 max-sm:justify-between">
         <Pills rotulo="Vista do mapa" className="pointer-events-auto shrink-0 shadow-pill" itens={VISTAS.map(([v, rotulo]) => ({ label: rotulo, ativo: vistaMapa === v, onSelect: () => escolherVista(v) }))} />
         <div className="pointer-events-auto relative">
           <div className={cn("overflow-hidden", cartao)}>
