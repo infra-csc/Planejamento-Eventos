@@ -86,8 +86,8 @@ export function QuadroTendas({
   return (
     <>
       <div className="-mx-1 overflow-x-auto px-1">
-        <table className="w-full min-w-[440px] border-collapse">
-          <thead>
+        <table data-responsiva className="w-full border-collapse max-sm:block sm:min-w-[440px]">
+          <thead className="max-sm:hidden">
             <tr className="border-b border-line-soft">
               <th scope="col" className={cn(th, "min-w-[160px]")}>
                 Local
@@ -105,14 +105,14 @@ export function QuadroTendas({
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-sm:block">
             {locais.map((l, n) => {
               const nomeLinha = l.local || `linha ${n + 1}`;
               const erroLinha = erro?.linha === n;
               const inativa = l.quantidade === 0;
               return (
-                <tr key={n} className={cn("border-b border-line-row last:border-b-0", inativa && "text-meta")}>
-                  <td className="py-1.5 pr-1.5">
+                <tr key={n} className={cn("border-b border-line-row last:border-b-0 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-end max-sm:gap-x-3 max-sm:gap-y-2 max-sm:py-3", inativa && "text-meta")}>
+                  <td className="py-1.5 pr-1.5 max-sm:order-1 max-sm:min-w-0 max-sm:p-0">
                     <Input
                       id={`tenda-local-${n}`}
                       value={l.local}
@@ -125,7 +125,8 @@ export function QuadroTendas({
                       aria-describedby={erroLinha ? "tenda-erro" : undefined}
                     />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1.5 py-1.5 max-sm:order-3 max-sm:p-0">
+                    <span className="mb-1 block text-rotulo text-muted sm:hidden">Tendas</span>
                     <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${nomeLinha}`} />
                   </td>
                   {papeis.map((p) => {
@@ -133,7 +134,8 @@ export function QuadroTendas({
                     const padrao = padraoPorTenda(kit, bom, p.papel) * l.quantidade;
                     const alterado = l.totais[p.papel] !== undefined && total !== padrao;
                     return (
-                      <td key={p.papel} className="px-1.5 py-1.5 text-center">
+                      <td key={p.papel} className="px-1.5 py-1.5 text-center max-sm:order-4 max-sm:p-0 max-sm:text-left">
+                        <span className="mb-1 block text-rotulo text-muted sm:hidden">{p.rotulo}</span>
                         <Input
                           type="number"
                           inputMode="numeric"
@@ -144,12 +146,12 @@ export function QuadroTendas({
                           onFocus={(e) => e.target.select()}
                           aria-label={`${p.rotulo} em ${nomeLinha}`}
                           title={alterado ? `Padrão: ${padrao}` : undefined}
-                          className={cn("numero mx-auto w-16 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-accent font-medium text-accent")}
+                          className={cn("numero mx-auto !w-16 text-center max-sm:mx-0 max-sm:!w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-accent font-medium text-accent")}
                         />
                       </td>
                     );
                   })}
-                  <td className="py-1.5 pl-1.5 text-right">
+                  <td className="py-1.5 pl-1.5 text-right max-sm:order-2 max-sm:self-center max-sm:p-0">
                     {locais.length > 1 && (
                       <IconButton label={`Tirar ${nomeLinha}`} onClick={() => setLocais((ls) => ls.filter((_, i) => i !== n))}>
                         <Icone nome="lixeira" />

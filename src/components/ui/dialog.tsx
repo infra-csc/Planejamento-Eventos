@@ -46,7 +46,8 @@ export function DialogContent({
           <DialogPrimitive.Description className={description ? "mt-1 text-pequeno text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
         </div>
         {/* Com rodapé, o corpo não tem respiro embaixo: o rodapé encosta na borda (a margem negativa não anulava o padding num flex). */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4 [&:has(.rodape-dialogo)]:pb-0">{children}</div>
+        {/* Filhos não encolhem: o corpo rola como um todo (um bloco com overflow encolhia e ganhava rolagem própria). */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4 [&:has(.rodape-dialogo)]:pb-0 [&>*]:shrink-0">{children}</div>
         {/* Por último no DOM: o foco inicial continua no primeiro campo/ação, não no fechar. */}
         <DialogPrimitive.Close
           aria-label="Fechar"
