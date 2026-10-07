@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { montarAtaExport } from "@/server/export/ata";
@@ -102,20 +103,51 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
             </tr>
           </thead>
           <tbody>
-            {ata.linhas.map((x, i) => (
-              <tr key={i} className={linha}>
-                <td className={`${td} text-rotulo`}>{x.codigo ? <Codigo>{x.codigo}</Codigo> : ""}</td>
-                <td className={td}>
-                  {x.descricao}
-                  {x.versao ? <Codigo className="text-ink-3"> v{x.versao}</Codigo> : null} <span className="text-rotulo text-ink-3">· {TIPO_LABEL[x.tipo]}</span>
-                </td>
-                <td className={`${num} font-semibold`}>{x.quantidade}</td>
-                <td className={td}>{x.destino ?? "—"}</td>
-                <td className={td}>{x.area ?? "Logística"}</td>
-                <td className={`${td} text-rotulo text-ink-3`}>{x.origem}</td>
-                <td className="py-1.5 align-top text-rotulo">{x.conferidoPor ? `☑ ${x.conferidoPor}` : "☐"}</td>
-              </tr>
-            ))}
+            {/* Mesmo item em vários locais: uma linha com o total e uma sub-linha por local (antes, 10 tendas iguais em 10 linhas soltas). */}
+            {agruparPorItem(ata.linhas).map(({ chave, nome, x0, linhas: ls }) => {
+              const titulo = (
+                <>
+                  {nome}
+                  {x0.versao ? <Codigo className="text-ink-3"> v{x0.versao}</Codigo> : null} <span className="text-rotulo text-ink-3">· {TIPO_LABEL[x0.tipo]}</span>
+                </>
+              );
+              const conferido = (x: (typeof ls)[number]) => (x.conferidoPor ? `☑ ${x.conferidoPor}` : "☐");
+              if (ls.length === 1)
+                return (
+                  <tr key={chave} className={linha}>
+                    <td className={`${td} text-rotulo`}>{x0.codigo ? <Codigo>{x0.codigo}</Codigo> : ""}</td>
+                    <td className={td}>{titulo}</td>
+                    <td className={`${num} font-semibold`}>{x0.quantidade}</td>
+                    <td className={td}>{x0.destino ?? "—"}</td>
+                    <td className={td}>{x0.area ?? "Logística"}</td>
+                    <td className={`${td} text-rotulo text-ink-3`}>{x0.origem}</td>
+                    <td className="py-1.5 align-top text-rotulo">{conferido(x0)}</td>
+                  </tr>
+                );
+              return (
+                <Fragment key={chave}>
+                  <tr className="border-b border-line">
+                    <td className={`${td} text-rotulo`}>{x0.codigo ? <Codigo>{x0.codigo}</Codigo> : ""}</td>
+                    <td className={`${td} font-medium`}>{titulo}</td>
+                    <td className={`${num} font-semibold`}>{ls.reduce((a, x) => a + x.quantidade, 0)}</td>
+                    <td colSpan={4} className={`${td} text-rotulo text-ink-3`}>
+                      {ls.length} locais
+                    </td>
+                  </tr>
+                  {ls.map((x, i) => (
+                    <tr key={i} className={i === ls.length - 1 ? linha : "border-b border-line-soft"}>
+                      <td />
+                      <td className={`${td} pl-3 text-rotulo text-ink-3`}>↳</td>
+                      <td className={num}>{x.quantidade}</td>
+                      <td className={td}>{x.destino ?? "—"}</td>
+                      <td className={td}>{x.area ?? "Logística"}</td>
+                      <td className={`${td} text-rotulo text-ink-3`}>{x.origem}</td>
+                      <td className="py-1.5 align-top text-rotulo">{conferido(x)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-ink">
@@ -179,4 +211,21 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
       </footer>
     </div>
   );
+}
+
+/** Linhas da ata juntas por item, em ordem alfabética, com o nome sem o código repetido na frente nem a versão (que vem à parte). */
+function agruparPorItem<L extends { tipo: string; codigo: string | null; descricao: string; destino: string | null }>(ls: readonly L[]) {
+  const nomeDe = (l: L) => {
+    let n = l.descricao.replace(/\s*\(v\d+\)$/, "");
+    if (l.codigo && n.startsWith(`${l.codigo} · `)) n = n.slice(l.codigo.length + 3);
+    return n;
+  };
+  const m = new Map<string, L[]>();
+  for (const l of ls) {
+    const k = `${l.tipo}|${l.codigo ?? nomeDe(l)}`;
+    m.set(k, [...(m.get(k) ?? []), l]);
+  }
+  return [...m.entries()]
+    .map(([chave, linhas]) => ({ chave, nome: nomeDe(linhas[0]), x0: linhas[0], linhas: [...linhas].sort((a, b) => (a.destino ?? "").localeCompare(b.destino ?? "", "pt-BR")) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }

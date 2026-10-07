@@ -21,7 +21,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 /* Tipografia do design system, em tinta só (sem cores de tela): cabeçalho de tabela em caixa-alta pequena,
    números tabulares à direita, códigos em mono. Cada tabela rola sozinha na tela estreita; no papel, não. */
-const tabela = "w-full min-w-[560px] border-collapse print:min-w-0";
+const tabela = "w-full min-w-[560px] table-fixed border-collapse [overflow-wrap:anywhere] print:min-w-0";
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
 const linha = "border-b border-line-strong";
@@ -95,10 +95,10 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
             <table className={tabela}>
               <thead>
                 <tr className={cabecalho}>
-                  <th scope="col" className={th}>Código</th>
-                  <th scope="col" className={th}>Peça</th>
-                  <th scope="col" className={`${th} text-right`}>Total</th>
-                  <th scope="col" className={th}>Un.</th>
+                  <th scope="col" className={`${th} w-[112px]`}>Código</th>
+                  <th scope="col" className={`${th} w-[26%]`}>Peça</th>
+                  <th scope="col" className={`${th} w-16 text-right`}>Total</th>
+                  <th scope="col" className={`${th} w-12`}>Un.</th>
                   <th scope="col" className={th}>Composição</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                 </tr>
@@ -140,12 +140,12 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                 <table className={tabela}>
                   <thead>
                     <tr className={cabecalho}>
-                      <th scope="col" className={th}>Código</th>
+                      <th scope="col" className={`${th} w-[112px]`}>Código</th>
                       <th scope="col" className={th}>Peça</th>
-                      <th scope="col" className={th}>Material</th>
-                      <th scope="col" className={`${th} text-right`}>Por un.</th>
-                      <th scope="col" className={`${th} text-right`}>Total</th>
-                      <th scope="col" className={th}>Un.</th>
+                      <th scope="col" className={`${th} w-[120px]`}>Material</th>
+                      <th scope="col" className={`${th} w-16 text-right`}>Por un.</th>
+                      <th scope="col" className={`${th} w-16 text-right`}>Total</th>
+                      <th scope="col" className={`${th} w-12`}>Un.</th>
                       <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                     </tr>
                   </thead>
@@ -179,12 +179,12 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
             <table className={tabela}>
               <thead>
                 <tr className={cabecalho}>
-                  <th scope="col" className={th}>Código</th>
+                  <th scope="col" className={`${th} w-[112px]`}>Código</th>
                   <th scope="col" className={th}>Peça</th>
-                  <th scope="col" className={th}>Material</th>
-                  <th scope="col" className={`${th} text-right`}>Qtd.</th>
-                  <th scope="col" className={th}>Un.</th>
-                  <th scope="col" className={th}>Destino · área</th>
+                  <th scope="col" className={`${th} w-[120px]`}>Material</th>
+                  <th scope="col" className={`${th} w-16 text-right`}>Qtd.</th>
+                  <th scope="col" className={`${th} w-12`}>Un.</th>
+                  <th scope="col" className={`${th} w-[28%]`}>Destino · área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                 </tr>
               </thead>
@@ -216,9 +216,9 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
               <thead>
                 <tr className={cabecalho}>
                   <th scope="col" className={th}>Descrição</th>
-                  <th scope="col" className={`${th} text-right`}>Qtd.</th>
-                  <th scope="col" className={th}>Destino</th>
-                  <th scope="col" className={th}>Área</th>
+                  <th scope="col" className={`${th} w-16 text-right`}>Qtd.</th>
+                  <th scope="col" className={`${th} w-[24%]`}>Destino</th>
+                  <th scope="col" className={`${th} w-[16%]`}>Área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                 </tr>
               </thead>
