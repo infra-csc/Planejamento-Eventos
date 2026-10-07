@@ -36,7 +36,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rot
         id="filtro-evento"
         value={atual}
         onChange={(v) => ir(v)}
-        placeholder={fluido ? "Todos os eventos" : "Todos os eventos — buscar por nome ou código"}
+        placeholder="Todos os eventos"
         className={fluido ? "w-full min-w-0 flex-1" : "w-full min-w-0 flex-1 sm:w-[420px] sm:flex-none"}
         opcoes={eventos.map((e) => ({ value: e.id, label: e.nome, descricao: e.codigo, selo: e.n != null ? String(e.n) : undefined, seloTom: "muted" as const }))}
       />

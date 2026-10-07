@@ -114,9 +114,10 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <div className="text-right">
-            <span className="numero block text-metrica font-semibold tracking-[-0.02em] text-ink">{d.quantidade}</span>
+        {/* Celular: a quantidade vira uma faixa na largura toda ("1 nesta linha · Medica"), em vez de um número solto embaixo do título. */}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-line-soft max-sm:pt-3">
+          <div className="text-right max-sm:flex max-sm:items-baseline max-sm:gap-2 max-sm:text-left">
+            <span className="numero block text-metrica font-semibold tracking-[-0.02em] text-ink max-sm:inline max-sm:text-titulo">{d.quantidade}</span>
             <span className="text-rotulo text-muted">{d.origem && d.origem.quantidadeSolicitada !== d.quantidade ? `pedido ${d.origem.quantidadeSolicitada}` : d.destino ? `nesta linha · ${d.destino}` : "nesta linha"}</span>
           </div>
           {d.tipo === "AVULSO" && editavel && opcoes && (

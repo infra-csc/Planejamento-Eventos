@@ -90,14 +90,14 @@ function faixasDaSemana(dias: string[], porDia: Map<string, ItemCalendario[]>) {
 
 /** Linha de lista por dia (agenda lateral e lista do mês no celular). */
 function LinhaAgenda({ it, comFaixa }: { it: ItemCalendario; comFaixa?: boolean }) {
-  const detalhe = [TIPO[it.tipo].rotulo, comFaixa && it.faixa && it.faixa.total > 1 ? `dia ${it.faixa.dia} de ${it.faixa.total}` : null, it.detalhe].filter(Boolean).join(" · ");
+  // A hora vai no texto: uma coluna só para ela deixava um recuo vazio em todo evento sem horário.
+  const detalhe = [it.hora, TIPO[it.tipo].rotulo, comFaixa && it.faixa && it.faixa.total > 1 ? `dia ${it.faixa.dia} de ${it.faixa.total}` : null, it.detalhe].filter(Boolean).join(" · ");
   return (
     <Link href={it.href} className="flex min-h-11 items-start gap-3 px-cartao py-2 no-underline hover:bg-subtle">
-      <span className="numero w-11 shrink-0 pt-px text-pequeno text-ink-3">{it.hora ?? ""}</span>
       <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
       <span className="min-w-0 flex-1">
         <span className="block text-corpo text-ink">{it.tipo === "evento" ? it.titulo : semPrefixo(it.titulo)}</span>
-        <span className="block truncate text-pequeno text-muted" title={detalhe}>
+        <span className="numero block truncate text-pequeno text-muted" title={detalhe}>
           {detalhe}
         </span>
       </span>

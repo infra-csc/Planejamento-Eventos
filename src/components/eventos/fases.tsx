@@ -54,12 +54,19 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
         })}
       </ol>
       {atual && (
-        <p aria-hidden className="mb-0 mt-2 flex min-w-0 items-baseline gap-1.5 text-pequeno sm:hidden">
-          <span className="font-semibold text-ink">{atual.titulo}</span>
-          <span className="numero truncate text-muted">
-            · {atual.quando} · {atual.detalhe}
-          </span>
-        </p>
+        // Celular: fase atual em duas linhas (antes, numa linha só, o título quebrava e o detalhe sumia em reticências).
+        <div aria-hidden className="mt-2 sm:hidden">
+          <p className="m-0 text-pequeno">
+            <span className="font-semibold text-ink">{atual.titulo}</span>
+            <span className="numero text-muted">
+              {" "}
+              · fase {idx + 1} de {passos.length}
+            </span>
+          </p>
+          <p className="numero m-0 mt-0.5 text-rotulo text-muted">
+            {atual.quando} · {atual.detalhe}
+          </p>
+        </div>
       )}
     </section>
   );

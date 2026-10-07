@@ -124,6 +124,7 @@ export function AcoesEvento({
           description={t.descricao}
           confirmLabel={acao === "FECHAR_ATA" ? "Fechar ata e gerar OS" : t.label}
           danger={acao === "CANCELAR"}
+          cancelLabel={acao === "CANCELAR" ? "Voltar" : undefined}
           reasonLabel={t.exigeJustificativa ? (acao === "REABRIR" ? "Justificativa da exceção" : "Justificativa") : undefined}
           action={transicionarEventoAction}
           hidden={{ eventoId: evento.id, acao }}

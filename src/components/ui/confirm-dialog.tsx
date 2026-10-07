@@ -66,7 +66,8 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
               </Field>
             )}
             <FormError message={erro} />
-            <DialogFooter>
+            {/* O formulário já espaça os filhos (gap-3.5): sem o mt-4 padrão, o respiro antes dos botões fica igual ao das outras janelas. */}
+            <DialogFooter className="!mt-0.5">
               <SubmitButton variant={danger ? "danger" : "primary"} size="lg">
                 {confirmLabel}
               </SubmitButton>
