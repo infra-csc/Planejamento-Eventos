@@ -57,7 +57,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
     <div>
       {anexos.length === 0 && <EmptyState compact title="Nenhum anexo" description={podeGerenciar ? "Adicione imagens (PNG/JPG/WEBP) ou o PDF técnico." : undefined} />}
       {imagens.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 p-cartao sm:grid-cols-2">
+        <div className="grid grid-cols-3 gap-2 p-cartao sm:grid-cols-2 sm:gap-3">
           {imagens.map((a) => (
             <figure key={a.id} className="group relative m-0">
               <ImagemZoom src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full overflow-hidden rounded-controle border border-line" />
