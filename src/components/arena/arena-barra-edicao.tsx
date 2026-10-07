@@ -65,7 +65,8 @@ export function BarraEdicao({
 }) {
   const { editando, alternarEdicao, menuItens, setMenuItens, colocando, setColocando, pilha, salvando, desfazer, pontoSelecionadoEdicao, idsEditados, setConfirmarRestaurar, formEdicao, setFormEdicao, confirmarFormEdicao } = edicao;
   return (
-    <div className="relative mb-3 flex h-12 items-center gap-2 rounded-cartao border border-line bg-surface px-3">
+    // Celular: os botões quebram em mais de uma linha e a frase de contexto vai para baixo (numa linha só, Medir e o menu sumiam).
+    <div className="relative mb-3 flex h-12 items-center gap-2 rounded-cartao border border-line bg-surface px-3 max-sm:h-auto max-sm:flex-wrap max-sm:py-2">
       {podeEditar && (
         <Button variant={editando ? "primary" : "secondary"} size="sm" aria-pressed={editando} onClick={alternarEdicao}>
           <IconeLapis size={12} />
@@ -95,12 +96,12 @@ export function BarraEdicao({
           >
             Desfazer{pilha.length > 0 && ` (${pilha.length})`}
           </Button>
-          <span aria-hidden className="mx-1 h-6 w-px bg-line" />
+          <span aria-hidden className="mx-1 h-6 w-px bg-line max-sm:hidden" />
         </>
       )}
 
       {/* Área de contexto: uma frase só, trocada conforme o momento. */}
-      <div role="status" className="flex min-w-0 flex-1 items-center gap-2 text-pequeno text-ink-3">
+      <div role="status" className="flex min-w-0 flex-1 items-center gap-2 text-pequeno text-ink-3 max-sm:order-last max-sm:basis-full">
         {medindo ? (
           <>
             <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-white">
