@@ -92,7 +92,7 @@ export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno =
             <Input id="entorno-coordenadas" name="coordenadas" required autoFocus inputMode="text" placeholder="-20.27648, -40.28402" defaultValue={geo ? `${geo.lat}, ${geo.lon}` : ""} className="numero" />
           </Field>
           <Field label="Giro da planta" htmlFor="entorno-giro" hint="0 se o norte está para cima na imagem. Se a planta está deitada, o ângulo que leva o leste para a direita (ex.: 90 ou -90)." optional>
-            <Input id="entorno-giro" name="giro" type="number" step="0.5" min={-180} max={180} defaultValue={geo?.giro ?? 0} className="numero w-28" />
+            <Input id="entorno-giro" name="giro" type="number" step="0.5" min={-180} max={180} defaultValue={geo?.giro ?? 0} className="numero !w-28" />
           </Field>
           <Aviso>Prédios e ruas importados antes são substituídos; os itens do mapa não mudam. Dados © colaboradores do OpenStreetMap.</Aviso>
         </ConfirmDialog>
