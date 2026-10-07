@@ -66,6 +66,24 @@ export class Materiais {
     return m;
   }
 
+  /**
+   * Cópia de um material que vence as camadas abaixo na disputa de profundidade (polygon offset):
+   * chão < mar 1 < areia 2 < verde 3 < calçada 4 < asfalto 5 < foto da planta 6 < percurso e currais 7-8. Planos quase na mesma
+   * altura tremiam em faixas vistos de longe (a precisão de profundidade não separa milímetros a 1 km).
+   */
+  camada(base: THREE.Material, nivel: number): THREE.Material {
+    const chave = `camada|${base.uuid}|${nivel}`;
+    let m = this.cache.get(chave);
+    if (!m) {
+      m = base.clone();
+      m.polygonOffset = true;
+      m.polygonOffsetFactor = -nivel;
+      m.polygonOffsetUnits = -nivel * 4;
+      this.cache.set(chave, m);
+    }
+    return m;
+  }
+
   /** Box truss: textura de treliça com recorte, repetida ao longo da barra pela UV. */
   trelica(): THREE.MeshStandardMaterial {
     const chave = "trelica";

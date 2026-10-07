@@ -67,15 +67,16 @@ export async function importarEntornoArena(usuario: UsuarioAtual, slug: string, 
   const row = await arenaEditavel(slug);
   const base = row.base;
   const elementos = await buscar(consultaOverpass(caixaDeBusca(geo, base.area, MARGEM_M)));
-  const { edificacoes, vias } = entornoDoOsm(elementos, geo, base.area, MARGEM_M);
+  const { edificacoes, vias, superficies, arvores } = entornoDoOsm(elementos, geo, base.area, MARGEM_M);
   const novaBase = {
     ...base,
     geo,
+    entorno: { superficies, arvores },
     edificacoes: [...base.edificacoes.filter((e) => e.origem !== "osm"), ...edificacoes],
     vias: [...base.vias.filter((v) => v.origem !== "osm"), ...vias],
     fonte: {
       ...base.fonte,
-      documentos: [...base.fonte.documentos.filter((d) => d.nome !== DOC_ENTORNO), { nome: DOC_ENTORNO, detalhe: `Prédios e ruas do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL): ${edificacoes.length} prédios, ${vias.length} trechos de rua` }],
+      documentos: [...base.fonte.documentos.filter((d) => d.nome !== DOC_ENTORNO), { nome: DOC_ENTORNO, detalhe: `Prédios, ruas, mar, areia, áreas verdes e árvores do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL): ${edificacoes.length} prédios, ${vias.length} trechos de rua, ${arvores.length} árvores` }],
     },
   };
   const db = await getDb();
@@ -89,7 +90,7 @@ export async function importarEntornoArena(usuario: UsuarioAtual, slug: string, 
     usuarioId: usuario.id,
     dadosDepois: { geo, predios: edificacoes.length, ruas: vias.length },
   });
-  return { slug, eventoId: row.eventoId, predios: edificacoes.length, ruas: vias.length };
+  return { slug, eventoId: row.eventoId, predios: edificacoes.length, ruas: vias.length, arvores: arvores.length, superficies: superficies.length };
 }
 
 /** Tira o entorno importado (prédios e ruas do OSM); o resto da arena fica como está. */
@@ -101,6 +102,7 @@ export async function removerEntornoArena(usuario: UsuarioAtual, slug: string) {
     ...base,
     edificacoes: base.edificacoes.filter((e) => e.origem !== "osm"),
     vias: base.vias.filter((v) => v.origem !== "osm"),
+    entorno: undefined,
     fonte: { ...base.fonte, documentos: base.fonte.documentos.filter((d) => d.nome !== DOC_ENTORNO) },
   };
   const db = await getDb();

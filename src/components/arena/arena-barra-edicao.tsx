@@ -150,9 +150,12 @@ export function BarraEdicao({
         <IconeRegua />
         {medindo ? "Parar" : "Medir"}
       </Button>
-      <Button size="sm" variant="ghost" className="shrink-0 tabular-nums" aria-pressed={semPosicaoAberta} onClick={abrirSemPosicao}>
-        {foraDoMapa} sem posição
-      </Button>
+      {/* Sem nada fora do mapa, o botão não diz nada (e no celular empurrava o menu para outra linha). */}
+      {(foraDoMapa > 0 || semPosicaoAberta) && (
+        <Button size="sm" variant="ghost" className="shrink-0 tabular-nums" aria-pressed={semPosicaoAberta} onClick={abrirSemPosicao}>
+          {foraDoMapa} sem posição
+        </Button>
+      )}
       {/* Ações de vez em quando ficam num menu: a barra mostra só o que se usa editando. */}
       <Dropdown>
         <DropdownTrigger asChild>

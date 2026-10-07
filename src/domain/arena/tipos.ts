@@ -118,6 +118,9 @@ export type TrechoPercurso = {
 /** Faixa de curral de largada (pelotão), com metragem e grades informadas na planta. */
 export type Curral = { id: string; nome: string; cor: string; metros: number; grades: number; eixo: Vec2[]; largura: number };
 
+/** Chão real em volta da planta (OpenStreetMap): mar e lagos, areia, áreas verdes. */
+export type Superficie = { tipo: "agua" | "areia" | "verde"; poligono: Vec2[] };
+
 /** Edificação de contexto, só volume (sem nome: a planta não identifica). `origem: "osm"`: prédio real do OpenStreetMap. */
 export type Edificacao = ({ poligono: Vec2[]; altura: number } | { centro: Vec2; raio: number; altura: number }) & { origem?: "osm" };
 
@@ -160,4 +163,6 @@ export type Arena = {
   area: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** Onde a planta fica no mundo (centro e giro): com isso o entorno real (prédios, ruas) vem do OpenStreetMap. */
   geo?: ArenaGeo;
+  /** Chão e árvores reais do entorno (OpenStreetMap); prédios e ruas ficam em `edificacoes` e `vias`. */
+  entorno?: { superficies: Superficie[]; arvores: Vec2[] };
 };

@@ -28,8 +28,9 @@ export function construirPercurso(arena: Arena, m: Materiais): Percurso3D {
   grupo.name = "percurso";
   const alta = m.qualidade === "alta";
   const trilho = new LineMaterial({ color: PALETA.percurso, linewidth: 3.5, worldUnits: false });
-  const matFaixa = m.solido(PALETA.percurso, { rugosidade: 0.9 });
-  const matBorda = m.solido(PALETA.bordaPercurso, { rugosidade: 1 });
+  // Acima do asfalto e da foto da planta mesmo vistos de longe (ver Materiais.camada).
+  const matFaixa = m.camada(m.solido(PALETA.percurso, { rugosidade: 0.9 }), 7);
+  const matBorda = m.camada(m.solido(PALETA.bordaPercurso, { rugosidade: 1 }), 8);
   const setaGeo = new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-1, -1.1), new THREE.Vector2(1.2, 0), new THREE.Vector2(-1, 1.1), new THREE.Vector2(-0.35, 0)]));
   setaGeo.rotateX(-Math.PI / 2);
   const setas: THREE.Matrix4[] = [];

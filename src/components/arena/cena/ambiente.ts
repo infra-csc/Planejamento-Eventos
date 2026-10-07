@@ -165,6 +165,24 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
     }
   }
 
+  // Chão real do entorno (OpenStreetMap): mar e lagos, areia e áreas verdes, abaixo da foto da planta (y 0,037)
+  // e das vias. Uma malha por tipo.
+  const porTipo: Record<"agua" | "areia" | "verde", THREE.BufferGeometry[]> = { agua: [], areia: [], verde: [] };
+  const alturaSup = { agua: 0.004, areia: 0.007, verde: 0.01 } as const;
+  for (const sup of arena.entorno?.superficies ?? []) {
+    const g = planoDoPoligono(sup.poligono, alturaSup[sup.tipo]);
+    porTipo[sup.tipo].push(g.index ? g.toNonIndexed() : g);
+  }
+  const matSup = {
+    agua: m.camada(m.solido(0x6e8f9e, { rugosidade: 0.22, metal: 0.25 }), 1),
+    areia: m.camada(m.ruido(0xdccbaa, { variacao: 0.08, metrosPorTile: 24 }), 2),
+    verde: m.camada(m.ruido(PALETA.parque, { variacao: 0.14, metrosPorTile: 40 }), 3),
+  };
+  for (const tipo of ["agua", "areia", "verde"] as const) {
+    const malha = juntar(porTipo[tipo], matSup[tipo], alta);
+    if (malha) base.add(malha);
+  }
+
   // Vias: calçada e asfalto unidos por material (duas malhas para todas as vias).
   const calcadas: THREE.BufferGeometry[] = [];
   const asfaltos: THREE.BufferGeometry[] = [];
@@ -195,9 +213,10 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
       }
     }
   });
-  const calcadaMesh = juntar(calcadas, m.ruido(PALETA.calcada, { variacao: 0.1, metrosPorTile: 16 }), alta);
+  // Prioridade de profundidade (ver Materiais.camada): calçada < asfalto < foto da planta < percurso e currais.
+  const calcadaMesh = juntar(calcadas, m.camada(m.ruido(PALETA.calcada, { variacao: 0.1, metrosPorTile: 16 }), 4), alta);
   // Asfalto reflete um pouco do céu.
-  const asfaltoMesh = juntar(asfaltos, m.ruido(PALETA.asfalto, { variacao: 0.14, metrosPorTile: 20, rugosidade: 0.86 }), alta);
+  const asfaltoMesh = juntar(asfaltos, m.camada(m.ruido(PALETA.asfalto, { variacao: 0.14, metrosPorTile: 20, rugosidade: 0.86 }), 5), alta);
   if (calcadaMesh) base.add(calcadaMesh);
   if (asfaltoMesh) base.add(asfaltoMesh);
   const tracosMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(3.2, 0.16), m.solido(PALETA.faixa, { rugosidade: 1 }), tracos.length);
@@ -324,6 +343,8 @@ export function construirAmbiente(arena: Arena, m: Materiais): { base: THREE.Gro
   const vegetacaoArea = new THREE.Group();
   vegetacaoArea.name = "vegetacaoArea";
   base.add(vegetacaoArea);
+  // Árvores reais do OpenStreetMap (na cidade): mesmo desenho das decorativas, tamanho variado.
+  for (const [x, z] of arena.entorno?.arvores ?? []) arvores.push({ x, z, s: 2.6 + rnd() * 2.6, alta: rnd() < 0.18 });
   for (const [lista, destino] of [[arvores.filter((a) => !naArea(a)), base], [arvores.filter(naArea), vegetacaoArea]] as const) {
     if (lista.length) plantarArvores([...lista], destino, m, alta, detalhe, rnd, eixoY);
   }
@@ -374,7 +395,7 @@ function construirZonas(arena: Arena, m: Materiais) {
   const zonas = new THREE.Group();
   zonas.name = "zonas";
   for (const c of arena.currais) {
-    const pad = new THREE.Mesh(fita(c.eixo, c.largura, 0.09), m.solido(new THREE.Color(c.cor).getHex(), { rugosidade: 0.95, opacidade: 0.9 }));
+    const pad = new THREE.Mesh(fita(c.eixo, c.largura, 0.09), m.camada(m.solido(new THREE.Color(c.cor).getHex(), { rugosidade: 0.95, opacidade: 0.9 }), 7));
     pad.renderOrder = 1;
     zonas.add(pad);
     const borda = [...poligonoFaixa(c.eixo, c.largura), poligonoFaixa(c.eixo, c.largura)[0]].map(([x, z]) => new THREE.Vector3(x, 0.16, z));

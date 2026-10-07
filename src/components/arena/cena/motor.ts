@@ -811,7 +811,8 @@ export class MotorArena {
         const { minX, maxX, minZ, maxZ } = this.o.arena.area;
         const geo = new THREE.PlaneGeometry(maxX - minX, maxZ - minZ);
         geo.rotateX(-Math.PI / 2);
-        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 1, depthWrite: false, roughness: 1 }));
+        // Acima das camadas do chão (mar, areia, verde, ruas) e abaixo do percurso, também vista de longe.
+        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 1, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -24 }));
         mesh.position.set((minX + maxX) / 2, 0.037, (minZ + maxZ) / 2);
         mesh.receiveShadow = this.o.qualidade === "alta";
         // Primeiro entre os transparentes: as áreas (também transparentes) desenham por cima.
