@@ -96,9 +96,16 @@ function rotuloDia(dia: string, hoje: string): string {
   return dias < 0 ? "Agendado" : `Há ${Math.round(dias / 30)} meses`;
 }
 
-function Entrada({ e, ultima, relativo, agora }: { e: EntradaTempo; ultima: boolean; relativo: boolean; agora: Date }) {
-  const absoluto = formatarDataHora(e.em);
-  const iso = typeof e.em === "string" ? e.em : e.em.toISOString();
+/** Hora da entrada: relativa (hoje / painéis) ou do dia; data e hora completas no `title`. */
+function Hora({ em, relativo, agora }: { em: Date | string; relativo: boolean; agora: Date }) {
+  return (
+    <time dateTime={new Date(em).toISOString()} title={formatarDataHora(em)} className="numero shrink-0 text-rotulo text-muted">
+      {relativo ? tempoRelativo(em, agora) : hora(em)}
+    </time>
+  );
+}
+
+function Entrada({ e, ultima, relativo, agora, compacta = false }: { e: EntradaTempo; ultima: boolean; relativo: boolean; agora: Date; compacta?: boolean }) {
   const titulo = e.href ? (
     <Link href={e.href} className="text-ink no-underline hover:text-accent hover:underline">
       {e.titulo}
@@ -118,12 +125,18 @@ function Entrada({ e, ultima, relativo, agora }: { e: EntradaTempo; ultima: bool
             {titulo}
             {e.marcador && <span className="ml-2 rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">{e.marcador}</span>}
           </span>
-          <time dateTime={iso} title={absoluto} className="numero shrink-0 text-rotulo text-muted">
-            {relativo ? tempoRelativo(e.em, agora) : hora(e.em)}
-          </time>
+          {!compacta && <Hora em={e.em} relativo={relativo} agora={agora} />}
         </p>
         {e.detalhe && <p className="mb-0 mt-0.5 break-words text-pequeno text-ink-2">{e.detalhe}</p>}
-        <p className="mb-0 mt-0.5 text-rotulo text-muted">{e.autor ?? "Sistema"}</p>
+        <p className="mb-0 mt-0.5 text-rotulo text-muted">
+          {e.autor ?? "Sistema"}
+          {compacta && (
+            <>
+              {" · "}
+              <Hora em={e.em} relativo={relativo} agora={agora} />
+            </>
+          )}
+        </p>
       </div>
     </li>
   );
@@ -151,7 +164,7 @@ function blocos(itens: EntradaTempo[]): Array<{ tipo: "um"; e: EntradaTempo } | 
   return out;
 }
 
-function Bloco({ titulo, itens, ultima, relativo, agora }: { titulo: string; itens: EntradaTempo[]; ultima: boolean; relativo: boolean; agora: Date }) {
+function Bloco({ titulo, itens, ultima, relativo, agora, compacta = false }: { titulo: string; itens: EntradaTempo[]; ultima: boolean; relativo: boolean; agora: Date; compacta?: boolean }) {
   const e0 = itens[0];
   return (
     <li className="relative flex gap-3 pb-4 last:pb-0">
@@ -172,11 +185,18 @@ function Bloco({ titulo, itens, ultima, relativo, agora }: { titulo: string; ite
               <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
             </span>
           </span>
-          <time dateTime={new Date(e0.em).toISOString()} title={formatarDataHora(e0.em)} className="numero shrink-0 text-rotulo text-muted">
-            {relativo ? tempoRelativo(e0.em, agora) : hora(e0.em)}
-          </time>
+          {!compacta && <Hora em={e0.em} relativo={relativo} agora={agora} />}
+          {/* Autor dentro do resumo: aparece com o bloco fechado, igual às entradas soltas. */}
+          <span className="basis-full text-rotulo font-normal text-muted">
+            {e0.autor ?? "Sistema"}
+            {compacta && (
+              <>
+                {" · "}
+                <Hora em={e0.em} relativo={relativo} agora={agora} />
+              </>
+            )}
+          </span>
         </summary>
-        <p className="mb-0 mt-0.5 text-rotulo text-muted">{e0.autor ?? "Sistema"}</p>
         <ul className="m-0 mt-2 list-none space-y-1 border-l-2 border-line-soft p-0 pl-3 animate-fade-up-rapido">
           {itens.map((e) => {
             const resto = e.titulo.slice(e.titulo.indexOf(":") + 1).trim();
@@ -202,17 +222,23 @@ function Bloco({ titulo, itens, ultima, relativo, agora }: { titulo: string; ite
 /**
  * Linha do tempo com ícone por tipo de ação, agrupada por dia ("Hoje", "Ontem", "Há 5 dias" + a data).
  * Hora relativa nas entradas de hoje; nas outras, a hora do dia. A data e hora completas ficam no `title`.
- * `compacta`: sem grupos e sempre relativa (painéis laterais).
+ * `compacta`: sem grupos por dia e sempre relativa (painéis laterais); `maximo` limita as linhas mostradas.
  */
-export function LinhaTempoAgrupada({ entradas, compacta = false, vazio }: { entradas: EntradaTempo[]; compacta?: boolean; vazio?: React.ReactNode }) {
+export function LinhaTempoAgrupada({ entradas, compacta = false, vazio, maximo }: { entradas: EntradaTempo[]; compacta?: boolean; vazio?: React.ReactNode; maximo?: number }) {
   const agora = new Date();
   if (entradas.length === 0) return <>{vazio ?? <p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">Nada registrado ainda.</p>}</>;
   if (compacta) {
     return (
       <ol className="m-0 list-none px-cartao py-3.5">
-        {entradas.map((e, i) => (
-          <Entrada key={e.id} e={e} ultima={i === entradas.length - 1} relativo agora={agora} />
-        ))}
+        {blocos(entradas)
+          .slice(0, maximo)
+          .map((b, i, todos) =>
+            b.tipo === "um" ? (
+              <Entrada key={b.e.id} e={b.e} ultima={i === todos.length - 1} relativo agora={agora} compacta />
+            ) : (
+              <Bloco key={b.itens[0].id} titulo={b.titulo} itens={b.itens} ultima={i === todos.length - 1} relativo agora={agora} compacta />
+            ),
+          )}
       </ol>
     );
   }

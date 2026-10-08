@@ -10,7 +10,7 @@ import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
 import { areasDoUsuario, daMinhaArea, pode } from "@/domain/permissions";
 import { classificarHistorico } from "@/domain/historico";
-import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, diaMesISO, hojeISO, iniciais, isoSP, periodoCurto } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ChipMono, Tag } from "@/components/ui/badge";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
@@ -65,7 +65,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const { id } = await params;
   const sp = await searchParams;
   const leitura: Leitura = LEITURAS.some((l) => l.chave === sp.itens) ? (sp.itens as Leitura) : "lista";
-  const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id, 6), listarOsResumo(id)]);
+  const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id), listarOsResumo(id)]);
   // O total de peças é conteúdo da OS: quem não tem a aba também não vê o número.
   const veOs = pode(usuario, "os.ver");
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
@@ -167,7 +167,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         <Metric
           label="Itens"
           valor={<Numero valor={linhas.length} />}
-          hint={`${projetos.length} ${projetos.length === 1 ? "projeto" : "projetos"} · ${unidades} un. · ${areasEnvolvidas.length} ${areasEnvolvidas.length === 1 ? "área" : "áreas"}`}
+          hint={`${galeria.length} ${galeria.length === 1 ? "projeto" : "projetos"} · ${unidades} un. · ${areasEnvolvidas.length} ${areasEnvolvidas.length === 1 ? "área" : "áreas"}`}
           href="#itens"
         />
         <Metric
@@ -228,7 +228,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             <Section titulo="Itens do evento" sub={ev.ataFechadaEm ? "Ata da reunião mais o que entrou depois." : "O que as áreas pediram até agora. Ajustes acontecem na reunião."}>
               {linhas.length > 0 && (
                 <div className="overflow-x-auto border-b border-line-soft px-cartao py-2.5">
-                  <Pills rotulo="Como ver os itens" itens={LEITURAS.map((l) => ({ label: l.rotulo, ativo: leitura === l.chave, href: l.chave === "lista" ? `/eventos/${id}#itens` : `/eventos/${id}?itens=${l.chave}#itens` }))} />
+                  <Pills rotulo="Como ver os itens" className="max-md:flex-nowrap" itens={LEITURAS.map((l) => ({ label: l.rotulo, ativo: leitura === l.chave, href: l.chave === "lista" ? `/eventos/${id}#itens` : `/eventos/${id}?itens=${l.chave}#itens` }))} />
                 </div>
               )}
               {linhas.length === 0 ? (
@@ -357,12 +357,12 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             <Section titulo="Galeria dos projetos" sub="O que vai ser montado. Abra um projeto para ver as peças e quem pediu.">
               <ul className="m-0 grid list-none grid-cols-2 gap-3 px-cartao py-4 sm:grid-cols-3 xl:grid-cols-4">
                 {galeria.map((g) => (
-                  <li key={g.codigo ?? g.nome} className="overflow-hidden rounded-cartao border border-line bg-surface transition-colors duration-150 hover:border-line-strong">
+                  <li key={g.codigo ?? g.nome} className="group overflow-hidden rounded-cartao border border-line bg-surface transition-colors duration-150 hover:border-line-strong">
                     <Link href={`/eventos/${id}/itens/${g.ids[0]}`} className="block no-underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
                       {/* Dentro do link a capa é só imagem (sem botão de zoom); o zoom fica na tela do item. */}
                       {g.capaId ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={`/api/anexos/${g.capaId}?w=320`} alt={g.nome} loading="lazy" decoding="async" className="block aspect-[4/3] w-full border-b border-line-soft bg-white object-contain" />
+                        <img src={`/api/anexos/${g.capaId}?w=320`} alt={g.nome} loading="lazy" decoding="async" className="block aspect-[4/3] w-full border-b border-line-soft bg-white object-contain transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.03]" />
                       ) : (
                         <div className="grid aspect-[4/3] w-full place-items-center border-b border-line-soft bg-subtle text-meta">
                           <Icone nome="camadas" tamanho={20} />
@@ -406,7 +406,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           <Section titulo="Quem está envolvido">
             <div className="flex items-center gap-2.5 border-b border-line-row px-cartao py-3">
               <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-bg text-pequeno font-semibold text-ink-2">
-                {ev.responsavel.nome.slice(0, 1)}
+                {iniciais(ev.responsavel.nome)}
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-corpo text-ink">{ev.responsavel.nome}</span>
@@ -458,6 +458,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           >
             <LinhaTempoAgrupada
               compacta
+              maximo={6}
               vazio={<EmptyState compact title="Sem registros" />}
               entradas={historico.map((h) => {
                 const c = classificarHistorico(h);
