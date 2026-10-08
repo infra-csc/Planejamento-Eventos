@@ -224,7 +224,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                           <Codigo>{p.solicitacao.codigo}</Codigo>
                         </td>
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-                          <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={p.descricao}>
+                          <span className="line-clamp-2 min-w-[220px] text-corpo font-medium text-ink" title={p.descricao}>
                             {p.descricao}
                           </span>
                           {p.observacaoLogistica && <span className="mt-0.5 block text-pequeno text-ink-2">{p.observacaoLogistica}</span>}
@@ -276,7 +276,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                             faltam <Numero valor={p.faltante} />
                           </Badge>
                         </span>
-                        <span className="mt-1 line-clamp-2 block text-corpo font-medium">{p.descricao}</span>
+                        <span className="mt-1 line-clamp-2 text-corpo font-medium">{p.descricao}</span>
                         {p.observacaoLogistica && <span className="mt-0.5 block text-pequeno text-ink-2">{p.observacaoLogistica}</span>}
                         <span className="mt-1 block text-pequeno text-muted">
                           <Codigo>{ev.codigo}</Codigo> {ev.nome}
@@ -320,7 +320,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                     return (
                       <tr key={p.pecaId} className="hover:bg-subtle">
                         <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-                          <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={`${p.codigo} — ${p.nome}`}>
+                          <span className="line-clamp-2 min-w-[220px] text-corpo font-medium text-ink" title={`${p.codigo} — ${p.nome}`}>
                             <Codigo className="mr-2 text-pequeno text-ink-2">{p.codigo}</Codigo>
                             {p.nome}
                           </span>
@@ -393,7 +393,7 @@ export default async function ConsolidacaoPage({ searchParams }: { searchParams:
                   <li key={p.pecaId} className="flex items-start gap-3 border-b border-line-row px-cartao py-3.5 last:border-b-0">
                     <span className="min-w-0 flex-1">
                       <Codigo className="block text-pequeno text-ink-2">{p.codigo}</Codigo>
-                      <span className="mt-0.5 line-clamp-2 block text-corpo font-medium text-ink">{p.nome}</span>
+                      <span className="mt-0.5 line-clamp-2 text-corpo font-medium text-ink">{p.nome}</span>
                       <span className="mt-0.5 block text-pequeno text-muted">
                         {SETOR_LABEL[p.setor]}
                         {fam ? ` · ${fam}` : ""}

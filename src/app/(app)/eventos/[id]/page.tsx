@@ -289,7 +289,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                       </span>
                                       <Tag tom="muted">{itensDoGrupo.length} locais</Tag>
                                     </span>
-                                    <span className="mt-0.5 line-clamp-2 block text-rotulo text-muted" title={destinos.map((x) => `${x.d} ${x.q}`).join(" · ")}>
+                                    <span className="mt-0.5 line-clamp-2 text-rotulo text-muted" title={destinos.map((x) => `${x.d} ${x.q}`).join(" · ")}>
                                       {destinos.length > 0 ? destinos.map((x) => `${x.d} ${x.q}`).join(" · ") : "sem local informado"}
                                     </span>
                                   </span>

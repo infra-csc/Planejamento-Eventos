@@ -143,7 +143,7 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
                     return (
                       <tr key={p.id} className="hover:bg-subtle">
                         <th scope="row" className={`${td} text-left font-normal`}>
-                          <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={p.descricao}>
+                          <span className="line-clamp-2 min-w-[220px] text-corpo font-medium text-ink" title={p.descricao}>
                             {p.descricao}
                           </span>
                           <span className="mt-0.5 block text-pequeno text-muted">
@@ -217,7 +217,7 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
                   {pagResolvidas.itens.map((r) => (
                     <tr key={r.id} className="hover:bg-subtle">
                       <th scope="row" className={`${td} text-left font-normal`}>
-                        <span className="line-clamp-2 block min-w-[220px] text-corpo font-medium text-ink" title={r.descricao}>
+                        <span className="line-clamp-2 min-w-[220px] text-corpo font-medium text-ink" title={r.descricao}>
                           {r.descricao}
                         </span>
                         <span className="mt-0.5 block text-pequeno text-muted">

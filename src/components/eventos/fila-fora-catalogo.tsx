@@ -43,7 +43,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
             return (
               <tr key={i.id} className="hover:bg-subtle">
                 <th scope="row" className="border-b border-line-row py-3 pl-cartao pr-3 text-left font-normal">
-                  <span className="line-clamp-2 block text-corpo font-medium text-ink sm:min-w-[220px]" title={descricao}>
+                  <span className="line-clamp-2 text-corpo font-medium text-ink sm:min-w-[220px]" title={descricao}>
                     {descricao}
                   </span>
                   <span className="mt-0.5 block text-pequeno text-muted">
@@ -69,7 +69,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                   <Link href={`/eventos/${i.eventoId}`} className="link font-mono">
                     {i.eventoCodigo}
                   </Link>
-                  <span className="mt-0.5 line-clamp-2 block text-muted" title={i.eventoNome}>
+                  <span className="mt-0.5 line-clamp-2 text-muted" title={i.eventoNome}>
                     {i.eventoNome}
                   </span>
                 </td>

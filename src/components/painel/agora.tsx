@@ -42,7 +42,7 @@ function CartaoAcao({ a }: { a: AcaoAgora }) {
           {a.n != null && <span className="numero text-titulo font-semibold tracking-[-0.01em]">{a.n}</span>}
           <span className="line-clamp-2 min-w-0 font-medium">{a.titulo}</span>
         </span>
-        {a.detalhe && <span className="mt-0.5 line-clamp-2 block text-pequeno text-muted">{a.detalhe}</span>}
+        {a.detalhe && <span className="mt-0.5 line-clamp-2 text-pequeno text-muted">{a.detalhe}</span>}
         <span className="mt-1.5 inline-flex items-center gap-1 text-pequeno font-medium text-accent group-hover:underline">
           {a.rotuloAcao}
           <IndicadorLink />

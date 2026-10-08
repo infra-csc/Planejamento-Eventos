@@ -137,6 +137,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
             <ul className="m-0 list-none p-0 md:hidden">
               {pag.itens.map((s) => {
                 const pi = prazoInfo(s, agora);
+                const semPrazo = pi.label === "—" || pi.label === "rascunho";
                 return (
                   <li key={s.id} className="border-b border-line-row last:border-b-0">
                     <Link href={`/solicitacoes/${s.id}`} className="relative block px-cartao py-3.5 no-underline transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
@@ -146,7 +147,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                             <Codigo>{s.codigo}</Codigo> · {s.area.nome}
                           </span>
                           <span className="mt-0.5 line-clamp-2 text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
-                          <span className="mt-0.5 line-clamp-1 block text-pequeno text-muted">{s.evento.nome}</span>
+                          <span className="mt-0.5 line-clamp-1 text-pequeno text-muted">{s.evento.nome}</span>
                         </span>
                         <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                       </span>
@@ -156,10 +157,12 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                         </span>
                         <TipoSolicitacaoTag tipo={s.tipo} />
                         {s.foraDaJanela && <ForaJanelaTag />}
-                        <span className="numero ml-auto inline-flex items-center gap-1.5 font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                          {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                          {pi.vencido ? `atrasada ${pi.sub}` : pi.sub ? `${pi.label} · ${pi.sub}` : pi.label}
-                        </span>
+                        {!semPrazo && (
+                          <span className="numero ml-auto inline-flex items-center gap-1.5 font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                            {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
+                            {pi.vencido ? `atrasada ${pi.sub}` : pi.sub ? `${pi.label} · ${pi.sub}` : pi.label}
+                          </span>
+                        )}
                       </span>
                       <IndicadorLink lugar="sobre" />
                     </Link>
@@ -193,6 +196,7 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                 <tbody>
                   {pag.itens.map((s) => {
                     const pi = prazoInfo(s, agora);
+                    const semPrazo = pi.label === "—" || pi.label === "rascunho";
                     return (
                       <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
@@ -238,11 +242,19 @@ export default async function SolicitacoesPage({ searchParams }: { searchParams:
                           <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
-                          <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                            {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                            {pi.vencido ? "atrasada" : pi.label}
-                          </span>
-                          <span className="numero block text-rotulo text-meta">{pi.sub}</span>
+                          {semPrazo ? (
+                            <span className="text-pequeno text-line-strong" aria-label="sem prazo correndo">
+                              —
+                            </span>
+                          ) : (
+                            <>
+                              <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                                {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
+                                {pi.vencido ? "atrasada" : pi.label}
+                              </span>
+                              <span className="numero block text-rotulo text-meta">{pi.sub}</span>
+                            </>
+                          )}
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                           <Icone nome="chevron-direita" className="inline-block" />

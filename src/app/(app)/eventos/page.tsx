@@ -37,10 +37,17 @@ type Fase = (typeof FASES)[number][0];
 /** Ordem das fases para ordenar a coluna "Fase" (a mesma das abas). */
 const ORDEM_FASE: Record<Exclude<Fase, "TODOS">, number> = { PREPARACAO: 0, EM_REUNIAO: 1, ABERTO: 2, ENCERRADO: 3, REALIZADO: 4, CANCELADO: 5 };
 
-function marco(e: EventoLista) {
+/** "em 3 dias", "hoje", "há 2 dias": quando o evento acontece, em relação a hoje. */
+function quando(dataInicio: string, hoje: string) {
+  const d = Math.round((Date.parse(`${dataInicio}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86_400_000);
+  return d === 0 ? "evento hoje" : d > 0 ? `em ${d} ${d === 1 ? "dia" : "dias"}` : `há ${-d} ${-d === 1 ? "dia" : "dias"}`;
+}
+
+function marco(e: EventoLista, hoje: string) {
   if (e.status === "PREPARACAO") return `reunião ${diaMesHora(e.dataReuniao)}`;
   if (e.status === "EM_REUNIAO") return "reunião agora";
-  if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : "aberto a alterações";
+  // Sem janela, "aberto a alterações" só repetia a fase ao lado: mostra quando o evento acontece.
+  if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : quando(e.dataInicio, hoje);
   if (e.status === "CANCELADO") return "cancelado";
   return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
 }
@@ -147,7 +154,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
 
       {/* Barra de filtros compacta (template de pedidos): busca à esquerda, o que é urgente à direita. */}
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <BuscaUrl largura={340} placeholder="Buscar por nome, código, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+        <BuscaUrl largura={400} placeholder="Buscar por nome, código, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
         {soAcao ? (
           <Link href={hrefCom("/eventos", params, { acao: null, pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
             Mostrando só o que {ehLogistica ? "exige ação agora" : "aguarda a logística"} · ver todos
@@ -231,13 +238,15 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                             <span className="text-corpo font-medium text-ink">{e.nome}</span>
                             {e.reabertoVezes > 0 && <Badge tom="warning">reaberto {e.reabertoVezes}×</Badge>}
                           </span>
-                          <span title={onde || undefined} className={onde ? "mt-0.5 line-clamp-1 block text-pequeno text-muted" : "mt-0.5 block text-pequeno text-muted lg:hidden"}>
-                            {onde}
-                            {/* Período sai da coluna em telas menores e desce para cá. */}
-                            <span className="lg:hidden">
-                              {onde && " · "}
-                              <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e)}
+                          {/* Local em até 2 linhas (1 no desktop); endereço longo não estica a linha. */}
+                          {onde && (
+                            <span title={onde} className="mt-0.5 line-clamp-2 text-pequeno text-muted lg:line-clamp-1">
+                              {onde}
                             </span>
+                          )}
+                          {/* Período sai da coluna em telas menores e desce para cá, sempre inteiro. */}
+                          <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
+                            <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e, hoje)}
                           </span>
                           {/* Celular: fase e pendência dentro da célula do evento. */}
                           <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
@@ -258,7 +267,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 lg:table-cell">
                           <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
-                          <span className="block text-rotulo text-muted">{marco(e)}</span>
+                          <span className="block text-rotulo text-muted">{marco(e, hoje)}</span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 xl:table-cell">
                           <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />

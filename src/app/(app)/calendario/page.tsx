@@ -39,7 +39,7 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
         // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
         {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
         style={atravessa ? { width: `calc(${diasNaLinha * 100}% + ${diasNaLinha - 1}px - ${margens}px)` } : undefined}
-        className={cn("block px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao ? "truncate" : "line-clamp-2 [overflow-wrap:normal]", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
+        className={cn("px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao ? "block truncate" : "line-clamp-2 [overflow-wrap:normal]", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
       >
         {continuacao ? " " : i.titulo}
       </Link>
@@ -217,13 +217,17 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
 
       {/* Filtros numa linha: tipo (pílulas com contagem) e evento. */}
       <div className="mb-4 flex flex-col gap-2.5 lg:flex-row lg:flex-wrap lg:items-center">
+        {/* Celular: as pílulas rolam de lado numa linha só, em vez de quebrar a trilha. */}
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pills
           rotulo="Filtrar por tipo"
+          className="max-md:flex-nowrap"
           itens={[
             { label: "Tudo", n: itensMes.filter(doEvento).length, href: query(m, null, eventoFiltro), ativo: !filtro },
             ...tiposPresentes.map((t) => ({ label: TIPO[t].rotulo, n: itensMes.filter((i) => i.tipo === t && doEvento(i)).length, href: query(m, t, eventoFiltro), ativo: filtro === t })),
           ]}
         />
+        </div>
         {eventosDoMes.length > 1 && <FiltroEvento eventos={eventosDoMes.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: itensMes.filter((i) => i.evento.id === e.id).length }))} rotuloOculto />}
       </div>
 
@@ -350,7 +354,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         </section>
 
         {/* No celular a lista do mês já mostra os mesmos compromissos: a agenda só a partir do tablet. */}
-        <aside aria-labelledby="calendario-agenda" className="overflow-hidden rounded-cartao border border-line bg-surface max-md:hidden xl:sticky xl:top-topo-fixo">
+        <aside aria-labelledby="calendario-agenda" className="rounded-cartao border border-line bg-surface max-md:hidden max-xl:overflow-hidden xl:sticky xl:top-topo-fixo xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto">
           <div className="border-b border-line-soft px-cartao py-3.5">
             <h2 id="calendario-agenda" className="m-0 text-secao font-semibold tracking-[-0.01em]">
               Próximos 21 dias
