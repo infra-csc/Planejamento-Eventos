@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { combinaBusca } from "@/lib/busca";
 
@@ -27,6 +27,10 @@ import { conferenciaOpcional } from "@/domain/itens-padrao";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { MARCA_ACOMPANHANTE } from "@/components/solicitacoes/nova/utilidades";
 
+/** Evento da página: leva ao campo "Pessoas presentes" do painel da reunião (que escuta e foca o campo). */
+export const EVENTO_REGISTRAR_PRESENTES = "conferencia:registrar-presentes";
+export const pedirRegistroDePresentes = () => window.dispatchEvent(new CustomEvent(EVENTO_REGISTRAR_PRESENTES));
+
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
   if (!r.ok) return toastErro(r.erro);
@@ -37,42 +41,48 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
-/** Quem pediu a linha (ou quem incluiu na reunião). */
 /** Estrutura e Tendas ficam juntas (todas as áreas numa seção só); o resto, por área. */
 const secaoDe = (l: LinhaConferencia) => (l.grupo === "ESTRUTURA" || l.grupo === "TENDAS" ? GRUPO_LABEL[l.grupo] : areaDe(l));
 const ordemSecao = (s: string) => (s === GRUPO_LABEL.ESTRUTURA ? 0 : s === GRUPO_LABEL.TENDAS ? 1 : 2);
+/** Quem pediu a linha (ou quem incluiu na reunião). */
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+/** Origem em uma linha: "Produção · Ana Lima". */
+const quemDe = (l: LinhaConferencia) => `${areaDe(l)} · ${l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}`;
+
+/** Nome da linha para leitor de tela e dicas: o item mais o local (ou o pedido, sem local) — duas linhas iguais não soam iguais. */
+const rotuloLinha = (l: LinhaConferencia) => `${l.nome}${l.destino ? `, ${l.destino}` : l.origem ? `, ${l.origem.codigo}` : ""}`;
+
+/** Realce rápido da linha que a pessoa acabou de pular para ("próxima a conferir"). */
+function realcar(el: Element | null) {
+  if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  el.animate([{ boxShadow: "inset 3px 0 0 var(--color-accent)", backgroundColor: "var(--color-accent-bg)" }, { boxShadow: "inset 3px 0 0 transparent", backgroundColor: "transparent" }], { duration: 1500, easing: "ease-out" });
+}
 
 /** Check da linha (40 px, alvo de toque em qualquer tela): um clique confere, outro desfaz. Otimista, volta se o servidor recusar. */
-function Check({ l, eventoId, onMudou }: { l: LinhaConferencia; eventoId: string; onMudou: (id: string, v: boolean) => void }) {
-  const [pendente, iniciar] = useTransition();
+function Check({ l, onAlternar }: { l: LinhaConferencia; onAlternar: (id: string, v: boolean) => void }) {
+  // Só anima depois de um clique (no carregamento, as já conferidas não "pulam").
+  const [animar, setAnimar] = useState(false);
   const marcada = Boolean(l.conferidoEm);
   return (
     <button
       type="button"
       role="checkbox"
+      data-check=""
+      data-obrigatoria={conferenciaOpcional(l) ? undefined : ""}
       aria-checked={marcada}
-      aria-label={`${l.nome}: ${marcada ? "conferido, clique para desfazer" : "marcar como conferido"}`}
-      title={marcada ? `Conferido${l.conferidoPor ? ` por ${l.conferidoPor}` : ""} — clique para desfazer` : "Marcar como conferido"}
-      disabled={pendente}
+      aria-label={`${rotuloLinha(l)}: ${marcada ? "conferido, clique para desfazer" : "marcar como conferido"}`}
+      title={marcada ? `Conferido${l.conferidoPor ? ` por ${l.conferidoPor}` : ""} — clique para desfazer` : "Marcar como conferido (espaço)"}
       onClick={() => {
         const v = !marcada;
-        onMudou(l.id, v);
-        iniciar(async () => {
-          const r = await conferirLinhaAction(eventoId, l.id, v);
-          if (!r.ok) {
-            onMudou(l.id, !v);
-            toastErro(r.erro);
-          } else if (r.dados && r.dados.conferidas === r.dados.total) {
-            toastSucesso("Todas as linhas conferidas. Registre os presentes e feche a ata.");
-          }
-        });
+        setAnimar(v);
+        onAlternar(l.id, v);
       }}
       className={cn(
-        "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-150 disabled:cursor-progress disabled:opacity-60",
+        "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success",
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success/60",
+        marcada && animar && "motion-safe:animate-marcar",
       )}
     >
       <Icone nome="check" tamanho={20} />
@@ -87,19 +97,20 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
   const pedido = l.origem?.quantidadeSolicitada ?? null;
+  const delta = qtd - l.quantidade;
   const efeito =
-    qtd === l.quantidade
-      ? null
+    delta === 0
+      ? "Use − e + ou digite. 0 retira a linha da ata."
       : qtd === 0
-        ? "sai da ata"
+        ? "A linha sai da ata."
         : pedido != null && qtd < pedido
-          ? `a área vê "parcial: ${qtd} de ${pedido}"${motivo.trim() ? " com o motivo" : ""}`
+          ? `A área vê "parcial: ${qtd} de ${pedido}"${motivo.trim() ? ", com o motivo" : ""}.`
           : pedido != null && qtd === pedido
-            ? "a área vê atendido integralmente"
-            : `a ata passa a ter ${qtd}`;
+            ? "A área vê o pedido atendido integralmente."
+            : `A ata passa a ter ${qtd}.`;
 
   const salvar = () => {
-    if (qtd === l.quantidade) return setErro("Altere a quantidade para salvar um ajuste.");
+    if (delta === 0) return;
     setErro(null);
     iniciar(async () => {
       // Vai junto a quantidade que a tela mostrava: se outra pessoa mudou a linha, o servidor recusa.
@@ -112,31 +123,40 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
 
   return (
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent title={`Ajustar ${l.nome}`} description="O ajuste fica registrado com seu nome e a data." width={480}>
+      <DialogContent title={`Ajustar ${l.nome}`} description={[l.destino, quemDe(l)].filter(Boolean).join(" · ")} width={480}>
         <div className="flex flex-col gap-4">
-          <dl className="m-0 grid grid-cols-2 gap-3 rounded-controle border border-line-soft bg-subtle px-3.5 py-2.5">
-            <div>
+          <dl className="m-0 grid grid-cols-2 overflow-hidden rounded-controle border border-line-soft">
+            <div className="bg-subtle px-3.5 py-2.5">
               <dt className="text-pequeno text-muted">Na ata agora</dt>
-              <dd className="m-0 text-destaque font-semibold text-ink"><QuantidadeAta valor={l.quantidade} /></dd>
+              <dd className="m-0 text-destaque font-semibold text-ink">
+                <QuantidadeAta valor={l.quantidade} />
+              </dd>
             </div>
-            <div>
+            <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
               <dt className="text-pequeno text-muted">{l.origem ? <>Pedido em <Codigo>{l.origem.codigo}</Codigo></> : "Origem"}</dt>
-              <dd className={cn("m-0", pedido != null ? "numero text-destaque font-semibold text-ink" : "text-pequeno text-ink-2")}>{pedido ?? "incluída na reunião"}</dd>
+              <dd className={cn("m-0", pedido != null ? "numero text-destaque font-semibold text-ink" : "pt-1 text-pequeno text-ink-2")}>{pedido ?? "incluída na reunião"}</dd>
             </div>
           </dl>
 
-          <Field label="Nova quantidade" htmlFor="qtd-ajuste" hint={efeito ?? "0 retira a linha da ata."}>
-            <Stepper id="qtd-ajuste" valor={qtd} onChange={setQtd} min={0} tamanho="md" autoFocus />
+          <Field label="Nova quantidade" htmlFor="qtd-ajuste" hint={efeito}>
+            <span className="flex items-center gap-3">
+              <Stepper id="qtd-ajuste" valor={qtd} onChange={setQtd} min={0} tamanho="md" autoFocus />
+              {delta !== 0 && (
+                <span className={cn("numero rounded-chip px-2 py-0.5 text-pequeno font-semibold motion-safe:animate-fade-up-rapido", delta < 0 ? "bg-warning-bg text-warning" : "bg-success-bg text-success")} aria-live="polite">
+                  {delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}
+                </span>
+              )}
+            </span>
           </Field>
 
-          <Field label="Motivo (opcional)" htmlFor="motivo-ajuste" hint="Se escrever, vai para o histórico e para quem pediu.">
-            <Textarea id="motivo-ajuste" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação" className="min-h-[84px]" />
+          <Field label="Motivo" htmlFor="motivo-ajuste" optional hint="Se escrever, vai para o histórico e para quem pediu.">
+            <Textarea id="motivo-ajuste" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 3 disponíveis na data; o 4º vem de locação" className="min-h-[76px]" />
           </Field>
 
           <FormError message={erro} />
         </div>
         <DialogFooter>
-          <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente} disabled={delta === 0} motivoDesabilitado="Altere a quantidade para salvar">
             Salvar ajuste
           </Button>
           <DialogClose asChild>
@@ -171,7 +191,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
 
   return (
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent title={`Descrição de ${l.nome}`} description={`${l.origem ? `Pedido ${l.origem.codigo} · ${l.origem.solicitante}. ` : ""}A alteração fica no histórico com seu nome, e quem pediu passa a ver a descrição nova.`} width={560}>
+      <DialogContent title={`Descrição de ${l.nome}`} description={`${l.origem ? `Pedido ${l.origem.codigo} · ${l.origem.solicitante}. ` : ""}Fica no histórico com seu nome, e quem pediu passa a ver a descrição nova.`} width={560}>
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-[112px_minmax(0,1fr)_36px] gap-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted">
             <span>Unidades</span>
@@ -179,7 +199,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
             <span />
           </div>
           {grupos.map((g, n) => (
-            <div key={n} className="grid grid-cols-[112px_minmax(0,1fr)_36px] items-center gap-2">
+            <div key={n} className="grid grid-cols-[112px_minmax(0,1fr)_36px] items-center gap-2 motion-safe:animate-fade-up-rapido">
               <Stepper tamanho="sm" valor={g.unidades} min={1} onChange={(v) => mudar(n, { unidades: v })} label={`Unidades da descrição ${n + 1}`} />
               <Input value={g.texto} maxLength={300} onChange={(e) => mudar(n, { texto: e.target.value })} placeholder="Ex.: PALCO, arte da marca, 2×1 m" aria-label={`Descrição ${n + 1}`} autoFocus={n === 0} />
               {grupos.length > 1 ? (
@@ -196,7 +216,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
             Outra descrição
           </Button>
           <p className={cn("m-0 text-pequeno", grupos.length > 1 && soma !== total ? "text-warning" : "text-muted")}>
-            {grupos.length === 1 ? (total === 1 ? "" : `Uma descrição só vale para todas as ${total} unidades.`) : `${soma} de ${total} unidades descritas.`} Deixe em branco para tirar a descrição.
+            {grupos.length === 1 ? (total === 1 ? "" : `Uma descrição só vale para todas as ${total} unidades. `) : `${soma} de ${total} unidades descritas. `}Deixe em branco para tirar a descrição.
           </p>
           <FormError message={erro} />
         </div>
@@ -217,10 +237,12 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
 
 /**
  * Grade da linha. Celular (cartão): check · item · qtd, e as ações numa faixa abaixo, alinhadas ao texto.
- * md+: check · item (com quem pediu) · destino · qtd · ações, numa linha só.
+ * md+: check · item · local · qtd · ações, numa linha só. Larguras fixas: alinham em todas as linhas
+ * (também nas recuadas dos blocos por item).
  */
-// Destino, quantidade e ações com largura fixa: alinham em todas as linhas (também nas recuadas dos blocos por item).
-const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_140px_64px_96px]";
+const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_150px_56px_116px]";
+/** Linha conferida ganha um fundo verde quase imperceptível; pendente fica neutra (a maioria é pendente). */
+const fundoLinha = (conferida: boolean) => cn("border-b border-line-row px-cartao py-3 transition-colors duration-200 last:border-b-0 md:py-2.5", conferida ? "bg-success-bg/40 hover:bg-success-bg/70" : "hover:bg-subtle");
 
 /** Descrição das unidades como quem pediu escreveu: uma linha por texto, com quantas unidades levam ele. */
 function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidades: number }> }) {
@@ -228,7 +250,7 @@ function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidade
   if (grupos.length === 1)
     return (
       <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
-        <span className="text-muted">Descrição{total > 1 ? ` (todas as ${total})` : ""}: </span>
+        <span className="text-muted">{total > 1 ? `Descrição (as ${total}): ` : "Descrição: "}</span>
         {grupos[0].texto || <span className="text-meta">sem descrição</span>}
       </p>
     );
@@ -248,20 +270,43 @@ function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidade
 }
 
 /** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
-function PedidoPor({ l }: { l: LinhaConferencia }) {
-  return l.origem ? (
+function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: boolean }) {
+  if (l.origem)
+    return (
+      <>
+        {!semPessoa && <>{quemDe(l)} · </>}
+        <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="text-ink-3 no-underline hover:text-accent hover:underline">
+          <Codigo>{l.origem.codigo}</Codigo>
+        </Link>
+      </>
+    );
+  if (semPessoa) return null;
+  if (l.regra) return <>Regra da logística · {l.regra}</>;
+  if (l.padrao) return <>Item padrão de toda ata</>;
+  return <>Incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>;
+}
+
+/** Ações de uma linha, sempre na mesma ordem e com o mesmo peso: ajustar a quantidade e abrir as peças. */
+function AcoesLinha({ l, eventoId, editavel, onAjustar }: { l: LinhaConferencia; eventoId: string; editavel: boolean; onAjustar: (l: LinhaConferencia) => void }) {
+  return (
     <>
-      {l.origem.solicitante} ·{" "}
-      <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="text-ink-3 no-underline hover:text-accent hover:underline">
-        <Codigo>{l.origem.codigo}</Codigo>
-      </Link>
+      {editavel && (
+        <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar a quantidade de ${rotuloLinha(l)}`} title="Ajustar a quantidade">
+          <Icone nome="lapis" />
+          <span className="md:sr-only">Ajustar</span>
+        </Button>
+      )}
+      {l.tipo === "PROJETO" && (
+        <Link
+          href={`/eventos/${eventoId}/itens/${l.id}`}
+          className="inline-flex h-[27px] items-center gap-1.5 rounded-controle px-2 text-pequeno font-medium text-ink-2 no-underline transition-colors hover:bg-black/[0.04] hover:text-ink max-md:min-h-10"
+          title={`Peças de ${l.nome} nesta linha: ajuste peça a peça e histórico`}
+        >
+          <Icone nome="camadas" />
+          Peças
+        </Link>
+      )}
     </>
-  ) : l.regra ? (
-    <>regra da logística: {l.regra}</>
-  ) : l.padrao ? (
-    <>item padrão de toda ata</>
-  ) : (
-    <>incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>
   );
 }
 
@@ -274,12 +319,21 @@ function Linha({
   opcoes,
   podeCadastrar,
   emGrupo = false,
+  origemComum = false,
+  solComum = false,
+  ajustesNoBloco = false,
   onEditarDescricao,
 }: {
+  /** No bloco, todas as linhas vêm do mesmo pedido: o código fica só no cabeçalho. */
+  solComum?: boolean;
+  /** As peças ajustadas são iguais em todas as linhas do bloco: o resumo fica só no cabeçalho. */
+  ajustesNoBloco?: boolean;
   /** Administrador: corrigir a descrição das unidades (só linha que veio de pedido). */
   onEditarDescricao?: (l: LinhaConferencia) => void;
-  /** Dentro do bloco do item: o nome já está no cabeçalho, a linha mostra quem pediu. */
+  /** Dentro do bloco do item: o nome já está no cabeçalho; o rótulo da linha é o local (o que muda entre elas). */
   emGrupo?: boolean;
+  /** No bloco, todas as linhas vêm da mesma pessoa e pedido: a origem fica só no cabeçalho. */
+  origemComum?: boolean;
   l: LinhaConferencia;
   eventoId: string;
   editavel: boolean;
@@ -290,13 +344,17 @@ function Linha({
 }) {
   const conferida = Boolean(l.conferidoEm);
   const pedidoDiferente = l.origem && l.origem.quantidadeSolicitada !== l.quantidade;
-  const dicas = [l.origem?.ajustes ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
-  const temAcoes = editavel || l.tipo === "PROJETO";
+  const dicas = [l.origem?.ajustes && !ajustesNoBloco ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   const opcional = conferenciaOpcional(l);
+  const marcaOpcional = opcional && !conferida && (
+    <span className="text-rotulo text-muted" title="Não precisa estar conferida para fechar a ata.">
+      {l.quantidade === 0 ? "a definir · opcional" : "opcional"}
+    </span>
+  );
   return (
-    <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida || opcional ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
+    <li data-linha={l.id} className={cn(GRADE, fundoLinha(conferida))}>
       {editavel ? (
-        <Check l={l} eventoId={eventoId} onMudou={onMudou} />
+        <Check l={l} onAlternar={onMudou} />
       ) : (
         <span role="img" aria-label={conferida ? "Conferido" : "Não conferido"} className={cn("grid size-10 place-items-center rounded-full border-2", conferida ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
           <Icone nome="check" tamanho={20} />
@@ -305,82 +363,60 @@ function Linha({
 
       <div className="min-w-0">
         {emGrupo ? (
-          <p className="m-0 text-corpo font-medium text-ink">
+          <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
-              {areaDe(l)} · {l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}
+              {l.destino ?? "Sem local informado"}
             </Link>
+            {marcaOpcional}
           </p>
         ) : (
           <p className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
               {l.nome}
             </Link>
-            <Tag tom={l.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[l.tipo]}</Tag>
-            <span className="text-rotulo text-muted">{GRUPO_LABEL[l.grupo]}</span>
+            {l.tipo === "AVULSO" && <Tag tom="warning">{TIPO[l.tipo]}</Tag>}
             {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
-            {opcional && !conferida && (
-              <span className="text-rotulo text-muted" title="Não precisa estar conferida para fechar a ata.">
-                · {l.quantidade === 0 ? "a definir, " : ""}opcional
-              </span>
-            )}
+            {marcaOpcional}
           </p>
         )}
-        <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">
-          <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>
-          {!emGrupo ? (
-            <PedidoPor l={l} />
-          ) : l.origem ? (
-            <Link href={`/solicitacoes/${l.origem.solicitacaoId}`} className="text-ink-3 no-underline hover:text-accent hover:underline">
-              <Codigo>{l.origem.codigo}</Codigo>
-            </Link>
-          ) : !l.padrao && l.incluidaPor ? (
-            l.incluidaPor
-          ) : null}
-        </p>
+        {!(emGrupo && origemComum && (!l.origem || solComum)) && (
+          <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">
+            {!emGrupo && <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>}
+            <PedidoPor l={l} semPessoa={emGrupo && origemComum} />
+          </p>
+        )}
         {/* O que quem pediu escreveu: descrição das unidades e observação, inteiras (a reunião confere por elas). */}
         {l.origem && l.origem.descricoes.length > 0 && <Descricoes grupos={l.origem.descricoes} />}
-        {onEditarDescricao && l.origem && (
-          <button type="button" onClick={() => onEditarDescricao(l)} className="mt-1 inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-rotulo text-accent hover:underline">
-            <Icone nome="lapis" className="size-3" />
-            {l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"}
-          </button>
-        )}
         {l.origem?.observacao && <ObservacaoLinha texto={l.origem.observacao} codigo={l.codigo} />}
         {dicas && (
-          <p title={dicas} className={cn("m-0 mt-0.5 line-clamp-2 text-rotulo", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+          <p title={dicas} className={cn("m-0 mt-1 line-clamp-2 text-rotulo", l.ultimoAjuste ? "text-warning" : "text-muted")}>
             {l.ultimoAjuste && <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />}
             {dicas}
           </p>
         )}
+        {onEditarDescricao && l.origem && (
+          <button type="button" onClick={() => onEditarDescricao(l)} className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-chip border-0 bg-transparent p-0 text-rotulo text-ink-3 transition-colors hover:text-accent">
+            <Icone nome="lapis" className="size-3" />
+            {l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"}
+          </button>
+        )}
       </div>
 
       <span className="hidden break-words text-pequeno text-ink-2 md:line-clamp-2" title={l.destino ?? undefined}>
-        {l.destino ?? <span className="text-meta">—</span>}
+        {emGrupo ? null : (l.destino ?? <span className="text-meta">—</span>)}
       </span>
 
       <span className="text-right">
-        <span className="block text-secao font-semibold text-ink"><QuantidadeAta valor={l.quantidade} /></span>
+        <span className="block text-secao font-semibold text-ink">
+          <QuantidadeAta valor={l.quantidade} />
+        </span>
         {pedidoDiferente && <span className="numero block text-rotulo text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 
-      {temAcoes ? (
-        <span className="col-span-full flex flex-wrap items-center justify-start gap-1.5 pl-[52px] md:col-span-1 md:pl-0">
-          {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
-          {editavel && (
-            <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar quantidade de ${l.nome}`} title="Ajustar quantidade">
-              <Icone nome="lapis" />
-              <span className="md:hidden">Ajustar</span>
-            </Button>
-          )}
-          {l.tipo === "PROJETO" && (
-            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="inline-flex items-center whitespace-nowrap px-1 text-pequeno text-accent no-underline hover:underline max-md:min-h-10" title={`Abrir ${l.nome}: peças do projeto, ajuste peça a peça e histórico`}>
-              Peças
-            </Link>
-          )}
-        </span>
-      ) : (
-        <span className="hidden md:block" />
-      )}
+      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden md:col-span-1 md:flex-nowrap md:justify-end md:pl-0">
+        {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
+        <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
+      </span>
     </li>
   );
 }
@@ -423,7 +459,7 @@ function LinhaJunta({
   onConferir,
   onAjustar,
   onEditarDescricao,
-  pendente,
+  origemComum,
 }: {
   ls: readonly LinhaConferencia[];
   eventoId: string;
@@ -431,7 +467,7 @@ function LinhaJunta({
   onConferir: (ls: readonly LinhaConferencia[], v: boolean) => void;
   onAjustar: (l: LinhaConferencia) => void;
   onEditarDescricao?: (l: LinhaConferencia) => void;
-  pendente: boolean;
+  origemComum: boolean;
 }) {
   const l0 = ls[0];
   const ok = ls.filter((l) => l.conferidoEm).length;
@@ -449,20 +485,21 @@ function LinhaJunta({
   const diferentes = variantes.size > 1;
   const ajustadas = ls.filter((l) => l.ultimoAjuste);
   return (
-    <li className={cn(GRADE, "border-b border-line-row px-cartao py-3 transition-colors duration-150 last:border-b-0 md:py-2", conferida ? "hover:bg-subtle" : "bg-warning-bg-suave hover:bg-warning-bg/60")}>
+    <li data-linha={l0.id} className={cn(GRADE, fundoLinha(conferida))}>
       {editavel ? (
         <button
           type="button"
           role="checkbox"
+          data-check=""
+          data-obrigatoria=""
           aria-checked={conferida ? true : ok > 0 ? "mixed" : false}
-          aria-label={`${l0.nome}, ${ls.length} linhas: ${conferida ? "conferidas, clique para desfazer" : "marcar todas como conferidas"}`}
+          aria-label={`${rotuloLinha(l0)}, ${ls.length} linhas: ${conferida ? "conferidas, clique para desfazer" : "marcar todas como conferidas"}`}
           title={conferida ? "Conferidas — clique para desfazer" : `Marcar as ${ls.length} linhas como conferidas`}
-          disabled={pendente}
           onClick={() => onConferir(ls, !conferida)}
           className={cn(
-            "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-150 disabled:cursor-progress disabled:opacity-60",
+            "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 disabled:cursor-progress",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success",
+            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success/60",
           )}
         >
           {ok > 0 && !conferida ? <span className="numero text-rotulo font-semibold">{ok}/{ls.length}</span> : <Icone nome="check" tamanho={20} />}
@@ -474,23 +511,18 @@ function LinhaJunta({
       )}
 
       <div className="min-w-0">
-        <p className="m-0 text-corpo font-medium text-ink">
-          {areaDe(l0)} · {pessoaDe(l0)}
-          <span className="numero ml-2 rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">{ls.length} linhas</span>
+        <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
+          {l0.destino ?? "Sem local informado"}
+          <span className="numero rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">{ls.length} linhas</span>
         </p>
         <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">
-          <span className="md:hidden">{l0.destino ? `${l0.destino} · ` : ""}</span>
-          {l0.origem && (
-            <Link href={`/solicitacoes/${l0.origem.solicitacaoId}`} className="text-ink-3 no-underline hover:text-accent hover:underline">
-              <Codigo>{l0.origem.codigo}</Codigo>
-            </Link>
-          )}
+          <PedidoPor l={l0} semPessoa={origemComum} />
         </p>
         {descricoes.size > 0 && <Descricoes grupos={[...descricoes.entries()].map(([texto, unidades]) => ({ texto, unidades }))} />}
         {observacoes.map((o) => (
           <ObservacaoLinha key={o} texto={o} codigo={l0.codigo} />
         ))}
-        {comuns.length > 0 && <p className="m-0 mt-0.5 text-rotulo text-muted">Peças ajustadas{diferentes ? " em todas" : ""}: {comuns.join(" · ")}</p>}
+        {comuns.length > 0 && <p className="m-0 mt-1 text-rotulo text-muted">Peças ajustadas{diferentes ? " em todas" : ""}: {comuns.join(" · ")}</p>}
         {diferentes && (
           <div role="note" className="mt-1.5 rounded-controle border border-warning-border bg-warning-bg px-2.5 py-1.5 text-pequeno text-warning">
             <p className="m-0 flex items-center gap-1.5 font-medium">
@@ -522,35 +554,25 @@ function LinhaJunta({
           </p>
         ))}
         {/* Cada linha segue com o próprio ajuste de quantidade, peças e descrição. */}
-        <ul className="m-0 mt-1.5 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-rotulo">
+        <ul className="m-0 mt-2 grid list-none gap-1 p-0 text-pequeno">
           {ls.map((l, i) => (
-            <li key={l.id} className="inline-flex items-center gap-1.5 text-muted">
-              <span className="numero">
-                Linha {i + 1} · {l.quantidade} un.{l.conferidoEm ? " ✓" : ""}
+            <li key={l.id} className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-ink-3">
+              <span className="numero mr-1 inline-flex items-center gap-1">
+                {l.conferidoEm ? <Icone nome="check" className="size-3.5 text-success" /> : <span aria-hidden className="inline-block size-3.5 rounded-full border border-line-control" />}
+                Linha {i + 1} · {l.quantidade} un.
               </span>
-              {editavel && (
-                <button type="button" onClick={() => onAjustar(l)} className="cursor-pointer border-0 bg-transparent p-0 text-accent hover:underline" title={`Ajustar a quantidade da linha ${i + 1}`}>
-                  ajustar
-                </button>
-              )}
-              {l.tipo === "PROJETO" && (
-                <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-accent no-underline hover:underline" title={`Peças da linha ${i + 1}`}>
-                  peças
-                </Link>
-              )}
+              <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
               {onEditarDescricao && l.origem && (
-                <button type="button" onClick={() => onEditarDescricao(l)} className="cursor-pointer border-0 bg-transparent p-0 text-accent hover:underline">
-                  descrição
-                </button>
+                <Button variant="ghost" size="xs" onClick={() => onEditarDescricao(l)}>
+                  Descrição
+                </Button>
               )}
             </li>
           ))}
         </ul>
       </div>
 
-      <span className="hidden break-words text-pequeno text-ink-2 md:line-clamp-2" title={l0.destino ?? undefined}>
-        {l0.destino ?? <span className="text-meta">—</span>}
-      </span>
+      <span className="hidden md:block" />
 
       <span className="text-right">
         <span className="block text-secao font-semibold text-ink">
@@ -565,8 +587,9 @@ function LinhaJunta({
 
 /**
  * Conferência da ata na reunião de OS — usada ao vivo, então vale velocidade: check grande por linha,
- * progresso sempre à vista (barra fixa no topo ao rolar), filtro por situação e por área, busca.
- * A canetinha ajusta a quantidade com motivo e log. A ata só fecha com tudo conferido.
+ * progresso e a próxima ação sempre à vista (barra fixa no topo ao rolar), "próxima a conferir",
+ * ↑/↓ entre as linhas, filtros numa faixa só. A canetinha ajusta a quantidade com log. A ata só fecha
+ * com as linhas obrigatórias conferidas.
  */
 export function ConferenciaAta({
   eventoId,
@@ -576,6 +599,7 @@ export function ConferenciaAta({
   areas,
   podeCadastrar = false,
   podeEditarDescricao = false,
+  presentesOk = true,
 }: {
   eventoId: string;
   /** Administrador corrige a descrição das unidades na conferência. */
@@ -585,16 +609,72 @@ export function ConferenciaAta({
   opcoes: OpcoesReferencia;
   areas: Array<{ id: string; nome: string }>;
   podeCadastrar?: boolean;
+  /** "Pessoas presentes" preenchido: com tudo conferido, a barra leva ao campo se faltar. */
+  presentesOk?: boolean;
 }) {
   // Estado local só para a resposta imediata do check; a revalidação do servidor substitui a lista.
   const [override, setOverride] = useState<Record<string, boolean>>({});
   const [base, setBase] = useState(iniciais);
   if (base !== iniciais) {
     setBase(iniciais);
-    setOverride({});
+    // Só sai da marcação local o que o servidor já confirmou: uma resposta de um clique anterior não pode
+    // desfazer, na tela, os cliques seguintes que ainda estão a caminho (as linhas "piscavam" de volta).
+    const doServidor = new Map(iniciais.map((l) => [l.id, Boolean(l.conferidoEm)]));
+    setOverride((o) => Object.fromEntries(Object.entries(o).filter(([id, v]) => doServidor.has(id) && doServidor.get(id) !== v)));
   }
   const linhas = useMemo(() => iniciais.map((l) => (l.id in override ? { ...l, conferidoEm: override[l.id] ? (l.conferidoEm ?? new Date().toISOString()) : null, conferidoPor: override[l.id] ? l.conferidoPor : null } : l)), [iniciais, override]);
-  const mudou = (id: string, v: boolean) => setOverride((o) => ({ ...o, [id]: v }));
+  const listaRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * Fila das gravações da conferência: uma por vez, na ordem dos cliques. Cliques rápidos em várias linhas
+   * disparavam várias ações do servidor ao mesmo tempo e só a primeira chegava (as outras se perdiam sem
+   * aviso). A tela muda na hora (marcação local); a fila grava atrás e desfaz só o que o servidor recusar.
+   */
+  type Tarefa = { tipo: "um"; id: string; v: boolean } | { tipo: "lote"; ids: string[]; rotulo: string };
+  const fila = useRef<Tarefa[]>([]);
+  const rodando = useRef(false);
+  const processarFila = async () => {
+    if (rodando.current) return;
+    rodando.current = true;
+    try {
+      while (fila.current.length) {
+        const t = fila.current.shift()!;
+        if (t.tipo === "um") {
+          // A mesma linha clicada de novo mais adiante na fila: vale o último clique.
+          if (fila.current.some((x) => x.tipo === "um" && x.id === t.id)) continue;
+          const r = await conferirLinhaAction(eventoId, t.id, t.v).catch(() => ({ ok: false as const, erro: "Sem conexão: a marcação não foi gravada. Marque de novo." }));
+          if (!r.ok) {
+            setOverride((o) => ({ ...o, [t.id]: !t.v }));
+            toastErro(r.erro);
+          } else if (t.v && !fila.current.length && r.dados && r.dados.conferidas === r.dados.total) {
+            toastSucesso("Tudo conferido. Registre os presentes e feche a ata.");
+          }
+        } else {
+          const r = await conferirTodasAction(eventoId, t.ids).catch(() => ({ ok: false as const, erro: "Sem conexão: as linhas não foram marcadas. Tente de novo." }));
+          if (!r.ok) setOverride((o) => ({ ...o, ...Object.fromEntries(t.ids.map((id) => [id, false])) }));
+          avisarTodas(r, t.rotulo);
+        }
+      }
+    } finally {
+      rodando.current = false;
+    }
+  };
+  // Marcações ainda a caminho: fechar ou recarregar a página pede confirmação (senão se perdiam).
+  useEffect(() => {
+    const aviso = (e: BeforeUnloadEvent) => {
+      if (rodando.current || fila.current.length) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", aviso);
+    return () => window.removeEventListener("beforeunload", aviso);
+  }, []);
+  const enfileirar = (t: Tarefa) => {
+    fila.current.push(t);
+    void processarFila();
+  };
+  const mudou = (id: string, v: boolean) => {
+    setOverride((o) => ({ ...o, [id]: v }));
+    enfileirar({ tipo: "um", id, v });
+  };
 
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [area, setArea] = useState("");
@@ -606,7 +686,6 @@ export function ConferenciaAta({
   const [descrevendo, setDescrevendo] = useState<LinhaConferencia | null>(null);
   const editarDescricao = podeEditarDescricao ? setDescrevendo : undefined;
   const [incluir, setIncluir] = useState(false);
-  const [conferindo, iniciarTodas] = useTransition();
   const [confirmarTodas, setConfirmarTodas] = useState(false);
 
   // Progresso sobre as linhas obrigatórias: "a definir" e estaiamento não travam o fechamento.
@@ -615,7 +694,10 @@ export function ConferenciaAta({
   const pendentes = obrigatorias.length - conferidas;
   const pct = obrigatorias.length ? Math.round((conferidas / obrigatorias.length) * 100) : 0;
   const completo = obrigatorias.length > 0 && pendentes === 0;
-  const opcionaisPendentes = linhas.filter((l) => conferenciaOpcional(l) && !l.conferidoEm).length;
+  const opcionais = linhas.length - obrigatorias.length;
+  // Contagens dos filtros sobre a lista toda (com as opcionais): o número da pílula é o que a lista mostra.
+  const nPendentesLista = linhas.filter((l) => !l.conferidoEm).length;
+  const nConferidasLista = linhas.length - nPendentesLista;
   const areasNaAta = useMemo(() => [...new Set(linhas.map(areaDe))].sort((a, b) => a.localeCompare(b, "pt-BR")), [linhas]);
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
   const pessoasNaAta = useMemo(() => [...new Set(linhas.map(pessoaDe))].sort(porNome), [linhas]);
@@ -636,8 +718,8 @@ export function ConferenciaAta({
     [linhas, filtro, areaAtiva, pessoaAtiva, grupoAtivo, busca],
   );
 
-  // Seção por área; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por destino e pessoa.
-  // A ordem só depende de área, nome, destino e pessoa: conferir uma linha não a tira do lugar.
+  // Seção por área; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por local e pessoa.
+  // A ordem só depende de área, nome, local e pessoa: conferir uma linha não a tira do lugar.
   const secoes = useMemo(() => {
     const porArea = new Map<string, LinhaConferencia[]>();
     for (const l of visiveis) porArea.set(secaoDe(l), [...(porArea.get(secaoDe(l)) ?? []), l]);
@@ -655,37 +737,30 @@ export function ConferenciaAta({
         return { area, itens };
       });
   }, [visiveis]);
-  // Contagem por área sobre a ata inteira (não só o recorte), para o cabeçalho da seção.
+  // Contagem por seção sobre a ata inteira (não só o recorte) e só das obrigatórias, como o progresso.
   const totalArea = (a: string) => {
-    const ls = linhas.filter((l) => secaoDe(l) === a);
+    const ls = linhas.filter((l) => secaoDe(l) === a && !conferenciaOpcional(l));
     return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length };
   };
   const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(grupoAtivo) || Boolean(busca.trim());
+  const limparFiltros = () => {
+    setFiltro("todas");
+    setArea("");
+    setPessoa("");
+    setGrupo("");
+    setBusca("");
+  };
   const conferirGrupo = (ls: readonly LinhaConferencia[]) => {
     const ids = ls.filter((l) => !l.conferidoEm).map((l) => l.id);
     if (!ids.length) return;
     setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, true])) }));
-    iniciarTodas(async () => {
-      const r = await conferirTodasAction(eventoId, ids);
-      if (!r.ok) setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, false])) }));
-      avisarTodas(r, `${ls[0].nome}: ${ids.length} ${ids.length === 1 ? "linha conferida" : "linhas conferidas"}`);
-    });
+    enfileirar({ tipo: "lote", ids, rotulo: `${ls[0].nome}: ${ids.length} ${ids.length === 1 ? "linha conferida" : "linhas conferidas"}` });
   };
 
   // Várias linhas de uma vez (linha junta): marca as que faltam ou desmarca todas.
   const conferirVarias = (ls: readonly LinhaConferencia[], v: boolean) => {
     if (v) return conferirGrupo(ls);
-    const ids = ls.filter((l) => l.conferidoEm).map((l) => l.id);
-    setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, false])) }));
-    iniciarTodas(async () => {
-      for (const id of ids) {
-        const r = await conferirLinhaAction(eventoId, id, false);
-        if (!r.ok) {
-          setOverride((o) => ({ ...o, [id]: true }));
-          toastErro(r.erro);
-        }
-      }
-    });
+    for (const l of ls) if (l.conferidoEm) mudou(l.id, false);
   };
   // Dentro do bloco do item: linhas do mesmo pedido, pessoa e local ficam juntas.
   const juntar = (ls: readonly LinhaConferencia[]) => {
@@ -697,213 +772,308 @@ export function ConferenciaAta({
     return [...m.values()];
   };
 
+  /** Leva à próxima linha obrigatória sem conferir (na ordem da lista) e põe o foco no check dela. */
+  const irParaProxima = () => {
+    const alvo = listaRef.current?.querySelector<HTMLButtonElement>('[data-check][data-obrigatoria][aria-checked="false"], [data-check][data-obrigatoria][aria-checked="mixed"]');
+    if (!alvo) {
+      // Pode estar escondida pelo filtro: volta a mostrar tudo e tenta de novo depois de renderizar.
+      if (filtrando) {
+        limparFiltros();
+        requestAnimationFrame(() => requestAnimationFrame(irParaProxima));
+      }
+      return;
+    }
+    alvo.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    alvo.focus({ preventScroll: true });
+    realcar(alvo.closest("li"));
+  };
+
+  /** ↑/↓ (ou J/K) andam entre os checks da lista; espaço marca. Para a reunião conferir sem o mouse. */
+  const navegarComTeclado = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const atual = e.target as HTMLElement;
+    if (!atual.matches("[data-check]")) return;
+    const dir = e.key === "ArrowDown" || e.key === "j" ? 1 : e.key === "ArrowUp" || e.key === "k" ? -1 : 0;
+    if (!dir) return;
+    const todos = [...(listaRef.current?.querySelectorAll<HTMLButtonElement>("[data-check]") ?? [])];
+    const prox = todos[todos.indexOf(atual as HTMLButtonElement) + dir];
+    if (!prox) return;
+    e.preventDefault();
+    prox.focus({ preventScroll: true });
+    prox.scrollIntoView({ block: "nearest" });
+  };
+
   return (
     <section className="min-w-0 rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
-      {/* Progresso fixo: continua à vista enquanto a lista rola (a reunião acompanha por ele). */}
-      <div className="sticky top-14 z-10 rounded-t-cartao border-b border-line-soft bg-surface/95 px-cartao py-3 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p className="m-0 flex items-baseline gap-1.5" aria-live="polite">
-            <span className={cn("numero text-titulo font-semibold", completo ? "text-success" : "text-ink")}>{conferidas}</span>
-            <span className="text-corpo text-ink-2">
-              de <span className="numero">{obrigatorias.length}</span> conferidas
-            </span>
-            <span className="numero text-pequeno text-muted">· {pct}%</span>
-            {opcionaisPendentes > 0 && (
-              <span className="text-pequeno text-muted" title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
-                · {opcionaisPendentes} {opcionaisPendentes === 1 ? "opcional" : "opcionais"}
-              </span>
+      {/* Barra fixa: progresso e a próxima ação continuam à vista enquanto a lista rola (a reunião acompanha por ela). */}
+      <div className="sticky top-14 z-10 rounded-t-cartao border-b border-line-soft bg-surface/95 px-cartao pb-3 pt-3.5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+          <div className="min-w-0" aria-live="polite">
+            {completo ? (
+              <p className="m-0 flex items-center gap-2 text-corpo font-semibold text-success">
+                <span aria-hidden className="grid size-6 place-items-center rounded-full bg-success text-white motion-safe:animate-marcar">
+                  <Icone nome="check" className="size-3.5" />
+                </span>
+                Tudo conferido
+                <span className="numero font-normal text-ink-3">· {obrigatorias.length} linhas</span>
+              </p>
+            ) : (
+              <p className="m-0 flex items-baseline gap-1.5">
+                <span className="numero text-titulo font-semibold tracking-[-0.01em] text-ink">{conferidas}</span>
+                <span className="text-corpo text-ink-2">
+                  de <span className="numero">{obrigatorias.length}</span> conferidas
+                </span>
+                <span className="numero text-pequeno text-muted">· faltam {pendentes}</span>
+              </p>
             )}
-          </p>
+            {(opcionais > 0 || (completo && !presentesOk)) && (
+              <p className="m-0 mt-0.5 text-rotulo text-muted">
+                {completo && !presentesOk ? (
+                  <button type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 font-medium text-warning hover:underline">
+                    Falta registrar os presentes para fechar a ata →
+                  </button>
+                ) : (
+                  <span title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
+                    + {opcionais} {opcionais === 1 ? "linha opcional" : "linhas opcionais"} (a definir e estaiamento), fora da contagem
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
           {editavel && (
-            <span className="ml-auto flex items-center gap-1.5">
+            // Celular: "Próxima" e "Incluir" lado a lado; "Conferir as restantes" (ação de lote, menos usada) logo abaixo.
+            <span className="ml-auto flex flex-wrap items-center gap-1.5 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
+              {pendentes > 0 && (
+                <Button variant="ghost" size="sm" onClick={irParaProxima} title="Leva à próxima linha sem conferir (↑ ↓ andam entre as linhas)" className="max-sm:border-line-strong max-sm:bg-surface">
+                  <Icone nome="seta-baixo" />
+                  Próxima a conferir
+                </Button>
+              )}
               {pendentes > 1 && (
-                <Button variant="ghost" size="sm" loading={conferindo} onClick={() => setConfirmarTodas(true)}>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmarTodas(true)} className="max-sm:order-last max-sm:col-span-2">
+                  <Icone nome="check" />
                   Conferir as <span className="numero">{pendentes}</span> restantes
                 </Button>
               )}
-              <Button variant="secondary" size="sm" onClick={() => setIncluir(true)}>
+              <Button variant="secondary" size="sm" onClick={() => setIncluir(true)} className={pendentes > 0 ? undefined : "max-sm:col-span-2"}>
                 <Icone nome="mais" />
                 Incluir linha
               </Button>
             </span>
           )}
         </div>
-        <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={obrigatorias.length} aria-valuenow={conferidas} className="mt-2">
+        <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={obrigatorias.length} aria-valuenow={conferidas} className="mt-3">
           <BarraProgresso pct={pct} tom={completo ? "success" : "neutro"} altura={6} />
         </div>
       </div>
 
-      {gruposNaAta.length > 1 && (
-        <div className="-mx-1 overflow-x-auto border-b border-line-soft px-cartao pt-2.5">
-          <Pills
-            rotulo="Separar por material"
-            className="!flex-nowrap"
-            itens={[
-              { label: "Todos os materiais", n: linhas.length, ativo: !grupoAtivo, onSelect: () => setGrupo("") },
-              ...gruposNaAta.map((g) => ({ label: GRUPO_LABEL[g], n: linhas.filter((l) => l.grupo === g).length, ativo: grupoAtivo === g, onSelect: () => setGrupo(g) })),
-            ]}
-          />
-        </div>
-      )}
-      <div className="flex flex-col gap-2 border-b border-line-soft px-cartao py-2.5 md:flex-row md:flex-wrap md:items-center">
+      {/* Filtros numa faixa só: situação, busca e os recortes (material, área, pessoa) como listas compactas. */}
+      <div className="grid grid-cols-1 gap-2 border-b border-line-soft px-cartao py-2.5 md:flex md:flex-wrap md:items-center">
         <div className="-mx-1 overflow-x-auto px-1">
           <Pills
             rotulo="Filtrar por situação"
             className="!flex-nowrap"
             itens={[
               { label: "Todas", n: linhas.length, ativo: filtro === "todas", onSelect: () => setFiltro("todas") },
-              { label: "A conferir", n: pendentes, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
-              { label: "Conferidas", n: conferidas, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
+              { label: "A conferir", n: nPendentesLista, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
+              { label: "Conferidas", n: nConferidasLista, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
             ]}
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          {areasNaAta.length > 1 && (
-            <div className="min-w-0 flex-1 basis-36 sm:max-w-44">
-              <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} placeholder="Todas as áreas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
-            </div>
-          )}
-          {pessoasNaAta.length > 1 && (
-            <div className="min-w-0 flex-1 basis-36 sm:max-w-48">
-              <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} placeholder="Todas as pessoas" ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
-            </div>
-          )}
-          <div className="relative min-w-0 flex-[2] basis-48">
-            <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
-            <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Item, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
-          </div>
+        <div className="relative min-w-0 md:min-w-[200px] md:flex-1">
+          <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+          <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar item, local, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
         </div>
+        {(gruposNaAta.length > 1 || areasNaAta.length > 1 || pessoasNaAta.length > 1) && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-none">
+            {gruposNaAta.length > 1 && (
+              // Três filtros no celular: o primeiro ocupa a linha toda (nenhum fica sozinho e estreito).
+              <div className={cn("min-w-0 md:w-40", areasNaAta.length > 1 && pessoasNaAta.length > 1 && "max-sm:col-span-2")}>
+                <Select
+                  tamanho="sm"
+                  aria-label="Filtrar por material"
+                  value={grupoAtivo}
+                  onValueChange={(v) => setGrupo(v as GrupoMaterial | "")}
+                  ordenarAlfabetico={false}
+                  opcoes={[{ value: "", label: "Todos os materiais" }, ...gruposNaAta.map((g) => ({ value: g, label: `${GRUPO_LABEL[g]} · ${linhas.filter((l) => l.grupo === g).length}` }))]}
+                />
+              </div>
+            )}
+            {areasNaAta.length > 1 && (
+              <div className="min-w-0 md:w-36">
+                <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
+              </div>
+            )}
+            {pessoasNaAta.length > 1 && (
+              <div className="min-w-0 md:w-40">
+                <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
+              </div>
+            )}
+          </div>
+        )}
+        {filtrando && (
+          <Button variant="link" size="sm" onClick={limparFiltros} className="justify-self-start">
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {linhas.length === 0 ? (
-        <EmptyState compact title="A ata está vazia" description="As necessidades das áreas entram aqui sozinhas. Inclua também as linhas decididas na reunião." />
-      ) : visiveis.length === 0 ? (
         <EmptyState
-          compact
-          title={filtro === "pendentes" && !areaAtiva && !busca.trim() ? "Nada a conferir" : "Nenhuma linha com esse filtro"}
-          description={filtro === "pendentes" && !areaAtiva && !busca.trim() ? "Tudo conferido. Registre os presentes e feche a ata." : undefined}
+          icone="lista"
+          title="A ata está vazia"
+          description="As necessidades das áreas entram aqui sozinhas. Inclua também as linhas decididas na reunião."
           action={
-            filtrando ? (
-              <Button
-                variant="link"
-                onClick={() => {
-                  setFiltro("todas");
-                  setArea("");
-                  setPessoa("");
-                  setGrupo("");
-                  setBusca("");
-                }}
-              >
-                Limpar filtros
+            editavel ? (
+              <Button variant="secondary" size="md" onClick={() => setIncluir(true)}>
+                <Icone nome="mais" />
+                Incluir linha
               </Button>
             ) : undefined
           }
         />
+      ) : visiveis.length === 0 ? (
+        filtro === "pendentes" && !areaAtiva && !pessoaAtiva && !grupoAtivo && !busca.trim() ? (
+          <EmptyState icone="check-circulo" title="Nada a conferir" description={presentesOk ? "Tudo conferido. Feche a ata no topo da página." : "Tudo conferido. Registre os presentes e feche a ata."} action={!presentesOk ? <Button variant="link" onClick={pedirRegistroDePresentes}>Registrar os presentes</Button> : undefined} />
+        ) : (
+          <EmptyState icone="busca" title={busca.trim() ? `Nada encontrado para “${busca.trim()}”` : "Nenhuma linha com esses filtros"} description="Tente outra palavra ou tire um dos filtros." action={<Button variant="link" onClick={limparFiltros}>Limpar filtros</Button>} />
+        )
       ) : (
-        <>
+        <div ref={listaRef} onKeyDown={navegarComTeclado}>
           <div className={cn(GRADE, "hidden border-b border-line-soft bg-subtle px-cartao py-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted md:grid")} aria-hidden>
-            <span className="text-center">Ok</span>
-            <span>Item · pedido por</span>
-            <span>Destino</span>
+            <span />
+            <span>Item</span>
+            <span>Local</span>
             <span className="text-right">Qtd.</span>
             <span />
           </div>
           {secoes.map(({ area: nomeArea, itens }) => {
             const t = totalArea(nomeArea);
+            const secaoOk = t.n > 0 && t.ok === t.n;
             return (
               <section key={nomeArea} aria-label={`${nomeArea}: ${t.ok} de ${t.n} conferidas`}>
                 <h3 className="m-0 flex items-center justify-between gap-3 border-b border-line-soft bg-subtle px-cartao py-1.5">
                   <span className="text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">{nomeArea}</span>
-                  <span className={cn("numero inline-flex items-center gap-1 text-pequeno font-normal", t.ok === t.n ? "text-success" : "text-ink-3")}>
-                    {t.ok === t.n && <Icone nome="check" className="size-3.5" />}
-                    {t.ok}/{t.n}
+                  <span className={cn("numero inline-flex items-center gap-1 text-pequeno font-normal", secaoOk ? "text-success" : "text-ink-3")}>
+                    {secaoOk && <Icone nome="check" className="size-3.5" />}
+                    {t.n > 0 ? `${t.ok}/${t.n}` : "opcional"}
                   </span>
                 </h3>
-              {itens.map(([chave, ls]) => {
-                if (ls.length === 1) {
-                  const l = ls[0];
+                {itens.map(([chave, ls]) => {
+                  if (ls.length === 1) {
+                    const l = ls[0];
+                    return (
+                      <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
+                        <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} />
+                      </ul>
+                    );
+                  }
+                  const ok = ls.filter((l) => l.conferidoEm).length;
+                  const total = ls.reduce((a, l) => a + l.quantidade, 0);
+                  const p0 = ls[0];
+                  // Todas as linhas do item vêm da mesma pessoa e área: a origem sobe para o cabeçalho do bloco.
+                  const origemComum = ls.every((l) => quemDe(l) === quemDe(p0));
+                  const solComum = origemComum && Boolean(p0.origem) && ls.every((l) => l.origem?.solicitacaoId === p0.origem?.solicitacaoId);
+                  const ajustesComuns = p0.origem?.ajustes && ls.every((l) => l.origem?.ajustes === p0.origem?.ajustes) ? p0.origem.ajustes : null;
+                  const blocoOk = ok === ls.length;
                   return (
-                    <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
-                      <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} />
-                    </ul>
+                    <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
+                      <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
+                        <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
+                        {p0.tipo === "AVULSO" && <Tag tom="warning">{TIPO[p0.tipo]}</Tag>}
+                        {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
+                        <span className="text-pequeno text-muted">
+                          <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} locais
+                          {origemComum && <> · {quemDe(p0)}</>}
+                          {solComum && p0.origem && (
+                            <>
+                              {" · "}
+                              <Link href={`/solicitacoes/${p0.origem.solicitacaoId}`} className="text-muted no-underline hover:text-accent hover:underline">
+                                <Codigo>{p0.origem.codigo}</Codigo>
+                              </Link>
+                            </>
+                          )}
+                        </span>
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-2">
+                          <span className={cn("numero inline-flex items-center gap-1 text-pequeno", blocoOk ? "text-success" : "text-ink-3")}>
+                            {blocoOk && <Icone nome="check" className="size-3.5" />}
+                            {ok}/{ls.length}
+                          </span>
+                          {editavel && !blocoOk && (
+                            <Button variant="ghost" size="xs" onClick={() => conferirGrupo(ls)} title={`Marcar as ${ls.length - ok} linhas de ${p0.nome} como conferidas`}>
+                              <Icone nome="check" />
+                              Conferir as {ls.length - ok}
+                            </Button>
+                          )}
+                        </span>
+                        {ajustesComuns && <span className="basis-full text-rotulo text-muted">Peças ajustadas em todas: {ajustesComuns}</span>}
+                      </h4>
+                      <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
+                        {juntar(ls).map((js) =>
+                          js.length > 1 ? (
+                            <LinhaJunta key={js[0].id} ls={js} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} onAjustar={setAjustando} onEditarDescricao={editarDescricao} origemComum={origemComum} />
+                          ) : (
+                            <Linha key={js[0].id} l={js[0]} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo origemComum={origemComum} solComum={solComum} ajustesNoBloco={Boolean(ajustesComuns)} />
+                          ),
+                        )}
+                      </ul>
+                    </section>
                   );
-                }
-                const ok = ls.filter((l) => l.conferidoEm).length;
-                const total = ls.reduce((a, l) => a + l.quantidade, 0);
-                const p0 = ls[0];
-                return (
-                  <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
-                    <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 bg-subtle/60 px-cartao pb-1.5 pt-3 font-normal">
-                      <span className="text-corpo font-medium text-ink">{p0.nome}</span>
-                      <Tag tom={p0.tipo === "AVULSO" ? "warning" : "muted"}>{TIPO[p0.tipo]}</Tag>
-                      <span className="text-rotulo text-muted">{GRUPO_LABEL[p0.grupo]}</span>
-                      {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
-                      <span className="text-pequeno text-muted">
-                        <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} linhas
-                      </span>
-                      <span className={cn("numero ml-auto inline-flex items-center gap-1 text-pequeno", ok === ls.length ? "text-success" : "text-ink-3")}>
-                        {ok === ls.length && <Icone nome="check" className="size-3.5" />}
-                        {ok}/{ls.length}
-                      </span>
-                      {editavel && ok < ls.length && (
-                        <Button variant="link" size="xs" disabled={conferindo} onClick={() => conferirGrupo(ls)}>
-                          Conferir as {ls.length - ok}
-                        </Button>
-                      )}
-                    </h4>
-                    <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
-                      {juntar(ls).map((js) =>
-                        js.length > 1 ? (
-                          <LinhaJunta key={js[0].id} ls={js} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} onAjustar={setAjustando} onEditarDescricao={editarDescricao} pendente={conferindo} />
-                        ) : (
-                          <Linha key={js[0].id} l={js[0]} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo />
-                        ),
-                      )}
-                    </ul>
-                  </section>
-                );
-              })}
+                })}
               </section>
             );
           })}
-        </>
+        </div>
       )}
 
-      <RodapeTabela className="rounded-b-cartao">
-        {filtrando ? (
-          <>
-            <span className="numero">{visiveis.length}</span> de <span className="numero">{linhas.length}</span> linhas
-          </>
-        ) : (
-          <>
-            <span className="numero">{linhas.length}</span> {linhas.length === 1 ? "linha" : "linhas"}
-          </>
-        )}{" "}
-        · <span className="numero">{linhas.reduce((a, l) => a + l.quantidade, 0).toLocaleString("pt-BR")}</span> unidades
+      <RodapeTabela
+        className="rounded-b-cartao"
+        direita={
+          editavel && linhas.length > 0 ? (
+            <span className="hidden text-rotulo text-meta lg:inline">
+              <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">↑</kbd> <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">↓</kbd> andam entre as linhas · <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">espaço</kbd> marca
+            </span>
+          ) : undefined
+        }
+      >
+        <span>
+          {filtrando ? (
+            <>
+              <span className="numero">{visiveis.length}</span> de <span className="numero">{linhas.length}</span> linhas
+            </>
+          ) : (
+            <>
+              <span className="numero">{linhas.length}</span> {linhas.length === 1 ? "linha" : "linhas"}
+            </>
+          )}{" "}
+          · <span className="numero">{linhas.reduce((a, l) => a + l.quantidade, 0).toLocaleString("pt-BR")}</span> unidades
+        </span>
       </RodapeTabela>
 
       {/* Conferir em lote marca tudo em nome de quem clicou e destrava o fechamento da ata: confirma antes. */}
       <Dialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>
         {confirmarTodas && (
-          <DialogContent title={`Conferir as ${pendentes} linhas restantes`} description="Elas ficam marcadas como conferidas em seu nome, com data e hora. Depois disso a ata pode ser fechada." width={460}>
+          <DialogContent
+            title={`Conferir as ${pendentes} linhas restantes`}
+            description={`Ficam marcadas como conferidas em seu nome, com data e hora.${opcionais > 0 ? ` As ${opcionais} opcionais (a definir e estaiamento) ficam como estão.` : ""} Depois disso a ata pode ser fechada.`}
+            width={460}
+          >
             <DialogFooter className="!-mt-4 border-t-0">
               <Button
                 variant="primary"
                 size="lg"
-                loading={conferindo}
-                onClick={() =>
-                  iniciarTodas(async () => {
-                    // Só as linhas que estão na tela: o que chegar depois continua pendente.
-                    const r = await conferirTodasAction(eventoId, obrigatorias.filter((l) => !l.conferidoEm).map((l) => l.id));
-                    avisarTodas(r, `${r.ok ? (r.dados?.marcadas ?? pendentes) : pendentes} linhas marcadas como conferidas`);
-                    setConfirmarTodas(false);
-                  })
-                }
+                onClick={() => {
+                  // Só as linhas que estão na tela: o que chegar depois continua pendente.
+                  const ids = obrigatorias.filter((l) => !l.conferidoEm).map((l) => l.id);
+                  // Marca na hora (a janela fecha e a lista já aparece conferida); volta se o servidor recusar.
+                  setOverride((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, true])) }));
+                  setConfirmarTodas(false);
+                  enfileirar({ tipo: "lote", ids, rotulo: `${ids.length} linhas marcadas como conferidas` });
+                }}
               >
                 Marcar {pendentes} como conferidas
               </Button>
               <DialogClose asChild>
-                <Button variant="secondary" size="lg" disabled={conferindo}>
+                <Button variant="secondary" size="lg">
                   Cancelar
                 </Button>
               </DialogClose>

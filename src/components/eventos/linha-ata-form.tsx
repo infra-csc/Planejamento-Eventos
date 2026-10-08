@@ -78,8 +78,8 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       )}
       <FormError message={!state.ok ? state.erro : null} />
       <DialogFooter>
-        <SubmitButton>Incluir na ata</SubmitButton>
-        <Button variant="secondary" onClick={onDone}>
+        <SubmitButton size="lg">Incluir na ata</SubmitButton>
+        <Button variant="secondary" size="lg" onClick={onDone}>
           Cancelar
         </Button>
       </DialogFooter>

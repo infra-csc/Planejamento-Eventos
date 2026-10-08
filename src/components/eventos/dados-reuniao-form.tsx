@@ -85,20 +85,26 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
 
   return (
     <div className="space-y-3.5 px-cartao py-3.5">
-      <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={campos.reuniaoPresentes} hint="Obrigatório para fechar a ata. Nome e área, separados por vírgula." obrigatorio>
+      <Field label="Pessoas presentes" htmlFor="reuniaoPresentes" error={campos.reuniaoPresentes} hint={t.reuniaoPresentes.trim() ? "Nome e área, separados por vírgula." : "Obrigatório para fechar a ata. Nome e área, separados por vírgula."} obrigatorio>
         <Textarea id="reuniaoPresentes" name="reuniaoPresentes" value={t.reuniaoPresentes} onChange={(e) => mudar("reuniaoPresentes", e.target.value)} onBlur={aoSair} disabled={!editavel} placeholder="Ex.: Marina (Logística), Paulo (Produção), Júlia (Ativação)" className="min-h-[72px]" />
       </Field>
       <RotuloGrupo className="!mb-0">Carga e público · opcionais</RotuloGrupo>
+      {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
       <div className="grid grid-cols-1 gap-x-3 gap-y-3.5 min-[420px]:grid-cols-2">
-        {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
         {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
         {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 6h")}
         {campo("arenaDescarrega", "Arena descarrega", "Ex.: 09/06 às 22h")}
-        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h", "Kit = material de consumo")}
+        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h")}
       </div>
+      <p className="m-0 -mt-1.5 text-rotulo text-muted">Kit = material de consumo.</p>
       {editavel && (
-        <p className={cn("mb-0 mt-1 text-rotulo", estado === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
-          {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo automaticamente" : "salvo automaticamente ao digitar"}
+        <p className={cn("mb-0 mt-1 inline-flex items-center gap-1.5 text-rotulo", estado === "erro" ? "text-danger" : estado === "salvo" ? "text-success" : "text-muted")} aria-live="polite">
+          {estado === "salvando" ? (
+            <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-current" />
+          ) : estado === "salvo" ? (
+            <span aria-hidden>✓</span>
+          ) : null}
+          {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo" : "salva sozinho ao digitar"}
         </p>
       )}
     </div>

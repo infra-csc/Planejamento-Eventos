@@ -18,8 +18,10 @@ export default function Loading() {
             <Skeleton className="h-6 w-44" />
             <Skeleton className="mt-2.5 h-1.5 w-full" />
           </div>
-          <div className="border-b border-line-soft px-cartao py-2.5">
-            <Skeleton className="h-7 w-72 max-w-full" />
+          <div className="flex flex-wrap gap-2 border-b border-line-soft px-cartao py-2.5">
+            <Skeleton className="h-[30px] w-64 max-w-full" />
+            <Skeleton className="h-[30px] min-w-40 flex-1" />
+            <Skeleton className="h-[30px] w-40" />
           </div>
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="flex items-center gap-3 border-b border-line-row px-cartao py-3 last:border-b-0">

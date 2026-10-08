@@ -53,13 +53,13 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
         eyebrow={
           <>
             <Link href={`/eventos/${id}`} className="text-ink-3 no-underline hover:text-ink hover:underline">
-              <Codigo>{ev.codigo}</Codigo>
+              <Codigo>{ev.codigo}</Codigo> · {ev.nome}
             </Link>
             <EventoStatusBadge status={ev.status} />
             <span className="numero">evento {periodoCurto(ev.dataInicio, ev.dataFim)}</span>
           </>
         }
-        title={`Conferência · ${ev.nome}`}
+        title="Conferência da ata"
         actions={
           <>
             <ButtonLink href={`/eventos/${id}`} variant="ghost" size="md" className="no-underline">
@@ -79,7 +79,6 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
 
       <BannerReuniao
         eventoId={id}
-        nome={ev.nome}
         codigo={ev.codigo}
         status={ev.status}
         conferidas={conferidas}
@@ -89,7 +88,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} podeEditarDescricao={pode(usuario, "conferencia.editar_descricao")} />
+        <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} podeEditarDescricao={pode(usuario, "conferencia.editar_descricao")} presentesOk={Boolean(ev.reuniaoPresentes?.trim())} />
         <PainelReuniao
           eventoId={id}
           resumo={ev.reuniaoIniciadaEm && ev.status === "EM_REUNIAO" ? `Iniciada ${diaMesHora(ev.reuniaoIniciadaEm)} · ${ev.responsavel.nome}` : `Marcada para ${diaMesHora(ev.dataReuniao)} · ${ev.responsavel.nome}`}

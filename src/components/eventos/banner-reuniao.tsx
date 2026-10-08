@@ -8,6 +8,7 @@ import { Aviso, BannerEscuro } from "@/components/ui/layout";
 import { Icone } from "@/components/ui/icons";
 import { toast } from "@/components/ui/toast";
 import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
+import { pedirRegistroDePresentes } from "./conferencia-ata";
 import type { EventoStatus } from "@/server/db/schema";
 
 /**
@@ -16,7 +17,6 @@ import type { EventoStatus } from "@/server/db/schema";
  */
 export function BannerReuniao({
   eventoId,
-  nome,
   codigo,
   status,
   conferidas,
@@ -25,7 +25,6 @@ export function BannerReuniao({
   iniciadaEm,
 }: {
   eventoId: string;
-  nome: string;
   codigo: string;
   status: EventoStatus;
   /** Linhas obrigatórias conferidas item a item na reunião ("a definir" e estaiamento ficam de fora). */
@@ -41,13 +40,13 @@ export function BannerReuniao({
   const completo = faltam <= 0 && total > 0 && presentesOk;
   const emReuniao = status === "EM_REUNIAO";
 
-  const titulo = emReuniao ? `Reunião de OS em andamento · ${nome}` : `Preparação da reunião de OS · ${nome}`;
+  const titulo = emReuniao ? "Reunião de OS em andamento" : "Preparação da reunião de OS";
   const sub = !emReuniao
     ? "As necessidades das áreas já estão na ata. Inicie a reunião para bloquear novos envios e conferir item a item."
     : total === 0
       ? "A ata está vazia. Inclua linhas decididas na reunião antes de fechar."
       : faltam > 0
-        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Faltam conferir ${faltam} linhas`} da ata. Use o check verde em cada item ou projeto abaixo.`
+        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Faltam conferir ${faltam} linhas`} da ata. Marque cada uma no check à esquerda da linha.`
         : !presentesOk
           ? "Tudo conferido. Registre quem estava presente em “Dados da reunião” para fechar a ata."
           : "Tudo conferido e presentes registrados. Feche a ata para gerar a OS.";
@@ -64,11 +63,17 @@ export function BannerReuniao({
             <Button variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
               Fechar ata e gerar OS
             </Button>
-            {!completo && (
-              <span id="fechar-ata-motivo" className="text-rotulo text-on-dark-3">
-                {motivoBloqueio}
-              </span>
-            )}
+            {!completo &&
+              (total > 0 && faltam <= 0 && !presentesOk ? (
+                // O único bloqueio é o campo de presentes: o aviso vira o atalho para ele.
+                <button id="fechar-ata-motivo" type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 text-rotulo font-medium text-accent-light underline-offset-2 hover:underline">
+                  {motivoBloqueio} →
+                </button>
+              ) : (
+                <span id="fechar-ata-motivo" className="text-rotulo text-on-dark-3">
+                  {motivoBloqueio}
+                </span>
+              ))}
           </div>
         ) : (
           <Button variant="pink" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>

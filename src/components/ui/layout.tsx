@@ -286,7 +286,7 @@ export function Marcador({ tom, cor, quadrado, pulsar, className }: { tom?: TomS
 export function BarraProgresso({ pct, tom = "neutro", altura = 6, marcadorPct, className }: { pct: number; tom?: TomSemantico; altura?: number; /** Traço vertical de referência (ex.: estoque). */ marcadorPct?: number; className?: string }) {
   return (
     <span className={cn("relative block overflow-visible rounded-full bg-neutral-bg", className)} style={{ height: altura }}>
-      <span className={cn("block h-full rounded-full", COR_TOM_FUNDO[tom])} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+      <span className={cn("block h-full rounded-full motion-safe:transition-[width,background-color] motion-safe:duration-300 motion-safe:ease-out", COR_TOM_FUNDO[tom])} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
       {marcadorPct != null && <span aria-hidden className="absolute -top-1 block w-0.5 bg-dark" style={{ height: altura + 8, left: `calc(${Math.max(0, Math.min(100, marcadorPct))}% - 1px)` }} />}
     </span>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { EVENTO_REGISTRAR_PRESENTES } from "./conferencia-ata";
 import { TabsControladas } from "@/components/ui/tabs-nav";
 import { DadosReuniaoForm, type DadosReuniaoValores } from "./dados-reuniao-form";
 import { ObservacoesAutosave } from "./observacoes-autosave";
@@ -11,6 +12,20 @@ import { ObservacoesAutosave } from "./observacoes-autosave";
  */
 export function PainelReuniao({ eventoId, resumo, presentesOk, valores, observacoes }: { eventoId: string; resumo: string; presentesOk: boolean; valores: DadosReuniaoValores; observacoes: string }) {
   const [aberto, setAberto] = useState<"dados" | "obs">("dados");
+  // "Falta registrar os presentes": abre a aba de dados, rola até o campo e põe o foco nele.
+  useEffect(() => {
+    const ir = () => {
+      setAberto("dados");
+      requestAnimationFrame(() => {
+        const campo = document.getElementById("reuniaoPresentes");
+        if (!campo) return;
+        campo.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        campo.focus({ preventScroll: true });
+      });
+    };
+    window.addEventListener(EVENTO_REGISTRAR_PRESENTES, ir);
+    return () => window.removeEventListener(EVENTO_REGISTRAR_PRESENTES, ir);
+  }, []);
   return (
     <aside aria-label="Dados da reunião" className="overflow-hidden rounded-cartao border border-line bg-surface xl:sticky xl:top-topo-fixo">
       <TabsControladas
@@ -19,7 +34,7 @@ export function PainelReuniao({ eventoId, resumo, presentesOk, valores, observac
         onChange={setAberto}
         className="!mb-0 px-2"
         abas={[
-          { chave: "dados", label: presentesOk ? "Dados da reunião" : "Dados · faltam presentes", tom: presentesOk ? undefined : "warning" },
+          { chave: "dados", label: "Dados da reunião", tom: presentesOk ? undefined : "warning" },
           { chave: "obs", label: "Observações" },
         ]}
       />
