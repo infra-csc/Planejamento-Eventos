@@ -13,6 +13,7 @@ import { diaMesHora } from "@/lib/format";
 import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
 import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
 import { Codigo } from "@/components/ui/numero";
+import { Icone } from "@/components/ui/icons";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { DicaAtalhos, GrupoItens, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
@@ -250,16 +251,27 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       )}
 
       {logisticaVincula && opcoesVinculo && (
-        <Section titulo={foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`} className="mb-cartao border-warning-border">
-          <div className="px-cartao py-3.5">
-            <Aviso tom="warning">A área descreveu à mão. Vincule a uma peça ou projeto que já existe (talvez não tenha achado) ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS.</Aviso>
-          </div>
+        <Section
+          titulo={
+            <span className="inline-flex items-center gap-2">
+              <Icone nome="alerta" className="text-warning" />
+              {foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`}
+            </span>
+          }
+          sub="A área descreveu à mão. Vincule a uma peça ou projeto que já existe ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS."
+          className="mb-cartao !border-warning-border"
+        >
           <ul className="m-0 list-none p-0">
             {foraCatalogo.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-cartao py-2.5">
-                <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-corpo text-ink">
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-cartao py-2.5 first:border-t-0">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-corpo text-ink">
                   “{i.descricaoLivre}” <ChipMono tom="control">× {i.quantidadeSolicitada}</ChipMono>
-                  {i.destino ? <span className="text-pequeno text-muted">· {i.destino}</span> : null}
+                  {i.destino ? (
+                    <span className="inline-flex items-center gap-1 text-pequeno text-muted">
+                      <Icone nome="local" className="size-3.5" />
+                      {i.destino}
+                    </span>
+                  ) : null}
                 </span>
                 <VincularCatalogo linha={{ solicitacaoItemId: i.id, descricao: i.descricaoLivre ?? "", quantidade: i.quantidadeSolicitada }} opcoes={opcoesVinculo} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
               </li>
