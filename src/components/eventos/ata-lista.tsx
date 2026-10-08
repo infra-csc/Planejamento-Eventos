@@ -103,7 +103,7 @@ const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as cons
 function BadgeVersao({ l, eventoId, podeAtualizar }: { l: LinhaAtaView; eventoId: string; podeAtualizar: boolean }) {
   const [pendente, iniciar] = useTransition();
   const texto = `v${l.versao} · atualizar para v${l.versaoAtual}`;
-  const cls = "ml-2 inline-flex h-[22px] items-center rounded-chip border border-warning-border bg-warning-bg px-[7px] text-rotulo font-medium text-warning";
+  const cls = "ml-2 inline-flex h-[22px] items-center whitespace-nowrap rounded-chip border border-warning-border bg-warning-bg px-[7px] text-rotulo font-medium text-warning";
   if (!podeAtualizar) return <span className={cls}>{`v${l.versao} · existe v${l.versaoAtual}`}</span>;
   return (
     <button
@@ -184,7 +184,8 @@ export function AtaLista({
               <CaptionOculta>Linhas da ata</CaptionOculta>
               <thead>
                 <tr className="bg-subtle">
-                  <Th>Item</Th>
+                  {/* O item fica com a maior parte da largura; as outras colunas têm largura própria. */}
+                  <Th className={compacta ? undefined : "md:w-[42%]"}>Item</Th>
                   <Th largura={compacta ? 52 : 70} alinhar="right">
                     Qtd.
                   </Th>
@@ -221,15 +222,13 @@ export function AtaLista({
                 {ls.map((l) => (
                   <tr key={l.id} className={cn("hover:bg-subtle", conferivel && !l.conferidoEm && "bg-warning-bg/40")}>
                     <th scope="row" className="border-b border-line-row px-cartao py-2.5 text-left font-normal">
-                      {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="float-left mr-2.5 h-9 w-12 overflow-hidden rounded-chip border border-line" />}
+                      {/* Capa ao lado (não flutuando) e tipo + código na linha de baixo: o nome ocupa a largura toda da coluna. */}
+                      <span className="flex items-start gap-2.5">
+                      {l.capaId && <ImagemZoom src={`/api/anexos/${l.capaId}`} alt={l.nome} className="h-9 w-12 shrink-0 overflow-hidden rounded-chip border border-line" />}
+                      <span className="min-w-0 flex-1">
                       <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-corpo text-ink no-underline hover:text-accent hover:underline" title="Detalhes, quem pediu e histórico">
                         {l.nome}
                       </Link>
-                      {!compacta && (
-                        <Tag className="ml-2" tom="muted">
-                          {TAG_TIPO[l.tipo]}
-                        </Tag>
-                      )}
                       {l.posAta && (
                         <Tag className="ml-2" tom="info">
                           depois da ata
@@ -241,9 +240,17 @@ export function AtaLista({
                           <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                         </span>
                       )}
-                      {l.codigo && <Codigo className="mt-px block text-rotulo text-muted">{l.codigo}</Codigo>}
+                      {(l.codigo || !compacta) && (
+                        <span className="mt-px block text-rotulo text-muted">
+                          {l.codigo && <Codigo>{l.codigo}</Codigo>}
+                          {l.codigo && !compacta && " · "}
+                          {!compacta && TAG_TIPO[l.tipo]}
+                        </span>
+                      )}
                       {/* Celular: destino, área e origem descem para baixo do item (as colunas somem). */}
                       <span className="mt-0.5 block text-rotulo text-muted md:hidden">{[!compacta ? l.destino : null, !compacta ? (l.areaNome ?? "Logística") : null, l.origemLabel].filter(Boolean).join(" · ")}</span>
+                      </span>
+                      </span>
                     </th>
                     <td className="border-b border-line-row px-2.5 py-2.5 text-right text-corpo font-medium"><QuantidadeAta valor={l.quantidade} /></td>
                     {!compacta && <td className="hidden border-b border-line-row px-2.5 py-2.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>}

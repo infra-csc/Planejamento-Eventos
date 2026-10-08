@@ -71,6 +71,9 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   for (const l of linhasCongeladas) porArea.set(l.area ?? "Logística", [...(porArea.get(l.area ?? "Logística") ?? []), l]);
   const areas = [...porArea.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
   const qsV = sp.v ? `?v=${sp.v}` : "";
+  // Uma pessoa só conferiu todas as linhas: o nome vai uma vez no rodapé e a coluna mostra só o check.
+  const conferentes = new Set(linhasCongeladas.map((l) => l.conferidoPor).filter(Boolean));
+  const conferenteUnico = conferentes.size === 1 && linhasCongeladas.every((l) => l.conferidoPor) ? [...conferentes][0] : null;
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
@@ -103,7 +106,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                       <Th largura={72} alinhar="right">
                         Qtd.
                       </Th>
-                      <Th className="hidden sm:table-cell sm:w-[24%]">
+                      <Th className={conferenteUnico ? "hidden sm:table-cell sm:w-[96px]" : "hidden sm:table-cell sm:w-[24%]"}>
                         Conferido
                       </Th>
                     </tr>
@@ -119,9 +122,9 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                       {agruparAta(ls).map(({ chave, nome, l0, linhas: doItem }) => {
                         const conferido = (l: (typeof ls)[number]) =>
                           l.conferidoPor ? (
-                            <span className="inline-flex items-center gap-1.5 text-ink-2">
+                            <span className="inline-flex items-center gap-1.5 text-ink-2" title={`Conferida por ${l.conferidoPor}`}>
                               <Icone nome="check-circulo" className="shrink-0 text-success" />
-                              <span className="truncate">{l.conferidoPor}</span>
+                              {conferenteUnico ? <span className="sr-only">conferida por {l.conferidoPor}</span> : <span className="truncate">{l.conferidoPor}</span>}
                             </span>
                           ) : (
                             <span className="text-meta">—</span>
@@ -151,7 +154,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                                 {titulo}
                                 {sub}
                                 <span className="text-rotulo text-muted md:hidden">{l0.destino ? `${l0.destino}` : ""}</span>
-                                <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l0)}</span>
+                                {!conferenteUnico && <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l0)}</span>}
                               </th>
                               <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 md:table-cell">{l0.destino ?? <span className="text-meta">—</span>}</td>
                               <td className="numero border-b border-line-row px-3 py-2.5 text-right text-corpo font-medium text-ink">{l0.quantidade}</td>
@@ -175,7 +178,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                               <tr key={l.id} className="hover:bg-subtle">
                                 <th scope="row" className="border-b border-line-faint py-1.5 pl-[42px] pr-3 text-left text-pequeno font-normal text-ink-2">
                                   <span className="md:hidden">{l.destino ?? "sem local"}</span>
-                                  <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l)}</span>
+                                  {!conferenteUnico && <span className="mt-0.5 block text-rotulo sm:hidden">{conferido(l)}</span>}
                                   <span className="hidden text-meta md:inline">↳</span>
                                 </th>
                                 <td className="hidden border-b border-line-faint px-3 py-1.5 text-pequeno text-ink-2 md:table-cell">{l.destino ?? <span className="text-meta">—</span>}</td>
@@ -193,6 +196,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             )}
             <RodapeTabela>
               {linhasCongeladas.length} {linhasCongeladas.length === 1 ? "linha" : "linhas"} · <span className="numero">{linhasCongeladas.reduce((a, l) => a + l.quantidade, 0).toLocaleString("pt-BR")}</span> unidades
+              {conferenteUnico && <> · todas conferidas por {conferenteUnico}</>}
             </RodapeTabela>
           </Section>
         )}
