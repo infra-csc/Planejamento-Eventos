@@ -388,7 +388,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
-      <td className="hidden border-b border-line-row px-3 py-3 text-pequeno font-medium text-ink sm:table-cell">
+      <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
         <Codigo>{p.codigo}</Codigo>
       </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
@@ -445,13 +445,17 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       {cabecalho}
       <div className={barraCls}>
         <BuscaUrl largura={320} key="busca-pecas" placeholder="Buscar por código, nome ou família" ariaLabel="Buscar peça do catálogo" />
+        {/* Celular: os setores rolam de lado numa linha só, em vez de quebrar a trilha. */}
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pills
           rotulo="Filtrar por setor"
+          className="max-md:flex-nowrap"
           itens={[
             { label: "Todos", n: buscadas.length, href: hrefCom("/biblioteca", params, { setor: null, pagina: null }), ativo: !setor },
             ...SETORES.map((s) => ({ label: SETOR_LABEL[s], n: buscadas.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
           ]}
         />
+        </div>
         {atalhoFora}
       </div>
       <div className={cartaoCls}>

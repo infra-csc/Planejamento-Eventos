@@ -174,7 +174,7 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
           <Tag tom={TOM_CATEGORIA(h.categoria)}>{cat}</Tag>
           <span className="font-medium">{rotuloAcao(h.acao)}</span>
         </div>
-        <p className="m-0 mt-1 whitespace-pre-line text-ink-2">{href ? <Link href={href} className="link">{h.descricao}</Link> : h.descricao}</p>
+        <p className="m-0 mt-1 whitespace-pre-line text-ink-2">{href ? <Link href={href} className="text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">{h.descricao}</Link> : h.descricao}</p>
         {dif.length > 0 && (
           <details className="mt-1 text-rotulo">
             <summary className="cursor-pointer list-none text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
@@ -264,7 +264,7 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
     return (
       <li key={x.id} className="text-ink-2">
         {href ? (
-          <Link href={href} className="link">
+          <Link href={href} className="text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">
             {x.descricao}
           </Link>
         ) : (

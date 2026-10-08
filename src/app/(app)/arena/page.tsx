@@ -95,7 +95,14 @@ export default async function ArenaIndicePage() {
                       <td className="border-b border-line-row px-3 py-3 text-right text-corpo text-ink">
                         <Numero valor={a.pontos} />
                       </td>
-                      <td className="border-b border-line-row px-3 py-3 text-pequeno">{a.temPlanta ? <Tag tom="neutral">com planta</Tag> : <span className="text-muted">sem planta</span>}</td>
+                      <td className="border-b border-line-row px-3 py-3 text-pequeno">{a.temPlanta ? (
+                          <span className="inline-flex items-center gap-1 text-ink-2">
+                            <Icone nome="check" className="size-3.5 text-success" />
+                            com planta
+                          </span>
+                        ) : (
+                          <span className="text-meta">sem planta</span>
+                        )}</td>
                       <td className="border-b border-line-row px-3 py-3 text-pequeno text-ink-2">
                         <Data valor={a.atualizadoEm} hora />
                       </td>

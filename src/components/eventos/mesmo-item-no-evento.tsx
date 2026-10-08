@@ -84,7 +84,10 @@ export function MesmoItemNoEvento({ eventoId, atualId, linhas, podeConferir }: {
             <div className="min-w-0 flex-1">
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <QuantidadeAta valor={l.quantidade} className="text-corpo font-semibold text-ink" />
-                <span className="text-corpo text-ink">{l.destino ?? <span className="text-muted">local não informado</span>}</span>
+                <span className="text-corpo text-ink">
+                  <span aria-hidden className="mr-2 text-meta">·</span>
+                  {l.destino ?? <span className="text-muted">local não informado</span>}
+                </span>
                 <span className="text-pequeno text-muted">· {l.area ?? "Logística"}</span>
                 {atual ? (
                   <span className="text-rotulo font-medium text-accent">esta linha</span>

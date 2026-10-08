@@ -129,7 +129,7 @@ export function ProjetoForm({
         sub="Quantidade de cada peça para montar UMA unidade do projeto. Peças marcadas como “só fora de projeto” não aparecem aqui."
         acoes={itens.length > 0 ? <span className="text-pequeno text-muted"><Numero valor={itens.length} /> {itens.length === 1 ? "tipo" : "tipos"} · <Numero valor={totalUnidades} /> {totalUnidades === 1 ? "peça" : "peças"}</span> : undefined}
       >
-        <div className="flex flex-col gap-3 border-b border-line-soft bg-subtle px-cartao py-3.5 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-3 border-b border-line-soft bg-subtle px-cartao py-3.5 sm:flex-row sm:items-start">
           <Field label="Adicionar peça" htmlFor="novaPeca" className="sm:flex-1" hint="Digite parte do nome, do código ou da família (ex.: “3000”, “cubo”, “Q15”, “saia”).">
             <ComboBox
               id="novaPeca"
