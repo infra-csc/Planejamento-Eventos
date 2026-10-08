@@ -50,7 +50,7 @@ export function EscolhaEvento({
   return (
     <Passo
       n={1}
-      titulo="Evento"
+      titulo={areas ? "Área e evento" : "Evento"}
       feito={Boolean(evento) && (!areas || Boolean(areaId))}
       sub={evento && !trocandoEvento ? undefined : "Só aparecem eventos em preparação ou abertos a alterações."}
       acoes={
@@ -109,10 +109,18 @@ export function EscolhaEvento({
                   <Tag tom={ehAlteracao ? "warning" : "muted"}>{ehAlteracao ? "alteração pós-ata" : "pré-reunião"}</Tag>
                 </p>
                 <p className="mb-0 mt-0.5 text-pequeno text-muted">
-                  <Codigo>{evento.codigo}</Codigo> · {evento.cliente} · <span className="numero">{evento.periodo}</span> · <span className="numero">{evento.marco}</span>
+                  <Codigo>{evento.codigo}</Codigo>
+                  {[evento.cliente, evento.periodo, evento.marco]
+                    .filter((x) => x && x.trim())
+                    .map((x) => (
+                      <span key={x} className="numero">
+                        {" · "}
+                        {x}
+                      </span>
+                    ))}
                 </p>
               </div>
-              <p className="m-0 flex items-center gap-1.5 text-pequeno text-ink-2">
+              <p className="m-0 flex items-center gap-1.5 text-pequeno text-ink-2 max-sm:basis-full">
                 <Icone nome="relogio" className="text-ink-3" />
                 {ehAlteracao ? (
                   <span>

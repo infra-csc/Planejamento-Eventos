@@ -369,7 +369,7 @@ export function NovaSolicitacaoForm({
       </div>
 
       {/* Barra de envio fixa no celular e tablet. */}
-      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} edicaoEnviada={edicaoEnviada} />
+      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} edicaoEnviada={edicaoEnviada} estadoSalvo={estadoSalvo} />
 
       <DialogoTendas tendaAberta={tendaAberta} setTendaAberta={setTendaAberta} projetos={projetos} itens={itens} setItens={setItens} />
 

@@ -81,6 +81,9 @@ export function ResumoEnvio({
             ? "O rascunho é salvo automaticamente enquanto você preenche."
             : "";
 
+  const grupos = agruparItensNovos(itens);
+  const algumFalta = semDescricao.length > 0;
+
   return (
     <aside className="flex flex-col gap-4 lg:sticky lg:top-topo-fixo">
       <Passo
@@ -90,7 +93,7 @@ export function ResumoEnvio({
         sub={
           evento ? (
             <>
-              <Numero valor={agruparItensNovos(itens).length} /> {agruparItensNovos(itens).length === 1 ? "item" : "itens"} para {evento.nome}
+              <Numero valor={grupos.length} /> {grupos.length === 1 ? "item" : "itens"} para {evento.nome}
             </>
           ) : (
             "Escolha o evento e adicione itens."
@@ -99,7 +102,7 @@ export function ResumoEnvio({
       >
         {itens.length > 0 && (
           <ul className="m-0 max-h-[200px] list-none overflow-y-auto border-b border-line-soft p-0">
-            {agruparItensNovos(itens).map(({ chave, itens: doGrupo }) => {
+            {grupos.map(({ chave, itens: doGrupo }) => {
               const i = doGrupo[0];
               const falta = doGrupo.some((x) => semDescricao.some((y) => y.chave === x.chave));
               const total = doGrupo.reduce((a, x) => a + x.quantidade, 0);
@@ -111,7 +114,7 @@ export function ResumoEnvio({
                     onClick={() => irPara(`item-${i.chave}`)}
                     className="flex w-full cursor-pointer items-center gap-2 border-0 border-b border-line-faint bg-transparent px-cartao py-2 text-left text-pequeno transition-colors duration-150 last:border-b-0 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
                   >
-                    {falta && <Icone nome="alerta" className="size-3.5 text-warning" title="Faltam descrições" />}
+                    {falta ? <Icone nome="alerta" className="size-3.5 shrink-0 text-warning" title="Faltam descrições" /> : algumFalta ? <span aria-hidden className="size-3.5 shrink-0" /> : null}
                     <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
                       {i.rotulo}
                       {nLocais > 1 && <span className="text-muted"> · {nLocais} locais</span>}
@@ -212,9 +215,15 @@ export function ResumoEnvio({
             )}
           </div>
           {textoSalvo && (
-            <p className={cn("m-0 flex items-center gap-1.5 text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : "text-meta")} aria-live="polite">
-              {estadoSalvo.tipo === "salvo" && <Icone nome="check" className="size-3.5" />}
-              {textoSalvo}
+            <p className={cn("m-0 flex items-start gap-1.5 text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : estadoSalvo.tipo === "salvo" ? "text-ink-2" : "text-meta")} aria-live="polite">
+              {estadoSalvo.tipo === "salvando" ? (
+                <span aria-hidden className="mt-[7px] block size-1.5 shrink-0 animate-pulse-dot rounded-full bg-current" />
+              ) : estadoSalvo.tipo === "salvo" ? (
+                <Icone nome="check" className="mt-0.5 size-3.5 shrink-0 text-success" />
+              ) : estadoSalvo.tipo === "erro" ? (
+                <Icone nome="alerta" className="mt-0.5 size-3.5 shrink-0" />
+              ) : null}
+              <span>{textoSalvo}</span>
             </p>
           )}
         </div>
@@ -232,6 +241,7 @@ export function BarraEnvioMovel({
   bloqueadoEnvio,
   salvar,
   edicaoEnviada = false,
+  estadoSalvo,
 }: {
   itens: ItemNovo[];
   pendencias: Pendencia[];
@@ -240,18 +250,23 @@ export function BarraEnvioMovel({
   bloqueadoEnvio: boolean;
   salvar: (enviar: boolean) => void;
   edicaoEnviada?: boolean;
+  estadoSalvo?: EstadoSalvo;
 }) {
+  const n = agruparItensNovos(itens).length;
+  const estado = edicaoEnviada ? null : estadoSalvo?.tipo === "salvando" ? "Salvando rascunho…" : estadoSalvo?.tipo === "salvo" ? `Rascunho salvo às ${hora(estadoSalvo.em)}` : estadoSalvo?.tipo === "erro" ? "Rascunho não salvo" : null;
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-header)] border-t border-line bg-surface px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-popover lg:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="m-0 text-corpo font-medium text-ink">
-            <Numero valor={itens.length} /> {itens.length === 1 ? "item" : "itens"}
+            <Numero valor={n} /> {n === 1 ? "item" : "itens"}
           </p>
-          <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : "text-muted")}>{pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : "Pronto para enviar"}</p>
+          <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : estadoSalvo?.tipo === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
+            {pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : estado ? `Pronto para enviar · ${estado.toLowerCase()}` : "Pronto para enviar"}
+          </p>
         </div>
         {!edicaoEnviada && (
-          <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)}>
+          <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)} aria-label="Salvar rascunho">
             Salvar
           </Button>
         )}

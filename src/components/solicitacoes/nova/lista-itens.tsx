@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/layout";
-import { ChipMono, Tag } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/badge";
 import { Stepper } from "@/components/ui/stepper";
 import { Input, Label } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
@@ -228,7 +228,13 @@ export function ListaItens({
       titulo="Detalhe cada item"
       feito={itens.length > 0 && semDescricao.length === 0}
       sub="Confira as quantidades e descreva as unidades (texto, arte, medida) quando precisar."
-      acoes={itens.length > 0 ? <ChipMono tom="control">{grupos.length}</ChipMono> : undefined}
+      acoes={
+        itens.length > 0 ? (
+          <span className="whitespace-nowrap text-pequeno text-muted">
+            <Numero valor={grupos.length} className="font-medium text-ink" /> {grupos.length === 1 ? "item" : "itens"}
+          </span>
+        ) : undefined
+      }
     >
       {itens.length === 0 ? (
         <div className="px-cartao py-3.5">

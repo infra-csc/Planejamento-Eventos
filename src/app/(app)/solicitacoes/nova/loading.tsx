@@ -39,20 +39,18 @@ export default function Loading() {
                 ))}
               </div>
               <Skeleton className="h-[34px] w-full rounded-controle" />
-              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="rounded-cartao border border-line p-3">
-                    <div className="flex gap-3">
-                      <Skeleton className="h-12 w-16 shrink-0 rounded-controle" />
-                      <div className="flex-1">
-                        <Skeleton className="h-3.5 w-4/5" />
-                        <Skeleton className="mt-2 h-3 w-2/5" />
-                      </div>
+              <Skeleton className="mt-2.5 h-3 w-32" />
+              {/* Resultados em lista: miniatura, nome e código, quantidade e "Adicionar". */}
+              <div className="mt-2.5 divide-y divide-line-row rounded-cartao border border-line">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                    <Skeleton className="h-10 w-14 shrink-0 rounded-controle max-sm:hidden" />
+                    <div className="min-w-0 flex-1">
+                      <Skeleton className={i % 2 ? "h-3.5 w-2/5" : "h-3.5 w-3/5"} />
+                      <Skeleton className="mt-2 h-3 w-1/3" />
                     </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <Skeleton className="h-[30px] w-28 rounded-controle" />
-                      <Skeleton className="h-[30px] w-24 rounded-controle" />
-                    </div>
+                    <Skeleton className="h-[30px] w-24 shrink-0 rounded-controle max-sm:hidden" />
+                    <Skeleton className="h-[30px] w-24 shrink-0 rounded-controle" />
                   </div>
                 ))}
               </div>

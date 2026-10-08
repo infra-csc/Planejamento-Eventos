@@ -11,7 +11,7 @@ export function Passo({ n, titulo, sub, feito, acoes, children, className }: { n
           aria-hidden
           className={cn("mt-px grid size-6 shrink-0 place-items-center rounded-full text-rotulo font-semibold transition-colors duration-150", feito ? "bg-success-bg text-success" : "bg-control text-ink-2")}
         >
-          {feito ? <Icone nome="check" className="size-3.5" /> : <span className="numero">{n}</span>}
+          {feito ? <Icone nome="check" className="size-3.5 motion-safe:animate-marcar" /> : <span className="numero">{n}</span>}
         </span>
         <div className="min-w-0 flex-1">
           <h2 id={idTitulo} className="m-0 text-secao font-semibold tracking-[-0.01em]">

@@ -2,7 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { cn } from "@/lib/cn";
-import { ChipMono } from "@/components/ui/badge";
+import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { listasDaArea } from "@/domain/itens-por-area";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
@@ -49,9 +49,9 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
       sub="A lista da ata já vem aqui, zerada. Ponha só a quantidade do que vai; o que fica em 0 não é enviado."
       acoes={
         pedidos.length > 0 ? (
-          <ChipMono tom="control" title={`${pedidos.length} ${pedidos.length === 1 ? "item" : "itens"}, ${unidades} unidades`}>
-            {pedidos.length} · {unidades} un.
-          </ChipMono>
+          <span className="whitespace-nowrap text-pequeno text-muted">
+            <Numero valor={pedidos.length} className="font-medium text-ink" /> {pedidos.length === 1 ? "item" : "itens"} · <Numero valor={unidades} /> un.
+          </span>
         ) : undefined
       }
     >
@@ -60,7 +60,10 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
           <div key={l.titulo} className="pt-2.5">
             <h3 className="m-0 mb-1 flex items-baseline justify-between text-micro font-semibold uppercase tracking-[0.08em] text-ink-3">
               {l.titulo}
-              <span className="numero font-normal normal-case tracking-normal text-meta">{l.pecas.filter((p) => qtdDe(p.id) > 0).length || ""}</span>
+              {(() => {
+                const k = l.pecas.filter((p) => qtdDe(p.id) > 0).length;
+                return k ? <span className="numero font-normal normal-case tracking-normal text-meta">{k} no pedido</span> : null;
+              })()}
             </h3>
             <ul className="m-0 list-none p-0">
               {l.pecas.map((p) => {

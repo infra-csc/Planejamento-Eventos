@@ -230,6 +230,13 @@ export function BuscaCatalogo({
                   setBusca(e.target.value);
                   setLimite(POR_PAGINA);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && busca) {
+                    e.preventDefault();
+                    setBusca("");
+                    setLimite(POR_PAGINA);
+                  }
+                }}
                 placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"}
                 className="pl-9"
               />
@@ -261,7 +268,7 @@ export function BuscaCatalogo({
                       key={r.id}
                       className={cn(
                         // Linha de resultado: o que importa é o nome; código e categoria vêm baixo; ações à direita.
-                        "flex flex-wrap items-center gap-x-3 gap-y-2 border-l-2 px-3 py-2.5 transition-colors duration-150 sm:flex-nowrap",
+                        "group flex flex-wrap items-center gap-x-3 gap-y-2 border-l-2 px-3 py-2.5 transition-colors duration-150 sm:flex-nowrap",
                         jaNaLista > 0 ? "border-success bg-success-bg/30" : "border-transparent hover:bg-subtle",
                       )}
                     >
@@ -279,7 +286,7 @@ export function BuscaCatalogo({
                             {r.nome}
                           </span>
                           {jaNaLista > 0 && (
-                            <span className="inline-flex shrink-0 items-center gap-0.5 text-rotulo font-medium text-success">
+                            <span key={jaNaLista} className="inline-flex shrink-0 items-center gap-0.5 text-rotulo font-medium text-success motion-safe:animate-marcar">
                               <Icone nome="check" className="size-3" />
                               <Numero valor={jaNaLista} /> na lista
                             </span>
@@ -304,7 +311,7 @@ export function BuscaCatalogo({
                         </Button>
                       ) : (
                         <span
-                          className="ml-auto flex shrink-0 items-center gap-2"
+                          className="ml-auto flex shrink-0 items-center gap-2 transition-opacity duration-150 [@media(hover:hover)]:opacity-60 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-within:opacity-100"
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
                               e.preventDefault();
