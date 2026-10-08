@@ -171,7 +171,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           titulo={tituloDiff}
           sub={subDiff}
           diff={diff}
-          vazio={existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "Base inicial, gerada no fechamento da ata."}
+          vazio={existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "É a primeira versão: ainda não há outra para comparar. As próximas mostram aqui o que entrou, saiu ou mudou."}
           acoes={
             base && (
               <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="ghost" size="sm" className="no-underline" scroll={false}>

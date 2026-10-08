@@ -22,6 +22,9 @@ const tdCodigo = `${base} hidden pl-cartao pr-3 text-pequeno text-ink-2 sm:table
 const tdNumero = `${td} numero text-right text-corpo text-ink-2`;
 const tdTotal = `${base} numero pl-3 pr-cartao text-right text-corpo font-semibold text-ink`;
 
+/** Uma origem da composição: "Tenda 3×3 m × 2: 8" (projeto × quantidade: peças). */
+const origemTexto = (o: { descricao: string; quantidade: number }) => `${o.descricao}: ${o.quantidade.toLocaleString("pt-BR")}`;
+
 const unidades = (n: number) => `${n.toLocaleString("pt-BR")} ${n === 1 ? "unidade" : "unidades"}`;
 
 /** Total com a unidade da peça em cor de apoio. */
@@ -173,7 +176,7 @@ export function OsVisoes({
                       <Th className="hidden md:table-cell" largura={140}>
                         {grupos ? "Material" : "Setor"}
                       </Th>
-                      <Th className="hidden sm:table-cell sm:w-[24%]">
+                      <Th className="hidden sm:table-cell sm:w-[38%]">
                         Destino · área
                       </Th>
                       <Th largura={110} alinhar="right">
@@ -254,18 +257,17 @@ export function OsVisoes({
                         <th scope="row" className={`${td} text-left text-corpo font-normal text-ink max-sm:pl-cartao sm:min-w-[180px]`}>
                           {l.nome}
                           <span className="mt-0.5 block text-rotulo text-muted md:hidden">
-                            <Codigo className="sm:hidden">{l.codigo}</Codigo>
-                            <span className="sm:hidden"> · </span>
-                            <span className="line-clamp-2">{l.origens.map((o) => `${o.descricao} ${o.quantidade}`).join(" · ")}</span>
+                            <Codigo className="block sm:hidden">{l.codigo}</Codigo>
+                            <span className="line-clamp-2">{l.origens.map(origemTexto).join(" · ")}</span>
                           </span>
                         </th>
                         {/* Composição quebra em até 2 linhas (inteira no título): antes, sem quebra, espremia o nome e escondia o total. */}
                         <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>
-                          <span className="line-clamp-2" title={l.origens.map((o) => `${o.descricao} ${o.quantidade}`).join(" · ")}>
+                          <span className="line-clamp-2" title={l.origens.map(origemTexto).join(" · ")}>
                             {l.origens.map((o, i) => (
                               <span key={i}>
                                 {i > 0 && <span aria-hidden> · </span>}
-                                {o.descricao} <span className="numero text-ink-2">{o.quantidade}</span>
+                                {o.descricao}: <span className="numero font-medium text-ink-2">{o.quantidade.toLocaleString("pt-BR")}</span>
                               </span>
                             ))}
                           </span>
