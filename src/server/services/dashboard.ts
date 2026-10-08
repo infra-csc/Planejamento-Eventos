@@ -244,6 +244,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
 
   // Estoque fica fora do painel por enquanto (decisão do produto): nada de déficit aqui.
   const emPreparacao = evs.filter((e) => e.status === "PREPARACAO").sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
+  const proximaPrep = emPreparacao.find((e) => isoSP(e.dataReuniao) >= hoje);
+  const prepVencidas = emPreparacao.filter((e) => isoSP(e.dataReuniao) < hoje).length;
 
   return {
     tipo: "operacao" as const,
@@ -264,7 +266,12 @@ export async function dadosPainel(usuario: UsuarioAtual) {
             .join(" · ")
         : "nenhuma marcada",
       emPreparacao: emPreparacao.length,
-      hintPreparacao: emPreparacao[0] ? `próxima reunião ${isoSP(emPreparacao[0].dataReuniao) === hoje ? "hoje" : diaMesISO(isoSP(emPreparacao[0].dataReuniao))}` : "nenhum aguardando reunião",
+      // "Próxima" é a primeira reunião de hoje em diante; data que já passou (reunião não iniciada) é contada à parte.
+      hintPreparacao: proximaPrep
+        ? `próxima reunião ${isoSP(proximaPrep.dataReuniao) === hoje ? "hoje" : diaMesISO(isoSP(proximaPrep.dataReuniao))}${prepVencidas ? ` · ${prepVencidas} com data passada` : ""}`
+        : prepVencidas
+          ? `${prepVencidas} com a data da reunião passada`
+          : "nenhum aguardando reunião",
     },
     riscos: [] as Array<{ pecaId: string; codigo: string; nome: string; falta: number; pico: number; estoque: number }>,
   };

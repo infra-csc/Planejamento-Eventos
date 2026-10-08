@@ -118,10 +118,17 @@ function Agenda({ itens }: { itens: ItemAgenda[] }) {
         <EmptyState compact title="Nada marcado" description="Reuniões, cargas e montagens das próximas duas semanas aparecem aqui." />
       ) : (
         <ul className="m-0 list-none p-0">
-          {itens.map((a) => (
+          {itens.map((a, i) => (
             <li key={a.chave} className="border-b border-line-row last:border-b-0">
-              <Link href={a.href} className="flex gap-3 px-cartao py-2.5 no-underline hover:bg-subtle">
-                <span className="numero w-11 shrink-0 text-pequeno text-ink-3">{a.dia}</span>
+              <Link href={a.href} className="flex gap-3 px-cartao py-2.5 no-underline transition-colors duration-150 hover:bg-subtle">
+                {/* O dia aparece na primeira linha dele; nas seguintes fica só para o leitor de tela (a coluna lê como agenda). */}
+                {i > 0 && itens[i - 1].dia === a.dia ? (
+                  <span className="w-11 shrink-0">
+                    <span className="sr-only">{a.dia}</span>
+                  </span>
+                ) : (
+                  <span className="numero w-11 shrink-0 text-pequeno font-medium text-ink-2">{a.dia}</span>
+                )}
                 <Marcador cor={TIPO_AGENDA[a.tipo].cor} quadrado={a.tipo === "reuniao"} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-corpo font-medium text-ink">{a.titulo}</span>
