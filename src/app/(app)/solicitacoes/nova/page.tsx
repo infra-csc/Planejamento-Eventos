@@ -6,9 +6,9 @@ import { obterSolicitacao, pedidosAnterioresPorEvento } from "@/server/services/
 import { obterConfiguracoes } from "@/server/services/support";
 import { getDb } from "@/server/db";
 import { daMinhaArea, pode, podeEditarSolicitacao } from "@/domain/permissions";
-import { podeEditarPreReuniaoEnviada, podeEnviar } from "@/domain/solicitacao";
+import { podeEditarEnviada, podeEnviar } from "@/domain/solicitacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
-import { diaMes, diaMesHora, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, hojeISO, periodoCurto } from "@/lib/format";
 import { Aviso, PageHeader } from "@/components/ui/layout";
 import { NovaSolicitacaoForm, type EventoOpcao, type ItemNovo } from "@/components/solicitacoes/nova-solicitacao-form";
 import { descricaoItem } from "@/server/services/solicitacoes";
@@ -29,8 +29,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         throw e;
       })
     : null;
-  // Pré-reunião já enviada, com o evento em preparação: abre para editar (troca itens e ata ao salvar).
-  const edicaoEnviada = Boolean(rascunho && podeEditarPreReuniaoEnviada(rascunho.tipo, rascunho.status, rascunho.evento.status) && podeEditarSolicitacao(usuario, rascunho));
+  // Pedido já enviado que quem pediu ainda edita: pré-reunião antes da reunião (troca itens e ata) ou
+  // alteração dentro da janela (troca itens e gera nova versão da OS).
+  const edicaoEnviada = Boolean(rascunho && podeEditarEnviada(rascunho, rascunho.evento, hojeISO()) && podeEditarSolicitacao(usuario, rascunho));
   if (rascunho && !edicaoEnviada && !(podeEnviar(rascunho.status) && podeEditarSolicitacao(usuario, rascunho))) redirect(`/solicitacoes/${rascunho.id}`);
 
   const [{ aceitando, linhasTodas, jaPedidos }, opcoes, config, todasAreas] = await Promise.all([
@@ -80,7 +81,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       eventoItemId: i.eventoItemId,
       descricaoLivre: i.descricaoLivre,
       quantidade: i.quantidadeSolicitada,
-      quantidadeAtual: i.eventoItem?.quantidade ?? null,
+      quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
       destino: i.destino ?? "",
       justificativa: i.justificativa ?? "",
       descricoes: i.descricoes ?? [],

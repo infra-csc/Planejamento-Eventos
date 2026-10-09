@@ -86,8 +86,9 @@ const TOM_SOLICITACAO: Record<SolicitacaoStatus, Tom> = {
 };
 
 /** `naAta`: pré-reunião com a ata aberta — já está na ata, aguardando a conferência da reunião. */
-export function SolicitacaoStatusBadge({ status, naAta = false }: { status: SolicitacaoStatus; naAta?: boolean }) {
+export function SolicitacaoStatusBadge({ status, naAta = false, naOs = false }: { status: SolicitacaoStatus; naAta?: boolean; /** Alteração que entrou direto na OS (dentro da janela, sem avaliação). */ naOs?: boolean }) {
   if (naAta && status === "RESPONDIDA") return <Badge tom="info">Na ata</Badge>;
+  if (naOs && status === "RESPONDIDA") return <Badge tom="info">Na OS</Badge>;
   return <Badge tom={TOM_SOLICITACAO[status]}>{SOLICITACAO_STATUS_LABEL[status]}</Badge>;
 }
 

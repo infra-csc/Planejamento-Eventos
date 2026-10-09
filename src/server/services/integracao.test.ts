@@ -13,7 +13,7 @@ vi.hoisted(() => {
 
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, historico, notificacoes, osVersoes, pecas, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
+import { areas, eventoItens, eventos, historico, notificacoes, osVersoes, pecas, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { alterarQuantidadeLinha, criarEvento, editarEvento, incluirLinhaAta, linhasAtaResumidas, obterHistoricoEvento, resumoAbasEvento, transicionarEvento, conferirTodasLinhas, salvarDadosReuniao } from "./eventos";
 import {
@@ -80,6 +80,8 @@ async function eventoAberto() {
   await conferirTodasLinhas(logistica, ev.id);
   await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística, Produção", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
+  // Janela já encerrada: a alteração vai para a logística decidir (o caminho que estes testes exercitam).
+  await (await getDb()).update(eventos).set({ janelaAlteracoesAte: "2000-01-01" }).where(eq(eventos.id, ev.id));
   return { ev, linhaId: linha.id };
 }
 
@@ -394,6 +396,8 @@ async function fecharAta(eventoId: string) {
   await conferirTodasLinhas(logistica, eventoId);
   await salvarDadosReuniao(logistica, eventoId, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(logistica, eventoId, "FECHAR_ATA");
+  // Janela já encerrada: a alteração vai para a logística decidir (o caminho que estes testes exercitam).
+  await (await getDb()).update(eventos).set({ janelaAlteracoesAte: "2000-01-01" }).where(eq(eventos.id, eventoId));
 }
 
 async function historicoDoItem(itemId: string) {

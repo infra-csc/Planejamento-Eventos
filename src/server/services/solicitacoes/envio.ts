@@ -13,6 +13,7 @@ import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarFase
 import { atenderPendentesNaTransacao } from "./resposta";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
 import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
+import { gerarOsVersao } from "../os";
 
 /* ------------------------------------------------------------------ */
 /* Enviar / cancelar / devolver                                         */
@@ -39,6 +40,30 @@ export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtu
   }
   const s = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, solicitacaoId), columns: { eventoId: true } });
   if (s) await sincronizarRegrasAta(tx, s.eventoId, null);
+  return pendentes.length;
+}
+
+/**
+ * Alteração enviada dentro da janela não passa por aprovação: cada item em análise entra direto na OS
+ * (como um "atendido" automático), com uma nova versão da OS. A logística só é avisada. Usado no envio e
+ * na edição feita por quem pediu enquanto a janela está aberta. Retorna quantos itens entraram.
+ */
+export async function aplicarAlteracaoNaJanela(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string, motivoVersao: string) {
+  const { s, pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId);
+  if (pendentes.length) {
+    const ids = pendentes.map((p) => p.id);
+    // Sem "respondido por": ninguém da logística avaliou. Uma correção depois grava quem corrigiu.
+    await tx
+      .update(solicitacaoItens)
+      .set({ respondidoPorId: null, observacaoLogistica: "Entrou direto na OS: alteração dentro da janela." })
+      .where(inArray(solicitacaoItens.id, ids));
+    await tx
+      .update(historico)
+      .set({ acao: "ENTROU_NA_OS" })
+      .where(and(eq(historico.entidade, "solicitacao_item"), inArray(historico.entidadeId, ids), eq(historico.acao, "RESPONDIDO")));
+    await sincronizarRegrasAta(tx, s.eventoId, null);
+    await gerarOsVersao(tx, s.eventoId, "RESPOSTA_SOLICITACAO", usuario.id, `${s.codigo} · ${motivoVersao}`);
+  }
   return pendentes.length;
 }
 
@@ -145,19 +170,31 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
         mensagem: `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. Confira e ajuste na reunião de OS.`,
         link: `/solicitacoes/${id}`,
       });
-      return { codigo: s.codigo, prazo, registradaNaAta: true, foraDaJanela: false };
+      return { codigo: s.codigo, prazo, registradaNaAta: true, foraDaJanela: false, entrouNaOs: false };
+    }
+
+    // Dentro da janela: entra direto na OS, sem aprovação. A logística só é avisada.
+    if (!foraDaJanela) {
+      const n = s.itens.length;
+      await aplicarAlteracaoNaJanela(tx, usuario, id, `alteração da ${s.area.nome} dentro da janela (${n} ${n === 1 ? "item" : "itens"})`);
+      await notificar(tx, {
+        usuarioIds: await usuariosLogistica(tx),
+        tipo: "SOLICITACAO_ENVIADA",
+        titulo: `Alteração na OS: ${s.codigo} · ${s.area.nome}`,
+        mensagem: `${s.evento.nome} · ${n} ${n === 1 ? "item entrou" : "itens entraram"} direto na OS (dentro da janela). Só para conhecimento; dá para corrigir na solicitação, se precisar.`,
+        link: `/solicitacoes/${id}`,
+      });
+      return { codigo: s.codigo, prazo, registradaNaAta: true, foraDaJanela: false, entrouNaOs: true };
     }
 
     await notificar(tx, {
       usuarioIds: await usuariosLogistica(tx),
-      tipo: foraDaJanela ? "SOLICITACAO_FORA_JANELA" : "SOLICITACAO_ENVIADA",
-      titulo: foraDaJanela ? `FORA DA JANELA: ${s.codigo} · ${s.area.nome}` : "Nova solicitação de alteração",
-      mensagem: foraDaJanela
-        ? `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. A janela de alterações terminou em ${diaMesISO(String(s.evento.janelaAlteracoesAte))}; a logística decide se atende.`
-        : `${s.codigo} · ${s.area.nome} · ${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}`,
+      tipo: "SOLICITACAO_FORA_JANELA",
+      titulo: `FORA DA JANELA: ${s.codigo} · ${s.area.nome}`,
+      mensagem: `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. A janela de alterações terminou em ${diaMesISO(String(s.evento.janelaAlteracoesAte))}; a logística decide se atende.`,
       link: `/solicitacoes/${id}`,
     });
-    return { codigo: s.codigo, prazo, registradaNaAta: false, foraDaJanela };
+    return { codigo: s.codigo, prazo, registradaNaAta: false, foraDaJanela, entrouNaOs: false };
   });
 }
 

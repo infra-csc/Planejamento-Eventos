@@ -72,6 +72,36 @@ export function podeEditarPreReuniaoEnviada(tipo: SolicitacaoTipo, status: Solic
   return tipo === "PRE_REUNIAO" && (status === "ENVIADA" || status === "RESPONDIDA") && statusEvento === "PREPARACAO";
 }
 
+/**
+ * Janela de alterações aberta: evento aberto e, se a logística definiu um prazo, ainda dentro dele
+ * (o último dia conta). Sem prazo definido, a janela vai até o encerramento.
+ */
+export function janelaAberta(statusEvento: EventoStatus, janelaAlteracoesAte: string | null, hoje: string): boolean {
+  return statusEvento === "ABERTO" && (!janelaAlteracoesAte || hoje <= janelaAlteracoesAte);
+}
+
+/**
+ * Alteração enviada dentro da janela entra direto na OS (sem avaliação). Quem pediu pode trocar,
+ * incluir ou tirar itens enquanto a janela estiver aberta; cada edição gera nova versão da OS.
+ * Fora da janela, ou depois que a logística mexeu no pedido, não edita mais.
+ */
+export function podeEditarAlteracaoEnviada(
+  s: { tipo: SolicitacaoTipo; status: SolicitacaoStatus; foraDaJanela: boolean },
+  evento: { status: EventoStatus; janelaAlteracoesAte: string | null },
+  hoje: string,
+): boolean {
+  return s.tipo === "ALTERACAO" && !s.foraDaJanela && s.status === "RESPONDIDA" && janelaAberta(evento.status, evento.janelaAlteracoesAte, hoje);
+}
+
+/** Pedido já enviado que quem pediu ainda pode editar (pré-reunião antes da reunião; alteração dentro da janela). */
+export function podeEditarEnviada(
+  s: { tipo: SolicitacaoTipo; status: SolicitacaoStatus; foraDaJanela: boolean },
+  evento: { status: EventoStatus; janelaAlteracoesAte: string | null },
+  hoje: string,
+): boolean {
+  return podeEditarPreReuniaoEnviada(s.tipo, s.status, evento.status) || podeEditarAlteracaoEnviada(s, evento, hoje);
+}
+
 export function aguardaReuniao(tipo: SolicitacaoTipo, statusEvento: EventoStatus) {
   return tipo === "PRE_REUNIAO" && (statusEvento === "PREPARACAO" || statusEvento === "EM_REUNIAO");
 }

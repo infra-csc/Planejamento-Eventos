@@ -62,7 +62,7 @@ async function referenciaAoVoltar(item: ItemComStatus, linha: { tipo: string }, 
  * A regra está em `calcularEfeitoLinha` (domínio): só a diferença é aplicada, e linha removida por
  * outra ação não volta.
  */
-async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId: string; areaId: string }, item: ItemComStatus, novo: { status: ItemStatus; quantidadeAtendida: number | null }) {
+export async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { eventoId: string; areaId: string }, item: ItemComStatus, novo: { status: ItemStatus; quantidadeAtendida: number | null }) {
   const idLinha = item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : item.eventoItemId;
   const linha = idLinha ? await tx.query.eventoItens.findFirst({ where: eq(eventoItens.id, idLinha) }) : null;
   const efeito = calcularEfeitoLinha(item, novo, linha ? { ativo: linha.ativo, quantidade: linha.quantidade } : null);

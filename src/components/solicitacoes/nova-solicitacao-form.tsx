@@ -251,7 +251,7 @@ export function NovaSolicitacaoForm({
         } catch {
           // sem armazenamento local
         }
-        toastSucesso(`${r.dados?.codigo ?? rascunho.codigo} atualizada — a ata já mostra os itens novos`);
+        toastSucesso(`${r.dados?.codigo ?? rascunho.codigo} atualizada — ${ehAlteracao ? "a OS já mostra os itens novos e a logística foi avisada" : "a ata já mostra os itens novos"}`);
         router.push(`/solicitacoes/${rascunho.id}`);
       });
       return;
@@ -279,7 +279,8 @@ export function NovaSolicitacaoForm({
       pendenteSalvarRef.current = false;
       lembrarRascunho(d.id, d.codigo);
       if (d.enviada) {
-        toastSucesso(`${d.codigo} enviada para a logística`);
+        // Alteração dentro da janela entra direto na OS; fora dela, vai para a logística decidir.
+        toastSucesso(ehAlteracao && !d.foraDaJanela ? `${d.codigo} entrou direto na OS — a logística foi avisada` : `${d.codigo} enviada para a logística`);
         router.push(`/solicitacoes/${d.id}`);
       } else if (d.erroEnvio) {
         toast(`${d.codigo} salva como rascunho — ${d.erroEnvio}`);
@@ -303,7 +304,9 @@ export function NovaSolicitacaoForm({
       {edicaoEnviada && (
         <Aviso tom="info" titulo={copiaRecuperada ? "Alterações não salvas recuperadas" : "Editando um pedido já enviado"}>
           {copiaRecuperada ? "Você tinha começado a editar este pedido e não salvou; as alterações foram trazidas de volta. " : ""}
-          O pedido como estava continua na ata até você clicar em “Salvar alterações”. Aí os itens e a ata são trocados de uma vez.
+          {ehAlteracao
+            ? "O pedido como estava continua na OS até você clicar em “Salvar alterações”. Aí os itens são trocados de uma vez, entra uma nova versão da OS e a logística é avisada."
+            : "O pedido como estava continua na ata até você clicar em “Salvar alterações”. Aí os itens e a ata são trocados de uma vez."}
         </Aviso>
       )}
       {rascunho?.devolvidaMotivo && (

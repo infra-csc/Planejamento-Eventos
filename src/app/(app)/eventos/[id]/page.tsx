@@ -8,7 +8,7 @@ import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
 import { Pills } from "@/components/ui/pills";
 import { obterEventoCache } from "@/server/cache";
-import { areasDoUsuario, daMinhaArea, pode } from "@/domain/permissions";
+import { daMinhaArea, pode } from "@/domain/permissions";
 import { classificarHistorico } from "@/domain/historico";
 import { diaMes, diaMesHora, diaMesISO, hojeISO, iniciais, isoSP, periodoCurto } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -20,6 +20,8 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
+import { MudancasPosAta } from "@/components/eventos/mudancas-pos-ata";
+import { mudancasPosAta } from "@/server/services/solicitacoes";
 
 const diasAte = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hojeISO()}T00:00:00Z`)) / 86_400_000);
 const contagem = (n: number, hoje: string, passado: string) => (n === 0 ? hoje : n > 0 ? `em ${n} ${n === 1 ? "dia" : "dias"}` : `${passado} há ${-n} ${-n === 1 ? "dia" : "dias"}`);
@@ -65,7 +67,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const { id } = await params;
   const sp = await searchParams;
   const leitura: Leitura = LEITURAS.some((l) => l.chave === sp.itens) ? (sp.itens as Leitura) : "lista";
-  const [ev, linhas, historico, versoes] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id), listarOsResumo(id)]);
+  const [ev, linhas, historico, versoes, mudancas] = await Promise.all([obterEventoCache(usuario, id), obterLinhasAta(id), obterHistoricoEvento(usuario, id), listarOsResumo(id), mudancasPosAta(id)]);
   // O total de peças é conteúdo da OS: quem não tem a aba também não vê o número.
   const veOs = pode(usuario, "os.ver");
   const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
@@ -80,7 +82,6 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   ]);
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
-  const posAta = linhas.filter((l) => l.posAta);
   // Para fechar a ata contam só as obrigatórias ("a definir" e estaiamento ficam de fora).
   const obrigatorias = linhas.filter((l) => !conferenciaOpcional({ tipo: l.tipo, codigo: l.peca?.codigo, quantidade: l.quantidade }));
   const conferidas = obrigatorias.filter((l) => l.conferidoEm).length;
@@ -88,15 +89,16 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const porArea = new Map<string, number>();
   for (const l of linhas) porArea.set(l.areaNome ?? "Logística", (porArea.get(l.areaNome ?? "Logística") ?? 0) + 1);
   const areasEnvolvidas = [...porArea.entries()].sort((a, b) => b[1] - a[1]);
-  const temArea = areasDoUsuario(usuario).length > 0;
-  const deOutraArea = (l: (typeof linhas)[number]) => temArea && !daMinhaArea(usuario, l.registro.areaId);
   // Quem pediu é assunto da área que pediu: fora dela, a origem aparece sem o código da solicitação.
   const podeVerOrigem = (l: (typeof linhas)[number]) => veTodasAsAreas || !l.origemSolicitacaoId || daMinhaArea(usuario, l.registro.areaId);
   const origemVisivel = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemLabel : "Pedido de área");
   // Nome de quem pediu (ou de quem incluiu), com a mesma regra do código da solicitação.
   const quemPediu = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemPor : null);
   const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
-  const ajustes = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
+  const ajustesTodos = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
+  const depoisDaAta = (h: { criadoEm: Date }) => Boolean(ev.ataFechadaEm) && h.criadoEm > ev.ataFechadaEm!;
+  const ajustesPosAta = ajustesTodos.filter((h) => depoisDaAta(h) && h.acao !== "CONFERENCIA_AJUSTE");
+  const ajustes = ajustesTodos.filter((h) => !depoisDaAta(h));
 
   // Projetos agrupados (o mesmo projeto pode aparecer em várias linhas/destinos).
   const grupos = new Map<string, Grupo>();
@@ -132,7 +134,13 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             href: pode(usuario, "ata.consolidar") ? `/conferencia/${id}` : undefined,
           }
         : ev.status === "ABERTO"
-          ? { rotulo: "Alterações", valor: ev.janelaAlteracoesAte ? `até ${diaMesISO(ev.janelaAlteracoesAte)}` : "abertas", hint: `Ata fechada em ${diaMes(ev.ataFechadaEm)}. Mudanças entram como solicitação.`, tom: "neutro" }
+          ? {
+              rotulo: "Alterações",
+              valor: ev.janelaAlteracoesAte ? `até ${diaMesISO(ev.janelaAlteracoesAte)}` : "abertas",
+              hint: mudancas.length + ajustesPosAta.length ? `${mudancas.length + ajustesPosAta.length} ${mudancas.length + ajustesPosAta.length === 1 ? "mudança" : "mudanças"} desde a ata de ${diaMes(ev.ataFechadaEm)}` : `Ata fechada em ${diaMes(ev.ataFechadaEm)}. Nada mudou desde então.`,
+              tom: "neutro",
+              href: "#mudancas",
+            }
           : ev.status === "ENCERRADO"
             ? { rotulo: "Encerrado", valor: "nada falta", hint: "Nada entra mais. O caminhão carrega o que está na OS.", tom: "success" }
             : { rotulo: "Cancelado", valor: "—", hint: ev.canceladoMotivo ?? undefined, tom: "neutro" };
@@ -180,47 +188,14 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-5">
-          {/* Depois da ata: destaque discreto (borda informativa), só quando há o que mostrar. */}
-          {ev.ataFechadaEm && posAta.length > 0 && (
-            <section aria-labelledby="pos-ata" className="overflow-hidden rounded-cartao border border-info-border bg-surface">
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-line-soft px-cartao py-3">
-                <Icone nome="info" className="shrink-0 text-info" />
-                <h2 id="pos-ata" className="m-0 text-secao font-semibold">
-                  Mudou depois da ata
-                </h2>
-                <ChipMono tom="info">{posAta.length}</ChipMono>
-                <span className="text-pequeno text-muted max-sm:basis-full">alterações atendidas e ajustes da logística</span>
-                {veOs && (
-                  <Link href={`/eventos/${id}/os?visao=composicao`} className="link ml-auto text-pequeno">
-                    Ver na OS
-                  </Link>
-                )}
-              </div>
-              <ul className="m-0 list-none p-0">
-                {posAta.slice(0, 5).map((l) => (
-                  <li key={l.id}>
-                    <Link href={`/eventos/${id}/itens/${l.id}`} className="flex items-center gap-3 border-b border-line-row px-cartao py-2.5 no-underline transition-colors duration-150 hover:bg-subtle">
-                      <span className="min-w-0 flex-1">
-                        <span className="line-clamp-1 text-corpo text-ink" title={l.nome}>
-                          {l.nome}
-                        </span>
-                        <span className="block truncate text-pequeno text-muted">
-                          {deOutraArea(l) ? `${l.areaNome ?? "Logística"} · ` : ""}
-                          {origemVisivel(l)}
-                          {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
-                        </span>
-                      </span>
-                      <QuantidadeAta valor={l.quantidade} className="shrink-0 text-corpo font-medium text-ink" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              {posAta.length > 5 && (
-                <p className="m-0 border-t border-line-row px-cartao py-2.5 text-pequeno text-muted">
-                  E mais {posAta.length - 5} {posAta.length - 5 === 1 ? "item" : "itens"} na lista abaixo.
-                </p>
-              )}
-            </section>
+          {/* Depois da reunião: o que entrou, mudou ou saiu (pedidos das áreas e ajustes da logística), em destaque. */}
+          {ev.ataFechadaEm && (
+            <MudancasPosAta
+              ataFechadaEm={ev.ataFechadaEm}
+              mudancas={mudancas.map((m) => ({ ...m, codigoVisivel: veTodasAsAreas || daMinhaArea(usuario, m.areaId) }))}
+              ajustes={ajustesPosAta.map((h) => ({ id: h.id, titulo: classificarHistorico(h).titulo, autor: h.usuario?.nome ?? null, quando: h.criadoEm, href: `/eventos/${id}/itens/${h.entidadeId}` }))}
+              hrefOs={veOs && versoes.length > 1 ? `/eventos/${id}/os?base=${versoes[versoes.length - 1].numero}` : null}
+            />
           )}
 
           {/* Itens por tipo: projetos, peças do catálogo e fora do catálogo — com quem pediu e para onde vai. */}

@@ -99,7 +99,7 @@ export function AcoesSolicitacao({
           onClick={() =>
             iniciar(async () => {
               const r = await enviarRascunhoAction(id);
-              if (r.ok) toastSucesso(`${codigo} enviada para a logística`);
+              if (r.ok) toastSucesso(r.dados?.entrouNaOs ? `${codigo} entrou direto na OS — a logística foi avisada` : `${codigo} enviada para a logística`);
               else toastErro(r.erro);
             })
           }

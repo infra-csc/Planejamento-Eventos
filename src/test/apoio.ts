@@ -12,7 +12,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { getConnection, getDb } from "@/server/db";
-import { areas, pecas, projetoItens, projetoVersoes, projetos, sessoes, usuarios, type Perfil } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
+import { areas, eventos, pecas, projetoItens, projetoVersoes, projetos, sessoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { gerarToken, hashToken } from "@/server/auth/password";
 import { expiracaoInicial } from "@/server/auth/politica-sessao";
@@ -94,18 +95,25 @@ export async function incluirProjeto(por: UsuarioAtual, eventoId: string, projet
 }
 
 /** Evento EM_REUNIAO → ata fechada (ABERTO). Confere tudo e preenche os dados obrigatórios. */
-export async function fecharAta(por: UsuarioAtual, eventoId: string) {
+/**
+ * Fecha a ata. Por padrão a janela de alterações já termina (ontem): assim uma alteração enviada vai para a
+ * logística decidir, que é o caminho que a maioria dos testes exercita (resposta, correção, desfazer).
+ * `janelaAberta`: a janela fica aberta e a alteração entra direto na OS (regra atual dentro da janela).
+ */
+export async function fecharAta(por: UsuarioAtual, eventoId: string, opcoes: { janelaAberta?: boolean } = {}) {
   await conferirTodasLinhas(por, eventoId);
   await salvarDadosReuniao(por, eventoId, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(por, eventoId, "FECHAR_ATA");
+  const db = await getDb();
+  await db.update(eventos).set({ janelaAlteracoesAte: opcoes.janelaAberta ? null : dia(-1) }).where(eq(eventos.id, eventoId));
 }
 
 /** Evento com a ata fechada (aberto a alterações) e uma linha de 10 peças da área informada. */
-export async function eventoAberto(por: UsuarioAtual, pecaId: string, areaId: string | null) {
+export async function eventoAberto(por: UsuarioAtual, pecaId: string, areaId: string | null, opcoes: { janelaAberta?: boolean } = {}) {
   const ev = await novoEvento(por);
   const linha = await incluirPeca(por, ev.id, pecaId, 10, areaId);
   await transicionarEvento(por, ev.id, "INICIAR_REUNIAO");
-  await fecharAta(por, ev.id);
+  await fecharAta(por, ev.id, opcoes);
   return { ev, linhaId: linha.id };
 }
 

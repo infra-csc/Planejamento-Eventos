@@ -216,7 +216,7 @@ async function consultarDetalhes(ids: string[]) {
     where: and(inArray(solicitacoes.id, ids), eq(solicitacoes.excluida, false)),
     with: {
       // Só as colunas que as telas de detalhe/edição usam (evento inteiro, referências e a lista de peças da linha ficam de fora).
-      evento: { columns: { id: true, codigo: true, nome: true, status: true, dataReuniao: true } },
+      evento: { columns: { id: true, codigo: true, nome: true, status: true, dataReuniao: true, janelaAlteracoesAte: true } },
       area: true,
       criadoPor: { columns: { id: true, nome: true } },
       itens: {
@@ -326,4 +326,65 @@ export async function pedidosAnterioresPorEvento(eventoIds: string[], exceto?: s
   }
   for (const r of daLogistica) incluir(r.eventoId, r.ref, { quantidade: r.quantidade, area: r.area, pessoa: r.pessoa, codigo: null, situacao: "incluído pela logística", destino: r.destino });
   return saida;
+}
+
+export type MudancaPosAta = {
+  id: string;
+  quando: Date | null;
+  tipo: "entrou" | "mudou" | "saiu";
+  item: string;
+  destino: string | null;
+  /** "+4", "6 → 9", "sai". */
+  quantidade: string;
+  /** Entrou direto (dentro da janela) ou foi decidida pela logística (fora da janela / corrigida). */
+  como: "direto" | "logistica" | "parcial";
+  codigo: string;
+  solicitacaoId: string;
+  areaId: string;
+  area: string;
+  quem: string;
+};
+
+/**
+ * O que mudou no evento depois da reunião por pedido das áreas: itens de alterações que entraram na OS
+ * (direto, dentro da janela, ou aceitos pela logística), do mais recente ao mais antigo. Ajustes feitos
+ * direto pela logística ficam no histórico do evento (quem chama junta os dois).
+ */
+export async function mudancasPosAta(eventoId: string): Promise<MudancaPosAta[]> {
+  const db = await getDb();
+  const lista = await db.query.solicitacoes.findMany({
+    where: and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.tipo, "ALTERACAO"), eq(solicitacoes.excluida, false), ne(solicitacoes.status, "CANCELADA")),
+    columns: { id: true, codigo: true, areaId: true },
+    with: {
+      area: { columns: { nome: true } },
+      criadoPor: { columns: { nome: true } },
+      itens: {
+        columns: { id: true, operacao: true, status: true, quantidadeSolicitada: true, quantidadeAtendida: true, quantidadeAnterior: true, destino: true, descricaoLivre: true, respondidoPorId: true, respondidoEm: true },
+        with: { projeto: { columns: { nome: true } }, peca: { columns: { codigo: true, nome: true } }, eventoItem: { columns: { descricaoLivre: true, destino: true }, with: { projeto: { columns: { nome: true } }, peca: { columns: { codigo: true, nome: true } } } } },
+      },
+    },
+  });
+  const saida: MudancaPosAta[] = [];
+  for (const s of lista) {
+    for (const i of s.itens) {
+      if (i.status !== "ATENDIDO" && i.status !== "PARCIAL") continue;
+      const tipo = i.operacao === "ADICIONAR" ? "entrou" : i.operacao === "REMOVER" ? "saiu" : "mudou";
+      const atendida = i.quantidadeAtendida ?? i.quantidadeSolicitada;
+      saida.push({
+        id: i.id,
+        quando: i.respondidoEm,
+        tipo,
+        item: descricaoItem(i),
+        destino: i.destino ?? i.eventoItem?.destino ?? null,
+        quantidade: tipo === "entrou" ? `+${atendida}` : tipo === "saiu" ? "sai" : `${i.quantidadeAnterior ?? "?"} → ${atendida}`,
+        como: i.status === "PARCIAL" ? "parcial" : i.respondidoPorId ? "logistica" : "direto",
+        codigo: s.codigo,
+        solicitacaoId: s.id,
+        areaId: s.areaId,
+        area: s.area.nome,
+        quem: s.criadoPor.nome,
+      });
+    }
+  }
+  return saida.sort((a, b) => (b.quando?.getTime() ?? 0) - (a.quando?.getTime() ?? 0));
 }

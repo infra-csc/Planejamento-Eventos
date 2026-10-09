@@ -15,6 +15,7 @@ import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 import { Exportacoes } from "@/components/eventos/exportacoes";
+import { mudancasPosAta } from "@/server/services/solicitacoes";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída na reunião" } as const;
@@ -33,7 +34,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const usuario = await requireUsuario();
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id), listarAtaVersoes(id)]);
+  const [ev, versoes, mudancas] = await Promise.all([obterEventoCache(usuario, id), listarAtaVersoes(id), mudancasPosAta(id)]);
   const fechada = versoes.length > 0;
   const emConstrucao = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
   // A ata da reunião é uma só: o que muda depois vai para a OS. Versões antigas (reunião refeita) ficam no histórico.
@@ -78,6 +79,29 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <div className="flex min-w-0 flex-col gap-4">
+        {/* A ata fechada não muda: o que mudou depois fica à vista aqui, com o caminho para o detalhe. */}
+        {!emConstrucao && fechada && mudancas.length > 0 && (
+          <Aviso
+            tom="info"
+            titulo={`${mudancas.length} ${mudancas.length === 1 ? "item mudou" : "itens mudaram"} depois da reunião`}
+            acoes={
+              <Link href={`/eventos/${id}#mudancas`} className="link whitespace-nowrap text-pequeno">
+                Ver o que mudou
+              </Link>
+            }
+          >
+            {[
+              ["entrou", "item entrou", "itens entraram"],
+              ["mudou", "item mudou", "itens mudaram"],
+              ["saiu", "item saiu", "itens saíram"],
+            ]
+              .map(([t, um, varios]) => [mudancas.filter((m) => m.tipo === t).length, um, varios] as const)
+              .filter(([n]) => n > 0)
+              .map(([n, um, varios]) => `${n} ${n === 1 ? um : varios}`)
+              .join(" · ")}
+            . A ata abaixo é o registro da reunião; tudo isso já está na OS.
+          </Aviso>
+        )}
         {emConstrucao || !fechada ? (
           <Section titulo="Ata em construção" sub="As necessidades das áreas entram aqui sozinhas. Conferência e ajustes acontecem na reunião.">
             <AtaLista eventoId={id} status={ev.status} editavel={false} opcoes={SEM_OPCOES} areas={[]} linhas={linhas.map((l) => esconderOrigemAlheia(paraView(l), l.registro.areaId))} dataReuniao={diaMesHora(ev.dataReuniao)} />

@@ -70,6 +70,7 @@ export function iconeHistorico(entidade: string | null, acao: string): { icone: 
     case "AJUSTE_INCLUSAO":
     case "ADICIONAR":
     case "REGISTRADO_NA_ATA":
+    case "ENTROU_NA_OS":
       return { icone: "mais", tom: "info" };
     case "ITEM_VINCULADO":
     case "ATUALIZACAO_VERSAO":

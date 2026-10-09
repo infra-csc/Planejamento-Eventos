@@ -41,6 +41,8 @@ function rotular(acao: string, dadosDepois: unknown, perfil: Perfil | null): { t
       return { titulo: "Solicitação cancelada", tom: "perigo" };
     case "REGISTRADO_NA_ATA":
       return { titulo: "Entrou na ata (sem avaliação)", tom: "info" };
+    case "ENTROU_NA_OS":
+      return { titulo: "Entrou direto na OS (dentro da janela)", tom: "info" };
     case "RESPONDIDO": {
       // Dados antigos: registro automático na ata ficou com o nome de quem enviou.
       if (perfil && !PERFIS_LOGISTICA.includes(perfil) && d.status === "ATENDIDO") return { titulo: "Entrou na ata (sem avaliação)", tom: "info" };

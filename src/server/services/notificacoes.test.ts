@@ -12,7 +12,7 @@ vi.hoisted(() => {
 
 import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, notificacoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
+import { areas, eventos, notificacoes, pecas, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { alterarQuantidadeLinha, conferirTodasLinhas, criarEvento, incluirLinhaAta, obterLinhasAta, salvarDadosReuniao, transicionarEvento } from "./eventos";
 import { responderItem, salvarSolicitacaoCompleta } from "./solicitacoes";
@@ -71,6 +71,8 @@ async function eventoComPedidos() {
   await conferirTodasLinhas(logistica, ev.id);
   await salvarDadosReuniao(logistica, ev.id, { reuniaoPresentes: "Logística", publicoEsperado: null, caminhaoCarrega: null, caminhaoSai: null, arenaDescarrega: null, kitDescarrega: null });
   await transicionarEvento(logistica, ev.id, "FECHAR_ATA");
+  // Janela já encerrada: a alteração vai para a logística decidir (o caminho que estes testes exercitam).
+  await (await getDb()).update(eventos).set({ janelaAlteracoesAte: "2000-01-01" }).where(eq(eventos.id, ev.id));
   await db.delete(notificacoes);
   return ev;
 }

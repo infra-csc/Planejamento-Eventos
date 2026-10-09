@@ -34,30 +34,57 @@ export function DiaBotao({ dia, numero, hoje, doMes, itens }: { dia: string; num
       >
         {numero}
       </button>
-      {aberto && (
-        <DialogContent title={`${rotuloDia(dia)}${ehHoje ? " · hoje" : ""}`} description={resumo} size="md" className="max-sm:max-h-[calc(100dvh-24px)]">
-          {n === 0 ? (
-            <p className="m-0 py-2 text-corpo text-muted">Nenhum compromisso neste dia.</p>
-          ) : (
-            <ul className="-mx-5 -my-4 m-0 list-none divide-y divide-line-row p-0">
-              {itens.map((it) => (
-                <li key={it.chave}>
-                  <Link href={it.href} className="flex items-start gap-3 px-5 py-3 no-underline hover:bg-subtle">
-                    <span aria-hidden className={cn("mt-2 size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-corpo font-medium text-ink">{it.tipo === "evento" ? it.titulo : semPrefixo(it.titulo)}</span>
-                      <span className="mt-0.5 block text-pequeno text-muted">{descricao(it)}</span>
-                      {it.tipo === "evento" && it.faixa && it.faixa.total > 1 && <Faixa it={it} />}
-                    </span>
-                    <IndicadorLink />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </DialogContent>
-      )}
+      {aberto && <ConteudoDia dia={dia} ehHoje={ehHoje} itens={itens} resumo={resumo} />}
     </Dialog>
+  );
+}
+
+/**
+ * "+N mais" na célula da grade: abre o mesmo resumo do dia, em vez de esticar a célula (a semana inteira
+ * crescia e a grade perdia o alinhamento).
+ */
+export function MaisDoDia({ dia, hoje, itens, n }: { dia: string; hoje: string; itens: ItemCalendario[]; n: number }) {
+  const [aberto, setAberto] = useState(false);
+  const ehHoje = dia === hoje;
+  const resumo = `${itens.length} ${itens.length === 1 ? "compromisso" : "compromissos"}`;
+  return (
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        aria-label={`Mais ${n} em ${rotuloDia(dia)}: ver o dia inteiro`}
+        className="mx-1 flex h-5 cursor-pointer items-center rounded-chip border-0 bg-transparent px-1.5 text-rotulo font-medium text-ink-3 transition-colors hover:bg-control hover:text-ink"
+      >
+        <span className="numero">+{n} mais</span>
+      </button>
+      {aberto && <ConteudoDia dia={dia} ehHoje={ehHoje} itens={itens} resumo={resumo} />}
+    </Dialog>
+  );
+}
+
+function ConteudoDia({ dia, ehHoje, itens, resumo }: { dia: string; ehHoje: boolean; itens: ItemCalendario[]; resumo: string }) {
+  return (
+    <DialogContent title={`${rotuloDia(dia)}${ehHoje ? " · hoje" : ""}`} description={resumo} size="md" className="max-sm:max-h-[calc(100dvh-24px)]">
+      {itens.length === 0 ? (
+        <p className="m-0 py-2 text-corpo text-muted">Nenhum compromisso neste dia.</p>
+      ) : (
+        <ul className="-mx-5 -my-4 m-0 list-none divide-y divide-line-row p-0">
+          {itens.map((it) => (
+            <li key={it.chave}>
+              <Link href={it.href} className="flex items-start gap-3 px-5 py-3 no-underline hover:bg-subtle">
+                <span aria-hidden className={cn("mt-2 size-2 shrink-0 rounded-full", TIPO[it.tipo].ponto)} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-corpo font-medium text-ink">{it.tipo === "evento" ? it.titulo : semPrefixo(it.titulo)}</span>
+                  <span className="mt-0.5 block text-pequeno text-muted">{descricao(it)}</span>
+                  {it.tipo === "evento" && it.faixa && it.faixa.total > 1 && <Faixa it={it} />}
+                </span>
+                <IndicadorLink />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </DialogContent>
   );
 }
 

@@ -1,11 +1,12 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, eventos, historico, pecas, projetos, solicitacaoItens, solicitacoes, type AjusteBom } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { tipoSolicitacaoParaStatus } from "@/domain/evento";
 import { pode } from "@/domain/permissions";
-import { podeEditarPreReuniaoEnviada, validarItem, type ItemRascunho } from "@/domain/solicitacao";
+import { podeEditarAlteracaoEnviada, podeEditarPreReuniaoEnviada, validarItem, type ItemRascunho } from "@/domain/solicitacao";
+import { hojeISO } from "@/lib/format";
 import { podeEditarSolicitacao } from "@/domain/permissions";
 import { snapshotBom } from "../eventos";
 import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosLogistica, type Executor } from "../support";
@@ -13,7 +14,8 @@ import { ACOES_COM_MOTIVO } from "../eventos";
 import { descricoesParaGravar, faltamDescricoes } from "@/domain/descricoes-itens";
 import { extrasPermitidosTenda } from "@/domain/tendas";
 import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarJanelaPreReuniao } from "./comum";
-import { enviarSolicitacao, registrarPreReuniaoNaAta } from "./envio";
+import { aplicarAlteracaoNaJanela, enviarSolicitacao, registrarPreReuniaoNaAta } from "./envio";
+import { aplicarEfeito } from "./resposta";
 
 export const MSG_SEM_AREA = "Seu usuário ainda não está ligado a uma área. Peça ao administrador para definir a sua área (Administração › Usuários).";
 
@@ -177,10 +179,12 @@ function validarParaEnvio(dados: Pick<DadosSolicitacaoCompleta, "titulo" | "iten
 }
 
 /**
- * Necessidade pré-reunião já enviada, editada antes da reunião (evento em preparação). Tudo numa
- * transação só: as linhas que ela tinha gerado na ata saem (ficam inativas, para consulta), os itens
- * são trocados e o pedido é registrado de novo na ata. Se qualquer passo falhar, nada muda — o pedido
- * original continua valendo. Linhas que a logística já ajustou travam a edição (o ajuste não se perde).
+ * Pedido já enviado, editado por quem pediu. Tudo numa transação só; se qualquer passo falhar, nada muda.
+ * - Pré-reunião (evento em preparação): as linhas que ela gerou na ata saem (inativas, para consulta),
+ *   os itens são trocados e o pedido é registrado de novo na ata.
+ * - Alteração dentro da janela (entrou direto na OS): o efeito de cada item na OS é desfeito, os itens
+ *   são trocados e o pedido entra de novo, numa nova versão da OS. A logística é avisada.
+ * Linhas que a logística já ajustou (ou respostas que ela corrigiu) travam a edição: o ajuste não se perde.
  */
 export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: DadosSolicitacaoCompleta & { id: string }): Promise<{ id: string; codigo: string }> {
   exigir(usuario, "solicitacao.criar");
@@ -197,6 +201,7 @@ export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: Dado
       with: { evento: true, area: { columns: { nome: true } }, itens: { columns: { id: true, eventoItemGeradoId: true, quantidadeAtendida: true, quantidadeSolicitada: true } } },
     });
     if (!s) throw new NaoEncontradoError("Solicitação");
+    if (s.tipo === "ALTERACAO") return editarAlteracaoNaTransacao(tx, usuario, dados, s);
     if (!podeEditarPreReuniaoEnviada(s.tipo, s.status, s.evento.status)) {
       throw new DomainError(s.evento.status === "PREPARACAO" ? "Esta solicitação não pode mais ser editada." : "A reunião de OS já começou: a partir de agora, mudanças entram como alteração depois da ata.");
     }
@@ -244,12 +249,70 @@ export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: Dado
   });
 }
 
+/** Alteração dentro da janela já aplicada na OS, editada por quem pediu (ver editarPreReuniaoEnviada). */
+async function editarAlteracaoNaTransacao(
+  tx: Executor,
+  usuario: UsuarioAtual,
+  dados: DadosSolicitacaoCompleta & { id: string },
+  cab: { id: string; codigo: string; eventoId: string; areaId: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; status: (typeof solicitacoes.$inferSelect)["status"]; foraDaJanela: boolean; evento: typeof eventos.$inferSelect; area: { nome: string } },
+): Promise<{ id: string; codigo: string }> {
+  if (!podeEditarAlteracaoEnviada(cab, cab.evento, hojeISO())) {
+    throw new DomainError(cab.foraDaJanela ? "Esta alteração chegou fora da janela e está com a logística." : "A janela de alterações deste evento terminou: o pedido não pode mais ser editado. Envie uma nova solicitação.");
+  }
+  const itens = await tx.query.solicitacaoItens.findMany({ where: eq(solicitacaoItens.solicitacaoId, cab.id) });
+  // Resposta dada (ou corrigida) pela logística: ela já avaliou este pedido.
+  if (itens.some((i) => i.status !== "ATENDIDO" || i.respondidoPorId)) {
+    throw new DomainError("A logística já mexeu neste pedido. Para mudar, fale com a logística ou envie outra solicitação.");
+  }
+  // Linhas da OS que este pedido criou ou mudou: se a logística ajustou alguma depois, a edição espera.
+  const linhasIds = [...new Set(itens.map((i) => (i.operacao === "ADICIONAR" ? i.eventoItemGeradoId : i.eventoItemId)).filter((x): x is string => Boolean(x)))];
+  if (linhasIds.length) {
+    const ajustes = await tx.query.historico.findMany({
+      where: and(eq(historico.entidade, "evento_item"), inArray(historico.entidadeId, linhasIds), inArray(historico.acao, ACOES_COM_MOTIVO), gt(historico.criadoEm, itens.reduce((m, i) => (i.respondidoEm && i.respondidoEm < m ? i.respondidoEm : m), new Date()))),
+      columns: { id: true },
+    });
+    if (ajustes.length) throw new DomainError("A logística já ajustou na OS itens deste pedido. Para mudar, fale com a logística ou envie outra solicitação.");
+  }
+
+  // Desfaz o efeito de cada item na OS (a mesma regra do "desfazer resposta"), na ordem inversa.
+  for (const item of [...itens].reverse()) {
+    await aplicarEfeito(tx, usuario, cab, item, { status: "EM_ANALISE", quantidadeAtendida: null });
+  }
+  const antes = itens.length;
+  await tx.delete(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, cab.id));
+  let ordem = 0;
+  for (const item of dados.itens) {
+    const valores = await prepararItem(tx, cab, item, usuario);
+    await tx.insert(solicitacaoItens).values({ ...valores, solicitacaoId: cab.id, ordem: ordem++ });
+  }
+  await tx.update(solicitacoes).set({ titulo: dados.titulo, observacao: dados.observacao, status: "ENVIADA", respondidaEm: null, atualizadoPorId: usuario.id, atualizadoEm: new Date() }).where(eq(solicitacoes.id, cab.id));
+  const n = dados.itens.length;
+  await aplicarAlteracaoNaJanela(tx, usuario, cab.id, `editada pela ${cab.area.nome} dentro da janela (${n} ${n === 1 ? "item" : "itens"}, antes ${antes})`);
+  await registrarHistorico(tx, {
+    eventoId: cab.eventoId,
+    entidade: "solicitacao",
+    entidadeId: cab.id,
+    acao: "EDITADA",
+    descricao: `${cab.codigo} editada dentro da janela pela ${cab.area.nome} — ${n} ${n === 1 ? "item" : "itens"} (antes ${antes}); a OS foi atualizada`,
+    usuarioId: usuario.id,
+  });
+  await notificar(tx, {
+    usuarioIds: await usuariosLogistica(tx),
+    tipo: "SOLICITACAO_EDITADA",
+    titulo: `Alteração editada: ${cab.codigo} · ${cab.area.nome}`,
+    mensagem: `${cab.evento.nome} · agora com ${n} ${n === 1 ? "item" : "itens"} (antes ${antes}). Entrou direto numa nova versão da OS (dentro da janela).`,
+    link: `/solicitacoes/${cab.id}`,
+    excetoUsuarioId: usuario.id,
+  });
+  return { id: cab.id, codigo: cab.codigo };
+}
+
 /**
  * Formulário único de solicitação (handoff §5.11): cria ou atualiza o rascunho com todos os
  * itens de uma vez (uma transação só: ou grava tudo, ou nada) e, se pedido, envia. Se o envio
  * falhar por regra do evento, o rascunho fica salvo e o erro volta em `erroEnvio`.
  */
-export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dados: DadosSolicitacaoCompleta): Promise<{ id: string; codigo: string; enviada: boolean; erroEnvio: string | null }> {
+export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dados: DadosSolicitacaoCompleta): Promise<{ id: string; codigo: string; enviada: boolean; erroEnvio: string | null; foraDaJanela?: boolean }> {
   exigir(usuarioSessao, "solicitacao.criar");
   // A área escolhida agora passa a ser do usuário já nesta gravação (a sessão só a vê na próxima requisição).
   let usuario = usuarioSessao;
@@ -282,8 +345,8 @@ export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dad
 
   if (!dados.enviar) return { id, codigo, enviada: false, erroEnvio: null };
   try {
-    await enviarSolicitacao(usuario, id);
-    return { id, codigo, enviada: true, erroEnvio: null };
+    const r = await enviarSolicitacao(usuario, id);
+    return { id, codigo, enviada: true, erroEnvio: null, foraDaJanela: r.foraDaJanela };
   } catch (e) {
     if (e instanceof DomainError) return { id, codigo, enviada: false, erroEnvio: e.message };
     throw e;

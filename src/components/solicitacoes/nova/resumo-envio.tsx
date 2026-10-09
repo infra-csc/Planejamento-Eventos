@@ -70,7 +70,7 @@ export function ResumoEnvio({
     return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
   })();
   const textoSalvo = edicaoEnviada
-    ? "As alterações ficam guardadas neste navegador até você salvar; o pedido como estava continua na ata."
+    ? "As alterações ficam guardadas neste navegador até você salvar; o pedido como estava continua valendo."
     : estadoSalvo.tipo === "salvando"
       ? "Salvando rascunho…"
       : estadoSalvo.tipo === "salvo"

@@ -7,7 +7,7 @@ import { resumirAjustes } from "@/domain/os";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
-import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEditarPreReuniaoEnviada, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
+import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEditarEnviada, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
 import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
@@ -24,7 +24,7 @@ import { linhaDoTempoSolicitacao } from "@/server/services/linha-do-tempo";
 import { obterEventoCache } from "@/server/cache";
 import { listarOsResumo } from "@/server/services/os";
 import { EventoStatusBadge } from "@/components/ui/badge";
-import { diaMesISO, periodoCurto } from "@/lib/format";
+import { diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -111,6 +111,9 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   };
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
   const semStatus = STATUS_EDITAVEIS.includes(s.status);
+  // Alteração dentro da janela: entrou direto na OS, sem avaliação (nenhum item tem quem respondeu).
+  const entrouDireto = s.tipo === "ALTERACAO" && s.status === "RESPONDIDA" && s.itens.length > 0 && s.itens.every((i) => i.status === "ATENDIDO" && !i.respondidoPorId);
+  const editavelNaJanela = dono && entrouDireto && podeEditarEnviada(s, s.evento, hojeISO());
 
   return (
     <div className="max-w-[1080px]">
@@ -154,7 +157,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         eyebrow={
           <>
             <Codigo className="font-medium text-ink">{s.codigo}</Codigo>
-            <SolicitacaoStatusBadge status={s.status} naAta={naAta} />
+            <SolicitacaoStatusBadge status={s.status} naAta={naAta} naOs={entrouDireto} />
             {s.foraDaJanela && <ForaJanelaTag />}
           </>
         }
@@ -199,7 +202,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             podeDevolver={ehLogistica && faseOk && podeDevolver(s.status, algumRespondido)}
             podeAtenderTudo={respondivel && pendentes > 0}
             pendentes={pendentes}
-            podeEditar={(editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO") || (dono && podeEditarPreReuniaoEnviada(s.tipo, s.status, s.evento.status))}
+            podeEditar={(editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO") || (dono && podeEditarEnviada(s, s.evento, hojeISO()))}
             podeEnviar={editavel && s.itens.length > 0 && Boolean(s.titulo?.trim()) && aceitaSolicitacao(s.evento.status, s.tipo)}
             podeCancelar={dono && podeCancelar(s.status, algumRespondido) && s.status !== "RASCUNHO"}
             podeExcluir={dono && s.status === "RASCUNHO"}
@@ -214,6 +217,15 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           {ehLogistica
             ? "A janela definida para este evento já terminou. Decida item a item: atender, atender parcialmente ou não atender, com o motivo."
             : "A janela de alterações deste evento já terminou. A logística vai avaliar se ainda dá para atender."}
+        </Aviso>
+      )}
+      {entrouDireto && (
+        <Aviso tom="info" titulo="Entrou direto na OS" className="mb-cartao">
+          {ehLogistica
+            ? "Alteração enviada dentro da janela: entrou na OS sem avaliação e a logística foi avisada. Se precisar, corrija item a item."
+            : editavelNaJanela
+              ? `Enviada dentro da janela, então não precisou de aprovação: já está na OS e a logística foi avisada. Você pode incluir, tirar ou mudar itens enquanto a janela estiver aberta${s.evento.janelaAlteracoesAte ? ` (até ${diaMesISO(s.evento.janelaAlteracoesAte)})` : ""}.`
+              : "Enviada dentro da janela, então não precisou de aprovação: já está na OS e a logística foi avisada."}
         </Aviso>
       )}
       {s.status === "DEVOLVIDA" && (

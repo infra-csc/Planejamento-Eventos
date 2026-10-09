@@ -52,6 +52,7 @@ const ROTULO_ACAO: Record<string, string> = {
   RESPOSTA_CORRIGIDA: "Resposta corrigida",
   RESPOSTA_DESFEITA: "Resposta desfeita",
   REGISTRADO_NA_ATA: "Registrado na ata",
+  ENTROU_NA_OS: "Entrou direto na OS",
   CONFERIDO: "Conferido",
   CONFERENCIA_DESFEITA: "Conferência desfeita",
   CONFERENCIA_AJUSTE: "Ajuste na reunião",
