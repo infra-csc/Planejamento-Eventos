@@ -39,16 +39,16 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
         // Continuação da faixa (dias 2..n): repete o mesmo link sem texto — fora do Tab e do leitor de tela.
         {...(continuacao ? { tabIndex: -1, "aria-hidden": true } : {})}
         style={atravessa ? { width: `calc(${diasNaLinha * 100}% + ${diasNaLinha - 1}px - ${margens}px)` } : undefined}
-        className={cn("px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", "block h-5 truncate leading-5", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa && "relative z-10")}
+        className={cn("px-1.5 py-0.5 text-rotulo font-medium no-underline transition-colors hover:bg-line-strong", atravessa || continuacao || (i.faixa && i.faixa.total > 1) ? "block h-5 truncate leading-5" : "block leading-snug [overflow-wrap:anywhere]", t.fundo, t.texto, i.faixa?.inicio ? "ml-1 rounded-l-chip" : "-ml-px", i.faixa?.fim ? "mr-1 rounded-r-chip" : "-mr-px", atravessa ? "relative z-10" : "relative z-[1]")}
       >
         {continuacao ? " " : i.titulo}
       </Link>
     );
   }
   return (
-    <Link href={i.href} title={dica} className={cn("mx-1 flex h-5 min-w-0 items-center gap-1 rounded-chip px-1.5 text-rotulo no-underline transition-[filter] duration-150 hover:brightness-95", t.fundo, t.texto)}>
-      {i.hora ? <span className="numero shrink-0 font-semibold">{i.hora}</span> : <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", t.ponto)} />}
-      <span className="min-w-0 truncate">{semPrefixo(i.titulo)}</span>
+    <Link href={i.href} title={dica} className={cn("relative z-[1] mx-1 block rounded-chip px-1.5 py-0.5 text-rotulo leading-snug no-underline transition-[filter] duration-150 [overflow-wrap:anywhere] hover:brightness-95", t.fundo, t.texto)}>
+      {i.hora ? <span className="numero mr-1 font-semibold">{i.hora}</span> : <span aria-hidden className={cn("mr-1 inline-block size-1.5 rounded-full align-middle", t.ponto)} />}
+      {semPrefixo(i.titulo)}
       <span className="sr-only"> · {t.rotulo}</span>
     </Link>
   );
@@ -332,7 +332,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                   key={c.dia}
                   aria-label={`${rotuloDia(c.dia)}${ehHoje ? ", hoje" : ""}${itens.length ? `, ${itens.length} ${itens.length === 1 ? "compromisso" : "compromissos"}` : ""}`}
                   role="group"
-                  className={cn("flex min-h-[7.25rem] min-w-0 flex-col border-b border-r border-line-row [&:nth-child(7n)]:border-r-0", !c.doMes ? "bg-subtle" : fimDeSemana && "bg-subtle/50", ehHoje && "bg-selected")}
+                  className={cn("relative flex min-h-[7.25rem] min-w-0 cursor-pointer flex-col border-b border-r border-line-row transition-colors duration-150 hover:bg-subtle/60 [&:nth-child(7n)]:border-r-0", !c.doMes ? "bg-subtle" : fimDeSemana && "bg-subtle/50", ehHoje && "bg-selected")}
                 >
                   <div className="flex items-center px-1.5 pt-1.5">
                     <DiaBotao dia={c.dia} numero={c.numero} hoje={hoje} doMes={c.doMes} itens={itens} />

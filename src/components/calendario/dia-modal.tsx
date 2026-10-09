@@ -28,6 +28,8 @@ export function DiaBotao({ dia, numero, hoje, doMes, itens }: { dia: string; num
         title="Ver o resumo do dia"
         className={cn(
           "numero inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-pequeno transition-colors",
+          // A área de clique cobre a célula do dia inteira: clicar em qualquer espaço vazio abre o resumo.
+          "after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
           // O fundo vem só daqui: com "bg-transparent" fixo junto, o dia de hoje ficava branco no branco.
           ehHoje ? "bg-accent font-semibold text-white hover:bg-accent-hover" : doMes ? "bg-transparent font-medium text-ink hover:bg-control" : "bg-transparent text-meta hover:bg-control",
         )}
@@ -53,7 +55,7 @@ export function MaisDoDia({ dia, hoje, itens, n }: { dia: string; hoje: string; 
         type="button"
         onClick={() => setAberto(true)}
         aria-label={`Mais ${n} em ${rotuloDia(dia)}: ver o dia inteiro`}
-        className="mx-1 flex h-5 cursor-pointer items-center rounded-chip border-0 bg-transparent px-1.5 text-rotulo font-medium text-ink-3 transition-colors hover:bg-control hover:text-ink"
+        className="relative z-[1] mx-1 flex h-5 cursor-pointer items-center rounded-chip border-0 bg-transparent px-1.5 text-rotulo font-medium text-ink-3 transition-colors hover:bg-control hover:text-ink"
       >
         <span className="numero">+{n} mais</span>
       </button>
