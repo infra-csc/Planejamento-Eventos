@@ -66,6 +66,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         meta={
           <>
             {p.categoria && <Meta rotulo="Categoria" valor={p.categoria} />}
+            <Meta rotulo="Grupo da biblioteca" valor={p.grupo?.nome ?? "Padrão"} />
             <Meta rotulo="Tipos de peça" valor={<Numero valor={itens.length} />} />
             <Meta rotulo="Unidades por projeto" valor={<Numero valor={total} />} />
           </>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
 import { listarPecas } from "@/server/services/catalogo";
-import { listarProjetos, obterProjeto } from "@/server/services/projetos";
+import { listarGruposProjetos, listarProjetos, obterProjeto } from "@/server/services/projetos";
 import { NaoEncontradoError } from "@/domain/errors";
 import { PageHeader } from "@/components/ui/layout";
 import { ProjetoForm } from "@/components/projetos/projeto-form";
@@ -17,9 +17,10 @@ export const metadata: Metadata = { title: "Novo projeto padrão" };
 export default async function NovoProjetoPage({ searchParams }: { searchParams: Promise<{ de?: string }> }) {
   const usuario = await requirePermissao("projeto.gerenciar");
   const { de } = await searchParams;
-  const [pecas, projetos, origem] = await Promise.all([
+  const [pecas, projetos, grupos, origem] = await Promise.all([
     listarPecas(usuario),
     listarProjetos(usuario),
+    listarGruposProjetos(usuario),
     de
       ? obterProjeto(usuario, de).catch((e) => {
           if (e instanceof NaoEncontradoError) notFound();
@@ -43,6 +44,7 @@ export default async function NovoProjetoPage({ searchParams }: { searchParams: 
                 nome: `${origem.nome} — `,
                 categoria: origem.categoria,
                 descricao: origem.descricao,
+                grupoEvento: origem.grupo?.nome ?? null,
                 disponivelEmSolicitacoes: origem.disponivelEmSolicitacoes,
                 itens: (origem.versaoAtualObj?.itens ?? []).map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })),
                 origem: { codigo: origem.codigo, nome: origem.nome },
@@ -51,6 +53,7 @@ export default async function NovoProjetoPage({ searchParams }: { searchParams: 
         }
         pecas={pecas}
         categorias={categorias}
+        grupos={grupos}
         cancelarHref={origem ? `/projetos/${origem.id}` : "/biblioteca"}
       />
     </div>

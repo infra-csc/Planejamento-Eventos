@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/layout";
 import { pecasParaProjetoAction } from "@/app/(app)/biblioteca/actions";
 import { ProjetoForm, type PecaOpcao } from "./projeto-form";
 import { AnexosManager } from "./anexos-manager";
+import type { GrupoProjetoOpcao } from "./grupo-projeto-field";
 
 type Anexo = { id: string; tipo: "IMAGEM" | "PDF"; nomeArquivo: string; tamanho: number };
 
@@ -20,10 +21,12 @@ export function EditarProjetoModal({
   projeto,
   anexos,
   categorias,
+  grupos = [],
 }: {
-  projeto: { id: string; nome: string; categoria: string; descricao: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number }> };
+  projeto: { id: string; nome: string; categoria: string; descricao: string | null; grupoEvento?: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number }> };
   anexos: Anexo[];
   categorias?: string[];
+  grupos?: GrupoProjetoOpcao[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [pecas, setPecas] = useState<PecaOpcao[] | null>(null);
@@ -58,7 +61,7 @@ export function EditarProjetoModal({
             </section>
             <div>
               {pecas ? (
-                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} cancelarHref={`/biblioteca?p=${projeto.id}`} onCancelar={() => setAberto(false)} voltarPara={`/biblioteca?p=${projeto.id}`} />
+                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} grupos={grupos} cancelarHref={`/biblioteca?p=${projeto.id}`} onCancelar={() => setAberto(false)} voltarPara={`/biblioteca?p=${projeto.id}`} />
               ) : erro ? (
                 <FormError message={erro} />
               ) : (

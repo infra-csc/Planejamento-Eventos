@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { anexos, eventoItens, eventos, historico, pecas, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
+import { anexos, eventoItens, eventos, historico, pecas, projetoGrupos, projetoItens, projetoVersoes, projetos, type AnexoTipo } from "@/server/db/schema";
+import { normalizarGrupoProjeto } from "@/domain/grupos-projeto";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento } from "./support";
@@ -10,6 +11,8 @@ import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/ser
 
 export type DadosProjeto = {
   nome: string;
+  /** Nome livre; null = Padrão, ausente = preservar na edição. Não restringe eventos. */
+  grupoEvento?: string | null;
   categoria: string;
   descricao: string | null;
   observacaoVersao: string | null;
@@ -20,6 +23,25 @@ export type DadosProjeto = {
 
 type FiltroProjetos = { busca?: string; incluirInativos?: boolean };
 
+export async function listarGruposProjetos(usuario: UsuarioAtual) {
+  exigir(usuario, "projeto.ver");
+  const db = await getDb();
+  return db.select({ id: projetoGrupos.id, nome: projetoGrupos.nome }).from(projetoGrupos).orderBy(asc(projetoGrupos.nome));
+}
+
+type ProjetoTx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
+
+async function resolverGrupoProjeto(tx: ProjetoTx, usuario: UsuarioAtual, nome: string | null | undefined) {
+  const grupo = normalizarGrupoProjeto(nome);
+  if (!grupo) return null;
+  const [criado] = await tx.insert(projetoGrupos).values({ ...grupo, criadoPorId: usuario.id })
+    .onConflictDoNothing({ target: projetoGrupos.nomeNormalizado }).returning({ id: projetoGrupos.id });
+  if (criado) return criado.id;
+  const existente = await tx.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.nomeNormalizado, grupo.nomeNormalizado) });
+  if (!existente) throw new ValidacaoError("Não foi possível selecionar o grupo. Tente novamente.");
+  return existente.id;
+}
+
 export async function listarProjetos(usuario: UsuarioAtual, filtro: FiltroProjetos = {}) {
   exigir(usuario, "projeto.ver");
   // Busca livre vai sempre ao banco; a lista sem busca fica em cache até uma action mexer nos projetos.
@@ -27,7 +49,7 @@ export async function listarProjetos(usuario: UsuarioAtual, filtro: FiltroProjet
   return projetosEmCache(Boolean(filtro.incluirInativos));
 }
 
-const projetosEmCache = cacheDados((incluirInativos: boolean) => consultarProjetos({ incluirInativos }), "projetos:lista", [TAGS_DADOS.projetos]);
+const projetosEmCache = cacheDados((incluirInativos: boolean) => consultarProjetos({ incluirInativos }), "projetos:lista:grupos", [TAGS_DADOS.projetos]);
 
 async function consultarProjetos(filtro: FiltroProjetos) {
   const db = await getDb();
@@ -39,7 +61,7 @@ async function consultarProjetos(filtro: FiltroProjetos) {
   }
   const rows = await db.query.projetos.findMany({
     where: conds.length ? and(...conds) : undefined,
-    with: { anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true } } },
+    with: { grupo: { columns: { id: true, nome: true } }, anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true } } },
     orderBy: [asc(projetos.categoria), asc(projetos.nome)],
   });
   // Totais só da versão atual de cada projeto, agregados no banco (antes: todas as versões com itens).
@@ -74,6 +96,7 @@ export async function obterProjeto(usuario: UsuarioAtual, id: string) {
     db.query.projetos.findFirst({
       where: eq(projetos.id, id),
       with: {
+        grupo: { columns: { id: true, nome: true } },
         criadoPor: { columns: { id: true, nome: true } },
         anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true, tamanho: true, criadoEm: true }, orderBy: [asc(anexos.criadoEm)] },
         versoes: { with: { itens: { with: { peca: true } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
@@ -119,12 +142,14 @@ async function exigirNomeUnico(nome: string, ignorarId?: string) {
 
 export async function criarProjeto(usuario: UsuarioAtual, dados: DadosProjeto) {
   exigir(usuario, "projeto.gerenciar");
+  normalizarGrupoProjeto(dados.grupoEvento);
   await validarItens(dados.itens);
   await exigirNomeUnico(dados.nome);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const codigo = await proximoCodigo(tx, "projeto");
-    const [p] = await tx.insert(projetos).values({ codigo, nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: 1, disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes ?? true, criadoPorId: usuario.id }).returning();
+    const grupoId = await resolverGrupoProjeto(tx, usuario, dados.grupoEvento);
+    const [p] = await tx.insert(projetos).values({ codigo, nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, grupoId, versaoAtual: 1, disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes ?? true, criadoPorId: usuario.id }).returning();
     const [v] = await tx.insert(projetoVersoes).values({ projetoId: p.id, numero: 1, observacao: dados.observacaoVersao ?? "Versão inicial", criadoPorId: usuario.id }).returning();
     await tx.insert(projetoItens).values(dados.itens.map((i) => ({ versaoId: v.id, pecaId: i.pecaId, quantidade: i.quantidade })));
     await registrarHistorico(tx, { entidade: "projeto", entidadeId: p.id, acao: "CRIADO", descricao: `Projeto ${p.codigo} · ${p.nome} criado (v1, ${dados.itens.length} peças).`, usuarioId: usuario.id, dadosDepois: dados });
@@ -134,12 +159,14 @@ export async function criarProjeto(usuario: UsuarioAtual, dados: DadosProjeto) {
 
 export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: DadosProjeto) {
   exigir(usuario, "projeto.gerenciar");
+  normalizarGrupoProjeto(dados.grupoEvento);
   await validarItens(dados.itens);
   await exigirNomeUnico(dados.nome, id);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const p = await tx.query.projetos.findFirst({ where: eq(projetos.id, id), with: { versoes: { with: { itens: true } } } });
     if (!p) throw new NaoEncontradoError("Projeto padrão");
+    const grupoId = dados.grupoEvento === undefined ? p.grupoId : await resolverGrupoProjeto(tx, usuario, dados.grupoEvento);
     const atual = p.versoes.find((v) => v.numero === p.versaoAtual)!;
     const chave = (itens: Array<{ pecaId: string; quantidade: number }>) =>
       itens
@@ -153,15 +180,15 @@ export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: Da
       const [v] = await tx.insert(projetoVersoes).values({ projetoId: id, numero: novaVersao, observacao: dados.observacaoVersao, criadoPorId: usuario.id }).returning();
       await tx.insert(projetoItens).values(dados.itens.map((i) => ({ versaoId: v.id, pecaId: i.pecaId, quantidade: i.quantidade })));
     }
-    await tx.update(projetos).set({ nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, versaoAtual: novaVersao, ...(dados.disponivelEmSolicitacoes === undefined ? {} : { disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes }) }).where(eq(projetos.id, id));
+    await tx.update(projetos).set({ nome: dados.nome, categoria: dados.categoria, descricao: dados.descricao, grupoId, versaoAtual: novaVersao, ...(dados.disponivelEmSolicitacoes === undefined ? {} : { disponivelEmSolicitacoes: dados.disponivelEmSolicitacoes }) }).where(eq(projetos.id, id));
     await registrarHistorico(tx, {
       entidade: "projeto",
       entidadeId: id,
       acao: bomMudou ? "NOVA_VERSAO" : "EDITADO",
       descricao: bomMudou ? `${p.nome}: nova versão v${novaVersao}${dados.observacaoVersao ? ` — ${dados.observacaoVersao}` : ""}` : `${p.nome}: dados alterados (sem mudança no BOM).`,
       usuarioId: usuario.id,
-      dadosAntes: bomMudou ? { itens: atual.itens.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) } : null,
-      dadosDepois: bomMudou ? { itens: dados.itens } : null,
+      dadosAntes: bomMudou ? { itens: atual.itens.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })), grupoId: p.grupoId } : grupoId !== p.grupoId ? { grupoId: p.grupoId } : null,
+      dadosDepois: bomMudou ? { itens: dados.itens, grupoId } : grupoId !== p.grupoId ? { grupoId } : null,
     });
     if (bomMudou) {
       const usos = await tx

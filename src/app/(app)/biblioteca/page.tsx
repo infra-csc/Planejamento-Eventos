@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
+import { listarGruposProjetos, listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
 import { contarPecasEmBom, listarPecas } from "@/server/services/catalogo";
 import { listarItensForaDoCatalogo } from "@/server/services/fora-catalogo";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
@@ -32,17 +32,18 @@ import { RolarAoSelecionar } from "@/components/biblioteca/rolar-ao-selecionar";
 import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { combinaBusca } from "@/lib/busca";
 import { BarraSelecaoLote, CheckboxSelecaoLote, CheckboxSelecionarPagina, SelecaoEmLote } from "@/components/biblioteca/selecao-em-lote";
+import { FiltroGrupoProjeto } from "@/components/projetos/filtro-grupo-projeto";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
-type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string };
+type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; grupo?: string };
 
 type Aba = "projetos" | "pecas" | "fora";
 
 /** Abas por query string (`?aba=`) no topo do cartão da tabela, com a contagem de cada seção. */
 function Abas({ aba, nProjetos, nPecas, nFora }: { aba: Aba; nProjetos: number; nPecas: number; nFora: number | null }) {
   const itens = [
-    { chave: "projetos", label: "Projetos padrão", n: nProjetos, href: "/biblioteca" },
+    { chave: "projetos", label: "Projetos", n: nProjetos, href: "/biblioteca" },
     { chave: "pecas", label: "Catálogo de peças", n: nPecas, href: "/biblioteca?aba=pecas" },
     // Só quem cadastra/vincula vê a fila do que as áreas descreveram à mão.
     ...(nFora == null ? [] : [{ chave: "fora", label: "Fora do catálogo", n: nFora, href: "/biblioteca?aba=fora" }]),
@@ -63,7 +64,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const podeVincular = pode(usuario, "ata.consolidar");
   const aba: Aba = sp.aba === "pecas" ? "pecas" : sp.aba === "fora" && podeVincular ? "fora" : "projetos";
-  const [projetos, pecasTodas, foraCatalogo] = await Promise.all([listarProjetos(usuario, { incluirInativos: pode(usuario, "projeto.gerenciar") }), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null)]);
+  const [projetos, pecasTodas, foraCatalogo, gruposProjeto] = await Promise.all([listarProjetos(usuario, { incluirInativos: pode(usuario, "projeto.gerenciar") }), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null), listarGruposProjetos(usuario)]);
   const busca = sp.q?.trim().slice(0, 80) || null;
   const termo = (busca ?? "").toLowerCase();
 
@@ -130,10 +131,14 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     const uso = await usoProjetosPorEvento();
     // Filtro por evento: só os projetos que estão na ata daquele evento, com as unidades pedidas.
     const eventoId = sp.evento?.trim() || null;
-    const noEvento = eventoId ? projetos.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : projetos;
-    const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""}`, termo)) : noEvento;
+    const grupoId = sp.grupo?.trim() || null;
+    const noGrupo = grupoId === "padrao" ? projetos.filter((p) => !p.grupoId) : grupoId ? projetos.filter((p) => p.grupoId === grupoId) : projetos;
+    const noEvento = eventoId ? noGrupo.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : noGrupo;
+    const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""} ${p.grupo?.nome ?? ""}`, termo)) : noEvento;
+    const semProjetoNoGrupo = Boolean(grupoId && noGrupo.length === 0);
+    const semProjetoNoEvento = Boolean(eventoId && noGrupo.length > 0 && noEvento.length === 0);
     const pag = paginar(encontrados, sp.pagina, 12);
-    const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento };
+    const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento, grupo: sp.grupo };
     const selecionado = encontrados.find((p) => p.id === sp.p) ?? pag.itens[0];
     const detalhe = selecionado ? await obterProjeto(usuario, selecionado.id) : null;
     // Eventos para o filtro: os que têm algum projeto na ata, do mais recente para o mais antigo.
@@ -157,6 +162,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {(projetos.length > 0 || atalhoFora) && (
           <div className={barraCls}>
             {projetos.length > 0 && <BuscaUrl largura={360} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
+            {projetos.length > 0 && <FiltroGrupoProjeto grupos={gruposProjeto} />}
             {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
             {atalhoFora}
           </div>
@@ -170,12 +176,12 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className={cartaoCls}>
               <SelecaoEmLote
-                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.grupo ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
                 tipo="projetos"
                 gerencia={pode(usuario, "projeto.gerenciar")}
                 itens={pag.itens.map((p) => ({ id: p.id, nome: p.nome, ativo: p.ativo }))}
               >
-              <ContagemAoVivo oculto n={pag.total} singular="projeto padrão" plural="projetos padrão" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null].filter(Boolean).join(", ") || null} />
+              <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null].filter(Boolean).join(", ") || null} />
               {abas}
               {pag.total > 0 && <BarraSelecaoLote gerencia={pode(usuario, "projeto.gerenciar")} />}
               {eventoFiltrado && (
@@ -184,7 +190,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 </p>
               )}
               {pag.total === 0 ? (
-                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : "Nenhum projeto na ata deste evento"} description={busca ? "Confira o código ou tente outra palavra do nome ou da categoria." : "Quando as solicitações forem atendidas, os projetos aparecem aqui."} icone={busca ? "busca" : undefined} action={busca ? <Link href={hrefCom("/biblioteca", params, { q: null, pagina: null })} className="link text-corpo">Limpar busca</Link> : undefined} />
+                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : semProjetoNoGrupo ? "Nenhum projeto neste grupo" : semProjetoNoEvento ? "Nenhum projeto na ata deste evento" : "Nenhum projeto encontrado"} description={busca ? "Confira o código, nome, categoria ou grupo." : semProjetoNoGrupo ? "Escolha outro grupo ou volte para todos. Os grupos são independentes dos eventos e continuam disponíveis mesmo sem projetos associados." : semProjetoNoEvento ? "Quando as solicitações forem atendidas, os projetos aparecem aqui." : "Ajuste os filtros para encontrar projetos."} icone={busca ? "busca" : undefined} action={busca || grupoId ? <Link href={hrefCom("/biblioteca", params, { q: null, grupo: null, pagina: null, p: null })} className="link text-corpo">Limpar filtros</Link> : undefined} />
               ) : (
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
@@ -239,10 +245,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                               </td>
                               <th scope="row" aria-current={sel ? "true" : undefined} className="relative border-b border-line-row py-3.5 pl-cartao pr-3 text-left font-normal sm:pl-3">
                                 {marca && <span className="sm:hidden">{marca}</span>}
-                                <span className="flex min-w-[220px] items-start gap-2">
+                                <span className="flex min-w-[220px] flex-wrap items-start gap-2">
                                   <span className="line-clamp-2 min-w-0 text-corpo font-medium text-ink" title={p.nome}>
                                     {p.nome}
                                   </span>
+                                  <Tag tom={p.grupo ? "info" : "muted"} className="shrink-0">{p.grupo?.nome ?? "Padrão"}</Tag>
                                   <ChipMono tom="control" className="shrink-0">
                                     v{p.versaoAtual}
                                   </ChipMono>
@@ -298,9 +305,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     <span className="flex items-center gap-3">
                       {pode(usuario, "projeto.gerenciar") && (
                         <EditarProjetoModal
-                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, versaoAtual: detalhe.versaoAtual, disponivelEmSolicitacoes: detalhe.disponivelEmSolicitacoes, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
+                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, grupoEvento: detalhe.grupo?.nome ?? null, versaoAtual: detalhe.versaoAtual, disponivelEmSolicitacoes: detalhe.disponivelEmSolicitacoes, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
                           anexos={detalhe.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))}
                           categorias={[...new Set(projetos.map((x) => x.categoria).filter(Boolean))]}
+                          grupos={gruposProjeto}
                         />
                       )}
                       {pode(usuario, "projeto.gerenciar") && (
@@ -314,6 +322,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     </span>
                   }
                 >
+                  <div className="border-b border-line-soft px-cartao py-2.5 text-pequeno">
+                    <span className="text-muted">Grupo da biblioteca: </span>
+                    <Tag tom={detalhe.grupo ? "info" : "muted"}>{detalhe.grupo?.nome ?? "Padrão"}</Tag>
+                  </div>
                   {(uso.get(detalhe.id)?.eventos.length ?? 0) > 0 && (
                     <div className="border-b border-line-soft px-cartao py-2.5 text-pequeno">
                       <span className="text-muted">Em uso em: </span>

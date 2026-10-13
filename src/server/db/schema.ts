@@ -173,12 +173,22 @@ export const pecas = pgTable("pecas", {
   atualizadoEm: atualizadoEm(),
 });
 
+/** Grupos organizacionais livres (nomes de eventos), sem vínculo com a tabela de eventos. */
+export const projetoGrupos = pgTable("projeto_grupos", {
+  id: id(),
+  nome: text("nome").notNull(),
+  nomeNormalizado: text("nome_normalizado").notNull().unique(),
+  criadoPorId: text("criado_por_id").references(() => usuarios.id),
+  criadoEm: criadoEm(),
+});
+
 export const projetos = pgTable("projetos", {
   id: id(),
   codigo: text("codigo").notNull().unique(),
   nome: text("nome").notNull(),
   categoria: text("categoria").notNull().default(""),
   descricao: text("descricao"),
+  grupoId: text("grupo_id").references(() => projetoGrupos.id, { onDelete: "restrict" }),
   versaoAtual: integer("versao_atual").notNull().default(1),
   /** false = fica na biblioteca, mas não aparece nas listas de seleção das solicitações. */
   disponivelEmSolicitacoes: boolean("disponivel_solicitacao").notNull().default(true),
@@ -670,9 +680,15 @@ export const pecasRelations = relations(pecas, ({ many }) => ({
 }));
 
 export const projetosRelations = relations(projetos, ({ many, one }) => ({
+  grupo: one(projetoGrupos, { fields: [projetos.grupoId], references: [projetoGrupos.id] }),
   versoes: many(projetoVersoes),
   anexos: many(anexos),
   criadoPor: one(usuarios, { fields: [projetos.criadoPorId], references: [usuarios.id] }),
+}));
+
+export const projetoGruposRelations = relations(projetoGrupos, ({ many, one }) => ({
+  projetos: many(projetos),
+  criadoPor: one(usuarios, { fields: [projetoGrupos.criadoPorId], references: [usuarios.id] }),
 }));
 
 export const projetoVersoesRelations = relations(projetoVersoes, ({ one, many }) => ({

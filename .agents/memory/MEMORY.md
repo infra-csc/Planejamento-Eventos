@@ -5,3 +5,6 @@
 - [Standalone tent accessories](standalone-tent-accessories.md) — specialized OS exports must show separately ordered accessories without assigning them to a tent kit.
 - [Agrupamento visual de tendas](tenda-grouping.md) — tendas com o mesmo nome ficam sempre juntas; locais e configurações devem ser claros dentro do grupo.
 - [Library lifecycle](library-lifecycle.md) — manager library lists retain disabled records for recovery; new-order selectors stay active-only.
+- [Grupos de projetos](project-event-groups.md) — nomes livres de eventos criam grupos reutilizáveis da biblioteca, não vínculos restritivos com eventos cadastrados.
+- [Preview port consistency](preview-port-consistency.md) — Next Ready can coexist with workflow port timeouts; align the workflow, primary mapping and runtime port.
+- [SQL inspection results](sql-inspection-results.md) — combine metadata checks into one SELECT; multiple result sets can fail in the executeSql formatter.

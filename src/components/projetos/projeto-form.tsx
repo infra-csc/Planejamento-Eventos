@@ -14,6 +14,7 @@ import { Stepper } from "@/components/ui/stepper";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
 import type { Setor } from "@/server/db/schema";
+import { GrupoProjetoField, type GrupoProjetoOpcao } from "./grupo-projeto-field";
 
 export type PecaOpcao = { id: string; codigo: string; nome: string; setor: Setor; familia?: string; unidade: string; permiteEmProjeto: boolean };
 type Linha = { pecaId: string; quantidade: number };
@@ -27,6 +28,7 @@ export function ProjetoForm({
   valores,
   pecas,
   categorias = [],
+  grupos = [],
   cancelarHref,
   onCancelar,
   voltarPara,
@@ -36,6 +38,7 @@ export function ProjetoForm({
     nome?: string;
     categoria?: string;
     descricao?: string | null;
+    grupoEvento?: string | null;
     itens: Linha[];
     versaoAtual?: number;
     disponivelEmSolicitacoes?: boolean;
@@ -45,6 +48,7 @@ export function ProjetoForm({
   pecas: PecaOpcao[];
   /** Categorias já usadas por outros projetos, para sugerir junto das padrão. */
   categorias?: string[];
+  grupos?: GrupoProjetoOpcao[];
   cancelarHref: string;
   /** Dentro de um modal: cancelar fecha em vez de navegar. */
   onCancelar?: () => void;
@@ -112,6 +116,7 @@ export function ProjetoForm({
           <Field label="Descrição" htmlFor="descricao" optional hint="Aparece para quem pede: medidas, para que serve, o que vai junto (lona, LED, contrapeso)." className="sm:col-span-2">
             <Textarea id="descricao" name="descricao" defaultValue={valores.descricao ?? ""} rows={3} />
           </Field>
+          <GrupoProjetoField grupos={grupos} valor={valores.grupoEvento} />
           <div className="sm:col-span-2">
             <Checkbox
               id="disponivel"

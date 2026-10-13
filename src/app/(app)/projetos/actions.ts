@@ -18,6 +18,7 @@ export async function salvarProjetoAction(_prev: ActionResult, formData: FormDat
     const itensRaw = JSON.parse(String(formData.get("itens") ?? "[]")) as unknown;
     const dados = projetoSchema.parse({
       nome: formData.get("nome"),
+      grupoEvento: formData.has("grupoEvento") ? formData.get("grupoEvento") : undefined,
       categoria: formData.get("categoria"),
       descricao: formData.get("descricao"),
       observacaoVersao: formData.get("observacaoVersao"),

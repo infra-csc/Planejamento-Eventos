@@ -125,6 +125,7 @@ export const pecaSchema = z.object({
 
 export const projetoSchema = z.object({
   nome: texto(LIMITES.nome),
+  grupoEvento: textoOpcional(120).optional(),
   categoria: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
   descricao: textoOpcional(1000),
   observacaoVersao: textoOpcional(300),
