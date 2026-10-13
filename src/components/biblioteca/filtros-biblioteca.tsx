@@ -74,7 +74,7 @@ export function FiltroAlteracao() {
   );
 }
 
-/** Só para quem gerencia: a lista mostra ativos e inativos; aqui dá para ver um lado só. */
+/** Só para quem gerencia: por padrão a lista mostra só os ativos; dá para incluir ou ver só os inativos. */
 export function FiltroSituacao({ feminino = false }: { feminino?: boolean }) {
   const { sp, pendente, aplicar } = useFiltroUrl();
   const sufixo = feminino ? "as" : "os";
@@ -83,13 +83,13 @@ export function FiltroSituacao({ feminino = false }: { feminino?: boolean }) {
       <Select
         id="filtro-situacao"
         aria-label="Filtrar por situação"
-        value={sp.get("situacao") ?? ""}
+        value={sp.get("situacao") === "todos" || sp.get("situacao") === "inativos" ? sp.get("situacao")! : ""}
         ordenarAlfabetico={false}
         className="w-full min-w-[170px] sm:w-[190px]"
         onValueChange={(v) => aplicar({ situacao: v || null })}
         opcoes={[
-          { value: "", label: `Ativ${sufixo} e inativ${sufixo}` },
-          { value: "ativos", label: `Só ativ${sufixo}` },
+          { value: "", label: `Só ativ${sufixo}` },
+          { value: "todos", label: `Ativ${sufixo} e inativ${sufixo}` },
           { value: "inativos", label: `Só inativ${sufixo}` },
         ]}
       />

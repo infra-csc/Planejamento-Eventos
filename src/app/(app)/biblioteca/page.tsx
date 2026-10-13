@@ -42,7 +42,10 @@ export const metadata: Metadata = { title: "Biblioteca" };
 type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; grupo?: string; alterado?: string; alteradoDe?: string; alteradoAte?: string; situacao?: string };
 
 type Situacao = "ativos" | "inativos" | null;
-const lerSituacao = (v: string | undefined, gerencia: boolean): Situacao => (gerencia && (v === "ativos" || v === "inativos") ? v : null);
+/** Quem gerencia vê só os ativos por padrão; "todos" mostra ativos e inativos. Os demais só recebem ativos do serviço. */
+const lerSituacao = (v: string | undefined, gerencia: boolean): Situacao => (!gerencia || v === "todos" ? null : v === "inativos" ? "inativos" : "ativos");
+/** A situação saiu do padrão (só ativos)? */
+const situacaoAlterada = (v: string | undefined, gerencia: boolean) => gerencia && (v === "todos" || v === "inativos");
 const naSituacao = (ativo: boolean, s: Situacao) => !s || (s === "ativos") === ativo;
 
 type Aba = "projetos" | "pecas" | "fora";
@@ -151,8 +154,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     const noEvento = eventoId ? noGrupo.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : noGrupo;
     const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""} ${p.grupo?.nome ?? ""}`, termo)) : noEvento;
     const semProjetoNoGrupo = Boolean(grupoId && noGrupo.length === 0);
-    const filtroExtraAtivo = Boolean(alteracao || situacao);
     const semProjetoNoEvento = Boolean(eventoId && noGrupo.length > 0 && noEvento.length === 0);
+    const filtroExtraAtivo = Boolean(alteracao || situacaoAlterada(sp.situacao, pode(usuario, "projeto.gerenciar")));
+    // Lista vazia só porque o padrão esconde os inativos: oferecer vê-los em vez de "limpar".
+    const soInativosOcultos = !busca && !filtroExtraAtivo && situacao === "ativos" && noEvento.length === 0 && projetos.length > 0 && !semProjetoNoGrupo && !semProjetoNoEvento;
     const pag = paginar(encontrados, sp.pagina, 12);
     const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento, grupo: sp.grupo, ...filtrosExtra };
     const selecionado = encontrados.find((p) => p.id === sp.p) ?? pag.itens[0];
@@ -200,7 +205,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 organizacao={{ grupos: gruposProjeto, categorias: [...new Set(projetos.map((x) => x.categoria).filter(Boolean))] }}
                 itens={pag.itens.map((p) => ({ id: p.id, nome: p.nome, ativo: p.ativo }))}
               >
-              <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null, alteracao?.descricao ?? null, situacao === "ativos" ? "só ativos" : situacao === "inativos" ? "só inativos" : null].filter(Boolean).join(", ") || null} />
+              <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null, alteracao?.descricao ?? null, situacao === "inativos" ? "só inativos" : pode(usuario, "projeto.gerenciar") && !situacao ? "ativos e inativos" : null].filter(Boolean).join(", ") || null} />
               {abas}
               {pag.total > 0 && <BarraSelecaoLote gerencia={pode(usuario, "projeto.gerenciar")} />}
               {eventoFiltrado && (
@@ -209,7 +214,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 </p>
               )}
               {pag.total === 0 ? (
-                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : semProjetoNoGrupo ? "Nenhum projeto neste grupo" : semProjetoNoEvento ? "Nenhum projeto na ata deste evento" : alteracao ? `Nenhum projeto ${alteracao.descricao.replace(/^alterados/, "alterado")}` : "Nenhum projeto encontrado"} description={busca ? "Confira o código, nome, categoria ou grupo." : alteracao && !semProjetoNoGrupo && !semProjetoNoEvento ? "Escolha outro período de alteração ou volte para qualquer data." : semProjetoNoGrupo ? "Escolha outro grupo ou volte para todos. Os grupos são independentes dos eventos e continuam disponíveis mesmo sem projetos associados." : semProjetoNoEvento ? "Quando as solicitações forem atendidas, os projetos aparecem aqui." : "Ajuste os filtros para encontrar projetos."} icone={busca ? "busca" : undefined} action={busca || grupoId || filtroExtraAtivo ? <Link href={hrefCom("/biblioteca", params, { q: null, grupo: null, pagina: null, p: null, ...limparExtras })} className="link text-corpo">Limpar filtros</Link> : undefined} />
+                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : semProjetoNoGrupo ? "Nenhum projeto neste grupo" : semProjetoNoEvento ? "Nenhum projeto na ata deste evento" : alteracao ? `Nenhum projeto ${alteracao.descricao.replace(/^alterados/, "alterado")}` : soInativosOcultos ? "Nenhum projeto ativo" : "Nenhum projeto encontrado"} description={busca ? "Confira o código, nome, categoria ou grupo." : alteracao && !semProjetoNoGrupo && !semProjetoNoEvento ? "Escolha outro período de alteração ou volte para qualquer data." : semProjetoNoGrupo ? "Escolha outro grupo ou volte para todos. Os grupos são independentes dos eventos e continuam disponíveis mesmo sem projetos associados." : semProjetoNoEvento ? "Quando as solicitações forem atendidas, os projetos aparecem aqui." : "Ajuste os filtros para encontrar projetos."} icone={busca ? "busca" : undefined} action={soInativosOcultos ? <Link href={hrefCom("/biblioteca", params, { situacao: "todos", pagina: null, p: null })} className="link text-corpo">Ver também os inativos</Link> : busca || grupoId || filtroExtraAtivo ? <Link href={hrefCom("/biblioteca", params, { q: null, grupo: null, pagina: null, p: null, ...limparExtras })} className="link text-corpo">Limpar filtros</Link> : undefined} />
               ) : (
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
@@ -432,7 +437,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const filtradas = noSetor.filter((p) => naSituacao(p.ativo, situacaoPecas) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
   // Pílulas de setor contam já com data e situação aplicadas.
   const paraContagem = buscadas.filter((p) => naSituacao(p.ativo, situacaoPecas) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
-  const extraPecas = Boolean(alteracao || situacaoPecas);
+  const extraPecas = Boolean(alteracao || situacaoAlterada(sp.situacao, gerencia));
+  const inativasOcultas = !busca && !extraPecas && situacaoPecas === "ativos" && noSetor.length > 0 && filtradas.length === 0;
   const ordenadas = ordenar(
     filtradas,
     { codigo: (p) => p.codigo, nome: (p) => p.nome.toLowerCase(), setor: (p) => SETORES.indexOf(p.setor), familia: (p) => (p.familia ?? "").toLowerCase(), estoque: (p) => p.estoqueProprio, bom: (p) => emBom.get(p.id) ?? 0, alterado: (p) => new Date(p.atualizadoEm).getTime() },
@@ -504,7 +510,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     </>
   );
 
-  const vazio: [string, string] = !busca && extraPecas && noSetor.length > 0
+  const vazio: [string, string] = inativasOcultas
+    ? ["Nenhuma peça ativa", "As peças desta lista estão inativas. Veja também as inativas para reativá-las."]
+    : !busca && extraPecas && noSetor.length > 0
     ? [alteracao ? `Nenhuma peça ${alteracao.descricao.replace(/^alterados/, "alterada")}` : situacaoPecas === "inativos" ? "Nenhuma peça inativa" : "Nenhuma peça ativa", "Escolha outro período ou situação, ou volte para qualquer data."]
     : busca
     ? [`Nada encontrado para “${busca}”`, setor ? "Confira o termo ou volte para todos os setores." : "Confira o código ou tente outra palavra do nome ou da família."]
@@ -539,7 +547,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           gerencia={gerencia}
           itens={pag.itens.map((p) => ({ id: p.id, nome: `${p.codigo} · ${p.nome}`, ativo: p.ativo }))}
         >
-        <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null, alteracao?.descricao.replace(/^alterados/, "alteradas") ?? null, situacaoPecas === "ativos" ? "só ativas" : situacaoPecas === "inativos" ? "só inativas" : null].filter(Boolean).join(" · ")} />
+        <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null, alteracao?.descricao.replace(/^alterados/, "alteradas") ?? null, situacaoPecas === "inativos" ? "só inativas" : gerencia && !situacaoPecas ? "ativas e inativas" : null].filter(Boolean).join(" · ")} />
         {abas}
         {pag.total > 0 && <BarraSelecaoLote gerencia={gerencia} />}
         {pag.total === 0 ? (
@@ -548,7 +556,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             description={vazio[1]}
             icone={busca ? "busca" : undefined}
             action={
-              busca || setor || extraPecas ? (
+              inativasOcultas ? (
+                <Link href={hrefCom("/biblioteca", params, { situacao: "todos", pagina: null })} className="link text-corpo">
+                  Ver também as inativas
+                </Link>
+              ) : busca || setor || extraPecas ? (
                 <Link href={hrefCom("/biblioteca", params, { q: null, setor: null, pagina: null, ...limparExtras })} className="link text-corpo">
                   {extraPecas ? "Limpar filtros" : busca && setor ? "Limpar busca e setor" : busca ? "Limpar busca" : "Ver todos os setores"}
                 </Link>
