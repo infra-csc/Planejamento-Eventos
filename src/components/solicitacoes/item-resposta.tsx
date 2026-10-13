@@ -14,6 +14,7 @@ import { Numero } from "@/components/ui/numero";
 import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
 import { agruparDescricoes } from "@/domain/descricoes-itens";
+import { agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
 export type ItemParaResposta = {
@@ -29,6 +30,8 @@ export type ItemParaResposta = {
   descricoes?: string[] | null;
   /** Projeto com peças ajustadas pelo solicitante ("+2 Praticável 2×1 · −1 Cubo"). */
   ajustes?: string | null;
+  /** Item de um projeto de tendas; pode ter várias configurações para o mesmo destino. */
+  tenda?: boolean;
   status: ItemStatus;
   quantidadeAtendida: number | null;
   observacaoLogistica: string | null;
@@ -367,6 +370,80 @@ const ROTULO_OPERACAO: Partial<Record<ItemOperacao, string>> = { ALTERAR_QUANTID
  * o nome e o total, e uma linha por local — cada uma com status, descrição e resposta próprios.
  */
 export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaResposta[]; semStatus?: boolean }) {
+  if (itens[0].tenda) {
+    const locais = agruparLocaisTenda(itens);
+    const total = itens.reduce((a, i) => a + i.quantidadeSolicitada, 0);
+    const somenteAdicoes = itens.every((i) => i.operacao === "ADICIONAR");
+    const primeiro = itens[0];
+    const naAtaGrupo = Boolean(primeiro.aguardandoReuniao) && primeiro.status === "ATENDIDO";
+    const mesmoEstado =
+      itens.every((i) => i.status === primeiro.status && Boolean(i.aguardandoReuniao) === Boolean(primeiro.aguardandoReuniao)) &&
+      (primeiro.status === "EM_ANALISE" || naAtaGrupo);
+
+    return (
+      <div
+        role="group"
+        aria-label={`${primeiro.descricao}: ${somenteAdicoes ? `${total} no total` : `${itens.length} partes`}, ${locais.length} ${locais.length === 1 ? "local" : "locais"}`}
+        className="border-b border-line-row last:border-b-0"
+      >
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-cartao pb-1 pt-4">
+          <p className="m-0 min-w-0 flex-1 break-words text-corpo font-medium text-ink">{primeiro.descricao}</p>
+          <span className="shrink-0 text-pequeno text-muted">
+            {somenteAdicoes ? (
+              <>
+                <Numero valor={total} className="font-semibold text-ink" /> no total
+              </>
+            ) : (
+              <>
+                <Numero valor={itens.length} className="font-semibold text-ink" /> {itens.length === 1 ? "parte" : "partes"}
+              </>
+            )}
+            {" · "}
+            <Numero valor={locais.length} className="font-semibold text-ink" /> {locais.length === 1 ? "local" : "locais"}
+          </span>
+          {!semStatus && mesmoEstado && <ItemStatusBadge status={primeiro.status} naAta={naAtaGrupo} className="shrink-0" />}
+        </div>
+        {mesmoEstado && naAtaGrupo && <p className="m-0 px-cartao pb-1 text-pequeno text-ink-2">Aguarda conferência na reunião de OS.</p>}
+        {itens.some((i) => i.ajustes?.trim()) && (
+          <p className="m-0 px-cartao pb-2 text-pequeno text-muted">
+            Ajustes são diferenças de peças por tenda; não representam totais de acessórios.
+          </p>
+        )}
+        <div className="ml-cartao border-l-2 border-line-soft">
+          {locais.map(({ local, itens: partes }, localIndex) => (
+            <section key={`${local ?? "sem-local"}-${localIndex}`} aria-label={local ? `Local: ${local}` : "Local não informado"} className="min-w-0 border-b border-line-row last:border-b-0">
+              <h3 className="m-0 flex min-w-0 items-center gap-1.5 break-words px-4 pb-2 pt-3 text-pequeno font-semibold text-ink-2">
+                <Icone nome="local" className="size-3.5 shrink-0 text-ink-3" />
+                {local || <span className="font-normal text-muted">Local não informado</span>}
+                <span className="ml-auto shrink-0 pl-2 text-rotulo font-normal text-muted">
+                  {somenteAdicoes ? (
+                    <><Numero valor={partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0)} /> {partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0) === 1 ? "tenda" : "tendas"}</>
+                  ) : (
+                    <><Numero valor={partes.length} /> {partes.length === 1 ? "parte" : "partes"}</>
+                  )}
+                </span>
+              </h3>
+              <ul className="m-0 list-none p-0 [&>li:last-child>div]:border-b-0">
+                {partes.map((item, parteIndex) => (
+                  <li key={item.id} className="min-w-0">
+                    <ItemResposta
+                      item={item}
+                      semStatus={semStatus}
+                      emGrupo
+                      estadoNoGrupo={mesmoEstado}
+                      localNoGrupo
+                      parte={parteIndex + 1}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const total = itens.reduce((a, i) => a + i.quantidadeSolicitada, 0);
   // Mesma situação em todos os locais: o selo (e o "aguarda conferência") aparece uma vez, no cabeçalho.
   const primeiro = itens[0];
@@ -394,7 +471,23 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
 /** Descrição gerada que só repete o local ("Tenda 3×3 — Buffet"): dentro do grupo por local, não informa nada. */
 const soRepeteLocal = (d: string, destino: string | null) => Boolean(destino) && d.trim().toLowerCase().endsWith(`— ${destino!.trim().toLowerCase()}`);
 
-export function ItemResposta({ item: itemOriginal, semStatus = false, emGrupo = false, estadoNoGrupo = false }: { item: ItemParaResposta; semStatus?: boolean; emGrupo?: boolean; /** O grupo já mostra a situação (igual em todos os locais). */ estadoNoGrupo?: boolean }) {
+export function ItemResposta({
+  item: itemOriginal,
+  semStatus = false,
+  emGrupo = false,
+  estadoNoGrupo = false,
+  localNoGrupo = false,
+  parte,
+}: {
+  item: ItemParaResposta;
+  semStatus?: boolean;
+  emGrupo?: boolean;
+  /** O grupo já mostra a situação (igual em todos os locais). */
+  estadoNoGrupo?: boolean;
+  /** O cabeçalho de destino já foi renderizado acima da lista de partes. */
+  localNoGrupo?: boolean;
+  parte?: number;
+}) {
   const item = emGrupo && itemOriginal.descricoes?.every((d) => !d.trim() || soRepeteLocal(d, itemOriginal.destino)) ? { ...itemOriginal, descricoes: null } : itemOriginal;
   const { foco, setFoco, edicao, setEdicao, enviar, pendente, compacto } = useResposta();
   const selecionado = foco === item.id;
@@ -410,7 +503,7 @@ export function ItemResposta({ item: itemOriginal, semStatus = false, emGrupo = 
     <div
       tabIndex={0}
       role="group"
-      aria-label={`${item.descricao}${emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
+      aria-label={`${item.descricao}${localNoGrupo && parte ? `, parte ${parte}` : emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
       aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}
       onFocus={(e) => {
@@ -426,10 +519,15 @@ export function ItemResposta({ item: itemOriginal, semStatus = false, emGrupo = 
       {/* Cabeçalho: o que foi pedido, quanto e o estado (um selo só). */}
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          {emGrupo ? (
+          {emGrupo && !localNoGrupo ? (
             <p className="m-0 flex items-center gap-1.5 break-words text-corpo font-medium text-ink">
               <Icone nome="local" className="size-3.5 shrink-0 text-ink-3" />
               {item.destino || <span className="font-normal text-muted">Local não informado</span>}
+            </p>
+          ) : localNoGrupo ? (
+            <p className="m-0 break-words text-rotulo font-medium text-ink-3">
+              Parte {parte}
+              {item.ajustes && <span className="font-normal"> · configuração específica</span>}
             </p>
           ) : (
             <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>

@@ -217,6 +217,7 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
           quantidadeAtendida: origem.quantidadeAtendida,
           status: origem.status,
           observacaoSolicitante: veTudo ? observacaoDoItem(origem) : null,
+          descricoesPorUnidade: veTudo ? (origem.descricoes ?? []) : null,
           observacaoSolicitacao: veTudo ? origem.observacao : null,
           ajustes: veTudo ? resumirAjustes(origem.ajustesBom) : null,
           respostaLogistica: veTudo ? origem.observacaoLogistica : null,

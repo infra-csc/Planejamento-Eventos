@@ -17,6 +17,7 @@ import type { PedidoAnterior } from "@/domain/ja-pedido";
 import { AcoesReferencia } from "./aviso-ja-pedido";
 import { agruparItensNovos, ehAcompanhante, kitDe } from "./utilidades";
 import { locaisDosItens, PAPEIS_POR_LOCAL, papeisDoKit, totalDoLocal } from "@/domain/tendas";
+import { textoDescricoes } from "@/domain/descricoes-itens";
 import type { ItemNovo, Referencia } from "./tipos";
 
 /**
@@ -76,7 +77,13 @@ export function ListaItens({
     const locais = locaisDosItens(
       kit,
       bomP,
-      doGrupo.map((i) => ({ destino: i.destino, quantidade: i.quantidade, ajustes: Object.fromEntries(Object.entries(i.ajustes).flatMap(([id, d]) => (codigoDe.has(id) ? [[codigoDe.get(id)!, d]] : []))) })),
+      doGrupo.map((i) => ({
+        destino: i.destino,
+        quantidade: i.quantidade,
+        ajustes: Object.fromEntries(Object.entries(i.ajustes).flatMap(([id, d]) => (codigoDe.has(id) ? [[codigoDe.get(id)!, d]] : []))),
+        descricoes: i.descricoes,
+        semDescricao: i.semDescricao,
+      })),
     );
     const colunas = papeisDoKit(kit).filter((c) => PAPEIS_POR_LOCAL.includes(c.papel) && codigoDe.size > 0 && [...codigoDe.values()].includes(c.codigo));
     const th = "px-2 py-1.5 text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted";
@@ -89,6 +96,7 @@ export function ListaItens({
               <tr>
                 <th scope="col" className={th}>Local</th>
                 <th scope="col" className={cn(th, "text-right")}>Tendas</th>
+                <th scope="col" className={th}>Descrição</th>
                 {colunas.map((c) => (
                   <th key={c.papel} scope="col" className={cn(th, "text-right")}>{c.rotulo}</th>
                 ))}
@@ -99,6 +107,13 @@ export function ListaItens({
                 <tr key={l.local} className="border-t border-line-row">
                   <td className="px-2 py-1.5 text-ink">{l.local || <span className="text-meta">sem local</span>}</td>
                   <td className="numero px-2 py-1.5 text-right font-medium text-ink">{l.quantidade}</td>
+                  <td className="max-w-[360px] px-2 py-1.5">
+                    <span className="block break-words text-ink-2">{l.semDescricao ?? true ? "Sem descrição" : textoDescricoes(l.descricoes, l.quantidade) ?? "Sem descrição"}</span>
+                    <Button variant="link" size="xs" className="mt-0.5 px-0" onClick={() => editarTendas(p.id)}>
+                      <Icone nome="lapis" />
+                      {l.semDescricao ?? true ? "Adicionar descrição" : "Editar descrição"}
+                    </Button>
+                  </td>
                   {colunas.map((c) => (
                     <td key={c.papel} className={cn("numero px-2 py-1.5 text-right", l.totais[c.papel] !== undefined ? "font-medium text-accent" : "text-ink-2")}>
                       {totalDoLocal(kit, bomP, l, c.papel)}

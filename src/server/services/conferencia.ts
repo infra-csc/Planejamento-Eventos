@@ -127,6 +127,8 @@ export async function obterConferencia(eventoId: string) {
             quantidadeSolicitada: o.quantidadeSolicitada,
             /** Descrição das unidades, como quem pediu escreveu (texto, arte, medida). */
             descricao: textoDescricoes(o.descricoes, o.quantidadeSolicitada),
+            /** Ordem original para a visualização individual, sem juntar textos iguais. */
+            descricoesPorUnidade: o.descricoes ?? [],
             /** As mesmas descrições em lista: quantas unidades levam cada texto. */
             descricoes: gruposDescricao(o.descricoes, o.quantidadeSolicitada),
             /** Observação do solicitante sobre o item. */

@@ -4,6 +4,7 @@ import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { descricaoItem, listarFila } from "@/server/services/solicitacoes";
 import { obterSolicitacaoCache } from "@/server/cache";
 import { resumirAjustes } from "@/domain/os";
+import { agruparItensPedido, agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
 import { aceitaSolicitacao } from "@/domain/evento";
@@ -65,6 +66,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const itens: ItemParaResposta[] = s.itens.map((i) => ({
     id: i.id,
     descricao: descricaoItem(i),
+    tenda: Boolean((i.projeto?.nome ?? i.eventoItem?.projeto?.nome)?.trim().match(/^tendas?(?:\s|\d)/i)),
     operacao: i.operacao,
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
@@ -82,13 +84,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   }));
   // O mesmo item pedido para vários locais vira um grupo (nome + total, uma linha por local), na ordem em
   // que aparece; a navegação por teclado segue a mesma ordem da tela.
-  const grupos = new Map<string, ItemParaResposta[]>();
-  s.itens.forEach((si, n) => {
-    const chave = [si.operacao, si.projetoId ?? "", si.pecaId ?? "", si.eventoItemId ?? "", si.descricaoLivre ?? ""].join("|");
-    grupos.set(chave, [...(grupos.get(chave) ?? []), itens[n]]);
+  const gruposItens = agruparItensPedido(itens, (_item, n) => {
+    const si = s.itens[n];
+    return [si.operacao, si.projetoId ?? "", si.pecaId ?? "", si.eventoItemId ?? "", si.descricaoLivre ?? ""].join("|");
   });
-  const gruposItens = [...grupos.values()];
-  const itensNaOrdem = gruposItens.flat();
+  // Os atalhos acompanham a ordem visível: tipo de tenda → local → configuração original.
+  const itensNaOrdem = gruposItens.flatMap((g) => g[0].tenda ? agruparLocaisTenda(g).flatMap((local) => local.itens) : g);
   // "Outro item (descrever)": fora do catálogo até a logística cadastrar ou vincular.
   const foraCatalogo = s.itens.filter((i) => i.operacao === "ADICIONAR" && !i.projetoId && !i.pecaId && i.descricaoLivre);
   const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
@@ -314,7 +315,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               sub={respondivel ? (pendentes > 0 ? `${pendentes} ${pendentes === 1 ? "aguarda" : "aguardam"} resposta. Parcial e não atendido exigem motivo.` : "Todos os itens respondidos.") : undefined}
               acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}
             >
-              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : gruposItens.map((g) => (g.length === 1 ? <ItemResposta key={g[0].id} item={g[0]} semStatus={semStatus} /> : <GrupoItens key={g[0].id} itens={g} semStatus={semStatus} />))}
+              {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : gruposItens.map((g) => (g.length === 1 && !g[0].tenda ? <ItemResposta key={g[0].id} item={g[0]} semStatus={semStatus} /> : <GrupoItens key={g[0].id} itens={g} semStatus={semStatus} />))}
             </Section>
           </RespostaProvider>
           <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>

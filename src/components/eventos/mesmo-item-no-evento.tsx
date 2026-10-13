@@ -9,6 +9,7 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { descricaoDaUnidade } from "@/domain/unidades-tenda";
 
 export type LinhaMesmoItem = {
   id: string;
@@ -20,9 +21,73 @@ export type LinhaMesmoItem = {
   codigo: string | null;
   descricao: string | null;
   observacao: string | null;
+  descricoesPorUnidade?: string[] | null;
   conferidoEm: string | null;
   conferidoPor: string | null;
 };
+
+const UNIDADES_POR_PAGINA = 10;
+
+function UnidadesDaLinha({ eventoId, linha }: { eventoId: string; linha: LinhaMesmoItem }) {
+  const [pagina, setPagina] = useState(0);
+  const totalPaginas = Math.ceil(linha.quantidade / UNIDADES_POR_PAGINA);
+  const inicio = pagina * UNIDADES_POR_PAGINA + 1;
+  const fim = Math.min(inicio + UNIDADES_POR_PAGINA - 1, linha.quantidade);
+
+  return (
+    <div className="mt-3 border-t border-line-row pt-3">
+      <ol aria-label={`Unidades de tenda para ${linha.destino ?? "local não informado"}`} className="m-0 list-none space-y-2 p-0">
+        {Array.from({ length: fim - inicio + 1 }, (_, indice) => inicio + indice).map((numero) => {
+          const descricao = descricaoDaUnidade(linha.descricoesPorUnidade, numero);
+          return (
+            <li key={numero} className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1 rounded-md bg-subtle px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="m-0 text-pequeno font-semibold text-ink">Tenda {numero}</p>
+                <p className="m-0 mt-0.5 whitespace-pre-line break-words text-pequeno text-ink-2">
+                  {descricao === null
+                    ? linha.descricoesPorUnidade === null
+                      ? "Descrição restrita"
+                      : "Sem descrição"
+                    : descricao}
+                </p>
+              </div>
+              <Link
+                href={`/eventos/${eventoId}/itens/${linha.id}?unidade=${numero}#detalhes-unidades`}
+                className="link shrink-0 text-rotulo"
+                aria-label={`Ver detalhes da Tenda ${numero}`}
+              >
+                Ver detalhes
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+      {totalPaginas > 1 && (
+        <nav aria-label="Paginação das unidades de tenda" className="mt-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setPagina((atual) => Math.max(0, atual - 1))}
+            disabled={pagina === 0}
+            className="rounded px-2 py-1 text-rotulo font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+          >
+            Unidades anteriores
+          </button>
+          <span aria-live="polite" className="text-rotulo text-muted">
+            {inicio}–{fim} de {linha.quantidade}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPagina((atual) => Math.min(totalPaginas - 1, atual + 1))}
+            disabled={pagina === totalPaginas - 1}
+            className="rounded px-2 py-1 text-rotulo font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+          >
+            Próximas unidades
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}
 
 /** Check de conferência de uma linha, o mesmo da tela de conferência (resposta imediata; volta se o servidor recusar). */
 function BotaoConferir({ eventoId, l }: { eventoId: string; l: LinhaMesmoItem }) {
@@ -66,7 +131,19 @@ function BotaoConferir({ eventoId, l }: { eventoId: string; l: LinhaMesmoItem })
  * Todas as linhas do mesmo projeto/peça no evento (ex.: todas as tendas 10×10 pedidas), com local,
  * quantidade, quem pediu e a descrição — e o check de conferência de cada uma quando a reunião permite.
  */
-export function MesmoItemNoEvento({ eventoId, atualId, linhas, podeConferir }: { eventoId: string; atualId: string; linhas: LinhaMesmoItem[]; podeConferir: boolean }) {
+export function MesmoItemNoEvento({
+  eventoId,
+  atualId,
+  linhas,
+  podeConferir,
+  mostrarUnidades = false,
+}: {
+  eventoId: string;
+  atualId: string;
+  linhas: LinhaMesmoItem[];
+  podeConferir: boolean;
+  mostrarUnidades?: boolean;
+}) {
   return (
     <ul className="m-0 list-none p-0">
       {linhas.map((l) => {
@@ -116,10 +193,32 @@ export function MesmoItemNoEvento({ eventoId, atualId, linhas, podeConferir }: {
                   {l.observacao}
                 </p>
               )}
+              {mostrarUnidades && Number.isSafeInteger(l.quantidade) && l.quantidade > 0 && (
+                <UnidadesExpansiveis eventoId={eventoId} linha={l} />
+              )}
             </div>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+function UnidadesExpansiveis({ eventoId, linha }: { eventoId: string; linha: LinhaMesmoItem }) {
+  const [aberta, setAberta] = useState(false);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        aria-expanded={aberta}
+        onClick={() => setAberta((valor) => !valor)}
+        className="inline-flex min-h-9 items-center gap-1 rounded px-2 text-rotulo font-medium text-accent hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <span aria-hidden>{aberta ? "−" : "+"}</span>
+        {aberta ? "Ocultar unidades" : `Ver ${linha.quantidade} ${linha.quantidade === 1 ? "tenda" : "tendas"}`}
+      </button>
+      {aberta && <UnidadesDaLinha key={`${linha.id}-${linha.quantidade}`} eventoId={eventoId} linha={linha} />}
+    </div>
   );
 }

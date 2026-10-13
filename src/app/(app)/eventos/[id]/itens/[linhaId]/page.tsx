@@ -20,6 +20,8 @@ import { iconeHistorico, LinhaTempoAgrupada, type TomEntrada } from "@/component
 import type { TomLinhaTempo } from "@/server/services/linha-do-tempo";
 import { PecasProjeto } from "@/components/eventos/pecas-projeto";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
+import { DetalhesUnidadesTenda } from "@/components/eventos/detalhes-unidades-tenda";
+import { kitDaTenda } from "@/domain/tendas";
 
 const TIPO = { PROJETO: "projeto padrão", PECA: "peça do catálogo", AVULSO: "fora do catálogo" } as const;
 const TOM: Record<TomLinhaTempo, TomEntrada> = { neutro: "neutro", info: "info", ok: "success", atencao: "warning", perigo: "danger" };
@@ -39,9 +41,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
  * Detalhe de um item da ata/OS: o que é, quem pediu, a resposta, as peças (editáveis uma a uma
  * quando é projeto) e tudo o que aconteceu com ele, do rascunho até a OS.
  */
-export default async function ItemEventoPage({ params }: { params: Promise<{ id: string; linhaId: string }> }) {
+export default async function ItemEventoPage({ params, searchParams }: { params: Promise<{ id: string; linhaId: string }>; searchParams: Promise<{ unidade?: string | string[] }> }) {
   const usuario = await requireUsuario();
   const { id, linhaId } = await params;
+  const consulta = await searchParams;
+  const unidadeInicial = Number(Array.isArray(consulta.unidade) ? consulta.unidade[0] : consulta.unidade) || 1;
   const [ev, d, todasAsLinhas] = await Promise.all([
     obterEventoCache(usuario, id),
     detalheLinhaCache(usuario, id, linhaId).catch((e) => {
@@ -65,6 +69,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
         solicitante: ve ? (l.origem?.solicitante ?? (l.incluidaPor ? `incluída por ${l.incluidaPor}` : null)) : null,
         codigo: ve ? (l.origem?.codigo ?? null) : null,
         descricao: ve ? (l.origem?.descricao ?? null) : null,
+        descricoesPorUnidade: ve ? (l.origem?.descricoesPorUnidade ?? []) : null,
         observacao: ve ? (l.origem?.observacao ?? null) : null,
         conferidoEm: l.conferidoEm,
         conferidoPor: l.conferidoPor,
@@ -76,6 +81,7 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
   const opcoes = editavel ? await opcoesReferenciasResumidas() : null;
   const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : pode(usuario, "os.ver") && !antesDaAta ? { href: `/eventos/${id}/os?visao=composicao`, rotulo: "Itens da OS" } : { href: `/eventos/${id}/ata`, rotulo: "Ata" };
   const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
+  const ehTenda = d.tipo === "PROJETO" && Boolean(kitDaTenda(d.pecasDoProjeto.map((p) => p.codigo)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -140,11 +146,25 @@ export default async function ItemEventoPage({ params }: { params: Promise<{ id:
                 </>
               }
             >
-              <MesmoItemNoEvento eventoId={id} atualId={d.id} linhas={mesmoItem} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} />
+              <MesmoItemNoEvento eventoId={id} atualId={d.id} linhas={mesmoItem} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} mostrarUnidades={ehTenda} />
             </Section>
           )}
+          {ehTenda && Number.isSafeInteger(d.quantidade) && d.quantidade > 0 && (
+            <div id="detalhes-unidades" className="scroll-mt-24">
+              <Section titulo="Detalhes de cada tenda" sub="Escolha uma unidade desta linha para ver a descrição e as peças que ela leva.">
+                <DetalhesUnidadesTenda
+                  key={`${d.id}-${unidadeInicial}`}
+                  quantidade={d.quantidade}
+                  descricoes={d.restrito ? null : (d.origem?.descricoesPorUnidade ?? [])}
+                  pecas={d.pecasDoProjeto}
+                  destino={d.destino}
+                  unidadeInicial={unidadeInicial}
+                />
+              </Section>
+            </div>
+          )}
           {d.tipo === "PROJETO" && (
-            <Section titulo="Peças deste projeto" sub={editavel ? "Ajuste peça a peça quando a reunião decidir (só neste evento). Cada ajuste fica no histórico." : "Lista de peças que este projeto leva no evento."}>
+            <Section titulo={ehTenda ? "Peças do grupo de tendas" : "Peças deste projeto"} sub={ehTenda ? `Totais desta linha com ${d.quantidade} ${d.quantidade === 1 ? "tenda" : "tendas"}.${editavel ? " Os ajustes abaixo valem para todo o grupo e ficam no histórico." : ""}` : editavel ? "Ajuste peça a peça quando a reunião decidir (só neste evento). Cada ajuste fica no histórico." : "Lista de peças que este projeto leva no evento."}>
               <PecasProjeto eventoId={id} linhaId={d.id} quantidadeProjeto={d.quantidade} pecas={d.pecasDoProjeto} editavel={editavel} opcoesPecas={opcoes?.pecas ?? []} depoisDaAta={!antesDaAta} />
             </Section>
           )}

@@ -11,6 +11,7 @@ import { SemPermissaoError } from "@/domain/errors";
 import { enviarSolicitacao, itemAvulso, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { editarDescricoesLinha, obterConferencia } from "./conferencia";
 import { incluirLinhaAta } from "./eventos/ata";
+import { detalheLinha } from "./linha-do-tempo";
 
 let E: Elenco;
 let eventoId: string;
@@ -49,5 +50,19 @@ describe("editar descrição na conferência", () => {
     await expect(editarDescricoesLinha(E.requisitante, eventoId, l.id, [{ texto: "X", unidades: 3 }])).rejects.toBeInstanceOf(SemPermissaoError);
     const avulsa = await incluirLinhaAta(E.logistica, eventoId, { referenciaTipo: "AVULSO", projetoId: null, pecaId: null, descricaoLivre: "Item da reunião", quantidade: 1, destino: null, areaId: null, justificativa: null });
     await expect(editarDescricoesLinha(E.admin, eventoId, avulsa.id, [{ texto: "X", unidades: 1 }])).rejects.toThrow("não veio de um pedido");
+  });
+
+  it("o detalhe individual preserva a sequência e oculta textos de outra área", async () => {
+    const l = await linhaDaPlaca();
+    await editarDescricoesLinha(E.admin, eventoId, l.id, [
+      { texto: "PALCO", unidades: 1 },
+      { texto: "KIT", unidades: 1 },
+      { texto: "PALCO", unidades: 1 },
+    ]);
+    expect((await linhaDaPlaca()).origem?.descricoesPorUnidade).toEqual(["PALCO", "KIT", "PALCO"]);
+    expect((await detalheLinha(E.requisitante, eventoId, l.id)).origem?.descricoesPorUnidade).toEqual(["PALCO", "KIT", "PALCO"]);
+    const restrito = await detalheLinha(E.requisitanteB, eventoId, l.id);
+    expect(restrito.restrito).toBe(true);
+    expect(restrito.origem?.descricoesPorUnidade).toBeNull();
   });
 });

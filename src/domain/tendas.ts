@@ -12,6 +12,8 @@
  * peças por local do kit da própria tenda (ver `extrasPermitidosTenda`).
  */
 
+import { ajustarDescricoes, descricoesEsperadas } from "./descricoes-itens";
+
 export type PapelTenda = "fechamento" | "cantoneira" | "travessa" | "pe" | "mastro" | "cabo" | "calha";
 
 /** Ordem e rótulo das colunas, como na planilha (FECHAMENTOS, CANTONEIRAS, TRAVESSA, PÉ, MASTRO, CABO, CALHA). */
@@ -94,28 +96,27 @@ export function dividirPorUnidade(quantidade: number, totais: readonly number[])
  * Papel sem valor em `totais` segue o padrão (peças por tenda × tendas); quem digita outro número
  * sobrescreve, como na planilha.
  */
-export type LocalTenda = { local: string; quantidade: number; totais: Partial<Record<PapelTenda, number>> };
+type DescricoesTenda = { descricoes?: string[]; semDescricao?: boolean };
+export type LocalTenda = { local: string; quantidade: number; totais: Partial<Record<PapelTenda, number>> } & DescricoesTenda;
 
 /**
- * Locais que a cenografia preenche em praticamente toda OS (192 OS de 2026), já com a quantidade de
- * tendas, fechamentos e calhas mais comum de cada um (moda nas OS): o quadro abre assim e quem
- * pede só ajusta — como na planilha. Limpeza aparece em 1 de cada 4 OS, por isso vem zerada; linha
- * com 0 tendas não vira item.
+ * Locais e quantidades de tendas mais comuns nas OS. Fechamentos e calhas começam zerados:
+ * quem pede informa explicitamente os acessórios necessários. Linha com 0 tendas não vira item.
  */
 export const LOCAIS_PADRAO_TENDA: Readonly<Record<string, readonly LocalTenda[]>> = {
   "5×5": [
-    { local: "Depósito", quantidade: 1, totais: { fechamento: 4, calha: 1 } },
-    { local: "GV", quantidade: 3, totais: { fechamento: 5, calha: 2 } },
-    { local: "Dispersão", quantidade: 2, totais: { fechamento: 0, calha: 1 } },
-    { local: "Médica", quantidade: 1, totais: { fechamento: 4, calha: 1 } },
-    { local: "Extra", quantidade: 1, totais: { fechamento: 4, calha: 0 } },
+    { local: "Depósito", quantidade: 1, totais: { fechamento: 0, calha: 0 } },
+    { local: "GV", quantidade: 3, totais: { fechamento: 0, calha: 0 } },
+    { local: "Dispersão", quantidade: 2, totais: { fechamento: 0, calha: 0 } },
+    { local: "Médica", quantidade: 1, totais: { fechamento: 0, calha: 0 } },
+    { local: "Extra", quantidade: 1, totais: { fechamento: 0, calha: 0 } },
   ],
   "3×3": [
-    { local: "Buffet", quantidade: 1, totais: { fechamento: 3 } },
-    { local: "Som", quantidade: 2, totais: { fechamento: 6 } },
-    { local: "Crono", quantidade: 1, totais: { fechamento: 3 } },
-    { local: "Limpeza", quantidade: 0, totais: { fechamento: 4 } },
-    { local: "Extra", quantidade: 1, totais: { fechamento: 3 } },
+    { local: "Buffet", quantidade: 1, totais: { fechamento: 0 } },
+    { local: "Som", quantidade: 2, totais: { fechamento: 0 } },
+    { local: "Crono", quantidade: 1, totais: { fechamento: 0 } },
+    { local: "Limpeza", quantidade: 0, totais: { fechamento: 0 } },
+    { local: "Extra", quantidade: 1, totais: { fechamento: 0 } },
   ],
 };
 
@@ -131,7 +132,7 @@ export function locaisIniciaisTenda(tamanho: string): LocalTenda[] {
 }
 
 export function novoLocalTenda(): LocalTenda {
-  return { local: "", quantidade: 0, totais: {} };
+  return { local: "", quantidade: 0, totais: { fechamento: 0, calha: 0 } };
 }
 
 type LinhaPadrao = { codigo: string; quantidade: number };
@@ -162,7 +163,22 @@ export function previaTendas(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, loc
   return papeisDoKit(kit).map(({ papel, rotulo }) => ({ papel, rotulo, total: locais.reduce((a, l) => a + (l.quantidade > 0 ? totalDoLocal(kit, bom, l, papel) : 0), 0) }));
 }
 
-export type ItemDoQuadro = { local: string; quantidade: number; ajustes: Record<string, number> };
+export type ItemDoQuadro = { local: string; quantidade: number; ajustes: Record<string, number> } & DescricoesTenda;
+
+/** Expande a descrição única (>50 unidades) antes de redistribuir as peças do kit. */
+function descricoesDasUnidades(quantidade: number, lista?: readonly string[]): string[] {
+  if (descricoesEsperadas("ADICIONAR", quantidade) === 1 && quantidade > 1) {
+    return Array.from({ length: quantidade }, () => lista?.[0] ?? "");
+  }
+  return ajustarDescricoes(lista, quantidade);
+}
+
+function metadadosDescricao(quantidade: number, lista: string[], semDescricao: boolean): DescricoesTenda {
+  return {
+    semDescricao,
+    descricoes: semDescricao && !lista.some((d) => d.trim()) ? [] : ajustarDescricoes(lista, descricoesEsperadas("ADICIONAR", quantidade)),
+  };
+}
 
 /**
  * O quadro vira itens: um por local (ou mais, quando o total não divide igual entre as tendas do
@@ -175,13 +191,23 @@ export function itensDoQuadro(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, lo
   for (const l of locais) {
     if (l.quantidade <= 0) continue;
     const totais = papeis.map(({ papel }) => totalDoLocal(kit, bom, l, papel));
+    const temDescricao = l.descricoes !== undefined || l.semDescricao !== undefined;
+    const descricoes = descricoesDasUnidades(l.quantidade, l.descricoes);
+    const semDescricao = l.semDescricao ?? !l.descricoes?.some((d) => d.trim());
+    let unidade = 0;
     for (const g of dividirPorUnidade(l.quantidade, totais)) {
       const ajustes: Record<string, number> = {};
       papeis.forEach(({ papel, codigo }, k) => {
         const delta = g.porUnidade[k] - padraoPorTenda(kit, bom, papel);
         if (delta !== 0) ajustes[codigo] = delta;
       });
-      itens.push({ local: l.local.trim().slice(0, 60), quantidade: g.quantidade, ajustes });
+      itens.push({
+        local: l.local.trim().slice(0, 60),
+        quantidade: g.quantidade,
+        ajustes,
+        ...(temDescricao ? metadadosDescricao(g.quantidade, descricoes.slice(unidade, unidade + g.quantidade), semDescricao) : {}),
+      });
+      unidade += g.quantidade;
     }
   }
   return itens;
@@ -193,23 +219,27 @@ export function itensDoQuadro(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, lo
  * como "digitado" o total que foge do padrão × tendas (o resto segue o padrão se mudar a quantidade).
  * `ajustes` por código da peça (delta por unidade).
  */
-export function locaisDosItens(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, itens: ReadonlyArray<{ destino: string; quantidade: number; ajustes: Record<string, number> }>): LocalTenda[] {
+export function locaisDosItens(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, itens: ReadonlyArray<{ destino: string; quantidade: number; ajustes: Record<string, number> } & DescricoesTenda>): LocalTenda[] {
   const papeis = papeisDoKit(kit);
   const norm = (s: string) => s.trim().toLocaleLowerCase("pt-BR");
-  const locais: Array<{ local: string; quantidade: number; somas: Partial<Record<PapelTenda, number>> }> = [];
+  const locais: Array<{ local: string; quantidade: number; somas: Partial<Record<PapelTenda, number>>; descricoes: string[]; semDescricao: boolean; temDescricao: boolean }> = [];
   for (const it of itens) {
     if (it.quantidade <= 0) continue;
     let l = locais.find((x) => norm(x.local) === norm(it.destino));
     if (!l) {
-      l = { local: it.destino.trim(), quantidade: 0, somas: {} };
+      l = { local: it.destino.trim(), quantidade: 0, somas: {}, descricoes: [], semDescricao: true, temDescricao: false };
       locais.push(l);
     }
     l.quantidade += it.quantidade;
+    l.temDescricao ||= it.descricoes !== undefined || it.semDescricao !== undefined;
+    l.semDescricao &&= it.semDescricao ?? !it.descricoes?.some((d) => d.trim());
+    l.descricoes.push(...descricoesDasUnidades(it.quantidade, it.descricoes));
     for (const { papel, codigo } of papeis) l.somas[papel] = (l.somas[papel] ?? 0) + it.quantidade * Math.max(0, padraoPorTenda(kit, bom, papel) + (it.ajustes[codigo] ?? 0));
   }
   return locais.map((l) => ({
     local: l.local,
     quantidade: l.quantidade,
     totais: Object.fromEntries(papeis.flatMap(({ papel }) => (l.somas[papel] !== padraoPorTenda(kit, bom, papel) * l.quantidade ? [[papel, l.somas[papel]!]] : []))),
+    ...(l.temDescricao ? metadadosDescricao(l.quantidade, l.descricoes, l.semDescricao) : {}),
   }));
 }

@@ -1,2 +1,6 @@
 - [Publish-time font resolution](publish-font-resolution.md) — a clean local Next build may pass while Publish fails on Google font resolution; prefer bundled fonts.
 - [Publish schema timing](publish-schema-timing.md) — do not begin Publish while development migrations are pending or running; the schema diff may remove a column required by the new code.
+- [Acessórios de tendas](tenda-defaults.md) — fechamentos e calhas sempre começam zerados em novos pedidos; não apagar valores de pedidos salvos.
+- [Isolated browser fixtures](isolated-browser-fixtures.md) — prefer focused disposable fixtures over the full demo seed when checking a small authenticated flow.
+- [Standalone tent accessories](standalone-tent-accessories.md) — specialized OS exports must show separately ordered accessories without assigning them to a tent kit.
+- [Agrupamento visual de tendas](tenda-grouping.md) — tendas com o mesmo nome ficam sempre juntas; locais e configurações devem ser claros dentro do grupo.

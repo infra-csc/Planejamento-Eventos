@@ -45,10 +45,9 @@ export function DialogoTendas({
       quantidadeAtual: null,
       destino: x.destino,
       justificativa: "",
-      // O local já diz onde cada tenda vai: sem descrição por unidade.
-      descricoes: [],
-      semDescricao: true,
-      locais: [x.destino],
+      descricoes: x.descricoes,
+      semDescricao: x.semDescricao ?? true,
+      locais: x.semDescricao === false ? x.locais : [x.destino],
       ajustes: x.ajustes,
       rotulo: r.nome,
       meta: `${r.codigo} · projeto padrão`,
@@ -70,7 +69,7 @@ export function DialogoTendas({
     if (!existentes.length) return undefined;
     const codigoDe = new Map([...(tendaAtual.bom ?? []), ...(tendaAtual.extras ?? [])].map((b) => [b.pecaId, b.codigo]));
     const porCodigo = (a: Record<string, number>) => Object.fromEntries(Object.entries(a).flatMap(([pecaId, d]) => (codigoDe.has(pecaId) ? [[codigoDe.get(pecaId)!, d]] : [])));
-    return locaisDosItens(kitAtual, tendaAtual.bom ?? [], existentes.map((i) => ({ destino: i.destino, quantidade: i.quantidade, ajustes: porCodigo(i.ajustes) })));
+    return locaisDosItens(kitAtual, tendaAtual.bom ?? [], existentes.map((i) => ({ destino: i.destino, quantidade: i.quantidade, ajustes: porCodigo(i.ajustes), descricoes: i.descricoes, semDescricao: i.semDescricao })));
   })();
 
   return (

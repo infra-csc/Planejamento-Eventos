@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Input } from "@/components/ui/field";
 import { ajustarDescricoes, descricoesEsperadas, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
 import { ErroCampo } from "./passo";
-import type { ItemNovo } from "./tipos";
 
 /** Acima disto, a lista de unidades começa recolhida (mostra as primeiras). */
 const RECOLHER_ACIMA = 8;
@@ -18,7 +17,27 @@ const VISIVEIS_RECOLHIDO = 6;
  * Nem todo item precisa disso (20 grades iguais): quem pede marca "não precisa descrever cada unidade".
  * O "onde vai ficar" saiu da tela a pedido do time (o local das tendas vem do quadro de tendas).
  */
-export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemNovo; destacarVazias: boolean; onChange: (patch: { descricoes?: string[]; locais?: string[]; semDescricao?: boolean }) => void }) {
+export type ItemDescricoes = {
+  chave: string;
+  operacao: string;
+  quantidade: number;
+  rotulo: string;
+  descricoes: string[];
+  locais: string[];
+  semDescricao?: boolean | null;
+};
+
+export function DescricoesItem({
+  item,
+  destacarVazias,
+  onChange,
+  className,
+}: {
+  item: ItemDescricoes;
+  destacarVazias: boolean;
+  onChange: (patch: { descricoes?: string[]; locais?: string[]; semDescricao?: boolean }) => void;
+  className?: string;
+}) {
   const [expandido, setExpandido] = useState(false);
   const esperadasComDescricao = descricoesEsperadas(item.operacao, item.quantidade);
   if (!esperadasComDescricao) return null;
@@ -35,7 +54,7 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
   );
   if (item.semDescricao) {
     return (
-      <div id={`descricoes-${item.chave}`} tabIndex={-1} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 focus:outline-none sm:ml-[76px]">
+      <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 focus:outline-none", className === undefined && "sm:ml-[76px]", className)}>
         {dispensa}
       </div>
     );
@@ -54,7 +73,7 @@ export function DescricoesItem({ item, destacarVazias, onChange }: { item: ItemN
   const comErro = destacarVazias && vazias > 0;
 
   return (
-    <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 rounded-controle border bg-subtle px-3 pb-3 pt-2.5 focus:outline-none sm:ml-[76px]", comErro ? "border-danger-border" : "border-line-soft")}>
+    <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 rounded-controle border bg-subtle px-3 pb-3 pt-2.5 focus:outline-none", className === undefined && "sm:ml-[76px]", comErro ? "border-danger-border" : "border-line-soft", className)}>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-pequeno font-medium text-ink-2">
           {unica ? (item.quantidade > 1 ? "Descrição (vale para todas as unidades)" : "Descrição") : "Descrição de cada unidade"}

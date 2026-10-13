@@ -9,10 +9,11 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
-import { descricoesIguais } from "@/domain/descricoes-itens";
+import { ajustarDescricoes, descricoesEsperadas } from "@/domain/descricoes-itens";
 import { itensDoQuadro, PAPEIS_POR_LOCAL, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, novoLocalTenda, padraoPorTenda, papeisDoKit, previaTendas, totalDoLocal, type KitTenda, type LocalTenda, type PapelTenda } from "@/domain/tendas";
+import { DescricoesItem } from "./nova/descricoes-item";
 
-export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[]; locais: string[] };
+export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[]; semDescricao?: boolean; locais: string[] };
 type Linha = { pecaId: string; codigo: string; quantidade: number };
 
 /**
@@ -66,6 +67,15 @@ export function QuadroTendas({
       document.getElementById(`tenda-local-${semLocal}`)?.focus();
       return;
     }
+    const semDescricaoLinha = locais.findIndex((l) => {
+      const esperadas = descricoesEsperadas("ADICIONAR", l.quantidade, l.semDescricao ?? true);
+      return l.quantidade > 0 && ajustarDescricoes(l.descricoes, esperadas).some((d) => !d.trim());
+    });
+    if (semDescricaoLinha >= 0) {
+      setErro({ linha: semDescricaoLinha, msg: "Complete as descrições das tendas ou marque “Não precisa descrever cada unidade”." });
+      document.getElementById(`descricoes-tenda-${semDescricaoLinha}`)?.focus();
+      return;
+    }
     const itens = itensDoQuadro(kit, bom, locais);
     if (itens.length === 0) {
       setErro({ linha: null, msg: "Informe ao menos uma tenda." });
@@ -76,8 +86,9 @@ export function QuadroTendas({
         quantidade: it.quantidade,
         destino: it.local,
         ajustes: Object.fromEntries(Object.entries(it.ajustes).flatMap(([codigo, delta]) => (pecaIdDe.has(codigo) ? [[pecaIdDe.get(codigo)!, delta]] : []))),
-        descricoes: descricoesIguais(it.quantidade, `Tenda ${kit.tamanho} — ${it.local}`),
-        locais: descricoesIguais(it.quantidade, it.local),
+        descricoes: it.descricoes ?? [],
+        semDescricao: it.semDescricao ?? true,
+        locais: Array.from({ length: it.quantidade }, () => it.local),
       })),
     );
   };
@@ -100,6 +111,9 @@ export function QuadroTendas({
                   {p.rotulo}
                 </th>
               ))}
+              <th scope="col" className={cn(th, "min-w-[260px]")}>
+                Descrição
+              </th>
               <th scope="col" className="w-9">
                 <span className="sr-only">Remover</span>
               </th>
@@ -108,8 +122,17 @@ export function QuadroTendas({
           <tbody className="max-sm:block">
             {locais.map((l, n) => {
               const nomeLinha = l.local || `linha ${n + 1}`;
-              const erroLinha = erro?.linha === n;
+              const erroLinha = erro?.linha === n && erro.msg.startsWith("Diga");
               const inativa = l.quantidade === 0;
+              const itemDescricao = {
+                chave: `tenda-${n}`,
+                operacao: "ADICIONAR",
+                quantidade: l.quantidade,
+                rotulo: `tenda ${kit.tamanho} em ${nomeLinha}`,
+                descricoes: l.descricoes ?? [],
+                locais: Array.from({ length: Math.min(l.quantidade, 51) }, () => l.local),
+                semDescricao: l.semDescricao ?? true,
+              };
               return (
                 <tr key={n} className={cn("border-b border-line-row last:border-b-0 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-end max-sm:gap-x-3 max-sm:gap-y-2 max-sm:py-3", inativa && "text-meta")}>
                   <td className="py-1.5 pr-1.5 max-sm:order-1 max-sm:min-w-0 max-sm:p-0">
@@ -151,6 +174,17 @@ export function QuadroTendas({
                       </td>
                     );
                   })}
+                  <td className="px-1.5 py-1.5 max-sm:order-5 max-sm:col-span-2 max-sm:p-0">
+                    <DescricoesItem
+                      item={itemDescricao}
+                      destacarVazias={erro?.linha === n && !l.semDescricao}
+                      className="min-w-[240px]"
+                      onChange={(patch) => mudar(n, {
+                        ...(patch.descricoes !== undefined ? { descricoes: patch.descricoes } : {}),
+                        ...(patch.semDescricao !== undefined ? { semDescricao: patch.semDescricao } : {}),
+                      })}
+                    />
+                  </td>
                   <td className="py-1.5 pl-1.5 text-right max-sm:order-2 max-sm:self-center max-sm:p-0">
                     {locais.length > 1 && (
                       <IconButton label={`Tirar ${nomeLinha}`} onClick={() => setLocais((ls) => ls.filter((_, i) => i !== n))}>

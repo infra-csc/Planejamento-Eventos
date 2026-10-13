@@ -5,6 +5,8 @@ import { montarOsEstrutura, nomeAba, ROTULOS_Q30 } from "./os-estrutura";
 import { montarOsMarcenaria } from "./os-marcenaria";
 import { montarAtaLista } from "./ata-lista";
 import { textoSeguro } from "./excel";
+import ExcelJS from "exceljs";
+import { abaTotal } from "./os-estrutura-xlsx";
 
 const pc = (codigo: string, quantidade: number, setor: BomSnapshotLinha["setor"] = "ESTRUTURA", nome = `Peça ${codigo}`): BomSnapshotLinha => ({ pecaId: codigo.toLowerCase(), codigo, nome, setor, unidade: "un", quantidade });
 
@@ -88,6 +90,58 @@ describe("montarOsEstrutura", () => {
       { local: "Depósito", quantidade: 2, valores: [5, 8, 8, 8, 2, 2, 1] },
       { local: "EXTRA", quantidade: 3, valores: [0, 12, 12, 12, 3, 3, 0] },
     ]);
+  });
+
+  it.each([
+    ["TND5-FECH", "Fechamento lateral de tenda 5 m"],
+    ["TND3-FECH", "Fechamento lateral de tenda 3 m"],
+    ["TND5-CALHA", "Calha de união de tendas 5 m"],
+  ])("acessório %s pedido separado aparece na OS de estrutura com quantidade e local", (codigo, nome) => {
+    const pedido: LinhaAta = {
+      id: "extra-tenda",
+      tipo: "PECA",
+      quantidade: 7,
+      destino: "GV",
+      areaNome: "Produção",
+      peca: { id: codigo.toLowerCase(), codigo, nome, setor: "TENDA", unidade: "un" },
+    };
+    const exportada = montarOsEstrutura(calcularOS([pedido]));
+    expect(exportada.tendas).toEqual([]);
+    expect(exportada.outros).toContainEqual({ rotulo: `${nome.toLocaleUpperCase("pt-BR")} — GV`, valor: 7 });
+  });
+
+  it("não soma duas vezes os fechamentos do kit e os pedidos soltos no mesmo local", () => {
+    const pedido: LinhaAta = {
+      id: "extra-tenda",
+      tipo: "PECA",
+      quantidade: 7,
+      destino: "Depósito",
+      areaNome: "Produção",
+      peca: { id: "tnd5-fech", codigo: "TND5-FECH", nome: "Fechamento lateral de tenda 5 m", setor: "TENDA", unidade: "un" },
+    };
+    const completa = calcularOS([...linhas, pedido]);
+    const exportada = montarOsEstrutura(completa);
+    const fechamentosDoKit = exportada.tendas[0].linhas.reduce((soma, l) => soma + l.valores[0], 0);
+    const extras = exportada.outros.filter((l) => l.rotulo === "FECHAMENTO LATERAL DE TENDA 5 M — DEPÓSITO");
+    expect(fechamentosDoKit).toBe(5);
+    expect(extras).toEqual([{ rotulo: "FECHAMENTO LATERAL DE TENDA 5 M — DEPÓSITO", valor: 7 }]);
+    expect(completa.setores.flatMap((s) => s.linhas).find((p) => p.codigo === "TND5-FECH")?.total).toBe(fechamentosDoKit + Number(extras[0].valor));
+  });
+
+  it("o arquivo Excel contém os 7 fechamentos separados com o local, uma única vez", async () => {
+    const conteudo = calcularOS([{
+      id: "extra-tenda", tipo: "PECA", quantidade: 7, destino: "GV", areaNome: null,
+      peca: { id: "tnd5-fech", codigo: "TND5-FECH", nome: "Fechamento lateral de tenda 5 m", setor: "TENDA", unidade: "un" },
+    }]);
+    const wb = new ExcelJS.Workbook();
+    abaTotal(wb, { nome: "Evento de teste", dataInicio: "13/10/2026", local: "Teste", diretor: "Teste", versao: "1", geradaPor: "Teste" }, montarOsEstrutura(conteudo));
+    const reaberto = new ExcelJS.Workbook();
+    await reaberto.xlsx.load(await wb.xlsx.writeBuffer());
+    const quantidades: unknown[] = [];
+    reaberto.getWorksheet("TOTAL")!.eachRow((row) => row.eachCell((cell) => {
+      if (cell.value === "FECHAMENTO LATERAL DE TENDA 5 M — GV") quantidades.push(row.getCell(Number(cell.col) + 1).value);
+    }));
+    expect(quantidades).toEqual([7]);
   });
 
   it("SOMATORIA: rótulos do bloco PEÇA × projetos Q30 + extras = total", () => {

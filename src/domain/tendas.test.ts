@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
+import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -98,13 +98,25 @@ describe("itensDoQuadro", () => {
     ]);
   });
 
-  it("o quadro abre com os locais padrão e a soma bate com a planilha", () => {
+  it("o quadro abre com os locais padrão e acessórios zerados", () => {
     const locais = locaisIniciaisTenda("5×5");
     expect(locais.map((l) => l.local)).toEqual(["Depósito", "GV", "Dispersão", "Médica", "Extra"]);
     const t = Object.fromEntries(previaTendas(kit, bom5, locais).map((x) => [x.papel, x.total]));
-    expect(t.fechamento).toBe(17);
+    expect(t.fechamento).toBe(0);
+    expect(t.calha).toBe(0);
     expect(t.cantoneira).toBe(32);
-    expect(locaisIniciaisTenda("9×9")).toEqual([{ local: "", quantidade: 0, totais: {} }]);
+    expect(locaisIniciaisTenda("9×9")).toEqual([{ local: "", quantidade: 0, totais: { fechamento: 0, calha: 0 } }]);
+  });
+
+  it("novos locais e mudanças na quantidade não acrescentam acessórios do BOM", () => {
+    const bomComAcessorios = [...bom5, { codigo: "TND5-FECH", quantidade: 4 }, { codigo: "TND5-CALHA", quantidade: 1 }];
+    for (const local of [...locaisIniciaisTenda("5×5"), { ...novoLocalTenda(), quantidade: 3 }]) {
+      expect(totalDoLocal(kit, bomComAcessorios, local, "fechamento")).toBe(0);
+      expect(totalDoLocal(kit, bomComAcessorios, local, "calha")).toBe(0);
+      const itens = itensDoQuadro(kit, bomComAcessorios, [local]);
+      expect(itens[0].ajustes).toEqual({ "TND5-FECH": -4, "TND5-CALHA": -1 });
+    }
+    expect(locaisIniciaisTenda("3×3").every((l) => l.totais.fechamento === 0)).toBe(true);
   });
 
   it("volta dos itens para o quadro: soma por local e só marca o que foge do padrão", () => {
@@ -118,5 +130,56 @@ describe("itensDoQuadro", () => {
     expect(volta).toEqual(locais);
     // E o quadro de volta gera os mesmos itens.
     expect(itensDoQuadro(kit, bom5, volta)).toEqual(itensDoQuadro(kit, bom5, locais));
+  });
+});
+
+describe("descrições opcionais de tendas", () => {
+  const kit = KITS_TENDA[0];
+  const voltar = (itens: ReturnType<typeof itensDoQuadro>) => locaisDosItens(kit, bom5, itens.map((i) => ({ ...i, destino: i.local })));
+
+  it("mantém cada descrição ao dividir o local por fechamentos e calhas e ao reabrir", () => {
+    const local = { local: "Buffet", quantidade: 3, totais: { fechamento: 8, calha: 1 }, descricoes: ["Bebidas", "Doces", "Salgados"], semDescricao: false };
+    const itens = itensDoQuadro(kit, bom5, [local]);
+    expect(itens.flatMap((i) => i.descricoes ?? [])).toEqual(local.descricoes);
+    expect(itens.every((i) => i.semDescricao === false)).toBe(true);
+    expect(voltar(itens)).toEqual([local]);
+    expect(itensDoQuadro(kit, bom5, voltar(itens))).toEqual(itens);
+  });
+
+  it("editar apenas peças ou nome do local não apaga descrições", () => {
+    const local = { local: "Buffet", quantidade: 2, totais: { fechamento: 6 }, descricoes: ["Azul", "Branca"], semDescricao: false };
+    const reaberto = voltar(itensDoQuadro(kit, bom5, [local]))[0];
+    const editados = itensDoQuadro(kit, bom5, [{ ...reaberto, local: "Buffet externo", totais: { fechamento: 5 } }]);
+    expect(editados.flatMap((i) => i.descricoes ?? [])).toEqual(["Azul", "Branca"]);
+    expect(editados.every((i) => i.local === "Buffet externo")).toBe(true);
+  });
+
+  it("aumentar quantidade conserva textos e deixa só as novas unidades vazias", () => {
+    const itens = itensDoQuadro(kit, bom5, [{ local: "Buffet", quantidade: 3, totais: {}, descricoes: ["Azul", "Branca"], semDescricao: false }]);
+    expect(itens[0].descricoes).toEqual(["Azul", "Branca", ""]);
+  });
+
+  it("diminuir quantidade corta somente as unidades retiradas", () => {
+    const itens = itensDoQuadro(kit, bom5, [{ local: "Buffet", quantidade: 1, totais: {}, descricoes: ["Azul", "Branca"], semDescricao: false }]);
+    expect(itens[0].descricoes).toEqual(["Azul"]);
+  });
+
+  it("dispensar descrição mantém os textos em memória para reativar a opção", () => {
+    const local = { local: "Buffet", quantidade: 2, totais: {}, descricoes: ["Azul", "Branca"], semDescricao: true };
+    expect(voltar(itensDoQuadro(kit, bom5, [local]))).toEqual([local]);
+  });
+
+  it("tendas sem descrição continuam opcionais e não recebem um texto inventado", () => {
+    const itens = itensDoQuadro(kit, bom5, [{ local: "Buffet", quantidade: 2, totais: {}, descricoes: [], semDescricao: true }]);
+    expect(itens[0].descricoes).toEqual([]);
+    expect(voltar(itens)[0].semDescricao).toBe(true);
+  });
+
+  it("acima de 50, distribui a descrição única entre os grupos do kit", () => {
+    const local = { local: "Buffet", quantidade: 60, totais: { fechamento: 179 }, descricoes: ["Lona branca"], semDescricao: false };
+    const itens = itensDoQuadro(kit, bom5, [local]);
+    expect(itens).toHaveLength(2);
+    expect(itens.every((i) => i.descricoes?.every((d) => d === "Lona branca"))).toBe(true);
+    expect(voltar(itens)).toEqual([local]);
   });
 });

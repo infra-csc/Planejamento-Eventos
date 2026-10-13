@@ -232,9 +232,10 @@ export function montarOsEstrutura(os: OsConteudo): OsEstrutura {
   const comLocal = (descricao: string, destino: string | null | undefined) => (destino?.trim() ? `${descricao} — ${destino.trim()}` : descricao);
   for (const x of os.semSetor) outros.push({ rotulo: maiusculas(comLocal(x.descricao, x.destino)), valor: x.quantidade });
   for (const s of os.setores) for (const x of s.avulsos) outros.push({ rotulo: maiusculas(comLocal(x.descricao, x.destino)), valor: x.quantidade });
-  // Peças soltas que não têm linha em bloco nenhum (ex.: cone, grade, tina): entram aqui pelo nome.
+  // Peças soltas que não têm linha em bloco nenhum entram aqui pelo nome e local.
+  // O quadro TENDAS só contém peças dos projetos: acessórios pedidos à parte não estão nele.
   for (const x of os.individuais ?? []) {
-    if (x.setor === "MARCENARIA" || ROTULO_Q30.has(x.codigo) || ehQ15(x.codigo) || ehTenda(x.codigo) || CODIGOS_OUTROS_BLOCOS.has(x.codigo) || pecas.some((p) => p.codigo === x.codigo)) continue;
+    if (x.setor === "MARCENARIA" || ROTULO_Q30.has(x.codigo) || ehQ15(x.codigo) || CODIGOS_OUTROS_BLOCOS.has(x.codigo) || pecas.some((p) => p.codigo === x.codigo)) continue;
     outros.push({ rotulo: maiusculas(comLocal(x.nome, x.destino)), valor: x.quantidade });
   }
 
