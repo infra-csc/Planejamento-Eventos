@@ -31,6 +31,7 @@ import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
 import { RolarAoSelecionar } from "@/components/biblioteca/rolar-ao-selecionar";
 import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { combinaBusca } from "@/lib/busca";
+import { BarraSelecaoLote, CheckboxSelecaoLote, CheckboxSelecionarPagina, SelecaoEmLote } from "@/components/biblioteca/selecao-em-lote";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -62,7 +63,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const podeVincular = pode(usuario, "ata.consolidar");
   const aba: Aba = sp.aba === "pecas" ? "pecas" : sp.aba === "fora" && podeVincular ? "fora" : "projetos";
-  const [projetos, pecasTodas, foraCatalogo] = await Promise.all([listarProjetos(usuario), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null)]);
+  const [projetos, pecasTodas, foraCatalogo] = await Promise.all([listarProjetos(usuario, { incluirInativos: pode(usuario, "projeto.gerenciar") }), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null)]);
   const busca = sp.q?.trim().slice(0, 80) || null;
   const termo = (busca ?? "").toLowerCase();
 
@@ -168,8 +169,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className={cartaoCls}>
+              <SelecaoEmLote
+                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+                tipo="projetos"
+                gerencia={pode(usuario, "projeto.gerenciar")}
+                itens={pag.itens.map((p) => ({ id: p.id, nome: p.nome, ativo: p.ativo }))}
+              >
               <ContagemAoVivo oculto n={pag.total} singular="projeto padrão" plural="projetos padrão" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null].filter(Boolean).join(", ") || null} />
               {abas}
+              {pag.total > 0 && <BarraSelecaoLote gerencia={pode(usuario, "projeto.gerenciar")} />}
               {eventoFiltrado && (
                 <p className="m-0 border-b border-line-soft bg-subtle px-cartao py-2 text-pequeno text-ink-2">
                   Projetos na ata de <Codigo>{eventoFiltrado.codigo}</Codigo> {eventoFiltrado.nome}: <Numero valor={noEvento.length} />. A coluna Uso mostra as unidades pedidas neste evento.
@@ -185,6 +193,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       <CaptionOculta>Projetos padrão</CaptionOculta>
                       <thead>
                         <tr className="bg-subtle">
+                          {pode(usuario, "projeto.gerenciar") && (
+                            <Th largura={44} className="px-2">
+                              <CheckboxSelecionarPagina />
+                            </Th>
+                          )}
                           <Th largura={92} className="hidden sm:table-cell">
                             <span className="sr-only">Foto</span>
                           </Th>
@@ -207,6 +220,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                           const marca = sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />;
                           return (
                             <LinhaLink key={p.id} href={hrefCom("/biblioteca", params, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
+                              {pode(usuario, "projeto.gerenciar") && (
+                                <td className="border-b border-line-row px-2 py-3.5 text-center">
+                                  <CheckboxSelecaoLote id={p.id} nome={p.nome} ativo={p.ativo} />
+                                </td>
+                              )}
                               <td className="relative hidden border-b border-line-row py-3.5 pl-cartao pr-1 sm:table-cell">
                                 {marca}
                                 {/* A linha inteira é clicável: aqui a foto é só miniatura; o zoom fica no painel de detalhe. */}
@@ -228,6 +246,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                   <ChipMono tom="control" className="shrink-0">
                                     v{p.versaoAtual}
                                   </ChipMono>
+                                  {!p.ativo && <Tag tom="warning" className="shrink-0">inativo</Tag>}
                                   {!p.disponivelEmSolicitacoes && (
                                     <Tag tom="muted" className="shrink-0">
                                       fora das solicitações
@@ -262,6 +281,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   <Paginacao {...pag} hrefPagina={(n) => hrefCom("/biblioteca", params, { pagina: n === 1 ? null : n, p: sp.p })} />
                 </>
               )}
+              </SelecaoEmLote>
             </div>
 
             {detalhe && atual && (
@@ -388,6 +408,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
 
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
+      {gerencia && (
+        <td className="border-b border-line-row px-2 py-3 text-center">
+          <CheckboxSelecaoLote id={p.id} nome={`${p.codigo} · ${p.nome}`} ativo={p.ativo} />
+        </td>
+      )}
       <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
         <Codigo>{p.codigo}</Codigo>
       </td>
@@ -459,8 +484,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {atalhoFora}
       </div>
       <div className={cartaoCls}>
+        <SelecaoEmLote
+          key={JSON.stringify(["pecas", sp.q ?? "", sp.setor ?? "", sp.ordem ?? "", sp.dir ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+          tipo="pecas"
+          gerencia={gerencia}
+          itens={pag.itens.map((p) => ({ id: p.id, nome: `${p.codigo} · ${p.nome}`, ativo: p.ativo }))}
+        >
         <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")} />
         {abas}
+        {pag.total > 0 && <BarraSelecaoLote gerencia={gerencia} />}
         {pag.total === 0 ? (
           <EmptyState
             title={vazio[0]}
@@ -481,6 +513,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 <CaptionOculta>Catálogo de peças</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
+                    {gerencia && (
+                      <Th largura={44} className="px-2">
+                        <CheckboxSelecionarPagina />
+                      </Th>
+                    )}
                     {th("codigo", "Código", 120, "left", "hidden sm:table-cell")}
                     {th("nome", "Peça")}
                     <Th className="hidden xl:table-cell" largura={150}>
@@ -516,6 +553,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             <Paginacao {...pag} hrefPagina={(n) => hrefCom("/biblioteca", params, { pagina: n === 1 ? null : n })} />
           </>
         )}
+        </SelecaoEmLote>
       </div>
     </>
   );

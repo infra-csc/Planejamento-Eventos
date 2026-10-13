@@ -4,3 +4,4 @@
 - [Isolated browser fixtures](isolated-browser-fixtures.md) — prefer focused disposable fixtures over the full demo seed when checking a small authenticated flow.
 - [Standalone tent accessories](standalone-tent-accessories.md) — specialized OS exports must show separately ordered accessories without assigning them to a tent kit.
 - [Agrupamento visual de tendas](tenda-grouping.md) — tendas com o mesmo nome ficam sempre juntas; locais e configurações devem ser claros dentro do grupo.
+- [Library lifecycle](library-lifecycle.md) — manager library lists retain disabled records for recovery; new-order selectors stay active-only.
