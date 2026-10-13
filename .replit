@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-24", "postgresql-16", "python-base-3.13"]
 run = "npm run setup && npm run dev"
 
 [nix]

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Aviso } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { OrganizarProjetosDialog, type OpcoesOrganizacao } from "./organizar-projetos-dialog";
 
 type TipoBiblioteca = "projetos" | "pecas";
 type ItemVisivel = { id: string; nome: string; ativo: boolean };
@@ -17,6 +18,8 @@ type ContextoSelecao = {
   alternar: (id: string) => void;
   selecionarPagina: (marcar: boolean) => void;
   abrirConfirmacao: () => void;
+  /** Só existe na aba de projetos: mudar grupo/categoria em lote. */
+  abrirOrganizacao?: () => void;
 };
 
 const SelecaoContext = createContext<ContextoSelecao | null>(null);
@@ -30,16 +33,20 @@ export function SelecaoEmLote({
   tipo,
   itens,
   gerencia,
+  organizacao,
   children,
 }: {
   tipo: TipoBiblioteca;
   itens: ItemVisivel[];
   gerencia: boolean;
+  /** Grupos e categorias para "Organizar selecionados" (só projetos). */
+  organizacao?: OpcoesOrganizacao;
   children: ReactNode;
 }) {
   const router = useRouter();
   const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set());
   const [confirmar, setConfirmar] = useState(false);
+  const [organizar, setOrganizar] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, iniciar] = useTransition();
   const submetendo = useRef(false);
@@ -110,12 +117,25 @@ export function SelecaoEmLote({
       setErro(null);
       setConfirmar(true);
     },
+    abrirOrganizacao: tipo === "projetos" && organizacao ? () => setOrganizar(true) : undefined,
   };
   const nomesSelecionados = ativos.filter((item) => selecionadosVisiveis.has(item.id));
 
   return (
     <SelecaoContext.Provider value={ctx}>
       {children}
+      {gerencia && tipo === "projetos" && organizacao && (
+        <OrganizarProjetosDialog
+          aberto={organizar}
+          onFechar={() => setOrganizar(false)}
+          onConcluido={() => {
+            setOrganizar(false);
+            setSelecionados(new Set());
+          }}
+          itens={nomesSelecionados}
+          opcoes={organizacao}
+        />
+      )}
       {gerencia && (
         <Dialog
           open={confirmar}
@@ -178,14 +198,21 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
           Limpar seleção
         </button>
       </div>
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={ctx.ocupado || count === 0}
-        onClick={ctx.abrirConfirmacao}
-      >
-        Desabilitar selecionados
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {ctx.abrirOrganizacao && (
+          <Button variant="secondary" size="sm" disabled={ctx.ocupado || count === 0} onClick={ctx.abrirOrganizacao}>
+            Organizar selecionados
+          </Button>
+        )}
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={ctx.ocupado || count === 0}
+          onClick={ctx.abrirConfirmacao}
+        >
+          Desabilitar selecionados
+        </Button>
+      </div>
     </div>
   );
 }

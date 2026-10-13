@@ -33,10 +33,17 @@ import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { combinaBusca } from "@/lib/busca";
 import { BarraSelecaoLote, CheckboxSelecaoLote, CheckboxSelecionarPagina, SelecaoEmLote } from "@/components/biblioteca/selecao-em-lote";
 import { FiltroGrupoProjeto } from "@/components/projetos/filtro-grupo-projeto";
+import { FiltroAlteracao, FiltroSituacao } from "@/components/biblioteca/filtros-biblioteca";
+import { dentroDoFiltroAlteracao, lerFiltroAlteracao } from "@/lib/filtro-alteracao";
+import { formatarDataHora, formatarDia } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
-type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; grupo?: string };
+type SP = { aba?: string; p?: string; q?: string; setor?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; grupo?: string; alterado?: string; alteradoDe?: string; alteradoAte?: string; situacao?: string };
+
+type Situacao = "ativos" | "inativos" | null;
+const lerSituacao = (v: string | undefined, gerencia: boolean): Situacao => (gerencia && (v === "ativos" || v === "inativos") ? v : null);
+const naSituacao = (ativo: boolean, s: Situacao) => !s || (s === "ativos") === ativo;
 
 type Aba = "projetos" | "pecas" | "fora";
 
@@ -67,6 +74,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const [projetos, pecasTodas, foraCatalogo, gruposProjeto] = await Promise.all([listarProjetos(usuario, { incluirInativos: pode(usuario, "projeto.gerenciar") }), listarPecas(usuario), podeVincular ? listarItensForaDoCatalogo(usuario) : Promise.resolve(null), listarGruposProjetos(usuario)]);
   const busca = sp.q?.trim().slice(0, 80) || null;
   const termo = (busca ?? "").toLowerCase();
+  const alteracao = lerFiltroAlteracao(sp);
+  // Filtros de data/situação: mesmos parâmetros nas duas abas; a chave remonta o campo quando a URL muda por um link.
+  const filtrosExtra = { alterado: sp.alterado, alteradoDe: sp.alteradoDe, alteradoAte: sp.alteradoAte, situacao: sp.situacao };
+  const chaveAlteracao = [sp.alterado ?? "", sp.alteradoDe ?? "", sp.alteradoAte ?? ""].join("|");
+  const limparExtras = { alterado: null, alteradoDe: null, alteradoAte: null, situacao: null };
 
   const acoes =
     aba === "projetos"
@@ -132,13 +144,17 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     // Filtro por evento: só os projetos que estão na ata daquele evento, com as unidades pedidas.
     const eventoId = sp.evento?.trim() || null;
     const grupoId = sp.grupo?.trim() || null;
-    const noGrupo = grupoId === "padrao" ? projetos.filter((p) => !p.grupoId) : grupoId ? projetos.filter((p) => p.grupoId === grupoId) : projetos;
+    const situacao = lerSituacao(sp.situacao, pode(usuario, "projeto.gerenciar"));
+    const filtrados = projetos.filter((p) => naSituacao(p.ativo, situacao) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
+    const ordenadosAlteracao = alteracao?.recentesPrimeiro ? [...filtrados].sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime()) : filtrados;
+    const noGrupo = grupoId === "padrao" ? ordenadosAlteracao.filter((p) => !p.grupoId) : grupoId ? ordenadosAlteracao.filter((p) => p.grupoId === grupoId) : ordenadosAlteracao;
     const noEvento = eventoId ? noGrupo.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : noGrupo;
     const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""} ${p.grupo?.nome ?? ""}`, termo)) : noEvento;
     const semProjetoNoGrupo = Boolean(grupoId && noGrupo.length === 0);
+    const filtroExtraAtivo = Boolean(alteracao || situacao);
     const semProjetoNoEvento = Boolean(eventoId && noGrupo.length > 0 && noEvento.length === 0);
     const pag = paginar(encontrados, sp.pagina, 12);
-    const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento, grupo: sp.grupo };
+    const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento, grupo: sp.grupo, ...filtrosExtra };
     const selecionado = encontrados.find((p) => p.id === sp.p) ?? pag.itens[0];
     const detalhe = selecionado ? await obterProjeto(usuario, selecionado.id) : null;
     // Eventos para o filtro: os que têm algum projeto na ata, do mais recente para o mais antigo.
@@ -163,6 +179,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           <div className={barraCls}>
             {projetos.length > 0 && <BuscaUrl largura={360} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
             {projetos.length > 0 && <FiltroGrupoProjeto grupos={gruposProjeto} />}
+            {projetos.length > 0 && <FiltroAlteracao key={chaveAlteracao} />}
+            {projetos.length > 0 && pode(usuario, "projeto.gerenciar") && <FiltroSituacao />}
             {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
             {atalhoFora}
           </div>
@@ -176,12 +194,13 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
             <div className={cartaoCls}>
               <SelecaoEmLote
-                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.grupo ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.grupo ?? "", chaveAlteracao, sp.situacao ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
                 tipo="projetos"
                 gerencia={pode(usuario, "projeto.gerenciar")}
+                organizacao={{ grupos: gruposProjeto, categorias: [...new Set(projetos.map((x) => x.categoria).filter(Boolean))] }}
                 itens={pag.itens.map((p) => ({ id: p.id, nome: p.nome, ativo: p.ativo }))}
               >
-              <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null].filter(Boolean).join(", ") || null} />
+              <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null, alteracao?.descricao ?? null, situacao === "ativos" ? "só ativos" : situacao === "inativos" ? "só inativos" : null].filter(Boolean).join(", ") || null} />
               {abas}
               {pag.total > 0 && <BarraSelecaoLote gerencia={pode(usuario, "projeto.gerenciar")} />}
               {eventoFiltrado && (
@@ -190,7 +209,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 </p>
               )}
               {pag.total === 0 ? (
-                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : semProjetoNoGrupo ? "Nenhum projeto neste grupo" : semProjetoNoEvento ? "Nenhum projeto na ata deste evento" : "Nenhum projeto encontrado"} description={busca ? "Confira o código, nome, categoria ou grupo." : semProjetoNoGrupo ? "Escolha outro grupo ou volte para todos. Os grupos são independentes dos eventos e continuam disponíveis mesmo sem projetos associados." : semProjetoNoEvento ? "Quando as solicitações forem atendidas, os projetos aparecem aqui." : "Ajuste os filtros para encontrar projetos."} icone={busca ? "busca" : undefined} action={busca || grupoId ? <Link href={hrefCom("/biblioteca", params, { q: null, grupo: null, pagina: null, p: null })} className="link text-corpo">Limpar filtros</Link> : undefined} />
+                <EmptyState title={busca ? `Nada encontrado para “${busca}”` : semProjetoNoGrupo ? "Nenhum projeto neste grupo" : semProjetoNoEvento ? "Nenhum projeto na ata deste evento" : alteracao ? `Nenhum projeto ${alteracao.descricao.replace(/^alterados/, "alterado")}` : "Nenhum projeto encontrado"} description={busca ? "Confira o código, nome, categoria ou grupo." : alteracao && !semProjetoNoGrupo && !semProjetoNoEvento ? "Escolha outro período de alteração ou volte para qualquer data." : semProjetoNoGrupo ? "Escolha outro grupo ou volte para todos. Os grupos são independentes dos eventos e continuam disponíveis mesmo sem projetos associados." : semProjetoNoEvento ? "Quando as solicitações forem atendidas, os projetos aparecem aqui." : "Ajuste os filtros para encontrar projetos."} icone={busca ? "busca" : undefined} action={busca || grupoId || filtroExtraAtivo ? <Link href={hrefCom("/biblioteca", params, { q: null, grupo: null, pagina: null, p: null, ...limparExtras })} className="link text-corpo">Limpar filtros</Link> : undefined} />
               ) : (
                 <>
                   {/* table-fixed: a tabela acompanha a largura do cartão ao lado do painel; abaixo do mínimo, rola na horizontal. */}
@@ -265,6 +284,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                   <Codigo>{p.codigo}</Codigo>
                                   {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · <Numero valor={p.tiposPeca} /> {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <Numero valor={p.totalPecas} /> {p.totalPecas === 1 ? "peça" : "peças"}
                                   <span className="xl:hidden"> · {textoUso(p.id)}</span>
+                                  <span title={`Última alteração: ${formatarDataHora(p.atualizadoEm)}`}> · alterado em {formatarDia(p.atualizadoEm)}</span>
                                 </span>
                                 {p.descricao && (
                                   <span className="mt-0.5 block truncate text-pequeno text-muted" title={p.descricao}>
@@ -325,6 +345,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   <div className="border-b border-line-soft px-cartao py-2.5 text-pequeno">
                     <span className="text-muted">Grupo da biblioteca: </span>
                     <Tag tom={detalhe.grupo ? "info" : "muted"}>{detalhe.grupo?.nome ?? "Padrão"}</Tag>
+                    <span className="mt-1 block text-ink-3">
+                      <span className="text-muted">Última alteração: </span>
+                      {formatarDataHora(detalhe.atualizadoEm)}
+                    </span>
                   </div>
                   {(uso.get(detalhe.id)?.eventos.length ?? 0) > 0 && (
                     <div className="border-b border-line-soft px-cartao py-2.5 text-pequeno">
@@ -403,16 +427,21 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const pecasLista = gerencia ? await listarPecas(usuario, { incluirInativas: true }) : pecasTodas;
   const setor = (SETORES as readonly string[]).includes(sp.setor ?? "") ? (sp.setor as Setor) : null;
   const buscadas = termo ? pecasLista.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasLista;
-  const filtradas = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
+  const situacaoPecas = lerSituacao(sp.situacao, gerencia);
+  const noSetor = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
+  const filtradas = noSetor.filter((p) => naSituacao(p.ativo, situacaoPecas) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
+  // Pílulas de setor contam já com data e situação aplicadas.
+  const paraContagem = buscadas.filter((p) => naSituacao(p.ativo, situacaoPecas) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
+  const extraPecas = Boolean(alteracao || situacaoPecas);
   const ordenadas = ordenar(
     filtradas,
-    { codigo: (p) => p.codigo, nome: (p) => p.nome.toLowerCase(), setor: (p) => SETORES.indexOf(p.setor), familia: (p) => (p.familia ?? "").toLowerCase(), estoque: (p) => p.estoqueProprio, bom: (p) => emBom.get(p.id) ?? 0 },
-    sp.ordem,
-    sp.dir,
+    { codigo: (p) => p.codigo, nome: (p) => p.nome.toLowerCase(), setor: (p) => SETORES.indexOf(p.setor), familia: (p) => (p.familia ?? "").toLowerCase(), estoque: (p) => p.estoqueProprio, bom: (p) => emBom.get(p.id) ?? 0, alterado: (p) => new Date(p.atualizadoEm).getTime() },
+    sp.ordem ?? (alteracao?.recentesPrimeiro ? "alterado" : undefined),
+    sp.ordem ? sp.dir : "desc",
   );
   const pag = paginar(ordenadas, sp.pagina, 12);
   const temEstoque = pecasLista.some((p) => p.estoqueProprio > 0);
-  const params = { aba: "pecas", q: sp.q, setor: sp.setor, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
+  const params = { aba: "pecas", q: sp.q, setor: sp.setor, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, ...filtrosExtra };
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right", className?: string) => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
     return <ThOrdenavel label={label} ativo={sp.ordem === chave} dir={sp.ordem === chave ? (sp.dir === "desc" ? "desc" : "asc") : undefined} href={hrefCom("/biblioteca", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })} largura={largura} alinhar={alinhar} className={className} />;
@@ -441,6 +470,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         <span className="mt-0.5 block text-pequeno text-muted xl:hidden">
           {SETOR_LABEL[p.setor]} · {p.familia || "sem família"}
           <span className="numero sm:hidden"> · em {emBom.get(p.id) ?? 0} {(emBom.get(p.id) ?? 0) === 1 ? "projeto" : "projetos"}</span>
+          <span className="lg:hidden"> · alterada em {formatarDia(p.atualizadoEm)}</span>
         </span>
       </th>
       <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">{SETOR_LABEL[p.setor]}</td>
@@ -454,6 +484,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           {p.estoqueProprio > 0 ? <Numero valor={p.estoqueProprio} unidade={p.unidade} /> : <span className="numero text-meta">—</span>}
         </td>
       )}
+      <td className="hidden whitespace-nowrap border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3 lg:table-cell" title={`Última alteração: ${formatarDataHora(p.atualizadoEm)}`}>
+        {formatarDia(p.atualizadoEm)}
+      </td>
       {/* px-3 também na última coluna: alinha com o cabeçalho ordenável. */}
       <td className="hidden border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3 sm:table-cell">
         <Numero valor={emBom.get(p.id) ?? 0} />
@@ -471,7 +504,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     </>
   );
 
-  const vazio: [string, string] = busca
+  const vazio: [string, string] = !busca && extraPecas && noSetor.length > 0
+    ? [alteracao ? `Nenhuma peça ${alteracao.descricao.replace(/^alterados/, "alterada")}` : situacaoPecas === "inativos" ? "Nenhuma peça inativa" : "Nenhuma peça ativa", "Escolha outro período ou situação, ou volte para qualquer data."]
+    : busca
     ? [`Nada encontrado para “${busca}”`, setor ? "Confira o termo ou volte para todos os setores." : "Confira o código ou tente outra palavra do nome ou da família."]
     : setor
       ? [`Nenhuma peça em ${SETOR_LABEL[setor]}`, "Escolha outro setor ou volte para todos."]
@@ -488,21 +523,23 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           rotulo="Filtrar por setor"
           className="max-md:flex-nowrap"
           itens={[
-            { label: "Todos", n: buscadas.length, href: hrefCom("/biblioteca", params, { setor: null, pagina: null }), ativo: !setor },
-            ...SETORES.map((s) => ({ label: SETOR_LABEL[s], n: buscadas.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
+            { label: "Todos", n: paraContagem.length, href: hrefCom("/biblioteca", params, { setor: null, pagina: null }), ativo: !setor },
+            ...SETORES.map((s) => ({ label: SETOR_LABEL[s], n: paraContagem.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
           ]}
         />
         </div>
+        <FiltroAlteracao key={chaveAlteracao} />
+        {gerencia && <FiltroSituacao feminino />}
         {atalhoFora}
       </div>
       <div className={cartaoCls}>
         <SelecaoEmLote
-          key={JSON.stringify(["pecas", sp.q ?? "", sp.setor ?? "", sp.ordem ?? "", sp.dir ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+          key={JSON.stringify(["pecas", sp.q ?? "", sp.setor ?? "", chaveAlteracao, sp.situacao ?? "", sp.ordem ?? "", sp.dir ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
           tipo="pecas"
           gerencia={gerencia}
           itens={pag.itens.map((p) => ({ id: p.id, nome: `${p.codigo} · ${p.nome}`, ativo: p.ativo }))}
         >
-        <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null].filter(Boolean).join(" · ")} />
+        <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null, alteracao?.descricao.replace(/^alterados/, "alteradas") ?? null, situacaoPecas === "ativos" ? "só ativas" : situacaoPecas === "inativos" ? "só inativas" : null].filter(Boolean).join(" · ")} />
         {abas}
         {pag.total > 0 && <BarraSelecaoLote gerencia={gerencia} />}
         {pag.total === 0 ? (
@@ -511,9 +548,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             description={vazio[1]}
             icone={busca ? "busca" : undefined}
             action={
-              busca || setor ? (
-                <Link href={hrefCom("/biblioteca", params, { q: null, setor: null, pagina: null })} className="link text-corpo">
-                  {busca && setor ? "Limpar busca e setor" : busca ? "Limpar busca" : "Ver todos os setores"}
+              busca || setor || extraPecas ? (
+                <Link href={hrefCom("/biblioteca", params, { q: null, setor: null, pagina: null, ...limparExtras })} className="link text-corpo">
+                  {extraPecas ? "Limpar filtros" : busca && setor ? "Limpar busca e setor" : busca ? "Limpar busca" : "Ver todos os setores"}
                 </Link>
               ) : undefined
             }
@@ -539,6 +576,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                       Família
                     </Th>
                     {temEstoque && th("estoque", "Estoque", 100, "right")}
+                    {th("alterado", "Alterada", 112, "right", "hidden lg:table-cell")}
                     {th("bom", "Em projetos", 118, "right", "hidden sm:table-cell")}
                     {gerencia && (
                       <Th largura={120} className="max-sm:!w-11">

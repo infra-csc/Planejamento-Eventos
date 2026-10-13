@@ -167,3 +167,9 @@ export function ultimoAcesso(d: Date | null | undefined, agora = new Date()): st
   if (dias < 60) return `há ${dias} dias`;
   return `há ${Math.round(dias / 30)} meses`;
 }
+
+/** Só o dia (dd/mm/aaaa) no fuso de São Paulo. */
+export function formatarDia(d: Date | string | null | undefined): string {
+  if (!d) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: TZ }).format(typeof d === "string" ? new Date(d) : d);
+}

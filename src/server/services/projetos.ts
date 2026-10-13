@@ -31,7 +31,7 @@ export async function listarGruposProjetos(usuario: UsuarioAtual) {
 
 type ProjetoTx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
 
-async function resolverGrupoProjeto(tx: ProjetoTx, usuario: UsuarioAtual, nome: string | null | undefined) {
+export async function resolverGrupoProjeto(tx: ProjetoTx, usuario: UsuarioAtual, nome: string | null | undefined) {
   const grupo = normalizarGrupoProjeto(nome);
   if (!grupo) return null;
   const [criado] = await tx.insert(projetoGrupos).values({ ...grupo, criadoPorId: usuario.id })

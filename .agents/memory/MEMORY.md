@@ -7,4 +7,4 @@
 - [Library lifecycle](library-lifecycle.md) — manager library lists retain disabled records for recovery; new-order selectors stay active-only.
 - [Grupos de projetos](project-event-groups.md) — nomes livres de eventos criam grupos reutilizáveis da biblioteca, não vínculos restritivos com eventos cadastrados.
 - [Preview port consistency](preview-port-consistency.md) — Next Ready can coexist with workflow port timeouts; align the workflow, primary mapping and runtime port.
-- [SQL inspection results](sql-inspection-results.md) — combine metadata checks into one SELECT; multiple result sets can fail in the executeSql formatter.
+- [SQL inspection results](sql-inspection-results.md) — combine metadata checks into one SELECT; multiple result sets can fail in the executeSql formatter.- [Publish build stall](publish-build-stall.md) — a log that stops with no error and uniformly slow steps means retry the publish, not a code fix.

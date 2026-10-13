@@ -7,7 +7,7 @@ import { listarPecas } from "@/server/services/catalogo";
 import { executar, type ActionResult } from "@/lib/action";
 import type { PecaOpcao } from "@/components/projetos/projeto-form";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
-import { desabilitarBibliotecaEmLote } from "@/server/services/biblioteca-lote";
+import { desabilitarBibliotecaEmLote, organizarProjetosEmLote, type OrganizacaoProjetos } from "@/server/services/biblioteca-lote";
 
 /**
  * Catálogo de peças para o modal "Editar projeto" da Biblioteca. Vem só quando o modal abre,
@@ -34,5 +34,33 @@ export async function desabilitarBibliotecaEmLoteAction(formData: FormData): Pro
   return {
     ...resultado,
     mensagem: n ? `${n} ${n === 1 ? "item desabilitado" : "itens desabilitados"}.` : "Os itens selecionados já estavam desabilitados.",
+  };
+}
+
+/** grupoModo: manter | padrao | nome; categoriaModo: manter | limpar | definir. */
+export async function organizarProjetosEmLoteAction(formData: FormData): Promise<ActionResult<{ alterados: number; semMudanca: number }>> {
+  const usuario = await requireUsuario();
+  const texto = (campo: string) => {
+    const v = formData.get(campo);
+    return typeof v === "string" ? v : "";
+  };
+  const organizacao: OrganizacaoProjetos = {};
+  const grupoModo = texto("grupoModo");
+  const categoriaModo = texto("categoriaModo");
+  if (grupoModo === "nome" && !texto("grupoNome").trim()) return { ok: false, erro: "Informe o nome do grupo.", campos: { grupoNome: "Informe o nome do grupo." } };
+  if (categoriaModo === "definir" && !texto("categoria").trim()) return { ok: false, erro: "Informe a categoria ou escolha Remover categoria.", campos: { categoria: "Informe a categoria." } };
+  if (grupoModo === "padrao") organizacao.grupo = null;
+  else if (grupoModo === "nome") organizacao.grupo = texto("grupoNome");
+  if (categoriaModo === "limpar") organizacao.categoria = "";
+  else if (categoriaModo === "definir") organizacao.categoria = texto("categoria");
+  const resultado = await executar(() => organizarProjetosEmLote(usuario, formData.getAll("ids"), organizacao), undefined, { acao: "organizarProjetosEmLote", usuarioId: usuario.id });
+  if (!resultado.ok) return resultado;
+  revalidatePath("/biblioteca");
+  revalidatePath("/projetos", "layout");
+  invalidarDados(TAGS_DADOS.projetos);
+  const n = resultado.dados?.alterados ?? 0;
+  return {
+    ...resultado,
+    mensagem: n ? `${n} ${n === 1 ? "projeto atualizado" : "projetos atualizados"}.` : "Os projetos selecionados já estavam assim.",
   };
 }
