@@ -1,12 +1,10 @@
 ---
 name: Preview port consistency
-description: Next.js readiness versus Replit workflow port detection and forwarding.
+description: Dev workflow port vs. the publish port; the primary [[ports]] mapping reverts to 3000.
 ---
 
-Keep the webview workflow's port, primary external-80 mapping, declared PORT and application start commands consistent. A Next.js Ready message alone does not verify the preview.
+Dev preview runs on 5000 (`next dev -p 5000`, webview workflow). Production (`npm run start`) must listen on 3000, the first `localPort` in `.replit`.
 
-**Why:** a workflow listening on 5000 repeatedly timed out while the primary port mapping and production command still specified 3000. Aligning the configuration restored the workflow, including while the isolated browser-test server was running.
+**Why:** the primary [[ports]] block keeps reverting to localPort 3000 by itself, even right after being set to 5000, and checkpoints commit the reverted value. On 2026-10-13 a publish failed with "application failed to open a port in time" because `start` had been changed to `-p 5000` while the deployment waited on 3000. The last successful publishes all used 3000.
 
-The primary [[ports]] block keeps reverting to localPort 3000 by itself, even right after it is set to 5000, yet the workflow can still serve 200 on 5000. Restart timeouts so far happened only while the isolated 3100 server and a browser tester were running. Each time, restoring 5000→80 and restarting once worked, but the cause is not proven. Do not loop on restarts; verify with curl on 5000. Prefer node over python3 for ad-hoc scripts here.
-
-**How to apply:** use 5000 for this app's webview and keep publication's start command compatible with the primary mapping. Isolated test servers may use separate mappings but must not replace the main one. Inspect mappings before repeating restarts after a port-detection failure.
+**How to apply:** never move the production start port away from 3000 unless the first [[ports]] localPort is confirmed to stay changed. Restart timeouts for the dev workflow happened while the isolated 3100 server and a browser tester were running; do not loop on restarts, verify with curl on 5000. Prefer node over python3 for ad-hoc scripts here.
