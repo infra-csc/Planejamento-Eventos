@@ -45,10 +45,10 @@ const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
 const secaoDe = (l: LinhaConferencia) => (l.grupo === "ESTRUTURA" || l.grupo === "TENDAS" ? GRUPO_LABEL[l.grupo] : areaDe(l));
 const ordemSecao = (s: string) => (s === GRUPO_LABEL.ESTRUTURA ? 0 : s === GRUPO_LABEL.TENDAS ? 1 : 2);
 /** Quem pediu a linha (ou quem incluiu na reunião). */
-const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : (l.incluidaPor ?? "Logística"));
+const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 /** Origem em uma linha: "Produção · Ana Lima". */
-const quemDe = (l: LinhaConferencia) => `${areaDe(l)} · ${l.origem?.solicitante ?? (l.regra ? "Regra da logística" : l.padrao ? "Item padrão da ata" : "Incluída na reunião")}`;
+const quemDe = (l: LinhaConferencia) => `${areaDe(l)} · ${l.origem?.solicitante ?? (l.regra ? "Regra da logística" : "Incluída na reunião")}`;
 
 /** Nome da linha para leitor de tela e dicas: o item mais o local (ou o pedido, sem local) — duas linhas iguais não soam iguais. */
 const rotuloLinha = (l: LinhaConferencia) => `${l.nome}${l.destino ? `, ${l.destino}` : l.origem ? `, ${l.origem.codigo}` : ""}`;
@@ -282,7 +282,6 @@ function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: 
     );
   if (semPessoa) return null;
   if (l.regra) return <>Regra da logística · {l.regra}</>;
-  if (l.padrao) return <>Item padrão de toda ata</>;
   return <>Incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>;
 }
 

@@ -1,6 +1,23 @@
 import type { Instrumentation } from "next";
 
 /**
+ * Ao subir o servidor: correções de dados idempotentes (rodam uma vez de verdade; depois não acham nada).
+ * Em segundo plano, para não atrasar a abertura da porta; falha só vai para o log.
+ */
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  void (async () => {
+    try {
+      const { retirarItensPadraoDasAtasAbertas } = await import("@/server/services/eventos/itens-padrao");
+      const n = await retirarItensPadraoDasAtasAbertas();
+      if (n) console.log(JSON.stringify({ nivel: "info", evento: "itens_padrao_retirados", linhas: n }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "itens_padrao_retirados", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
+  })();
+}
+
+/**
  * Observabilidade: todo erro de servidor que o Next captura (render, route handler, action, proxy)
  * vira uma linha JSON no log — o mesmo formato de `tratarErro` (src/lib/action.ts). O `ref` é o
  * digest que a tela de erro mostra, então a pessoa pode informar o código e achamos a linha.

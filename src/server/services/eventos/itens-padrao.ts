@@ -1,41 +1,55 @@
-import { and, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { eventoItens, pecas } from "@/server/db/schema";
-import { CODIGOS_CONFERENCIA_OPCIONAL, ITENS_PADRAO_ATA } from "@/domain/itens-padrao";
-import { registrarHistorico, type Executor } from "../support";
+import { and, eq, inArray, isNull, like, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { eventoItens, eventos, historico, pecas } from "@/server/db/schema";
+import { CODIGOS_CONFERENCIA_OPCIONAL } from "@/domain/itens-padrao";
+import { registrarHistoricos, type Executor } from "../support";
+
+/** Texto com que a criação do evento registrava cada item padrão no histórico (é como achamos essas linhas). */
+const PREFIXO_ITEM_PADRAO = "Item padrão da ata:";
+const MOTIVO = "Deixou de ser item padrão da ata";
 
 /**
- * Coloca na ata do evento os itens padrão (ex.: 2 garfos de içamento), para conferir na reunião.
- * Não repete: se o evento já tem (ou já teve e tiraram) linha da peça, fica como está.
- * Peça fora do catálogo ou inativa é ignorada.
+ * Correção de dados (idempotente): os itens padrão da ata acabaram. As linhas que a criação do evento
+ * colocou sozinha saem das atas ainda abertas (preparação ou em reunião), mesmo se já conferidas.
+ * Atas fechadas, eventos cancelados e OS já geradas ficam como estão. Linha que a logística incluiu à
+ * mão (mesma peça) não é tocada: só conta a linha com o registro de inclusão automática.
+ * Várias instâncias ao mesmo tempo não duplicam: o update só pega linha ainda ativa.
  */
-export async function incluirItensPadraoAta(tx: Executor, eventoId: string, usuarioId: string | null) {
-  const codigos = ITENS_PADRAO_ATA.map((i) => i.codigoPeca);
-  if (!codigos.length) return [];
-  const ps = await tx.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome }).from(pecas).where(and(inArray(pecas.codigo, codigos), eq(pecas.ativo, true)));
-  if (!ps.length) return [];
-  const jaTem = new Set(
-    (await tx.select({ pecaId: eventoItens.pecaId }).from(eventoItens).where(and(eq(eventoItens.eventoId, eventoId), inArray(eventoItens.pecaId, ps.map((p) => p.id))))).map((r) => r.pecaId),
-  );
-  const incluidas = [];
-  for (const item of ITENS_PADRAO_ATA) {
-    const p = ps.find((x) => x.codigo === item.codigoPeca);
-    if (!p || jaTem.has(p.id)) continue;
-    const [linha] = await tx
-      .insert(eventoItens)
-      .values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: item.quantidade, origem: "AJUSTE_LOGISTICA", criadoPorId: usuarioId })
-      .returning();
-    await registrarHistorico(tx, {
-      eventoId,
-      entidade: "evento_item",
-      entidadeId: linha.id,
-      acao: "ATA_INCLUSAO",
-      descricao: `Item padrão da ata: ${p.nome} × ${item.quantidade || "a definir (projetista)"}`,
-      usuarioId,
-      dadosDepois: { pecaId: p.id, quantidade: item.quantidade },
-    });
-    incluidas.push(linha);
-  }
-  return incluidas;
+export async function retirarItensPadraoDasAtasAbertas(): Promise<number> {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const automaticas = tx
+      .select({ id: historico.entidadeId })
+      .from(historico)
+      .where(and(eq(historico.entidade, "evento_item"), eq(historico.acao, "ATA_INCLUSAO"), like(historico.descricao, `${PREFIXO_ITEM_PADRAO}%`)));
+    const atasAbertas = tx
+      .select({ id: eventos.id })
+      .from(eventos)
+      .where(and(isNull(eventos.ataFechadaEm), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"])));
+    const agora = new Date();
+    const retiradas = await tx
+      .update(eventoItens)
+      .set({ ativo: false, removidoEm: agora, removidoPorId: null, justificativaAjuste: MOTIVO, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora })
+      .where(and(eq(eventoItens.ativo, true), inArray(eventoItens.id, automaticas), inArray(eventoItens.eventoId, atasAbertas)))
+      .returning({ id: eventoItens.id, eventoId: eventoItens.eventoId, pecaId: eventoItens.pecaId, quantidade: eventoItens.quantidade });
+    if (!retiradas.length) return 0;
+    const pecaIds = [...new Set(retiradas.map((r) => r.pecaId).filter((id): id is string => Boolean(id)))];
+    const nomes = new Map((pecaIds.length ? await tx.select({ id: pecas.id, nome: pecas.nome }).from(pecas).where(inArray(pecas.id, pecaIds)) : []).map((p) => [p.id, p.nome]));
+    await registrarHistoricos(
+      tx,
+      retiradas.map((r) => ({
+        eventoId: r.eventoId,
+        entidade: "evento_item",
+        entidadeId: r.id,
+        acao: "ATA_REMOCAO",
+        descricao: `${nomes.get(r.pecaId ?? "") ?? "Item"}: removido da ata (era ${r.quantidade || "a definir"}) · ${MOTIVO.toLowerCase()}`,
+        usuarioId: null,
+        dadosAntes: { quantidade: r.quantidade, ativo: true },
+        dadosDepois: { quantidade: r.quantidade, ativo: false, motivo: MOTIVO },
+      })),
+    );
+    return retiradas.length;
+  });
 }
 
 /**

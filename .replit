@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16", "python-base-3.13"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 run = "npm run setup && npm run dev"
 
 [nix]
@@ -16,6 +16,10 @@ externalPort = 80
 [[ports]]
 localPort = 3100
 externalPort = 3000
+
+[[ports]]
+localPort = 3200
+externalPort = 3001
 
 [[ports]]
 localPort = 5000
