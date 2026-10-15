@@ -20,6 +20,8 @@ function gruposDescricao(lista: readonly string[] | null | undefined, quantidade
 }
 import { agruparDescricoes, textoDescricoes } from "@/domain/descricoes-itens";
 import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
+import { itensDoQuadro, kitDaTenda, KITS_TENDA, PAPEIS_POR_LOCAL, padraoPorTenda, papeisDoKit, type PapelTenda } from "@/domain/tendas";
+import { conferirTodasLinhas, incluirLinhaAta, snapshotBom } from "./eventos";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -89,6 +91,24 @@ export async function obterConferencia(eventoId: string) {
       : Promise.resolve([]),
   ]);
 
+  // Peças do kit de tenda que variam por local (fechamento, calha), para a tenda mostrar e ajustar os totais.
+  const codigosKit = [...new Set(KITS_TENDA.flatMap((k) => PAPEIS_POR_LOCAL.map((papel) => k.pecas[papel]).filter((c): c is string => Boolean(c))))];
+  const pecasKit = codigosKit.length ? await db.select({ id: pecas.id, codigo: pecas.codigo }).from(pecas).where(inArray(pecas.codigo, codigosKit)) : [];
+  const idDoCodigo = new Map(pecasKit.map((x) => [x.codigo, x.id]));
+  const tendaDe = (l: (typeof linhas)[number]) => {
+    if (l.tipo !== "PROJETO" || !l.registro.projetoId) return null;
+    const bom = l.registro.bomSnapshot ?? [];
+    const kit = kitDaTenda(bom.map((b) => b.codigo));
+    if (!kit) return null;
+    return {
+      tamanho: kit.tamanho,
+      projetoId: l.registro.projetoId,
+      pecas: papeisDoKit(kit)
+        .filter((x) => PAPEIS_POR_LOCAL.includes(x.papel))
+        .map((x) => ({ papel: x.papel, rotulo: x.rotulo, codigo: x.codigo, pecaId: bom.find((b) => b.codigo === x.codigo)?.pecaId ?? idDoCodigo.get(x.codigo) ?? null, porUnidade: bom.find((b) => b.codigo === x.codigo)?.quantidade ?? 0 })),
+    };
+  };
+
   const origemDe = new Map(origens.map((o) => [o.itemId, o]));
   const ultimoAjuste = new Map<string, Registro>();
   for (const a of ajustes) if (!ultimoAjuste.has(a.entidadeId)) ultimoAjuste.set(a.entidadeId, a);
@@ -140,6 +160,8 @@ export async function obterConferencia(eventoId: string) {
       grupo: grupoDaLinha({ tipo: l.tipo, projeto: l.registro.projeto, peca: l.registro.peca }),
       /** Linha criada por regra da logística (ex.: "2 por stand + 6 por palco show"). */
       regra: descricaoDaRegra(l.registro.regra),
+      /** Tenda: tamanho e, por tenda, as peças que mudam por local (a conferência mostra o total do local). */
+      tenda: tendaDe(l),
       ultimoAjuste: aj ? { por: aj.por ?? "—", em: aj.criadoEm.toISOString(), descricao: textoAjuste(aj) } : null,
     };
   });
@@ -425,4 +447,78 @@ export async function editarDescricoesLinha(usuario: UsuarioAtual, eventoId: str
     });
     return { mudou: true as const };
   });
+}
+
+/**
+ * Tendas de um local na conferência, como no quadro de tendas: quantas tendas e o total de fechamentos e
+ * calhas do local. O quadro vira linhas (uma por grupo de tendas com as mesmas peças, como no pedido) e
+ * as linhas do local são ajustadas para bater: quantidade, peças por tenda, linhas a mais saem (0) e
+ * linhas que faltam entram. Cada passo usa o ajuste de sempre (histórico, resposta ao pedido); no fim o
+ * local fica conferido (a decisão é da reunião).
+ */
+export async function ajustarTendasDoLocal(
+  usuario: UsuarioAtual,
+  eventoId: string,
+  dados: { linhaIds: string[]; tendas: number; totais: Partial<Record<PapelTenda, number>>; motivo: string | null },
+) {
+  exigir(usuario, "ata.consolidar");
+  const inteiro = (n: number) => Number.isInteger(n) && n >= 0 && n <= 10_000;
+  if (!inteiro(dados.tendas) || Object.values(dados.totais).some((n) => n !== undefined && !inteiro(n))) {
+    throw new ValidacaoError("Use números inteiros entre 0 e 10.000.", { quantidade: "Número inteiro." });
+  }
+  if (!dados.linhaIds.length) throw new ValidacaoError("Nenhuma linha informada.");
+  const motivo = dados.motivo?.trim() || "";
+  const db = await getDb();
+  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+  if (!ev) throw new NaoEncontradoError("Evento");
+  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, ajuste pela OS, com justificativa.");
+
+  const lidas = await db.query.eventoItens.findMany({ where: and(inArray(eventoItens.id, dados.linhaIds), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)) });
+  if (lidas.length !== dados.linhaIds.length) throw new DomainError("Alguma linha deste local mudou enquanto você editava. Confira e tente de novo.");
+  const linhas = dados.linhaIds.map((id) => lidas.find((l) => l.id === id)!);
+  const l0 = linhas[0];
+  if (!l0.projetoId || linhas.some((l) => l.tipo !== "PROJETO" || l.projetoId !== l0.projetoId || (l.destino ?? "") !== (l0.destino ?? ""))) {
+    throw new DomainError("As linhas informadas não são da mesma tenda no mesmo local.");
+  }
+  const kit = kitDaTenda((l0.bomSnapshot ?? []).map((b) => b.codigo));
+  if (!kit) throw new DomainError("Esta linha não é de tenda.");
+
+  // Padrão do projeto (por tenda), para saber o que é ajuste: a calha da 5×5 vem 1 por tenda.
+  const padrao = (await snapshotBom(db, l0.projetoId, l0.projetoVersaoId)).bom;
+  const papeis = papeisDoKit(kit).filter((x) => PAPEIS_POR_LOCAL.includes(x.papel));
+  const totais = Object.fromEntries(papeis.map((x) => [x.papel, dados.totais[x.papel] ?? 0]));
+  const grupos = dados.tendas > 0 ? itensDoQuadro(kit, padrao, [{ local: l0.destino ?? "", quantidade: dados.tendas, totais }]) : [];
+  const codigos = papeis.map((x) => x.codigo);
+  const pecasKit = await db.select({ id: pecas.id, codigo: pecas.codigo }).from(pecas).where(inArray(pecas.codigo, codigos));
+  const idDe = (codigo: string) => pecasKit.find((x) => x.codigo === codigo)?.id ?? null;
+
+  const porTendaDe = (bom: ReadonlyArray<{ codigo: string; quantidade: number }> | null, codigo: string) => bom?.find((b) => b.codigo === codigo)?.quantidade ?? 0;
+  const acertarPecas = async (linhaId: string, bomAtual: ReadonlyArray<{ codigo: string; quantidade: number }> | null, ajustes: Record<string, number>) => {
+    for (const x of papeis) {
+      const desejado = Math.max(0, padraoPorTenda(kit, padrao, x.papel) + (ajustes[x.codigo] ?? 0));
+      const pecaId = idDe(x.codigo);
+      if (pecaId && desejado !== porTendaDe(bomAtual, x.codigo)) await ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, desejado, motivo);
+    }
+  };
+
+  const finais: string[] = [];
+  const n = Math.max(grupos.length, linhas.length);
+  for (let i = 0; i < n; i++) {
+    const g = grupos[i];
+    const l = linhas[i];
+    if (g && l) {
+      await acertarPecas(l.id, l.bomSnapshot, g.ajustes);
+      if (g.quantidade !== l.quantidade) await ajustarLinhaNaConferencia(usuario, eventoId, l.id, g.quantidade, motivo);
+      finais.push(l.id);
+    } else if (l) {
+      // Sobrou linha (menos tendas ou menos grupos): sai da ata, com histórico e resposta ao pedido.
+      await ajustarLinhaNaConferencia(usuario, eventoId, l.id, 0, motivo);
+    } else if (g) {
+      const nova = await incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PROJETO", projetoId: l0.projetoId, pecaId: null, descricaoLivre: null, quantidade: g.quantidade, destino: l0.destino, areaId: l0.areaId, justificativa: motivo || null });
+      await acertarPecas(nova.id, nova.bomSnapshot, g.ajustes);
+      finais.push(nova.id);
+    }
+  }
+  if (finais.length) await conferirTodasLinhas(usuario, eventoId, finais);
+  return { linhas: finais.length };
 }

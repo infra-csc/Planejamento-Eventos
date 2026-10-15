@@ -20,6 +20,7 @@ import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction
 import { IconButton } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
+import { BlocoTenda } from "./tenda-conferencia";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { LinhaConferencia } from "@/server/services/conferencia";
@@ -958,6 +959,8 @@ export function ConferenciaAta({
                   </span>
                 </h3>
                 {itens.map(([chave, ls]) => {
+                  // Tenda: quadro por local (tendas, fechamentos, calhas), editável, em vez de linhas soltas com "peças ajustadas".
+                  if (ls[0].tenda) return <BlocoTenda key={chave} ls={ls} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} />;
                   if (ls.length === 1) {
                     const l = ls[0];
                     return (

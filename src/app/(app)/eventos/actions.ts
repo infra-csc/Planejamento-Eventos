@@ -21,7 +21,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, editarDescricoesLinha } from "@/server/services/conferencia";
+import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, editarDescricoesLinha } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { pecaSchema } from "@/lib/schemas";
@@ -247,6 +247,24 @@ export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: stri
   if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: "Dados inválidos." } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
+/** Tendas de um local na conferência: quantas tendas e o total de fechamentos e calhas (como no quadro). */
+export async function ajustarTendasDoLocalAction(eventoId: string, dados: { linhaIds: string[]; tendas: number; totais: Record<string, number>; motivo: string }) {
+  const usuario = await requireUsuario();
+  const ok =
+    typeof eventoId === "string" &&
+    Array.isArray(dados?.linhaIds) &&
+    dados.linhaIds.every((x) => typeof x === "string") &&
+    typeof dados.tendas === "number" &&
+    typeof dados.motivo === "string" &&
+    Object.entries(dados.totais ?? {}).every(([k, v]) => (k === "fechamento" || k === "calha") && typeof v === "number");
+  if (!ok) return { ok: false, erro: "Dados inválidos." } as const;
+  if (!motivoOpcionalSchema.safeParse(dados.motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
+  const r = await executar(() => ajustarTendasDoLocal(usuario, eventoId, { linhaIds: dados.linhaIds, tendas: dados.tendas, totais: dados.totais, motivo: dados.motivo }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

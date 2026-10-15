@@ -151,7 +151,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
           )}
           {ehTenda && Number.isSafeInteger(d.quantidade) && d.quantidade > 0 && (
             <div id="detalhes-unidades" className="scroll-mt-24">
-              <Section titulo="Detalhes de cada tenda" sub="Escolha uma unidade desta linha para ver a descrição e as peças que ela leva.">
+              <Section titulo="Tendas desta linha" sub="A descrição de cada tenda e as peças que cada uma leva.">
                 <DetalhesUnidadesTenda
                   key={`${d.id}-${unidadeInicial}`}
                   quantidade={d.quantidade}
