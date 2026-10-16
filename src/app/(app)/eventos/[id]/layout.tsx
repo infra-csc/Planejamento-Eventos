@@ -15,6 +15,7 @@ import { TabsNav, type Aba } from "@/components/ui/tabs-nav";
 import { LinhaTempo } from "@/components/eventos/fases";
 import { AcoesEvento } from "@/components/eventos/acoes-evento";
 import { obterConfiguracoesCache } from "@/server/cache";
+import { contarVeiculosCarga } from "@/server/services/carga-descarga";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -46,7 +47,13 @@ export default async function EventoLayout({ children, params }: { children: Rea
     throw e;
   });
   // Só contagens: este layout roda em todas as abas do evento.
-  const [resumo, pendentesPre, abertasTodas, cfg] = await Promise.all([resumoAbasEvento(usuario, id), contarItensPendentesPreReuniao(id), getDb().then((db) => solicitacoesPendentes(db, id)), obterConfiguracoesCache()]);
+  const [resumo, pendentesPre, abertasTodas, cfg, nVeiculos] = await Promise.all([
+    resumoAbasEvento(usuario, id),
+    contarItensPendentesPreReuniao(id),
+    getDb().then((db) => solicitacoesPendentes(db, id)),
+    obterConfiguracoesCache(),
+    pode(usuario, "carga.ver") ? contarVeiculosCarga(id) : Promise.resolve(0),
+  ]);
   const abertas = pode(usuario, "solicitacao.ver_todas") ? abertasTodas : abertasTodas.filter((s) => daMinhaArea(usuario, s.areaId));
   const st = statusExibicao(ev.status, ev.dataFim, hojeISO());
   const base = `/eventos/${ev.id}`;
@@ -90,6 +97,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
     ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `/conferencia/${ev.id}`, label: "Conferência" }] : []),
     { href: `${base}/solicitacoes`, label: "Solicitações", n: resumo.solicitacoes },
     ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),
+    // Carga e descarga do galpão: só logística e administrador.
+    ...(pode(usuario, "carga.ver") ? [{ href: `${base}/carga`, label: "Carga", n: nVeiculos || null }] : []),
     { href: `${base}/historico`, label: "Histórico" },
   ];
 

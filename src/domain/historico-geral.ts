@@ -8,6 +8,7 @@ export const CATEGORIAS_HISTORICO = {
   solicitacoes: { rotulo: "Solicitações", entidades: ["solicitacao", "solicitacao_item"] },
   biblioteca: { rotulo: "Biblioteca", entidades: ["projeto", "peca"] },
   arena: { rotulo: "Arena", entidades: ["arena"] },
+  carga: { rotulo: "Carga e descarga", entidades: ["veiculo_carga"] },
   admin: { rotulo: "Administração", entidades: ["usuario", "area", "configuracao"] },
   acesso: { rotulo: "Acessos", entidades: ["acesso"] },
 } as const;
@@ -78,6 +79,10 @@ const ROTULO_ACAO: Record<string, string> = {
   ARENA_EXCLUIDA: "Arena excluída",
   ARENA_PLANTA_TROCADA: "Planta trocada",
   ARENA_ENTORNO_IMPORTADO: "Entorno 3D importado",
+  CARGA_VEICULO_CRIADO: "Veículo de carga cadastrado",
+  CARGA_VEICULO_EDITADO: "Veículo de carga editado",
+  CARGA_VEICULO_DUPLICADO: "Veículo de carga duplicado",
+  CARGA_VEICULO_EXCLUIDO: "Veículo de carga excluído",
   ARENA_ENTORNO_REMOVIDO: "Entorno 3D removido",
   ARENA_PLANTA_REMOVIDA: "Planta removida",
   ARENA_PLANTA_RESTAURADA: "Planta restaurada",
@@ -117,6 +122,8 @@ export function hrefHistorico(h: { entidade: string; entidadeId: string; eventoI
       return "/admin?aba=config";
     case "arena":
       return "/arena";
+    case "veiculo_carga":
+      return h.eventoId ? `/eventos/${h.eventoId}/carga` : "/carga-descarga";
     default:
       return null;
   }

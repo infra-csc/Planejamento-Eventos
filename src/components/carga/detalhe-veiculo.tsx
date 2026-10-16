@@ -1,0 +1,175 @@
+"use client";
+
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
+import { DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { Icone } from "@/components/ui/icons";
+import { Codigo } from "@/components/ui/numero";
+import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { duplicarVeiculoCargaAction, excluirVeiculoCargaAction } from "@/app/(app)/carga-descarga/actions";
+import { dataHoraCurta, TIPO_VEICULO_LABEL, type EventoCarga } from "@/domain/carga-descarga";
+import type { VeiculoCargaView } from "@/server/services/carga-descarga";
+import { IconeVeiculo, TagCargaChip } from "./base";
+
+const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+
+function Linha({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-line-row py-1.5 last:border-b-0">
+      <dt className="text-pequeno text-muted">{rotulo}</dt>
+      <dd className={cn("numero m-0 text-right text-pequeno", destaque ? "font-semibold text-ink" : "text-ink-2", valor === "—" && "text-meta")}>{valor}</dd>
+    </div>
+  );
+}
+
+/** Ida e volta lado a lado (empilhadas no celular), como no cadastro. */
+export function TrechosVeiculo({ v }: { v: VeiculoCargaView }) {
+  const bloco = (titulo: string, ativo: boolean, tags: VeiculoCargaView["ida"]["tags"], carga: string, linhas: Array<[string, string, boolean?]>, obs: string) => (
+    <section className={cn("rounded-controle border px-3 py-2.5", ativo ? "border-line-soft" : "border-dashed border-line-strong bg-subtle")}>
+      <h4 className="m-0 text-pequeno font-semibold text-ink">{titulo}</h4>
+      {!ativo ? (
+        <p className="m-0 mt-1 text-pequeno text-muted">Descartada: não entra no calendário.</p>
+      ) : (
+        <>
+          {(tags.length > 0 || carga) && (
+            <p className="m-0 mt-1.5 flex flex-wrap items-center gap-1.5">
+              {tags.map((t) => (
+                <TagCargaChip key={t} tag={t} />
+              ))}
+              {carga && <span className="text-pequeno text-ink-2">{carga}</span>}
+            </p>
+          )}
+          <dl className="m-0 mt-1.5">
+            {linhas.map(([r, val, d]) => (
+              <Linha key={r} rotulo={r} valor={val} destaque={d} />
+            ))}
+          </dl>
+          {obs && <p className="m-0 mt-1.5 whitespace-pre-line break-words rounded-controle bg-subtle px-2.5 py-1.5 text-pequeno text-ink-2">{obs}</p>}
+        </>
+      )}
+    </section>
+  );
+  const i = v.ida;
+  const o = v.volta;
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {bloco(
+        "Ida · galpão → evento",
+        i.ativo,
+        i.tags,
+        i.cargaTexto,
+        [
+          ["Início da carga", dataHoraCurta(i.inicioCarga)],
+          ["Fim da carga", dataHoraCurta(i.fimCarga), true],
+          ["Saída", dataHoraCurta(i.saida)],
+          ["Destino", i.destino || "—"],
+          ["Chegada no destino", dataHoraCurta(i.chegadaDestino)],
+          ["Descarga no destino", dataHoraCurta(i.descarga)],
+        ],
+        i.obs,
+      )}
+      {bloco(
+        "Volta · evento → galpão",
+        o.ativo,
+        o.tags,
+        o.cargaTexto,
+        [
+          ["Início da carga", dataHoraCurta(o.inicioCarga)],
+          ["Fim da carga", dataHoraCurta(o.fimCarga), true],
+          ["Saída", dataHoraCurta(o.saida)],
+          ["Destino", o.destino || "—"],
+          ["Chegada no galpão", dataHoraCurta(o.chegadaGalpao)],
+          ["Descarga no galpão", dataHoraCurta(o.descargaGalpao), true],
+        ],
+        o.obs,
+      )}
+    </div>
+  );
+}
+
+/** Ações de um veículo: excluir (com confirmação no próprio rodapé), duplicar e editar. */
+export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento }: { v: VeiculoCargaView; podeEditar: boolean; onEditar: () => void; onFeito: () => void; nomeEvento: string }) {
+  const [confirmar, setConfirmar] = useState(false);
+  const [pendente, iniciar] = useTransition();
+  if (!podeEditar) return null;
+  const rotulo = `${TIPO_VEICULO_LABEL[v.tipo]}${v.ident ? ` (${v.ident})` : ""}`;
+  return confirmar ? (
+    <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+      <span className="mr-auto text-pequeno text-danger">Excluir {rotulo} de {nomeEvento}?</span>
+      <Button variant="secondary" size="md" disabled={pendente} onClick={() => setConfirmar(false)}>
+        Não
+      </Button>
+      <Button
+        variant="danger"
+        size="md"
+        loading={pendente}
+        onClick={() =>
+          iniciar(async () => {
+            const r = await excluirVeiculoCargaAction(v.id, v.eventoId);
+            if (!r.ok) return toastErro(r.erro);
+            toastSucesso(`${rotulo} excluído de ${nomeEvento}`);
+            onFeito();
+          })
+        }
+      >
+        Excluir
+      </Button>
+    </div>
+  ) : (
+    <>
+      <Button variant="dangerOutline" size="md" onClick={() => setConfirmar(true)} className="sm:mr-auto">
+        <Icone nome="lixeira" />
+        Excluir
+      </Button>
+      <Button
+        variant="secondary"
+        size="md"
+        loading={pendente}
+        title="Cria uma cópia com o mesmo cadastro (ida e volta)"
+        onClick={() =>
+          iniciar(async () => {
+            const r = await duplicarVeiculoCargaAction(v.id, v.eventoId);
+            if (!r.ok) return toastErro(r.erro);
+            toastSucesso(`${rotulo} duplicado em ${nomeEvento}`);
+            onFeito();
+          })
+        }
+      >
+        <Icone nome="copiar" />
+        Duplicar
+      </Button>
+      <Button variant="primary" size="md" onClick={onEditar}>
+        <Icone nome="lapis" />
+        Editar
+      </Button>
+    </>
+  );
+}
+
+/** Modal de um veículo: ida e volta completas e as ações. */
+export function DetalheVeiculo({ v, evento, podeEditar, onEditar, onFechar }: { v: VeiculoCargaView; evento: EventoCarga | undefined; podeEditar: boolean; onEditar: () => void; onFechar: () => void }) {
+  return (
+    <DialogContent title={`${TIPO_VEICULO_LABEL[v.tipo]}${v.ident ? ` · ${v.ident}` : ""}`} description={evento ? `${evento.nome} · evento ${dm(evento.data)}` : undefined} width={760}>
+      {evento && (
+        <p className="-mt-1 mb-3 flex flex-wrap items-center gap-2 text-pequeno text-muted">
+          <IconeVeiculo tipo={v.tipo} className="text-ink-3" />
+          <Link href={`/eventos/${evento.id}/carga`} className="link">
+            <Codigo>{evento.codigo}</Codigo> · todos os veículos do evento
+          </Link>
+        </p>
+      )}
+      <TrechosVeiculo v={v} />
+      <p className="m-0 mt-3 text-rotulo text-muted">
+        {v.atualizadoPor ? `Alterado por ${v.atualizadoPor}` : v.criadoPor ? `Cadastrado por ${v.criadoPor}` : ""}
+        {v.atualizadoEm ? ` · ${dataHoraCurta(v.atualizadoEm.slice(0, 16))}` : ""}
+      </p>
+      {podeEditar && (
+        <DialogFooter>
+          <AcoesVeiculo v={v} podeEditar={podeEditar} onEditar={onEditar} onFeito={onFechar} nomeEvento={evento?.nome ?? "evento"} />
+        </DialogFooter>
+      )}
+    </DialogContent>
+  );
+}

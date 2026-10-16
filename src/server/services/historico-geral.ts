@@ -1,4 +1,5 @@
-import { and, count, countDistinct, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
+import { pode } from "@/domain/permissions";
 import { getDb } from "@/server/db";
 import { eventos, historico, solicitacaoItens, usuarios, type Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -13,6 +14,8 @@ export type FiltrosHistorico = {
   busca?: string | null;
   pagina?: number;
   porPagina?: number;
+  /** Esconde os registros de carga e descarga (quem não tem acesso à tela). */
+  semCarga?: boolean;
 };
 
 export type RegistroHistorico = {
@@ -43,6 +46,8 @@ function condicoes(f: FiltrosHistorico, ignorar: "categoria" | "evento" | "usuar
   if (f.categoria && ignorar !== "categoria") c.push(inArray(historico.entidade, [...CATEGORIAS_HISTORICO[f.categoria].entidades]));
   if (f.eventoId && ignorar !== "evento") c.push(eq(historico.eventoId, f.eventoId));
   if (f.usuarioId && ignorar !== "usuario") c.push(eq(historico.usuarioId, f.usuarioId));
+  // Carga e descarga é tela da logística: quem não tem acesso a ela não vê os registros dela.
+  if (f.semCarga) c.push(ne(historico.entidade, "veiculo_carga"));
   const q = f.busca?.trim();
   if (q) c.push(sql`(${historico.descricao} ilike ${`%${q}%`} or ${historico.acao} ilike ${`%${q}%`})`);
   return c;
@@ -56,6 +61,7 @@ const juntar = (c: SQL[]) => (c.length ? and(...c) : undefined);
  */
 export async function listarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHistorico = {}) {
   exigir(usuario, "historico.ver_tudo");
+  f = { ...f, semCarga: !pode(usuario, "carga.ver") };
   const db = await getDb();
   const porPagina = Math.min(200, Math.max(10, f.porPagina ?? 50));
   const pagina = Math.max(1, f.pagina ?? 1);

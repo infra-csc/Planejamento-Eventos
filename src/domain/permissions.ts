@@ -29,6 +29,8 @@ export const ACOES = [
   "pendencias.resolver", // marcar pendência de compra/locação como resolvida
   "arena.ver",
   "arena.editar", // criar/excluir arena, trocar planta, marcar e mover pontos no mapa
+  "carga.ver", // calendário de carga e descarga do galpão
+  "carga.editar", // cadastrar, editar, duplicar e excluir veículos de carga
   "historico.ver_tudo",
   "admin.usuarios",
   "admin.areas",
@@ -72,6 +74,9 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   // Mapa 3D: todo mundo vê o que já existe; só o administrador cria, edita e exclui.
   "arena.ver": TODOS,
   "arena.editar": ["ADMIN"],
+  // Carga e descarga do galpão: operação da logística (e o administrador).
+  "carga.ver": ["LOGISTICA", "ADMIN"],
+  "carga.editar": ["LOGISTICA", "ADMIN"],
   "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
   "pendencias.resolver": ["LOGISTICA", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],

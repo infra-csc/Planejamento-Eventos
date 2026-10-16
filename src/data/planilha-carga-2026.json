@@ -1,0 +1,4137 @@
+[
+ {
+  "date": "2026-02-23",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-02-24",
+  "load": [],
+  "unload": [],
+  "kit": [
+   "GIRL POWER SP"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-02-25",
+  "load": [
+   "LONGEVIDADE BRADESCO"
+  ],
+  "unload": [],
+  "kit": [
+   "LONGEVIDADE BRADESCO"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-02-26",
+  "load": [
+   "GIRL POWER SP"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-02-27",
+  "load": [
+   "OUTONO RJ (BOX, TENDA)",
+   "VAN TRIATLON SANTOS"
+  ],
+  "unload": [],
+  "kit": [
+   "OUTONO RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-02-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-01",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "LONGEVIDADE BRADESCO",
+   "GIRL POWER SP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-02",
+  "load": [
+   "OUTONO RJ (CENO)"
+  ],
+  "unload": [
+   "GIRL POWER SP",
+   "LONGEVIDADE BRADESCO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-03",
+  "load": [
+   "OUTONO RJ (KIT, ATIVAÇÃO, MATERIALL FALTANTE)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-04",
+  "load": [
+   "TRIATLHON SANTOS"
+  ],
+  "unload": [],
+  "kit": [
+   "TRIATLHON SANTOS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-05",
+  "load": [
+   "OUTONO RJ (MAT PERCURSO)",
+   "BRAVUS (1 BOX)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-06",
+  "load": [
+   "TRIATLHON SANTOS",
+   "OUTONO POA (CENO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-07",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-08",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "OUTONO RJ",
+   "TRIALHON SANTOS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-09",
+  "load": [
+   "OUTONO POA",
+   "BRAVUS",
+   "OUTONO BH (KIT)"
+  ],
+  "unload": [
+   "TRIATLHON SANTOS",
+   "OUTONO RJ"
+  ],
+  "kit": [
+   "OUTONO BH",
+   "OUTONO SP"
+  ],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-10",
+  "load": [
+   "OUTONO SP",
+   "BRAVUS"
+  ],
+  "unload": [
+   "OUTONO RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-11",
+  "load": [
+   "BRAVUS SP",
+   "OUTONO BH"
+  ],
+  "unload": [
+   "OUTONO RJ"
+  ],
+  "kit": [
+   "OUTONO POA"
+  ],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-12",
+  "load": [
+   "OUTONO BELEM (COMEÇA)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-13",
+  "load": [
+   "CONJUGADO OUTONO RECIFE, FORTALEZA E SALVADOR (CENO E KIT)",
+   "OUTONO BELEM"
+  ],
+  "unload": [],
+  "kit": [
+   "CONJUGADO OUTONO RECIFE, FORTALEZA E SALVADOR (CENO E KIT)",
+   "OUTONO BELEM"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-14",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-15",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "OUTONO BH",
+   "OUTONO SP",
+   "OUTONO POA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-16",
+  "load": [
+   "OUTONO BSB (Kit)"
+  ],
+  "unload": [
+   "OUTONO SP",
+   "OUTONO BH"
+  ],
+  "kit": [
+   "OUTONO BSB"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-17",
+  "load": [
+   "BRAVUS ULITMO"
+  ],
+  "unload": [
+   "OUTONO POA",
+   "OUTONO BH",
+   "OUTONO SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-18",
+  "load": [
+   "OUTONO RIBEIRÃO PRETO (kit)"
+  ],
+  "unload": [
+   "OUTONO POA"
+  ],
+  "kit": [
+   "OUTONO RIBEIRÃO PRETO"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-19",
+  "load": [
+   "OUTONO RIBEIRÃO PRETO (BOX E CENO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-20",
+  "load": [
+   "OUTONO VITORIA (COMEÇA BOX)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-21",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-22",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BRAVUS SP",
+   "OUTONO BSB",
+   "OUTONO BELEM",
+   "OUTONO RECIFE",
+   "OUTONO RIBEIRÃO PRETO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-23",
+  "load": [
+   "OUTONO VITORIA (CENO, BOX E KIT)",
+   "ESC SOROCABA"
+  ],
+  "unload": [
+   "OUTONO RIBEIRÃO PRETO (2)"
+  ],
+  "kit": [
+   "OUTONO VITORIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-24",
+  "load": [],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-25",
+  "load": [
+   "OUTONO CAMPINAS (CENO, BOX E KIT - 2)"
+  ],
+  "unload": [
+   "BRAVUS",
+   "OUTONO BSB"
+  ],
+  "kit": [
+   "OUTONO CAMPINAS",
+   "OUTONO SJC"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-26",
+  "load": [
+   "OUTONO SJC (CENO, BOX, KIT - 2)"
+  ],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-27",
+  "load": [],
+  "unload": [
+   "OUTONO BELEM",
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-29",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "OUTONO SÃO JOSE DOS CAMPOS",
+   "OUTONO CAMPINAS",
+   "OUTONO FORTALEZA",
+   "OUTONO VITORIA",
+   "ESC SOROCABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-03-30",
+  "load": [],
+  "unload": [
+   "OUTONO CAMPINAS",
+   "OUTONO SJC"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-03-31",
+  "load": [],
+  "unload": [
+   "OUTONO VITORIA",
+   "ESC SOROCABA"
+  ],
+  "kit": [
+   "OUTONO SSA (KIT)"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-01",
+  "load": [
+   "OUTONO SSA - Salvador (KIT - CARGA FRACIONADA)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-02",
+  "load": [
+   "BB CUIABA (BOX, CENO E KIT - 2)"
+  ],
+  "unload": [],
+  "kit": [
+   "BB CUIABA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-03",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-04-04",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-05",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-06",
+  "load": [
+   "OUTONO FLORIPA (BOX, CENO E KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "OUTONO FLORIPA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-07",
+  "load": [
+   "GIRL POWER RJ",
+   "OUTONO MANAUS (CENO E KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "OUTONO MANAUS",
+   "GIRL POWER RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-08",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-09",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-10",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-11",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-12",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "OUTONO FLORIPA",
+   "OUTONO SALVADOR",
+   "GIRL POWER RJ",
+   "BB CUIABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-13",
+  "load": [],
+  "unload": [
+   "GIRL POWER RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-14",
+  "load": [
+   "LONGEVIDADE BRASILIA (COMEÇA)"
+  ],
+  "unload": [
+   "OUTONO FLORIPA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-15",
+  "load": [
+   "NIGHT RJ (BOX)"
+  ],
+  "unload": [
+   "BB CUIABA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-16",
+  "load": [
+   "LONGEVIDADE BRASILIA"
+  ],
+  "unload": [
+   "OUTONO SSA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-17",
+  "load": [
+   "PETROBRAS PORTO ALEGRE",
+   "NIGHT RJ (CENO)"
+  ],
+  "unload": [],
+  "kit": [
+   "NIGHT RJ",
+   "LONGEVIDADE BRASILIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-18",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-19",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-20",
+  "load": [
+   "MEIA INTER DE SP"
+  ],
+  "unload": [],
+  "kit": [
+   "PETROBRAS PORTO ALEGRE"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-21",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-04-22",
+  "load": [
+   "GIRL POWER OSASCO",
+   "OUTONO CURITIBA"
+  ],
+  "unload": [],
+  "kit": [
+   "GIRL POWER OSASCO",
+   "OUTONO CURITIBA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-23",
+  "load": [
+   "TRIATLHON SANTOS",
+   "GIRL POWER OSASCO",
+   "NIGHT RJ (ULTIMO CARRO)"
+  ],
+  "unload": [],
+  "kit": [
+   "OUTONO CURITIBA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-24",
+  "load": [
+   "TRIATLHON SANTOS"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-25",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RJ"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-26",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "OUTONO CURITIBA",
+   "OUTONO MANAUS",
+   "TROFEL BRASIL",
+   "MEIA MARATONA",
+   "GIRL POWER OSASCO",
+   "LONGEVIDADE BRASILIA",
+   "PETROBRAS POA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-04-27",
+  "load": [],
+  "unload": [
+   "OUTONO CWB",
+   "TRIATHLHON SANTOS",
+   "GIRL POWER OSASCO"
+  ],
+  "kit": [
+   "ECO RUN NITEROI"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-28",
+  "load": [
+   "ECO RUN NITEROI"
+  ],
+  "unload": [
+   "NIGHT RJ",
+   "MEIA INTER"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-29",
+  "load": [
+   "NIGHT CARUARU (TOUR MR)",
+   "ECO NITEROI (CENO)"
+  ],
+  "unload": [
+   "LONGEVIDADE BRASILIA",
+   "NIGHT RJ",
+   "MEIA INTER"
+  ],
+  "kit": [
+   "PETROBRAS SANTOS",
+   "NIGHT CARUARU"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-04-30",
+  "load": [
+   "GIRL POWER VITORIA + PETRO VITORIA (Z) (BOX, CENO E KIT",
+   "PETROBRAS SALVADOR (MA) + NIGHT CARUARU"
+  ],
+  "unload": [
+   "DESC MEIA INTER + NIGHT RJ"
+  ],
+  "kit": [
+   "GIRL POWER VITORIA",
+   "PETROBRAS SALVADOR"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-01",
+  "load": [],
+  "unload": [],
+  "kit": [
+   "PLIE SP"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-05-02",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-03",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ECO RUN NITEROI"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-04",
+  "load": [
+   "NIGHT SP (Z)",
+   "BLUE BRASILIA (MSC)"
+  ],
+  "unload": [
+   "ECO RUN NITEROI"
+  ],
+  "kit": [
+   "NIGHT SP",
+   "BLUE BRASILIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-05",
+  "load": [
+   "PLIE SP (Z)",
+   "CONGRESSO SABESP (Z)"
+  ],
+  "unload": [],
+  "kit": [
+   "GRAAC SP"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-06",
+  "load": [
+   "GRAAC (Z)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-07",
+  "load": [
+   "ECO RUN MOSSORO + ECO BELEM (Z)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-08",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-09",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT SP",
+   "NIGHT CARUARU"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-10",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE BRASILIA",
+   "GRAAC SP",
+   "GIRL POWER VITORIA",
+   "PLIÉ SP",
+   "PETROBRAS SALVADOR"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-11",
+  "load": [
+   "NETSHOES BSB (J - 2 carretas Valtinho e Netinho)"
+  ],
+  "unload": [
+   "NIGHT SP",
+   "PLIE SP",
+   "GRAAC SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-12",
+  "load": [
+   "BRAVUS FIRE",
+   "ECO IHOTIM (Marquinhos)"
+  ],
+  "unload": [
+   "PLIE",
+   "NIGHT SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-13",
+  "load": [
+   "BRAVUS FIRE (3 carretas)",
+   "S RUN PIRACICABA (KIT) (1 carreta, dentinho) (Zaqueu)"
+  ],
+  "unload": [
+   "BLUE BSB",
+   "GIRL POWER VITORIA (CENO E KIT)"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-14",
+  "load": [
+   "CORRIDA APAS (",
+   "S RUN PIRACICABA (BOX, CENO) (1 carreta Adão) (Zaqueu)"
+  ],
+  "unload": [
+   "PETROBRAS SSA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-15",
+  "load": [
+   "GIRL POWER BELEM + VALE CANAA DOS CARAJAS (MSC)",
+   "PETROBRAS BSB BIKE Valdeci(Z)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-16",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT NATAL"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-17",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ECO INHOTIM",
+   "NETSHOES BRASILIA",
+   "CORRIDA APAS SP",
+   "PETROBRAS VITORIA",
+   "ECO MOSSORO",
+   "S RUN PIRACICABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-18",
+  "load": [],
+  "unload": [
+   "CORRIDA APAS SP",
+   "S RUN PIRACICABA",
+   "ECO INHOTIM"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-19",
+  "load": [],
+  "unload": [
+   "ECO INHOTIM"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-20",
+  "load": [
+   "GIRL POWER CAMPINAS",
+   "BRAVUS (ULTIMO CARRO)"
+  ],
+  "unload": [
+   "PETRO VITORIA",
+   "NETSHOES BSB"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-21",
+  "load": [
+   "COPA SABESP VARZEA",
+   "INVERNO RJ"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-22",
+  "load": [
+   "INVERNO RJ (BOX E CENO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-23",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RECIFE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-24",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "GIRL POWER BELEM",
+   "BRAVUS FIRE",
+   "GIRL POWER CAMPINAS",
+   "PETROBRAS BRASILIA BIIKE",
+   "COPA SABESP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-25",
+  "load": [
+   "LONGEVIDADE RIO DE JANEIRO"
+  ],
+  "unload": [
+   "GIRL POWER CAMPINAS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-26",
+  "load": [
+   "INVERNO RJ (KIT + POUCO CENO)"
+  ],
+  "unload": [
+   "BRAVUS",
+   "PETRO BIKE BSB"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-27",
+  "load": [
+   "BANCO DO BRASIL SP"
+  ],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-28",
+  "load": [
+   "INVERNO RJ - ULTIMO CARRO",
+   "S RUN SÃO PAULO"
+  ],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-29",
+  "load": [],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-05-30",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT JOAO PESSOA",
+   "COPA SABESP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-05-31",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VALE CANAA CARAJAS",
+   "LONG BRAD RJ",
+   "S RUN SP",
+   "ECO BELEM",
+   "BANCO DO BRASIL SP",
+   "INVERNO RJ",
+   "COPA SABESP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-01",
+  "load": [
+   "42K FLORIPA"
+  ],
+  "unload": [
+   "BB SP",
+   "S RUN SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-02",
+  "load": [
+   "GIRL POWER BH (kit)",
+   "42 K FLORIPA"
+  ],
+  "unload": [
+   "LONGEVIDADE RJ",
+   "INVERNO RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-03",
+  "load": [
+   "S RUN SOROCABA",
+   "GIRL POWER BH",
+   "42 K FLORIPA"
+  ],
+  "unload": [
+   "INVERNO RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-04",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-06-05",
+  "load": [
+   "VALE VITORIA + SÃO LUIS + PARAUAPEBAS (COMEÇA CARREGAMENTO) (Msc)",
+   "NIGHT MANAUS (MARRA)"
+  ],
+  "unload": [
+   "ECO BELEM",
+   "VALE CARAJAS",
+   "NIGHT TOUR"
+  ],
+  "kit": [
+   "NIGHT MANAUS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-06",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "COPA SABESP VARZEA (SEMI FINAL)"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-07",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "42K FLORIPA",
+   "GIRL POWER BH",
+   "S RUN SOROCABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-08",
+  "load": [
+   "ECO RUN SP (IBIRA)"
+  ],
+  "unload": [
+   "GIRL POWER BH",
+   "S RUN SOROCABA",
+   "CONTAINER"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-09",
+  "load": [
+   "URBAN WALK",
+   "PETROBRAS RJ"
+  ],
+  "unload": [
+   "42K FLORIPA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-10",
+  "load": [
+   "BLUE RUN PIRACICABA",
+   "COPA SABESP"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-11",
+  "load": [
+   "INVERNO FORT + REC + SSA (começa)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-12",
+  "load": [
+   "TROFEU BRASIL ET 2 (VAN)",
+   "SQP RECIFE + SALVADOR (MRR)",
+   "TOUR INVERNO"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-13",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "URBAN WALK SP",
+   "COPA SABESP VARZEA SEMI FINAL"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-14",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE RUN PIRACICABA",
+   "ECO RUN SP",
+   "PETROBRAS RJ",
+   "VALE VITORIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-15",
+  "load": [
+   "INVERNO POA"
+  ],
+  "unload": [
+   "BLUE PIRACICABA",
+   "ECO SP 2",
+   "URBAN SP 2"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-16",
+  "load": [
+   "NIGHT MARINGA + JOINVILLE"
+  ],
+  "unload": [
+   "PETRO RJ 2",
+   "ECO SP 2",
+   "URBAN SP 1"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-17",
+  "load": [
+   "SMART FIT RJ",
+   "PETRO BIKE SP"
+  ],
+  "unload": [
+   "VALE VITORIA (BOX, TENDA)"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-18",
+  "load": [
+   "TROFEU BRASIL ET 2",
+   "INVERNO SJC"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-19",
+  "load": [
+   "TROFEU BRASIL ET 2",
+   "INVERNO BRASILIA",
+   "BB SALVADOR",
+   "INVERNO VITORIA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-20",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT MARINGA",
+   "COPA SABESP FINAL"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-21",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VALE SÃO LUIS",
+   "35 TRIATLHON SANTOS ET2",
+   "INVERNO FORTALEZA",
+   "INVERNO MANAUS",
+   "INVERNO POA",
+   "SMART FIT RJ",
+   "INVERNO SJC",
+   "SQP RECIFE",
+   "PETROBRAS BIKE SP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-22",
+  "load": [
+   "INVERNO VITORIA",
+   "INVERNO SP",
+   "INVERNO BRASILIA"
+  ],
+  "unload": [
+   "TROFEU BRASIL",
+   "INVERNO SJC",
+   "PETRO BIKE SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "2 turnos",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-23",
+  "load": [
+   "ECO POA (CENO, KIT, AGUA)",
+   "INVERNO BRASILIA (kit)",
+   "INVERNO VITORIA"
+  ],
+  "unload": [
+   "COPA SABESP",
+   "SMART FIT RJ"
+  ],
+  "kit": [
+   "INV BRASILIA",
+   "ECO POA",
+   "INV VITORIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-24",
+  "load": [
+   "LONG CAMPINAS",
+   "INVERNO RIB PRETO (KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "INVERNO RIB PRETO",
+   "LONG CAMPINAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-25",
+  "load": [
+   "INVERNO RIB PRETO (ESTRUTURA)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-26",
+  "load": [
+   "INVERNO BELEM",
+   "INVERNO REC E SSA (KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "INVERNO BELEM",
+   "INVERNO REC E SSA (KIT)"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-27",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT JOINVILLE",
+   "NIGHT MANAUS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "INVERNO SP",
+   "INVERNO VITORIA",
+   "INVERO RIB PRETO",
+   "INVERNO BRASILIA",
+   "ECO RUN POA",
+   "SQP SSA",
+   "BB SSA",
+   "LONG BRADSCO CAMPINAS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-06-29",
+  "load": [
+   "INVERNO FLORIANOPOLIS",
+   "INVERNO REC E SSA (KIT)"
+  ],
+  "unload": [
+   "INVERNO RIBEIRAO",
+   "LONG BRADESCO CPS",
+   "INVERNO SP"
+  ],
+  "kit": [
+   "INVERNO FLORIANOPOLIS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-06-30",
+  "load": [
+   "BLUE RUN RJ",
+   "INVERNO FLORIANOPOLIS (KIT)"
+  ],
+  "unload": [
+   "INVERNO SP",
+   "ECO RUN POA",
+   "INVERNO VITORIA",
+   "NIGHT JOINV"
+  ],
+  "kit": [
+   "BLUE RUN RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-01",
+  "load": [
+   "INVERNO CAMPINAS",
+   "ECO PEDERNEIRAS"
+  ],
+  "unload": [
+   "INVERNO SP",
+   "INVERNO BSB"
+  ],
+  "kit": [
+   "INVERNO CAMPINAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-02",
+  "load": [
+   "ECO PEDERNERIRAS",
+   "NIGHT PORTO VELHO + CUIABA + C. GRANDE + GOIANIA"
+  ],
+  "unload": [],
+  "kit": [
+   "NIGHT PORTO VELHO + CUIABA + C. GRANDE + GOIANIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-03",
+  "load": [
+   "ECO RUN RECIFE + FORTALEZA"
+  ],
+  "unload": [
+   "BB SSA",
+   "SQP SALVADOR"
+  ],
+  "kit": [
+   "ECO RUN RECIFE + FORTALEZA",
+   "PETRO BIKE VITORIA (COMEÇA)"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-04",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-05",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "INVERNO CAMPINAS",
+   "ECO RUN PEDERNEIRAS",
+   "INVERNO RECIFE",
+   "VALE PARAUAPEBAS",
+   "INVERNO FLORIANOPOLIS",
+   "BLUE RUN RJ",
+   "INVERNO BELEM"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-06",
+  "load": [
+   "PETRO BIKE VITORIA",
+   "PETRO MACAE (COMEÇA)"
+  ],
+  "unload": [
+   "INVERNO CAMPINAS",
+   "ECO PEDERNEIRAS",
+   "BLUE RUN RJ"
+  ],
+  "kit": [
+   "PETRO BIKE VITORIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-07",
+  "load": [
+   "GIRL POWER PARACATU",
+   "INVERNO BH (KIT)",
+   "PETRO MACAE"
+  ],
+  "unload": [
+   "INVERNO FLORIANOPOLIS"
+  ],
+  "kit": [
+   "INVERNO BH",
+   "GIRL POWER PARACATU"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-08",
+  "load": [
+   "INVERNO BH (ESTRUTURA)"
+  ],
+  "unload": [
+   "VALE PARAUAPEBAS"
+  ],
+  "kit": [
+   "PETRO MACAE"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-09",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-07-10",
+  "load": [],
+  "unload": [
+   "INVERNO BELEM"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-11",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT PORTO VELHO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-12",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "INVERNO BH",
+   "DESAFIO PETROBRAS MACAE",
+   "ECO RUN RECIFE",
+   "GIRL POWER PARACATU",
+   "PETROBRÁS BIKE VITORIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-13",
+  "load": [
+   "BANCO DO BRASIL RJ (ceno, kit)"
+  ],
+  "unload": [
+   "DESAFIO PETROBRAS MACAE",
+   "INVERNO BH"
+  ],
+  "kit": [
+   "BANCO DO BRASIL RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-14",
+  "load": [
+   "BRAVUS RJ"
+  ],
+  "unload": [
+   "GIRL POWER PARACATU",
+   "INVERNO BH",
+   "PETRO BIKE VITÓRIA"
+  ],
+  "kit": [
+   "BLUE RUN RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-15",
+  "load": [
+   "BLUE RUN SP",
+   "BRAVUS RJ"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-16",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-17",
+  "load": [
+   "LONGEVIDADE SALVADOR",
+   "CDB ECO AÇAILANDIA + MARABA"
+  ],
+  "unload": [],
+  "kit": [
+   "LONGEVIDADE SALVADOR",
+   "CDB ECO AÇAILANDIA + MARABA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-18",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT CUIABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-19",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BANCO DO BRASIL RJ",
+   "BLUE RUN SP",
+   "INVERNO SALVADOR",
+   "ECO RUN FORTALEZA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-20",
+  "load": [],
+  "unload": [
+   "BLUE RUN SP",
+   "BB RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-21",
+  "load": [
+   "ECO RUN RJ (CENO + KIT ECO",
+   "KIT BRAVUS)"
+  ],
+  "unload": [
+   "BB RJ"
+  ],
+  "kit": [
+   "ECO RUN RJ"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-22",
+  "load": [
+   "ENERGY LAND SP",
+   "BRAVUS (ULTIMO CARRO)"
+  ],
+  "unload": [],
+  "kit": [
+   "ENERGY LAND SP"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-23",
+  "load": [],
+  "unload": [
+   "INVERNO SALVADOR TOUR"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-24",
+  "load": [
+   "FAMILIA EM MOVIMENTO (CENOGRAFIA)"
+  ],
+  "unload": [
+   "ECO RECIFE + FORTALEZA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-25",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT CAMPO GRANDE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-26",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "LONGEVIDADE BRADESCO SALVADOR",
+   "BRAVUS SPEED RJ",
+   "ECO RUN RJ",
+   "ENERGY LAND SP",
+   "CDB ECO AÇAILANDIIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-07-27",
+  "load": [
+   "NIGHT FLORIPA"
+  ],
+  "unload": [
+   "ECO RUN RJ (CENO E KIT)",
+   "ENERGY LAND SP"
+  ],
+  "kit": [
+   "NIGHT FLORIPA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-28",
+  "load": [
+   "BANCO DO BRASIL BH (BOX R KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "BANCO DO BRASIL BH (KIT)"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-29",
+  "load": [
+   "BANCO DO BRASIL BH (CENO)"
+  ],
+  "unload": [],
+  "kit": [
+   "BANCO DO BRASIL BH"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-30",
+  "load": [],
+  "unload": [
+   "LONGEVIDADE SALVADOR"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-07-31",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-01",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT FLORIANOPOLIS",
+   "NIGHT GOIANIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-02",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "FAMILIA EM MOVIMENTO RJ",
+   "BANCO DO BRASIL BH"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-03",
+  "load": [],
+  "unload": [
+   "NIGHT FLORIPA",
+   "BB BH",
+   "BOX LOCADO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-04",
+  "load": [
+   "NIGHT CAMPINAS",
+   "BRAVUS MONSTER"
+  ],
+  "unload": [
+   "FAMILIA MOVIMENTO",
+   "BB BH",
+   "NIGHT GOIANIA"
+  ],
+  "kit": [
+   "NIGHT CAMPINAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-05",
+  "load": [
+   "INVERNO CURITIBA",
+   "PRIMAVERA SJC"
+  ],
+  "unload": [
+   "NIGHT GOIANIA TOUR"
+  ],
+  "kit": [
+   "INVERNO CURITIBA",
+   "PRIMAVERA SJC"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-06",
+  "load": [
+   "SUPERHUMANS INDAIATUBA",
+   "SQP SÃO PAULO"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-07",
+  "load": [
+   "LONGEVIDADE BRADESCO RECIFE"
+  ],
+  "unload": [],
+  "kit": [
+   "LONGEVIDADE BRADESCO RECIFE"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-08",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT CAMPINAS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-09",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "CDB ECO MARABA",
+   "INVERNO CURITIBA",
+   "SQP SP",
+   "PRIMAVERA SJC",
+   "SUPERHUMANS INDAIATUBA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-10",
+  "load": [
+   "VALE NOVA LIMA (BOX, KIT)",
+   "BPC (KIT)"
+  ],
+  "unload": [
+   "SQP SP",
+   "INVERNO CURITIBA",
+   "PRIMAVERA SJC"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-11",
+  "load": [
+   "VALE NOVA LIMA + VALE RJ + ITABIRA (CENO)",
+   "BPC SP"
+  ],
+  "unload": [
+   "SUPERHUMANS INDAIATUBA"
+  ],
+  "kit": [
+   "VALE NOVA LIMA + RJ + ITABIRA",
+   "BPC SP"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-12",
+  "load": [
+   "ECO PIRACICABA",
+   "ECO PINDAMONHANGABA (KIT)",
+   "BRAVUS (ULTIMO CARRO)"
+  ],
+  "unload": [],
+  "kit": [
+   "ECO PIRA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-13",
+  "load": [
+   "ECO PINDAMONHANGABA",
+   "NIGHT PALMAS"
+  ],
+  "unload": [],
+  "kit": [
+   "ECO PINDAMONHANGABA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-14",
+  "load": [
+   "PRIMAVERA VITORIA (CENO)"
+  ],
+  "unload": [
+   "ECO AÇAILANDIA + MARABA"
+  ],
+  "kit": [
+   "NIGHT PALMAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-15",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-16",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ECO PINDAMONHANGABA",
+   "BRAVUS MONSTER",
+   "BPC SP",
+   "LONGEVIDADE BRADESCO RECIFE",
+   "PRIMAVERA MANAUS",
+   "ECO RUN PIRACICABA",
+   "VALE NOVA LIMA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-17",
+  "load": [
+   "PRIMAVERA VITORIA",
+   "VALE RJ (KIT)"
+  ],
+  "unload": [
+   "BPC SP",
+   "ECO PIRACICABA"
+  ],
+  "kit": [
+   "PRIMAVERA VITORIA",
+   "NETSHOES SP"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-18",
+  "load": [
+   "BANCO DO BRASIL JOINVILLE",
+   "ECO RUN BH (CENO E KIT)"
+  ],
+  "unload": [
+   "ECO PINDA"
+  ],
+  "kit": [
+   "BANCO DO BRASIL JOINVILLE",
+   "VALE RIO DE JANEIRO"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-19",
+  "load": [
+   "NETSHOES SP",
+   "ATV PORTO",
+   "ECO RUN BH (BOX)"
+  ],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [
+   "ATV PORTO"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-20",
+  "load": [
+   "GIRL POWER SÃO LUIS",
+   "CHEVROLET GOLDEN SCS"
+  ],
+  "unload": [
+   "BRAVUS",
+   "BRADESCO RECIFE"
+  ],
+  "kit": [
+   "GIRL POWER SÃO LUIS",
+   "CHEVROLET GOLDEN SCS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-21",
+  "load": [
+   "NETSHOES (MARGINAL)",
+   "PRIMAVERA BELEM",
+   "BLUE RUN SALVADOR",
+   "GIRL POWER S LUIS"
+  ],
+  "unload": [
+   "BRAVUS"
+  ],
+  "kit": [
+   "PRIMAVERA BELEM",
+   "BLUE RUN SALVADOR"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-22",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT PALMAS",
+   "ATIIVAÇÃO PORTO SEGURO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-23",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NETSHOES SP",
+   "GOLDEN RUN SCS",
+   "PRIMAVERA VITORIA",
+   "VALE RJ",
+   "ECO RUN BH",
+   "BANCO DO BRASIL JOINVILLE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-24",
+  "load": [
+   "PRIMAVERA BRASILIA",
+   "VALE ITABIRA (KIT)",
+   "RIO S-21K"
+  ],
+  "unload": [
+   "LONGEVIDADE RECIFE",
+   "ATV PORTO SEGURO",
+   "NETSHOES SP",
+   "CONTAINER"
+  ],
+  "kit": [
+   "PRIMVAERA BRASILIA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-25",
+  "load": [
+   "PRIMAVERA BRASÍLIA",
+   "RIO S21K"
+  ],
+  "unload": [
+   "GOLDEN RUN SCS",
+   "ECO BH"
+  ],
+  "kit": [
+   "NIGHT RIB PRETO",
+   "RIO S21K"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-26",
+  "load": [
+   "NIGHT RIB PRETO",
+   "ECO RUN CURITIBA + LONDRINA",
+   "TRAVESSIA DE COPA"
+  ],
+  "unload": [
+   "BB JOINVILLE",
+   "PRIMAVERA VITORIA"
+  ],
+  "kit": [
+   "TRAVESSIA DE COPA RJ",
+   "ECO RUN CURITIBA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-27",
+  "load": [],
+  "unload": [
+   "NIGHT PALMAS",
+   "BRAVUS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-08-29",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RIBEIRAO PRETO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-30",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE RUN SALVADOR",
+   "PRIMAVERA BRASILIA",
+   "TRAVESSIA COPA RJ",
+   "GIRL POWER SÃO LUIS",
+   "RIO S-21K",
+   "ECO RUN CURITIBA",
+   "PRIMAVERA BELEM",
+   "VALE ITABIRA MG"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-08-31",
+  "load": [],
+  "unload": [
+   "NIGHT RIB PRETO",
+   "TRAVESSIA DE COPA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-01",
+  "load": [],
+  "unload": [
+   "RIO S21K",
+   "ITABIRA"
+  ],
+  "kit": [
+   "ECO LONDRINA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-02",
+  "load": [],
+  "unload": [
+   "PRIMAVERA BRASILIA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-03",
+  "load": [
+   "BANCO DO BRASIL NATAL",
+   "TOUR PRIMAVERA REC + SSA + FORT"
+  ],
+  "unload": [
+   "BLUE SALVADOR"
+  ],
+  "kit": [
+   "BANCO DO BRASIL NATAL"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-04",
+  "load": [
+   "LONGEVIDADE POA",
+   "PRIMAVERA SP"
+  ],
+  "unload": [
+   "GIRL POWER SÃO LUIS",
+   "PRIMAVERA BELEM"
+  ],
+  "kit": [
+   "TOUR PRIMAVERA RECIFE + SALVADOR + FORTALEZA",
+   "LONGEVIDADE POA"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-05",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-06",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ECO RUN LONDRINA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-07",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-09-08",
+  "load": [
+   "PRIMAVERA BH (KIT, BOX E CENO)",
+   "DOG RACE"
+  ],
+  "unload": [
+   "ECO LONDRINA"
+  ],
+  "kit": [
+   "PRIMAVERA BH (KIT)"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-09",
+  "load": [
+   "PRIMAVERA CURITIBA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-10",
+  "load": [
+   "PRIMAVERA CAMPINAS",
+   "PRIMAVERA BH (AGUA)"
+  ],
+  "unload": [],
+  "kit": [
+   "PRIMAVERA CAMPINAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-11",
+  "load": [
+   "ECO PALMAS",
+   "TOUR PRIMAVERA SSA + FORT (KIT DE SSA E FORT)"
+  ],
+  "unload": [],
+  "kit": [
+   "ECO PALMAS"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-12",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "DOG RACE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-13",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BANCO DO BRASIL NATAL",
+   "PRIMAVERA CURITIBA",
+   "PRIMAVERA SP",
+   "PRIMAVERA RECIFE",
+   "PRIMAVERA BH",
+   "LONG BRADESCO POA",
+   "PRIMAVERA CAMPINAS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-14",
+  "load": [
+   "PRIMAVERA RJ (SALDO)"
+  ],
+  "unload": [
+   "PRIMAVERA SP",
+   "DOG RACE",
+   "PRIMAVERA CWB",
+   "PRIMAVERA CAMPINAS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-15",
+  "load": [
+   "SUPERHUMANS SP",
+   "CDB ECO MANGARATIBA (CENO)",
+   "CIRCUITINHO RJ"
+  ],
+  "unload": [
+   "PRIMAVERA CURITIBA",
+   "PRIMAVERA BH",
+   "BRADESCO POA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-16",
+  "load": [
+   "DPSP SÃO PAULO",
+   "PRIMAVERA RIB PRETO (KIT)",
+   "CDB ECO MANGARATIBA (BOX, KIT)",
+   "PRIMAVERA RJ (ULTIMO CARRO)",
+   "SRUN LIMEIRA (KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "S RUN LIMEIRA",
+   "PRIMAVERA RIB PRETO"
+  ],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-17",
+  "load": [
+   "S RUN LIMEIRA",
+   "PRIMAVERA RIB PRETO"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-18",
+  "load": [],
+  "unload": [
+   "BANCO DO BRASIL NATAL"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-09-19",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "CIRCUITINHO RIO DE JANEIRO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-20",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "PRIMAVERA RJ",
+   "PRIMAVERA RIBEIRAO",
+   "SUPERHUMANS SP",
+   "PRIMAVERA SALVADOR",
+   "ECO RUN PALMAS",
+   "S RUN LIMEIRA",
+   "CDB ECO MANGARATIBA",
+   "DPSP SÃO PAULO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-21",
+  "load": [
+   "PRIMAVERA POA"
+  ],
+  "unload": [
+   "SUPERHUMANS SP",
+   "S RUN LIMEIRA",
+   "PRIMAVERA RIBEIRÃO"
+  ],
+  "kit": [
+   "PRIMAVERA POA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-22",
+  "load": [
+   "DPSP RJ",
+   "BLUE NIGHT",
+   "PAO DE ACUCAR"
+  ],
+  "unload": [
+   "PRIMAVERA RJ",
+   "DPSP",
+   "PRIMAVERA RIBEIRAO",
+   "CIRCUITINHO"
+  ],
+  "kit": [
+   "PRIMAVERA FLORIPA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-23",
+  "load": [
+   "PRIMAVERA FLORIPA",
+   "DPSP RJ",
+   "PAO DE ACUCAR"
+  ],
+  "unload": [
+   "S RUN LIMEIRA",
+   "CIRCUITINHO RJ",
+   "PRIMAVERA RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-24",
+  "load": [
+   "TROFEU ET 3",
+   "BLUE LINE",
+   "PAO DE ACUCAR"
+  ],
+  "unload": [
+   "ECO MANGARATIBA",
+   "PRIMAVERA RJ"
+  ],
+  "kit": [
+   "TROFEU ET 3",
+   "TOUR CIRCUITINHO FORT + SSA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-25",
+  "load": [
+   "TROFEU ET 3",
+   "TOUR CIRCUITINHO FORT + SSA"
+  ],
+  "unload": [],
+  "kit": [
+   "TROFEU ET 3",
+   "TOUR NIGHT BRASILIA + TERESINA + SSA + ARACAJU"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-26",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE RUN NIGHT EDITION SP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-27",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "PRIMAVERA FORTALEZA",
+   "TROFEU BRASIL ET 3",
+   "DPSP RIO DE JANEIRO",
+   "PRIMAVERA POA",
+   "CORRIDA PAO DE ACUCAR",
+   "PRIMAVERA FLORIPA",
+   "BLUE LINE SP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-28",
+  "load": [
+   "TOUR NIGHT BRASILIA + TERESINA + BELEM + SÃO LUIS (KIT SO DE BRASILIA)"
+  ],
+  "unload": [
+   "BLUE LINE SP",
+   "TROFEU ET 3",
+   "PAO DE ACUCAR"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-29",
+  "load": [],
+  "unload": [
+   "DPSP RJ",
+   "BLUE NIGHT",
+   "PRIMAVERA POA",
+   "PRIMAVERA FLORIPA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-09-30",
+  "load": [],
+  "unload": [
+   "PRIMAVEERA FLORIPA",
+   "DPSP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-01",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-02",
+  "load": [
+   "PETRO BIKE RECIFE",
+   "TOUR NIGHT KIT TERESINA + BELEM + SÃO LUIS (so kit e agua)"
+  ],
+  "unload": [
+   "TOUR PRIMAVERA REC + SSA + FORT",
+   "ECO PALMAS"
+  ],
+  "kit": [
+   "PETRO BIKE RECIFE"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-03",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RUN BRASILIA",
+   "CIRCUITINHO FORTALEZA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-04",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-05",
+  "load": [],
+  "unload": [],
+  "kit": [
+   "ECO RUN NAVEGANTES",
+   "BPC RJ"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-06",
+  "load": [
+   "GIRL POWER RJ (CENO E KIT)"
+  ],
+  "unload": [],
+  "kit": [
+   "GIRL POWER RJ"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-07",
+  "load": [
+   "GIRL POWER RJ (BOX)",
+   "KIT VERÃO MANAUS (FRACIONADO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-08",
+  "load": [
+   "TOUR NIGHT SALVADOR + ARACAJU + VIT",
+   "NETSHOES RECIFE",
+   "BANCO DO BRASIL BRASILIA"
+  ],
+  "unload": [],
+  "kit": [
+   "NETSHOES RECIFE"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-09",
+  "load": [
+   "TOUR NIGHT SALVADOR + ARACAJU + VITORIA",
+   "BPC RIO DE JANEIRO (CENO)"
+  ],
+  "unload": [],
+  "kit": [
+   "TOUR NIGHT BELEM + SÃO LUIS + VITORIA",
+   "BANCO DO BRASIL BRASILIA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-10",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT TERESINA",
+   "CIRCUITINHO SSA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-11",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "GIRL POWER RJ"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-12",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "PETRO BIKE RECIFE"
+  ],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-10-13",
+  "load": [
+   "BPC RIO DE JANEIRO (BOX)"
+  ],
+  "unload": [
+   "GIRL POWER RJ",
+   "ECO NAVEGANTES"
+  ],
+  "kit": [
+   "SMART FIT SP",
+   "NIGHT CURITIBA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-14",
+  "load": [
+   "SMART FIT SP"
+  ],
+  "unload": [],
+  "kit": [
+   "GIRL POWER SP"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-15",
+  "load": [
+   "GIRL POWER SP"
+  ],
+  "unload": [
+   "CIRCUITINHO FORT + SSA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-16",
+  "load": [],
+  "unload": [
+   "PETRO BIKE RECIFE"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-17",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT BELEM",
+   "NIGHT SALVADOR"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-18",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NETSHOES RECIFE",
+   "SMART FIT SP",
+   "BANCO DO BRASIL BRASLIA",
+   "GIRL POWER SP",
+   "BPC RIO DE JANEIRO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-19",
+  "load": [
+   "MAKAI JOÃO PESSOA"
+  ],
+  "unload": [
+   "SMART FIT SP",
+   "GIRL POWER SP"
+  ],
+  "kit": [
+   "MAKAI JOÃO PESSOA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-20",
+  "load": [],
+  "unload": [
+   "BANCO DO BRASIL BRASILIA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-21",
+  "load": [
+   "CIRCUITINHO SP",
+   "BANCO DO BRASIL MACEIO (1 CARRO COMPLEMENTO)"
+  ],
+  "unload": [],
+  "kit": [
+   "CIRCUITINHO SP"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-22",
+  "load": [
+   "VIVA ESPORTE - VILA VELHA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-23",
+  "load": [
+   "NIGHT VITORIA (BOX, KIT E AGUA)"
+  ],
+  "unload": [
+   "NETSHOES RECIFE"
+  ],
+  "kit": [
+   "BANCO DO BRASIL MACEIO"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-24",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT SÃO LUIS",
+   "NIGHT ARACAJU",
+   "CIRCUITINHO SP"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-25",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-26",
+  "load": [
+   "NEW BALANCE BRASILIA"
+  ],
+  "unload": [
+   "CIRCUITINHO SP"
+  ],
+  "kit": [
+   "NEW BALANCE BRASILIA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-27",
+  "load": [
+   "NIGHT CURITIBA + FOZ IGUAÇU + PORTO ALEGRE"
+  ],
+  "unload": [],
+  "kit": [
+   "RUNNING HOUR SP",
+   "NIGHT CURITIBA"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-28",
+  "load": [
+   "RUNNING HOUR",
+   "S RUN RIO BRANCO"
+  ],
+  "unload": [],
+  "kit": [
+   "BLUE SANTOS"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-29",
+  "load": [
+   "BLUE SANTOS",
+   "VIVA ESPORTE - VILA VELHA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-30",
+  "load": [
+   "PETRO BIKE RJ (KIT)",
+   "GIRL POWER BRASILIA",
+   "NIGHT FORTALEZA + MACEIO",
+   "MAKAI JOÃO PESSOA"
+  ],
+  "unload": [
+   "NIGHT TOUR BSB + BEL + S LUIS"
+  ],
+  "kit": [
+   "S RUN RIO BRANCO"
+  ],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-10-31",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT VITORIA",
+   "BANCO DO BRASIL MACEIO",
+   "NIGHT CURITIBA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-01",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE RUN SANTOS",
+   "RUNNING HOUR SP",
+   "NEW BALANCE BRASILIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-02",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-11-03",
+  "load": [
+   "ECO RUN SPECIAL RJ",
+   "PETRO BIKE RJ"
+  ],
+  "unload": [
+   "RUNNING HOUR SP",
+   "BLUE RUN SANTOS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-04",
+  "load": [
+   "ECO RUN CAMPO LARGO"
+  ],
+  "unload": [
+   "NEW BALANCE BRASILIA",
+   "NIGHT VITORIA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-05",
+  "load": [
+   "BLUE RUN RIB PRETO",
+   "VIVA ESPORTE - SERRA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-06",
+  "load": [
+   "LONGEVIDADE MANAUS",
+   "MAKAI SP"
+  ],
+  "unload": [
+   "BANCO DO BRASIL MACEIO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-07",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RUN FOZ DO IGUAÇU",
+   "NIGHT FORTALEZA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-08",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ECO SPECIAL RJ",
+   "S RUN RIO BRANCO",
+   "BLUE RUN RIB PRETO",
+   "PETRO BIKE RJ",
+   "ECO RUN CAMPO LARGO",
+   "GIRL POWER BRASILIA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-09",
+  "load": [
+   "MEIA DE SAMPA"
+  ],
+  "unload": [
+   "PETRO BIKE RJ",
+   "ECO RUN CAMPO LARGO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-10",
+  "load": [
+   "NIGHT BELO HORIZONTE",
+   "RUNNING HOUR RJ"
+  ],
+  "unload": [
+   "BLUE RUN RIB PRETO",
+   "ECO RUN SPECIAL RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-11",
+  "load": [
+   "VERÃO CAMPINAS"
+  ],
+  "unload": [
+   "GIRL POWER BSB"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-12",
+  "load": [
+   "VIVA ESPORTE - BAIXO GUANDU",
+   "AGRO INDAIATUBA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-13",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-14",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT PORTO ALEGRE",
+   "NIGHT BELO HORIZONTE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-15",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VERAO MANAUS",
+   "AGRO POWER INDAIATUBA",
+   "VERÃO CAMPINAS",
+   "MEIA DE SAMPA",
+   "RUNNING HOUR RJ"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-16",
+  "load": [],
+  "unload": [
+   "VERAO CAMPINAS",
+   "AGRO INDAIATUBA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-17",
+  "load": [
+   "BRAVUS SPEED 2"
+  ],
+  "unload": [
+   "MEIA DE SAMPA",
+   "RUNNING HOUR"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-18",
+  "load": [
+   "BLUE CAMPINAS",
+   "BRAVUS SPEED 2"
+  ],
+  "unload": [
+   "NIGHT PORTO ALEGRE"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-19",
+  "load": [
+   "MAKAI BEACH TENIS SP",
+   "VIVA ESPORTE JOAO NEIVA",
+   "TOUR VERÃO FORT + REC + SSA",
+   "BANCO DO BRASIL BELEM"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-20",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Feriado"
+ },
+ {
+  "date": "2026-11-21",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT MACEIO",
+   "NIGHT RIO DE JANEIRO",
+   "NIGHT PIRASSUNUNGA (A CONFIRMAR)"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-22",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "BLUE RUN CAMPINAS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-23",
+  "load": [
+   "VERÃO CURITIBA + PORTO ALEGRE",
+   "ECO SPECIAL SP"
+  ],
+  "unload": [
+   "BLUE CAMPINAS"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-24",
+  "load": [
+   "NIGHT SÃO PAULO",
+   "PETRO TRAVESSIA RJ"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-25",
+  "load": [
+   "VERÃO BH",
+   "FUGA DAS ILHAS"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-26",
+  "load": [
+   "VIVA ESPORTE - VITORIA",
+   "VERÃO BH (AGUA)",
+   "BRAVUS SPEED 2 (ULTIMO CARRO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-27",
+  "load": [
+   "VERÃO RIO DE JANEIRO (CENO)",
+   "ECO RUN SALVADOR"
+  ],
+  "unload": [
+   "NIGHT MACEIO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "NIGHT RUN SÃO PAULO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-29",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "FUGA DAS IILHAS",
+   "VERÃO CURITIBA",
+   "VERÃO FORTALEZA",
+   "PETRO TRAVESSIA RJ",
+   "BRAVUS SPEED 2 SP",
+   "VERÃO BH",
+   "ECO SPECIAL SP",
+   "BANCO DO BRASIL BELEM",
+   "LONG BRADESCO MANAUS"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-11-30",
+  "load": [
+   "VERÃO BRASILIA",
+   "VERÃO RJ"
+  ],
+  "unload": [
+   "FUGA DAS ILHAS",
+   "ECO SPECIAL SP"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-01",
+  "load": [],
+  "unload": [
+   "VERAO BH"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-02",
+  "load": [
+   "PETRO TRAVESSIA SANNTOS",
+   "VERÃO RJ (ULTIMO CARRO)"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-03",
+  "load": [
+   "VIVA ESPORTE - FUNDAO"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-04",
+  "load": [],
+  "unload": [
+   "BRAVUS",
+   "BB BELEM"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-05",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-06",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VERÃO BRASILIA",
+   "VERÃO PORTO ALEGRE",
+   "VERÃO RIO DE JANIERO",
+   "ECO RUN SALVADOR",
+   "PETROBRAS TRAVESSIA SANTOS",
+   "VERÃO RECIFE"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-07",
+  "load": [
+   "S RUN NOVO HAMBURGO"
+  ],
+  "unload": [
+   "PETROBRAS SANTOS",
+   "VERÃO POA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-08",
+  "load": [],
+  "unload": [
+   "VERÃO RJ",
+   "VERÃO BRASILIA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-09",
+  "load": [
+   "VERÃO RIB PRETO"
+  ],
+  "unload": [
+   "VERÃO RJ"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-10",
+  "load": [
+   "TROFEU BRASIL ET 4",
+   "VIVA ESPORTE - CARIACICA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-11",
+  "load": [
+   "VERÃO VITORIA (CENO)",
+   "TROFEU ET 4",
+   "ILUMINA CUIABA"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-12",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-13",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VERÃO BELEM",
+   "VERÃO RIB PRETO",
+   "VERÃO SALVADOR",
+   "TROFEU 4 ETAPA",
+   "S RUN NOVO HAMBURGO"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-14",
+  "load": [
+   "VERÃO VITORIA (BOX)",
+   "ILUMINA CAMPO GRANDE"
+  ],
+  "unload": [
+   "TROFEU BRASIL ET 3",
+   "VERÃO RIB PRETO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-15",
+  "load": [
+   "VERÃO SP",
+   "VERÃO FLORIANOPOLIS"
+  ],
+  "unload": [
+   "S RUN NOVO HAMBURGO"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-16",
+  "load": [
+   "VERÃO SÃO JOSE DOS CAMPOS"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-17",
+  "load": [],
+  "unload": [
+   "VERÃO SSA TOUR"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-18",
+  "load": [],
+  "unload": [
+   "VERÃO BELEM"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-19",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "ILUMINA ENERGISA CAMPO GRANDE",
+   "ILUMINA ENERGISA CUIABA"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-20",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [
+   "VERÃO SÃO PAULO",
+   "VERÃO FLORIANOPOLIS",
+   "VERÃO VITORIA",
+   "VERÃO SÃO JOSE DOS CAMPOS",
+   "DESAFIO PETROBRAS BUZIOS (A CONFIRMAR)"
+  ],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-21",
+  "load": [],
+  "unload": [
+   "VERÃO SP",
+   "VERÃO SJC"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-12-22",
+  "load": [],
+  "unload": [
+   "VERÃO FLORIANOPOLIS",
+   "VERÃO VITORIA"
+  ],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-12-23",
+  "load": [
+   "VERA CRUZ"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": null
+ },
+ {
+  "date": "2026-12-24",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": "1 turno",
+  "holiday": "Vespera"
+ },
+ {
+  "date": "2026-12-25",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": "Natal"
+ },
+ {
+  "date": "2026-12-26",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-27",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-28",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-29",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-30",
+  "load": [],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ },
+ {
+  "date": "2026-12-31",
+  "load": [
+   "VERA CRUZ"
+  ],
+  "unload": [],
+  "kit": [],
+  "events": [],
+  "turnos": null,
+  "holiday": null
+ }
+]

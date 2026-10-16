@@ -49,6 +49,7 @@ const ICONE_NAV: Array<[string, NomeIcone]> = [
   ["/eventos", "eventos"],
   ["/calendario", "calendario"],
   ["/solicitacoes", "solicitacoes"],
+  ["/carga-descarga", "caminhao"],
   ["/arena", "arena"],
   ["/consolidacao", "grafico"],
   ["/historico", "relogio"],

@@ -104,7 +104,7 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
   const db = await getDb();
   const areaIds = sql.join(minhasOuNenhuma(usuario).map((a) => sql`${a}`), sql`, `);
   const escopo = pode(usuario, "historico.ver_tudo")
-    ? eq(historico.eventoId, eventoId)
+    ? and(eq(historico.eventoId, eventoId), pode(usuario, "carga.ver") ? undefined : ne(historico.entidade, "veiculo_carga"))
     : and(
         eq(historico.eventoId, eventoId),
         or(

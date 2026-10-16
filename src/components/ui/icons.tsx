@@ -216,6 +216,19 @@ const DESENHOS = {
     </>
   ),
   regua: <path d="M3 16.5 16.5 3 21 7.5 7.5 21zM7 12.5l1.8 1.8M10 9.5l1.8 1.8M13 6.5l1.8 1.8" />,
+  copiar: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </>
+  ),
+  caminhao: (
+    <>
+      <path d="M2.5 6.5h11.5v9.5H2.5zM14 9.5h4l3 3.2V16h-7" />
+      <circle cx="6.5" cy="17.5" r="1.7" />
+      <circle cx="17" cy="17.5" r="1.7" />
+    </>
+  ),
 } as const;
 
 export type NomeIcone = keyof typeof DESENHOS;

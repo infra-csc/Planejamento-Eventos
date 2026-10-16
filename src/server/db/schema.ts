@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { relations, sql } from "drizzle-orm";
 import type { Arena as ArenaBase } from "@/domain/arena/tipos";
+import type { TipoVeiculo, TrechoIda, TrechoVolta } from "@/domain/carga-descarga";
 import {
   type AnyPgColumn,
   boolean,
@@ -706,8 +707,39 @@ export const anexosRelations = relations(anexos, ({ one }) => ({
   projeto: one(projetos, { fields: [anexos.projetoId], references: [projetos.id] }),
 }));
 
+/**
+ * Veículos de carga e descarga do galpão (um por caminhão do evento), com a ida e a volta. As datas e
+ * horas dos trechos são texto local de São Paulo ("AAAA-MM-DDTHH:mm"): o calendário posiciona pela
+ * data local, sem conversão. Ver domain/carga-descarga.ts.
+ */
+export const veiculosCarga = pgTable(
+  "veiculos_carga",
+  {
+    id: id(),
+    eventoId: text("evento_id")
+      .notNull()
+      .references(() => eventos.id, { onDelete: "cascade" }),
+    tipo: text("tipo").$type<TipoVeiculo>().notNull(),
+    ident: text("ident").notNull().default(""),
+    ida: jsonb("ida").$type<TrechoIda>().notNull(),
+    volta: jsonb("volta").$type<TrechoVolta>().notNull(),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    atualizadoPorId: text("atualizado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [index("veiculos_carga_evento_idx").on(t.eventoId)],
+);
+
+export const veiculosCargaRelations = relations(veiculosCarga, ({ one }) => ({
+  evento: one(eventos, { fields: [veiculosCarga.eventoId], references: [eventos.id] }),
+  criadoPor: one(usuarios, { fields: [veiculosCarga.criadoPorId], references: [usuarios.id] }),
+  atualizadoPor: one(usuarios, { fields: [veiculosCarga.atualizadoPorId], references: [usuarios.id] }),
+}));
+
 export const eventosRelations = relations(eventos, ({ one, many }) => ({
   responsavel: one(usuarios, { fields: [eventos.responsavelId], references: [usuarios.id] }),
+  veiculosCarga: many(veiculosCarga),
   itens: many(eventoItens),
   solicitacoes: many(solicitacoes),
   osVersoes: many(osVersoes),
