@@ -104,7 +104,7 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
           ) : estado === "salvo" ? (
             <span aria-hidden>✓</span>
           ) : null}
-          {estado === "salvando" ? "salvando…" : estado === "erro" ? `não foi possível salvar — ${erro}` : estado === "salvo" ? "salvo" : "salva sozinho ao digitar"}
+          {estado === "salvando" ? "Salvando…" : estado === "erro" ? `Não foi possível salvar: ${erro}` : estado === "salvo" ? "Salvo" : "Salva sozinho ao digitar."}
         </p>
       )}
     </div>

@@ -42,7 +42,7 @@ export function BannerReuniao({
 
   const titulo = emReuniao ? "Reunião de OS em andamento" : "Preparação da reunião de OS";
   const sub = !emReuniao
-    ? "As necessidades das áreas já estão na ata. Inicie a reunião para bloquear novos envios e conferir item a item."
+    ? `As necessidades das áreas já estão na ata e dá para ir conferindo${conferidas > 0 ? ` (${conferidas} de ${total} já conferidas)` : ""}. Ao iniciar a reunião, as áreas não enviam mais pedidos.`
     : total === 0
       ? "A ata está vazia. Inclua linhas decididas na reunião antes de fechar."
       : faltam > 0

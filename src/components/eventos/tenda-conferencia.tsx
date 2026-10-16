@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
-import { Field, Textarea } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
@@ -61,9 +59,10 @@ function Origem({ ls }: { ls: readonly LinhaConferencia[] }) {
 }
 
 /**
- * Tenda na conferência, como no quadro de tendas: uma linha por local com quantas tendas e o total de
- * fechamentos e calhas. As linhas do mesmo local (pedidos diferentes, ou tendas com peças diferentes)
- * aparecem juntas; editar o local acerta tendas e peças de uma vez.
+ * Tenda na conferência, como no quadro de tendas: uma linha por local com as tendas e o total de
+ * fechamentos e calhas, cada número com − e + na própria linha. Mudar um número salva sozinho (um
+ * instante depois do último clique) e deixa o local conferido; zerar as tendas pede confirmação, porque
+ * tira o local da ata. As linhas do mesmo local (pedidos diferentes) aparecem juntas.
  */
 export function BlocoTenda({
   ls,
@@ -82,21 +81,33 @@ export function BlocoTenda({
   const ok = ls.filter((l) => l.conferidoEm).length;
   const tudoOk = ok === ls.length;
   const totalTendas = locais.reduce((a, l) => a + l.tendas, 0);
-  const [editando, setEditando] = useState<Local | null>(null);
-  const grade = cn("grid items-center gap-x-3", colunas.length === 2 ? "grid-cols-[40px_minmax(0,1fr)_64px_88px_64px_40px]" : "grid-cols-[40px_minmax(0,1fr)_64px_88px_40px]");
+  const locaisOk = locais.filter((l) => l.ok === l.ls.length).length;
+  // Check | Local | Tendas | (Fechamentos) | (Calhas) | situação do salvamento.
+  const grade = cn("md:grid md:items-center md:gap-x-3", colunas.length === 2 ? "md:grid-cols-[40px_minmax(0,1fr)_112px_112px_112px_20px]" : colunas.length === 1 ? "md:grid-cols-[40px_minmax(0,1fr)_112px_112px_20px]" : "md:grid-cols-[40px_minmax(0,1fr)_112px_20px]");
 
   return (
-    <section aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
+    <section aria-label={`${p0.nome}: ${locaisOk} de ${locais.length} locais conferidos`} className="border-b border-line-row last:border-b-0">
       <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
         <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
         {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
-        <span className="text-pequeno text-muted">
-          <span className="numero font-medium text-ink">{totalTendas}</span> {totalTendas === 1 ? "tenda" : "tendas"} · {locais.length} {locais.length === 1 ? "local" : "locais"}
+        <span className="numero text-pequeno text-muted">
+          <b className="font-semibold text-ink">{totalTendas}</b> {totalTendas === 1 ? "tenda" : "tendas"}
+          {colunas.map((c) => {
+            const n = locais.reduce((a, l) => a + l.totais[c.papel], 0);
+            return (
+              <span key={c.papel}>
+                {" · "}
+                <b className="font-semibold text-ink">{n}</b> {c.rotulo.toLowerCase()}
+              </span>
+            );
+          })}
+          {" · "}
+          {locais.length} {locais.length === 1 ? "local" : "locais"}
         </span>
         <span className="ml-auto inline-flex shrink-0 items-center gap-2">
-          <span className={cn("numero inline-flex items-center gap-1 text-pequeno", tudoOk ? "text-success" : "text-ink-3")}>
+          <span className={cn("numero inline-flex items-center gap-1 text-pequeno", tudoOk ? "font-medium text-success" : "text-ink-3")}>
             {tudoOk && <Icone nome="check" className="size-3.5" />}
-            {locais.filter((l) => l.ok === l.ls.length).length}/{locais.length} locais
+            {locaisOk}/{locais.length} {locais.length === 1 ? "local conferido" : "locais conferidos"}
           </span>
           {editavel && !tudoOk && (
             <Button variant="ghost" size="xs" onClick={() => onConferir(ls, true)}>
@@ -107,133 +118,184 @@ export function BlocoTenda({
         </span>
       </h4>
 
-      {/* Quadro do local: Local | Tendas | Fechamentos | Calhas, como na planilha de OS. */}
-      <div className="mx-cartao mb-3 overflow-x-auto rounded-controle border border-line-soft">
-        <div className="min-w-[440px]">
-          <div className={cn(grade, "border-b border-line-soft bg-subtle px-2.5 py-1.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted")} aria-hidden>
-            <span />
-            <span>Local</span>
-            <span className="text-right">Tendas</span>
-            {colunas.map((c) => (
-              <span key={c.papel} className="text-right">
-                {c.rotulo}
-              </span>
-            ))}
-            <span />
-          </div>
-          <ul className="m-0 list-none p-0">
-            {locais.map((loc) => {
-              const conferido = loc.ok === loc.ls.length;
-              const descricoes = [...new Set(loc.ls.flatMap((l) => (l.origem?.descricoes ?? []).map((d) => (d.unidades > 1 ? `${d.unidades}× ${d.texto}` : d.texto))))];
-              return (
-                <li key={loc.chave} data-linha={loc.ls[0].id} className={cn(grade, "border-b border-line-row px-2.5 py-2 transition-colors duration-200 last:border-b-0", conferido ? "bg-success-bg/40" : "hover:bg-subtle")}>
-                  {editavel ? (
-                    <button
-                      type="button"
-                      role="checkbox"
-                      data-check=""
-                      data-obrigatoria=""
-                      aria-checked={conferido ? true : loc.ok > 0 ? "mixed" : false}
-                      aria-label={`${p0.nome}, ${loc.nome ?? "sem local"}: ${conferido ? "conferido, clique para desfazer" : "marcar como conferido"}`}
-                      onClick={() => onConferir(loc.ls, !conferido)}
-                      className={cn(
-                        "grid size-9 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-                        conferido ? "border-success bg-success text-white" : loc.ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success/60",
-                      )}
-                    >
-                      <Icone nome="check" tamanho={16} />
-                    </button>
-                  ) : (
-                    <span role="img" aria-label={conferido ? "Conferido" : "Não conferido"} className={cn("grid size-9 place-items-center rounded-full border-2", conferido ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
-                      <Icone nome="check" tamanho={16} />
-                    </span>
-                  )}
-                  <span className="min-w-0">
-                    <Link href={`/eventos/${eventoId}/itens/${loc.ls[0].id}`} className="block truncate text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title="Tendas deste local: descrição, peças e histórico">
-                      {loc.nome ?? "Sem local informado"}
-                    </Link>
-                    <Origem ls={loc.ls} />
-                    {descricoes.length > 0 && (
-                      <span className="block truncate text-rotulo text-ink-2" title={descricoes.join(" · ")}>
-                        {descricoes.join(" · ")}
-                      </span>
-                    )}
-                  </span>
-                  <span className="numero text-right text-secao font-semibold text-ink">{loc.tendas}</span>
-                  {colunas.map((c) => (
-                    <span key={c.papel} className={cn("numero text-right text-corpo", loc.totais[c.papel] ? "font-medium text-ink" : "text-meta")}>
-                      {loc.totais[c.papel]}
-                    </span>
-                  ))}
-                  <span className="flex justify-end">
-                    {editavel && (
-                      <button
-                        type="button"
-                        onClick={() => setEditando(loc)}
-                        aria-label={`Ajustar ${p0.nome} em ${loc.nome ?? "local não informado"}`}
-                        title="Ajustar tendas, fechamentos e calhas deste local"
-                        className="grid size-8 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-3 transition-colors hover:bg-control hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-                      >
-                        <Icone nome="lapis" />
-                      </button>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+      <div className="mx-cartao mb-3 rounded-controle border border-line-soft">
+        {/* Cabeçalho do quadro (no celular cada número leva o próprio rótulo). */}
+        <div className={cn(grade, "hidden border-b border-line-soft bg-subtle px-2.5 py-1.5 text-micro font-semibold uppercase tracking-[0.06em] text-muted md:grid")} aria-hidden>
+          <span />
+          <span>Local</span>
+          <span className="text-center">Tendas</span>
+          {colunas.map((c) => (
+            <span key={c.papel} className="text-center" title={`Total de ${c.rotulo.toLowerCase()} do local (todas as tendas)`}>
+              {c.rotulo}
+            </span>
+          ))}
+          <span />
         </div>
+        <ul className="m-0 list-none p-0">
+          {locais.map((loc) => (
+            <LocalTenda key={`${loc.chave}:${loc.tendas}:${colunas.map((c) => loc.totais[c.papel]).join(",")}`} loc={loc} nome={p0.nome} eventoId={eventoId} colunas={colunas} grade={grade} editavel={editavel} onConferir={onConferir} />
+          ))}
+        </ul>
       </div>
-
-      <Dialog open={editando !== null} onOpenChange={(o) => !o && setEditando(null)}>
-        {editando && <AjusteTendaLocal eventoId={eventoId} nome={p0.nome} local={editando} colunas={colunas} onFechar={() => setEditando(null)} />}
-      </Dialog>
     </section>
   );
 }
 
-/** Diálogo do local: tendas e o total de cada peça por local, como no quadro de tendas. */
-function AjusteTendaLocal({ eventoId, nome, local, colunas, onFechar }: { eventoId: string; nome: string; local: Local; colunas: readonly Coluna[]; onFechar: () => void }) {
-  const [tendas, setTendas] = useState(local.tendas);
-  const [totais, setTotais] = useState<Record<Papel, number>>({ ...local.totais });
-  const [motivo, setMotivo] = useState("");
-  const [pendente, iniciar] = useTransition();
-  const mudou = tendas !== local.tendas || colunas.some((c) => totais[c.papel] !== local.totais[c.papel]);
-  const salvar = () =>
-    iniciar(async () => {
-      const r = await ajustarTendasDoLocalAction(eventoId, { linhaIds: local.ls.map((l) => l.id), tendas, totais: Object.fromEntries(colunas.map((c) => [c.papel, totais[c.papel]])), motivo });
-      if (!r.ok) return toastErro(r.erro);
-      toastSucesso(`${nome} em ${local.nome ?? "local não informado"}: ${tendas} ${tendas === 1 ? "tenda" : "tendas"}${colunas.map((c) => ` · ${totais[c.papel]} ${c.rotulo.toLowerCase()}`).join("")}`);
-      onFechar();
+type Situacao = "parado" | "salvando" | "salvo" | "confirmar-zero";
+
+/** Um local do quadro: check, quem pediu e os números com − e +, salvos sozinhos. */
+function LocalTenda({
+  loc,
+  nome,
+  eventoId,
+  colunas,
+  grade,
+  editavel,
+  onConferir,
+}: {
+  loc: Local;
+  nome: string;
+  eventoId: string;
+  colunas: readonly Coluna[];
+  grade: string;
+  editavel: boolean;
+  onConferir: (ls: readonly LinhaConferencia[], v: boolean) => void;
+}) {
+  const [tendas, setTendas] = useState(loc.tendas);
+  const [totais, setTotais] = useState<Record<Papel, number>>({ ...loc.totais });
+  const [situacao, setSituacao] = useState<Situacao>("parado");
+  const timer = useRef<number | null>(null);
+  const conferido = loc.ok === loc.ls.length;
+  const descricoes = [...new Set(loc.ls.flatMap((l) => (l.origem?.descricoes ?? []).map((d) => (d.unidades > 1 ? `${d.unidades}× ${d.texto}` : d.texto))))];
+  const pedido = loc.ls.every((l) => l.origem) ? loc.ls.reduce((a, l) => a + (l.origem?.quantidadeSolicitada ?? 0), 0) : null;
+  const ajuste = loc.ls.map((l) => l.ultimoAjuste).find(Boolean);
+  const local = loc.nome ?? "local não informado";
+
+  useEffect(() => () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  }, []);
+
+  const gravar = (t: number, tot: Record<Papel, number>) => {
+    setSituacao("salvando");
+    void ajustarTendasDoLocalAction(eventoId, { linhaIds: loc.ls.map((l) => l.id), tendas: t, totais: Object.fromEntries(colunas.map((c) => [c.papel, tot[c.papel]])), motivo: "" }).then((r) => {
+      if (!r.ok) {
+        // Volta aos números de antes: a tela nunca mostra o que não foi gravado.
+        setTendas(loc.tendas);
+        setTotais({ ...loc.totais });
+        setSituacao("parado");
+        toastErro(r.erro);
+        return;
+      }
+      setSituacao("salvo");
+      if (t === 0) toastSucesso(`${nome} em ${local} saiu da ata`);
     });
+  };
+
+  /** Um instante depois do último clique (vários "+" seguidos viram um salvamento só). */
+  const mudar = (t: number, tot: Record<Papel, number>) => {
+    setTendas(t);
+    setTotais(tot);
+    if (timer.current) window.clearTimeout(timer.current);
+    if (t === 0) return setSituacao("confirmar-zero");
+    setSituacao("parado");
+    timer.current = window.setTimeout(() => gravar(t, tot), 700);
+  };
+
+  const desfazerZero = () => {
+    setTendas(loc.tendas);
+    setTotais({ ...loc.totais });
+    setSituacao("parado");
+  };
+
   return (
-    <DialogContent title={`${nome} · ${local.nome ?? "local não informado"}`} description="Quantas tendas vão neste local e o total de fechamentos e calhas do local. Fica conferido e registrado no histórico." width={460}>
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Tendas" htmlFor="tenda-qtd" hint={local.tendas !== tendas ? `era ${local.tendas}` : undefined}>
-            <Stepper id="tenda-qtd" valor={tendas} min={0} onChange={setTendas} autoFocus />
-          </Field>
+    <li data-linha={loc.ls[0].id} className={cn("border-b border-line-row px-2.5 py-2.5 transition-colors duration-200 last:border-b-0", conferido ? "bg-success-bg/40" : "hover:bg-subtle/60")}>
+      <div className={cn(grade, "flex flex-col gap-2.5")}>
+        <div className="flex items-start gap-3 md:contents">
+          {editavel ? (
+            <button
+              type="button"
+              role="checkbox"
+              data-check=""
+              data-obrigatoria=""
+              aria-checked={conferido ? true : loc.ok > 0 ? "mixed" : false}
+              aria-label={`${nome}, ${local}: ${conferido ? "conferido, clique para desfazer" : "marcar como conferido"}`}
+              onClick={() => onConferir(loc.ls, !conferido)}
+              className={cn(
+                "grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                conferido ? "border-success bg-success text-white" : loc.ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
+              )}
+            >
+              <Icone nome="check" tamanho={16} />
+            </button>
+          ) : (
+            <span role="img" aria-label={conferido ? "Conferido" : "Não conferido"} className={cn("grid size-9 shrink-0 place-items-center rounded-full border-2", conferido ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
+              <Icone nome="check" tamanho={16} />
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <Link href={`/eventos/${eventoId}/itens/${loc.ls[0].id}`} className="block truncate text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title="Tendas deste local: descrição, peças e histórico">
+              {loc.nome ?? "Sem local informado"}
+            </Link>
+            <Origem ls={loc.ls} />
+            {descricoes.length > 0 && (
+              <span className="block truncate text-rotulo text-ink-2" title={descricoes.join(" · ")}>
+                {descricoes.join(" · ")}
+              </span>
+            )}
+            {(ajuste || (pedido !== null && pedido !== tendas)) && (
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-rotulo text-warning" title={ajuste ? `Ajustado por ${ajuste.por}: ${ajuste.descricao}` : undefined}>
+                <Icone nome="lapis" className="size-3" />
+                {pedido !== null && pedido !== tendas && (
+                  <span>
+                    pedido <b className="numero font-semibold">{pedido}</b> {pedido === 1 ? "tenda" : "tendas"}
+                  </span>
+                )}
+                {ajuste && <span className="truncate">{pedido !== null && pedido !== tendas ? "· " : ""}ajustado por {ajuste.por}</span>}
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-2 pl-12 sm:grid-cols-2 md:contents">
+          <CampoNumero rotulo="Tendas" local={local} valor={tendas} editavel={editavel} destaque onChange={(v) => mudar(v, totais)} />
           {colunas.map((c) => (
-            <Field key={c.papel} label={c.rotulo} htmlFor={`tenda-${c.papel}`} hint={local.totais[c.papel] !== totais[c.papel] ? `era ${local.totais[c.papel]}` : "total do local"}>
-              <Stepper id={`tenda-${c.papel}`} valor={totais[c.papel]} min={0} onChange={(v) => setTotais((t) => ({ ...t, [c.papel]: v }))} />
-            </Field>
+            <CampoNumero key={c.papel} rotulo={c.rotulo} local={local} valor={totais[c.papel]} editavel={editavel} onChange={(v) => mudar(tendas, { ...totais, [c.papel]: v })} />
           ))}
         </div>
-        {tendas === 0 && <p className="m-0 rounded-controle bg-danger-bg px-3 py-2 text-pequeno text-danger">Com 0 tendas, este local sai da ata.</p>}
-        <Field label="Motivo" htmlFor="tenda-motivo" optional>
-          <Textarea id="tenda-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} placeholder="Ex.: cliente pediu mais uma tenda no buffet" className="min-h-[56px]" />
-        </Field>
+        <span className="hidden justify-end md:flex" aria-live="polite">
+          {situacao === "salvando" ? (
+            <span className="size-3.5 animate-spin rounded-full border-2 border-line-strong border-t-accent" role="status" aria-label="Salvando" />
+          ) : situacao === "salvo" ? (
+            <span role="status" aria-label="Salvo" title="Salvo e conferido">
+              <Icone nome="check-circulo" className="size-4 text-success" />
+            </span>
+          ) : null}
+        </span>
       </div>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="secondary" size="lg" disabled={pendente}>
-            Cancelar
+      {situacao === "confirmar-zero" && (
+        <div role="alertdialog" aria-label="Tirar o local da ata" className="mt-2 flex flex-wrap items-center gap-2 rounded-controle border border-danger-border bg-danger-bg px-3 py-2 md:ml-12">
+          <span className="min-w-0 flex-1 text-pequeno text-danger">Com 0 tendas, {local} sai da ata.</span>
+          <Button variant="secondary" size="xs" onClick={desfazerZero}>
+            Desfazer
           </Button>
-        </DialogClose>
-        <Button variant="primary" size="lg" loading={pendente} disabled={!mudou} motivoDesabilitado="Mude algum número para salvar" onClick={salvar}>
-          Salvar
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+          <Button variant="danger" size="xs" onClick={() => gravar(0, totais)}>
+            Tirar da ata
+          </Button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Um número do quadro (tendas, fechamentos, calhas): − e + para quem confere; no celular, com o rótulo ao lado. */
+function CampoNumero({ rotulo, local, valor, editavel, destaque, onChange }: { rotulo: string; local: string; valor: number; editavel: boolean; destaque?: boolean; onChange: (v: number) => void }) {
+  return (
+    <span className="flex items-center justify-between gap-2 md:justify-center">
+      <span className="text-pequeno text-muted md:hidden">{rotulo}</span>
+      {editavel ? (
+        <Stepper tamanho="sm" valor={valor} min={0} max={10_000} onChange={onChange} label={`${rotulo} em ${local}`} className={cn(destaque && "border-ink-3")} />
+      ) : (
+        <span className={cn("numero text-corpo", valor ? "font-semibold text-ink" : "text-meta")}>{valor}</span>
+      )}
+    </span>
   );
 }

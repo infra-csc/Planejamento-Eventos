@@ -81,7 +81,7 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
       }}
       className={cn(
         "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors disabled:opacity-60",
-        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-transparent hover:border-success hover:text-success/50",
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-line-strong hover:border-success hover:text-success",
       )}
     >
       <Icone nome="check" />

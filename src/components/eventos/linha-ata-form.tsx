@@ -9,6 +9,7 @@ import { Button, SubmitButton } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Pills } from "@/components/ui/pills";
 import { ComboBox } from "@/components/ui/combobox";
+import { Stepper } from "@/components/ui/stepper";
 import { useActionFeedback } from "@/components/ui/use-action-feedback";
 import { ESTADO_INICIAL } from "@/lib/action";
 import { SETOR_LABEL } from "@/domain/os";
@@ -31,6 +32,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
   const [tipo, setTipo] = useState<Tipo>("PROJETO");
   const [projetoId, setProjetoId] = useState("");
   const [pecaId, setPecaId] = useState("");
+  const [quantidade, setQuantidade] = useState(1);
   useActionFeedback(state, onDone);
   const campos = !state.ok ? state.campos : undefined;
   return (
@@ -60,14 +62,16 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         </Field>
       )}
 
-      <div className="grid grid-cols-[120px_1fr] gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr]">
         <Field label="Quantidade" htmlFor="quantidade" error={campos?.quantidade}>
-          <Input id="quantidade" name="quantidade" type="number" min={1} defaultValue={1} required className="numero" />
+          {/* O mesmo − e + do resto da conferência; o valor vai no campo escondido. */}
+          <Stepper id="quantidade" valor={quantidade} min={1} max={10_000} onChange={setQuantidade} />
         </Field>
         <Field label="Destino" htmlFor="destino" optional>
           <Input id="destino" name="destino" maxLength={LIMITES.destino} placeholder="Ex.: Palco principal" />
         </Field>
       </div>
+      <input type="hidden" name="quantidade" value={quantidade} />
       <Field label="Área" htmlFor="areaId" optional>
         <Select id="areaId" name="areaId" defaultValue="" opcoes={[{ value: "", label: "Logística (sem área)" }, ...areas.map((a) => ({ value: a.id, label: a.nome }))]} />
       </Field>

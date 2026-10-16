@@ -82,7 +82,7 @@ function Check({ l, onAlternar }: { l: LinhaConferencia; onAlternar: (id: string
       className={cn(
         "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success/60",
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
         marcada && animar && "motion-safe:animate-marcar",
       )}
     >
@@ -241,7 +241,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
  * md+: check · item · local · qtd · ações, numa linha só. Larguras fixas: alinham em todas as linhas
  * (também nas recuadas dos blocos por item).
  */
-const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_150px_56px_116px]";
+const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_150px_56px_164px]";
 /** Linha conferida ganha um fundo verde quase imperceptível; pendente fica neutra (a maioria é pendente). */
 const fundoLinha = (conferida: boolean) => cn("border-b border-line-row px-cartao py-3 transition-colors duration-200 last:border-b-0 md:py-2.5", conferida ? "bg-success-bg/40 hover:bg-success-bg/70" : "hover:bg-subtle");
 
@@ -251,7 +251,7 @@ function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidade
   if (grupos.length === 1)
     return (
       <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
-        <span className="text-muted">{total > 1 ? `Descrição (as ${total}): ` : "Descrição: "}</span>
+        <span className="text-muted">{total > 1 ? `Descrição das ${total} unidades: ` : "Descrição: "}</span>
         {grupos[0].texto || <span className="text-meta">sem descrição</span>}
       </p>
     );
@@ -293,7 +293,7 @@ function AcoesLinha({ l, eventoId, editavel, onAjustar }: { l: LinhaConferencia;
       {editavel && (
         <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar a quantidade de ${rotuloLinha(l)}`} title="Ajustar a quantidade">
           <Icone nome="lapis" />
-          <span className="md:sr-only">Ajustar</span>
+          Ajustar
         </Button>
       )}
       {l.tipo === "PROJETO" && (
@@ -499,7 +499,7 @@ function LinhaJunta({
           className={cn(
             "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 disabled:cursor-progress",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-transparent hover:border-success hover:text-success/60",
+            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
           )}
         >
           {ok > 0 && !conferida ? <span className="numero text-rotulo font-semibold">{ok}/{ls.length}</span> : <Icone nome="check" tamanho={20} />}

@@ -56,7 +56,7 @@ test("logística confere a ata, registra a reunião e fecha a ata", async ({ pag
   await painel.getByRole("textbox", { name: "Público esperado" }).fill("1200");
   await painel.getByRole("textbox", { name: "Caminhão sai" }).fill("véspera, 6h");
   await painel.getByRole("textbox", { name: "Caminhão sai" }).blur();
-  await expect(painel.getByText("salvo automaticamente", { exact: true })).toBeVisible();
+  await expect(painel.getByText("Salvo", { exact: true })).toBeVisible();
 
   // O fechamento libera depois que a página reflete os presentes gravados.
   await page.reload();
