@@ -4,7 +4,7 @@ import { eventos } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { formatarDataHora } from "@/lib/format";
-import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosRequisitantes } from "../support";
+import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosRequisitantes, type Executor } from "../support";
 
 /* ------------------------------------------------------------------ */
 /* Criar / editar                                                       */
@@ -53,36 +53,43 @@ function periodoEvento(dados: DadosEvento, atual?: { dataMontagem: string; dataF
   return p;
 }
 
+/** Grava o evento (código, período e histórico) dentro de uma transação aberta; não notifica. */
+export async function inserirEvento(tx: Executor, usuario: Pick<UsuarioAtual, "id">, dados: DadosEvento, origem?: string) {
+  const periodo = periodoEvento(dados);
+  const codigo = await proximoCodigo(tx, "evento");
+  const [ev] = await tx
+    .insert(eventos)
+    .values({
+      nome: dados.nome,
+      cliente: dados.cliente ?? "",
+      local: dados.local ?? "",
+      ...periodo,
+      dataReuniao: dados.dataReuniao,
+      janelaAlteracoesAte: dados.janelaAlteracoesAte ?? null,
+      // Quem cria o evento responde por ele.
+      responsavelId: dados.responsavelId ?? usuario.id,
+      codigo,
+      criadoPorId: usuario.id,
+    })
+    .returning();
+  await registrarHistorico(tx, {
+    eventoId: ev.id,
+    entidade: "evento",
+    entidadeId: ev.id,
+    acao: "CRIADO",
+    descricao: `Evento criado${origem ? ` (${origem})` : ""} — ${ev.nome}${ev.cliente ? ` · ${ev.cliente}` : ""}`,
+    usuarioId: usuario.id,
+    dadosDepois: dados,
+  });
+  return ev;
+}
+
 export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
   exigir(usuario, "evento.criar");
-  const periodo = periodoEvento(dados);
+  periodoEvento(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const codigo = await proximoCodigo(tx, "evento");
-    const [ev] = await tx
-      .insert(eventos)
-      .values({
-        nome: dados.nome,
-        cliente: dados.cliente ?? "",
-        local: dados.local ?? "",
-        ...periodo,
-        dataReuniao: dados.dataReuniao,
-        janelaAlteracoesAte: dados.janelaAlteracoesAte ?? null,
-        // Quem cria o evento responde por ele.
-        responsavelId: dados.responsavelId ?? usuario.id,
-        codigo,
-        criadoPorId: usuario.id,
-      })
-      .returning();
-    await registrarHistorico(tx, {
-      eventoId: ev.id,
-      entidade: "evento",
-      entidadeId: ev.id,
-      acao: "CRIADO",
-      descricao: `Evento criado — ${ev.nome}${ev.cliente ? ` · ${ev.cliente}` : ""}`,
-      usuarioId: usuario.id,
-      dadosDepois: dados,
-    });
+    const ev = await inserirEvento(tx, usuario, dados);
     await notificar(tx, {
       usuarioIds: await usuariosRequisitantes(tx),
       tipo: "EVENTO_CRIADO",

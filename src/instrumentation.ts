@@ -14,6 +14,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "itens_padrao_retirados", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Eventos do Ummense de 28/11 a 31/12/2026 (uma vez só; a marca fica em `configuracoes`).
+    try {
+      const { importarLoteDoUmmense } = await import("@/server/services/eventos/ummense");
+      const r = await importarLoteDoUmmense();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "ummense_importado", criados: r.criados.length, jaExistiam: r.jaExistiam, pulados: r.pulados }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "ummense_importado", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
   })();
 }
 
