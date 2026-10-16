@@ -6,6 +6,8 @@ import { requireUsuario } from "@/server/auth/session";
 import { executar } from "@/lib/action";
 import { duplicarVeiculoCarga, excluirVeiculoCarga, salvarVeiculoCarga } from "@/server/services/carga-descarga";
 import { TAGS_CARGA, TIPOS_VEICULO } from "@/domain/carga-descarga";
+import { MAX_LINHAS_IMPORTACAO, MAX_QUANTIDADE } from "@/domain/carga-importacao";
+import { importarVeiculosCarga, previaImportacaoCarga } from "@/server/services/carga-importacao";
 
 /** Data e hora local ("AAAA-MM-DDTHH:mm") ou vazio. */
 const dataHora = z.string().regex(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})?$/, { message: "Data e hora inválidas." });
@@ -72,5 +74,36 @@ export async function excluirVeiculoCargaAction(id: string, eventoId: string) {
   if (typeof id !== "string" || typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   const r = await executar(() => excluirVeiculoCarga(usuario, id), "Veículo excluído");
   revalidar(eventoId);
+  return r;
+}
+
+/* ---------------------------- Importação em lote ---------------------------- */
+
+const LIMITE_ARQUIVO = 5 * 1024 * 1024;
+
+/** Lê a planilha enviada e devolve a conferência linha a linha (nada é gravado aqui). */
+export async function previaImportacaoCargaAction(form: FormData) {
+  const usuario = await requireUsuario();
+  const arquivo = form.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, erro: "Escolha a planilha (.xlsx)." } as const;
+  if (arquivo.size > LIMITE_ARQUIVO) return { ok: false, erro: "Arquivo grande demais (máximo 5 MB)." } as const;
+  if (!/\.xlsx$/i.test(arquivo.name)) return { ok: false, erro: "Envie o arquivo .xlsx do modelo (Excel). Se estiver no Google Planilhas: Arquivo › Fazer download › .xlsx." } as const;
+  const buffer = await arquivo.arrayBuffer();
+  return executar(() => previaImportacaoCarga(usuario, buffer));
+}
+
+const importacaoSchema = z
+  .array(z.object({ linha: z.number().int().min(1), eventoId: z.string().min(1).max(64), quantidade: z.number().int().min(1).max(MAX_QUANTIDADE), veiculo: veiculoSchema.shape.veiculo }))
+  .min(1, { message: "Nenhuma linha válida para importar." })
+  .max(MAX_LINHAS_IMPORTACAO);
+
+/** Grava as linhas válidas conferidas (o servidor revalida tudo e não duplica os já cadastrados). */
+export async function importarCargaAction(payload: unknown) {
+  const usuario = await requireUsuario();
+  const p = importacaoSchema.safeParse(payload);
+  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? "Dados inválidos." } as const;
+  const r = await executar(() => importarVeiculosCarga(usuario, p.data));
+  revalidatePath("/carga-descarga", "layout");
+  if (r.ok) for (const id of r.dados?.eventos ?? []) revalidatePath(`/eventos/${id}`, "layout");
   return r;
 }
