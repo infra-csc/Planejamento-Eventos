@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/field";
@@ -32,6 +33,14 @@ export function EditarProjetoModal({
   const [pecas, setPecas] = useState<PecaOpcao[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, iniciar] = useTransition();
+  // Volta para a Biblioteca do jeito que está (busca, filtros, página), com este projeto selecionado.
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const aqui = (() => {
+    const q = new URLSearchParams(params.toString());
+    q.set("p", projeto.id);
+    return `${pathname}?${q.toString()}`;
+  })();
 
   const abrir = (o: boolean) => {
     setAberto(o);
@@ -61,7 +70,7 @@ export function EditarProjetoModal({
             </section>
             <div>
               {pecas ? (
-                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} grupos={grupos} cancelarHref={`/biblioteca?p=${projeto.id}`} onCancelar={() => setAberto(false)} voltarPara={`/biblioteca?p=${projeto.id}`} />
+                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} grupos={grupos} cancelarHref={aqui} onCancelar={() => setAberto(false)} voltarPara={aqui} />
               ) : erro ? (
                 <FormError message={erro} />
               ) : (

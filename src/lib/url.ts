@@ -38,3 +38,15 @@ export function paginar<T>(lista: T[], paginaParam: string | undefined, porPagin
   const de = (pagina - 1) * porPagina;
   return { itens: lista.slice(de, de + porPagina), pagina, paginas, total, de, porPagina };
 }
+
+/**
+ * Para onde voltar ao sair da página de uma peça (salvar ou cancelar): a lista da Biblioteca do jeito
+ * que a pessoa deixou (setor, busca, página, filtros). Só aceita endereço da própria Biblioteca, para
+ * o parâmetro não virar um redirecionamento para fora.
+ */
+export function voltaDaBiblioteca(volta: string | null | undefined): string {
+  return typeof volta === "string" && /^\/biblioteca(\?[^\s]*)?$/.test(volta) && !volta.includes("//") ? volta : "/biblioteca?aba=pecas";
+}
+
+/** A página de uma peça (editar ou nova), levando junto o endereço da lista para voltar. */
+export const hrefPeca = (caminho: string, volta: string) => `${caminho}?volta=${encodeURIComponent(volta)}`;

@@ -32,6 +32,8 @@ export function PecaForm({
   return (
     <ActionForm action={action} noValidate className="flex flex-col gap-5">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
+      {/* Para onde ir depois de salvar: a lista do jeito que a pessoa deixou (o mesmo do Cancelar). */}
+      <input type="hidden" name="$volta" value={cancelarHref} />
 
       <Section titulo="Identificação" sub="Como a peça aparece no catálogo, nos projetos e nas OS.">
         <div className="grid gap-4 px-cartao py-4 sm:grid-cols-2">

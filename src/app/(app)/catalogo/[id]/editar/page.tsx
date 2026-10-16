@@ -11,10 +11,11 @@ import { Codigo } from "@/components/ui/numero";
 import { PecaForm } from "@/components/catalogo/peca-form";
 import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { AnexosPeca } from "@/components/catalogo/anexos-peca";
+import { voltaDaBiblioteca } from "@/lib/url";
 
 export const metadata: Metadata = { title: "Editar peça" };
 
-export default async function EditarPecaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ nova?: string }> }) {
+export default async function EditarPecaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ nova?: string; volta?: string }> }) {
   const usuario = await requirePermissao("catalogo.gerenciar");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [p, grupos] = await Promise.all([
@@ -24,6 +25,7 @@ export default async function EditarPecaPage({ params, searchParams }: { params:
     }),
     listarGruposProjetos(usuario),
   ]);
+  const volta = voltaDaBiblioteca(sp.volta);
   const nFotos = p.anexos.filter((a) => a.tipo === "IMAGEM").length;
   const nPdfs = p.anexos.length - nFotos;
   return (
@@ -39,7 +41,7 @@ export default async function EditarPecaPage({ params, searchParams }: { params:
           </>
         }
         title={p.nome}
-        breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca?aba=pecas" }, { label: p.codigo }]}
+        breadcrumbs={[{ label: "Biblioteca", href: volta }, { label: p.codigo }]}
         actions={<PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="lg" />}
         className="!mb-0"
       />
@@ -53,7 +55,7 @@ export default async function EditarPecaPage({ params, searchParams }: { params:
           <AnexosPeca pecaId={p.id} anexos={p.anexos} podeGerenciar />
         </Section>
       </div>
-      <PecaForm valores={p} usos={p.usos} grupos={grupos} cancelarHref="/biblioteca?aba=pecas" />
+      <PecaForm valores={p} usos={p.usos} grupos={grupos} cancelarHref={volta} />
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { SETOR_LABEL } from "@/domain/os";
 import { SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
 import { cn } from "@/lib/cn";
-import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
+import { hrefCom, hrefPeca, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { ChipMono, Tag } from "@/components/ui/badge";
 import { TabsNav } from "@/components/ui/tabs-nav";
@@ -82,6 +82,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   const filtrosExtra = { alterado: sp.alterado, alteradoDe: sp.alteradoDe, alteradoAte: sp.alteradoAte, situacao: sp.situacao };
   const chaveAlteracao = [sp.alterado ?? "", sp.alteradoDe ?? "", sp.alteradoAte ?? ""].join("|");
   const limparExtras = { alterado: null, alteradoDe: null, alteradoAte: null, situacao: null };
+  // A lista como está agora: a página da peça volta para cá ao salvar ou cancelar.
+  const voltaAqui = hrefCom("/biblioteca", sp as Record<string, string | undefined>);
 
   const acoes =
     aba === "projetos"
@@ -91,7 +93,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           </ButtonLink>
         )
       : pode(usuario, "catalogo.gerenciar") && (
-          <ButtonLink href="/catalogo/nova" variant="primary" size="lg" className="no-underline">
+          <ButtonLink href={hrefPeca("/catalogo/nova", voltaAqui)} variant="primary" size="lg" className="no-underline">
             Nova peça
           </ButtonLink>
         );
@@ -613,7 +615,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                 <tbody>
                   {pag.itens.map((p) =>
                     gerencia ? (
-                      <LinhaLink key={p.id} className="group" href={`/catalogo/${p.id}/editar`} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
+                      <LinhaLink key={p.id} className="group" href={hrefPeca(`/catalogo/${p.id}/editar`, voltaAqui)} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
                         {celulas(p)}
                       </LinhaLink>
                     ) : (

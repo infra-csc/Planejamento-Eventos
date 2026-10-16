@@ -7,10 +7,13 @@ import { adicionarAnexoPeca, alterarAtivoPeca, criarPeca, editarPeca, impactoIna
 import { pecaSchema } from "@/lib/schemas";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
+import { hrefPeca, voltaDaBiblioteca } from "@/lib/url";
 
 export async function salvarPecaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
   const id = String(formData.get("id") ?? "") || null;
+  // Volta para a lista do jeito que a pessoa deixou (setor, busca, página).
+  const volta = voltaDaBiblioteca(String(formData.get("$volta") ?? ""));
   let novaId: string | null = null;
   try {
     const dados = parseForm(pecaSchema, formData);
@@ -23,8 +26,8 @@ export async function salvarPecaAction(_prev: ActionResult, formData: FormData):
   revalidatePath("/biblioteca");
   // Catálogo em cache (listas de peças e opções dos formulários): expira já.
   invalidarDados(TAGS_DADOS.catalogo);
-  // Peça nova vai para a própria página, já no ponto de incluir fotos e anexos.
-  redirect(novaId ? `/catalogo/${novaId}/editar?nova=1#fotos` : "/catalogo");
+  // Peça nova vai para a própria página, já no ponto de incluir fotos e anexos (levando a volta junto).
+  redirect(novaId ? `${hrefPeca(`/catalogo/${novaId}/editar`, volta)}&nova=1#fotos` : volta);
 }
 
 export async function alterarAtivoPecaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
