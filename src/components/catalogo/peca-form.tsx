@@ -12,14 +12,19 @@ import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
 import { LIMITES, SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
+import type { GrupoProjetoOpcao } from "@/components/projetos/grupo-projeto-field";
+import { OrigemPecaField } from "./origem-peca-field";
 
 export function PecaForm({
   valores,
   usos,
+  grupos,
   cancelarHref,
 }: {
-  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; permiteEmProjeto?: boolean };
+  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; permiteEmProjeto?: boolean; prova?: string | null };
   usos?: Array<{ id: string; nome: string; quantidade: number }>;
+  /** Provas já usadas na Biblioteca (grupos dos projetos), para a origem da peça. */
+  grupos: readonly GrupoProjetoOpcao[];
   cancelarHref: string;
 }) {
   const [state, action] = useActionState(salvarPecaAction, ESTADO_INICIAL);
@@ -39,6 +44,12 @@ export function PecaForm({
           <Field label="Descrição" htmlFor="descricao" optional className="sm:col-span-2">
             <Textarea id="descricao" name="descricao" defaultValue={valores.descricao ?? ""} className="min-h-16" />
           </Field>
+        </div>
+      </Section>
+
+      <Section titulo="Origem" sub="De onde a peça é: do acervo do galpão ou feita para uma prova.">
+        <div className="px-cartao py-4">
+          <OrigemPecaField grupos={grupos} valor={valores.prova} erro={c?.grupoEvento} />
         </div>
       </Section>
 

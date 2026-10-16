@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 /** Anexos do app ganham a miniatura webp (320 px) na lista; o lightbox continua abrindo o original. */
 function miniaturaDe(src: string) {
-  return src.startsWith("/api/anexos/") && !src.includes("?") ? `${src}?w=320` : src;
+  return (src.startsWith("/api/anexos/") || src.startsWith("/api/pecas/anexos/")) && !src.includes("?") ? `${src}?w=320` : src;
 }
 
 /**

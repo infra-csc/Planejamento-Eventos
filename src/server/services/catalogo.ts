@@ -1,6 +1,11 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import sharp from "sharp";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, pecas, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, type Setor } from "@/server/db/schema";
+import { eventoItens, eventos, pecaAnexos, pecas, projetoGrupos, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, type Setor } from "@/server/db/schema";
+import { normalizarGrupoProjeto } from "@/domain/grupos-projeto";
+import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
+import { detectarMimeAnexo, resolverGrupoProjeto } from "./projetos";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { registrarHistorico, buscaSemAcento, type Executor } from "./support";
@@ -16,6 +21,8 @@ export type DadosPeca = {
   descricao: string | null;
   estoqueProprio: number;
   permiteEmProjeto: boolean;
+  /** Prova para a qual a peça foi feita (nome livre, os mesmos grupos dos projetos); null = do galpão; ausente = não mexe. */
+  grupoEvento?: string | null;
 };
 
 type FiltroPecas = { busca?: string; setor?: Setor | "TODOS"; incluirInativas?: boolean };
@@ -29,7 +36,16 @@ async function consultarPecas(filtro: FiltroPecas) {
     const cond = buscaSemAcento([pecas.codigo, pecas.nome, pecas.familia], filtro.busca);
     if (cond) conds.push(cond);
   }
-  return db.query.pecas.findMany({ where: conds.length ? and(...conds) : undefined, orderBy: [asc(pecas.setor), asc(pecas.codigo)] });
+  const lista = await db.query.pecas.findMany({ where: conds.length ? and(...conds) : undefined, orderBy: [asc(pecas.setor), asc(pecas.codigo)], with: { grupo: { columns: { nome: true } } } });
+  // Capa (primeira foto), quantas fotos e quantos PDFs cada peça tem, numa consulta só e sem ler os arquivos.
+  const anexos = lista.length ? await db.select({ pecaId: pecaAnexos.pecaId, id: pecaAnexos.id, tipo: pecaAnexos.tipo }).from(pecaAnexos).where(inArray(pecaAnexos.pecaId, lista.map((p) => p.id))).orderBy(asc(pecaAnexos.criadoEm)) : [];
+  const porPeca = new Map<string, { capaId: string | null; fotos: number; pdfs: number }>();
+  for (const a of anexos) {
+    const atual = porPeca.get(a.pecaId) ?? { capaId: null, fotos: 0, pdfs: 0 };
+    if (a.tipo === "IMAGEM") porPeca.set(a.pecaId, { ...atual, capaId: atual.capaId ?? a.id, fotos: atual.fotos + 1 });
+    else porPeca.set(a.pecaId, { ...atual, pdfs: atual.pdfs + 1 });
+  }
+  return lista.map(({ grupo, ...p }) => ({ ...p, prova: grupo?.nome ?? null, capaFotoId: porPeca.get(p.id)?.capaId ?? null, nFotos: porPeca.get(p.id)?.fotos ?? 0, nPdfs: porPeca.get(p.id)?.pdfs ?? 0 }));
 }
 
 /** Catálogo sem busca (a lista que quase toda tela pede): em cache até uma action mexer nas peças. */
@@ -49,8 +65,9 @@ export async function listarPecas(usuario: UsuarioAtual, filtro: FiltroPecas = {
 export async function obterPeca(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "catalogo.ver");
   const db = await getDb();
-  const p = await db.query.pecas.findFirst({ where: eq(pecas.id, id) });
+  const p = await db.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } });
   if (!p) throw new NaoEncontradoError("Peça");
+  const anexos = await db.select({ id: pecaAnexos.id, tipo: pecaAnexos.tipo, nomeArquivo: pecaAnexos.nomeArquivo, tamanho: pecaAnexos.tamanho }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, id)).orderBy(asc(pecaAnexos.criadoEm));
   // projetos ativos que usam a peça (na versão atual)
   const usos = await db
     .select({ id: projetos.id, nome: projetos.nome, codigo: projetos.codigo, quantidade: projetoItens.quantidade })
@@ -58,7 +75,8 @@ export async function obterPeca(usuario: UsuarioAtual, id: string) {
     .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
     .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
     .where(and(eq(projetoItens.pecaId, id), eq(projetos.ativo, true)));
-  return { ...p, usos };
+  const { grupo, ...resto } = p;
+  return { ...resto, prova: grupo?.nome ?? null, anexos, usos };
 }
 
 async function validarCodigoUnico(id: string | null, codigo: string, ex?: Executor) {
@@ -79,31 +97,43 @@ export async function criarPeca(usuario: UsuarioAtual, dados: DadosPeca) {
 /** Cadastra a peça dentro de uma transação já aberta (ex.: vincular item fora do catálogo a uma peça nova). */
 export async function criarPecaNaTransacao(ex: Executor, usuario: UsuarioAtual, dados: DadosPeca) {
   exigir(usuario, "catalogo.gerenciar");
+  normalizarGrupoProjeto(dados.grupoEvento);
   await validarCodigoUnico(null, dados.codigo, ex);
-  const [p] = await ex.insert(pecas).values({ ...dados, criadoPorId: usuario.id }).returning();
+  const { grupoEvento, ...campos } = dados;
+  const grupoId = await resolverGrupoProjeto(ex, usuario, grupoEvento);
+  const [p] = await ex.insert(pecas).values({ ...campos, grupoId, criadoPorId: usuario.id }).returning();
   await registrarHistorico(ex, { entidade: "peca", entidadeId: p.id, acao: "CRIADA", descricao: `Peça ${p.codigo} · ${p.nome} criada.`, usuarioId: usuario.id, dadosDepois: dados });
   return p;
 }
 
 export async function editarPeca(usuario: UsuarioAtual, id: string, dados: DadosPeca) {
   exigir(usuario, "catalogo.gerenciar");
+  normalizarGrupoProjeto(dados.grupoEvento);
   await validarCodigoUnico(id, dados.codigo);
   const db = await getDb();
-  const atual = await db.query.pecas.findFirst({ where: eq(pecas.id, id) });
-  if (!atual) throw new NaoEncontradoError("Peça");
-  const [p] = await db.update(pecas).set(dados).where(eq(pecas.id, id)).returning();
-  const antes: Partial<DadosPeca> = {};
-  const depois: Partial<DadosPeca> = {};
-  for (const k of Object.keys(dados) as (keyof DadosPeca)[]) {
-    if (atual[k] !== dados[k]) {
-      (antes as Record<string, unknown>)[k] = atual[k];
-      (depois as Record<string, unknown>)[k] = dados[k];
+  return db.transaction(async (tx) => {
+    const atual = await tx.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } });
+    if (!atual) throw new NaoEncontradoError("Peça");
+    const { grupoEvento, ...campos } = dados;
+    const grupoId = grupoEvento === undefined ? atual.grupoId : await resolverGrupoProjeto(tx, usuario, grupoEvento);
+    const [p] = await tx.update(pecas).set({ ...campos, grupoId }).where(eq(pecas.id, id)).returning();
+    const antes: Record<string, unknown> = {};
+    const depois: Record<string, unknown> = {};
+    for (const k of Object.keys(campos) as (keyof typeof campos)[]) {
+      if (atual[k] !== campos[k]) {
+        antes[k] = atual[k];
+        depois[k] = campos[k];
+      }
     }
-  }
-  if (Object.keys(depois).length) {
-    await registrarHistorico(db, { entidade: "peca", entidadeId: id, acao: "EDITADA", descricao: `Peça ${p.codigo} alterada (${Object.keys(depois).join(", ")}).`, usuarioId: usuario.id, dadosAntes: antes, dadosDepois: depois });
-  }
-  return p;
+    if (grupoId !== atual.grupoId) {
+      antes.prova = atual.grupo?.nome ?? "galpão";
+      depois.prova = grupoId ? ((await tx.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.id, grupoId), columns: { nome: true } }))?.nome ?? "") : "galpão";
+    }
+    if (Object.keys(depois).length) {
+      await registrarHistorico(tx, { entidade: "peca", entidadeId: id, acao: "EDITADA", descricao: `Peça ${p.codigo} alterada (${Object.keys(depois).join(", ")}).`, usuarioId: usuario.id, dadosAntes: antes, dadosDepois: depois });
+    }
+    return p;
+  });
 }
 
 export async function alterarAtivoPeca(usuario: UsuarioAtual, id: string, ativo: boolean) {
@@ -175,4 +205,83 @@ export async function contarPecasEmBom() {
   const mapa = new Map<string, number>();
   for (const r of rows) mapa.set(r.pecaId, (mapa.get(r.pecaId) ?? 0) + 1);
   return mapa;
+}
+
+/* ------------------------------------------------------------------ */
+/* Fotos e anexos da peça                                               */
+/* ------------------------------------------------------------------ */
+
+const LIMITE_ANEXO_PECA = 8 * 1024 * 1024;
+export const MAX_ANEXOS_PECA = 20;
+/** Lado maior gravado: foto de celular (4000 px, 5 MB) vira ~2000 px e algumas centenas de KB. */
+const LADO_MAX = 2000;
+
+/**
+ * Inclui uma foto (PNG, JPG ou WEBP) ou um PDF, conferidos pelo conteúdo do arquivo (não pela extensão).
+ * Foto é gravada reduzida e já na orientação certa; PDF, como veio.
+ */
+export async function adicionarAnexoPeca(usuario: UsuarioAtual, pecaId: string, file: File) {
+  exigir(usuario, "catalogo.gerenciar");
+  if (file.size === 0) throw new ValidacaoError("Arquivo vazio.");
+  if (file.size > LIMITE_ANEXO_PECA) throw new ValidacaoError(`"${file.name}" passa de 8 MB.`);
+  const original = Buffer.from(await file.arrayBuffer());
+  const mime = detectarMimeAnexo(new Uint8Array(original));
+  if (!mime) throw new ValidacaoError(`"${file.name}" não é foto (PNG, JPG, WEBP) nem PDF.`);
+  const db = await getDb();
+  const p = await db.query.pecas.findFirst({ where: eq(pecas.id, pecaId), columns: { id: true, codigo: true } });
+  if (!p) throw new NaoEncontradoError("Peça");
+  const [{ n }] = await db.select({ n: count() }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, pecaId));
+  if (n >= MAX_ANEXOS_PECA) throw new ValidacaoError(`A peça já tem ${MAX_ANEXOS_PECA} fotos e anexos. Remova algum antes de incluir outro.`);
+  const pdf = mime === "application/pdf";
+  const conteudo = pdf
+    ? original
+    : await sharp(original)
+        .rotate()
+        .resize({ width: LADO_MAX, height: LADO_MAX, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 82, mozjpeg: true })
+        .toBuffer()
+        .catch(() => {
+          throw new ValidacaoError(`Não consegui ler a imagem "${file.name}". Envie outra foto.`);
+        });
+  const nome = pdf ? file.name.slice(0, 160) : file.name.replace(/\.[^.]+$/, "").slice(0, 150) + ".jpg";
+  const valor = await gravarArquivo(`pecas/${pecaId}/${randomUUID()}`, conteudo);
+  try {
+    const [a] = await db
+      .insert(pecaAnexos)
+      .values({ pecaId, tipo: pdf ? "PDF" : "IMAGEM", nomeArquivo: nome, mime: pdf ? mime : "image/jpeg", tamanho: conteudo.byteLength, conteudo: valor, criadoPorId: usuario.id })
+      .returning({ id: pecaAnexos.id });
+    await registrarHistorico(db, { entidade: "peca", entidadeId: pecaId, acao: "ANEXO_ADICIONADO", descricao: `Peça ${p.codigo}: ${pdf ? "anexo" : "foto"} "${nome}" incluído.`, usuarioId: usuario.id });
+    return a;
+  } catch (e) {
+    if (valor !== conteudo) await apagarArquivo(valor);
+    throw e;
+  }
+}
+
+export async function removerAnexoPeca(usuario: UsuarioAtual, anexoId: string) {
+  exigir(usuario, "catalogo.gerenciar");
+  const db = await getDb();
+  const [a] = await db.select({ id: pecaAnexos.id, pecaId: pecaAnexos.pecaId, nomeArquivo: pecaAnexos.nomeArquivo, inicio: inicioDoArquivo(pecaAnexos.conteudo) }).from(pecaAnexos).where(eq(pecaAnexos.id, anexoId));
+  if (!a) throw new NaoEncontradoError("Anexo");
+  await db.delete(pecaAnexos).where(eq(pecaAnexos.id, anexoId));
+  await apagarArquivo(a.inicio);
+  await registrarHistorico(db, { entidade: "peca", entidadeId: a.pecaId, acao: "ANEXO_REMOVIDO", descricao: `Anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
+  return a.pecaId;
+}
+
+/** Metadados do anexo, sem o arquivo (para responder 304 sem ler o conteúdo). */
+export async function obterAnexoPecaMeta(usuario: UsuarioAtual, anexoId: string) {
+  exigir(usuario, "catalogo.ver");
+  const db = await getDb();
+  const a = await db.query.pecaAnexos.findFirst({ where: eq(pecaAnexos.id, anexoId), columns: { conteudo: false } });
+  if (!a) throw new NaoEncontradoError("Anexo");
+  return a;
+}
+
+export async function obterAnexoPeca(usuario: UsuarioAtual, anexoId: string) {
+  exigir(usuario, "catalogo.ver");
+  const db = await getDb();
+  const a = await db.query.pecaAnexos.findFirst({ where: eq(pecaAnexos.id, anexoId) });
+  if (!a) throw new NaoEncontradoError("Anexo");
+  return { ...a, conteudo: await lerArquivo(a.conteudo) };
 }

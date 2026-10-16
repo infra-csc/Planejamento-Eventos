@@ -431,7 +431,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
   // Quem gerencia o catálogo vê também as peças inativas (marcadas), para poder reativá-las.
   const pecasLista = gerencia ? await listarPecas(usuario, { incluirInativas: true }) : pecasTodas;
   const setor = (SETORES as readonly string[]).includes(sp.setor ?? "") ? (sp.setor as Setor) : null;
-  const buscadas = termo ? pecasLista.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia}`, termo)) : pecasLista;
+  const buscadas = termo ? pecasLista.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.familia} ${p.prova ?? ""}`, termo)) : pecasLista;
   const situacaoPecas = lerSituacao(sp.situacao, gerencia);
   const noSetor = setor ? buscadas.filter((p) => p.setor === setor) : buscadas;
   const filtradas = noSetor.filter((p) => naSituacao(p.ativo, situacaoPecas) && dentroDoFiltroAlteracao(p.atualizadoEm, alteracao));
@@ -464,11 +464,22 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         <Codigo>{p.codigo}</Codigo>
       </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
+        <span className="flex items-start gap-3">
+        {/* Capa (primeira foto): miniatura de 160 px; sem foto, um quadro vazio para as linhas alinharem. */}
+        {p.capaFotoId ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`/api/pecas/anexos/${p.capaFotoId}?w=160`} alt="" loading="lazy" decoding="async" className="mt-0.5 size-11 shrink-0 rounded-controle border border-line bg-white object-cover" />
+        ) : (
+          <span aria-hidden className="mt-0.5 hidden size-11 shrink-0 rounded-controle border border-dashed border-line bg-subtle sm:block" />
+        )}
+        <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
           <Codigo className="text-rotulo text-ink-3 sm:hidden">{p.codigo}</Codigo>
           <span className="line-clamp-2 text-corpo font-medium text-ink" title={p.nome}>
             {p.nome}
           </span>
+          {p.prova && <Tag tom="info">prova: {p.prova}</Tag>}
+          {p.nPdfs > 0 && <Tag tom="muted">{p.nPdfs === 1 ? "PDF" : `${p.nPdfs} PDFs`}</Tag>}
           {!p.permiteEmProjeto && <Tag tom="muted">só fora de projeto</Tag>}
           {!p.disponivelEmSolicitacoes && <Tag tom="muted">fora das solicitações</Tag>}
           {!p.ativo && <Tag tom="warning">inativa</Tag>}
@@ -477,6 +488,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           {SETOR_LABEL[p.setor]} · {p.familia || "sem família"}
           <span className="numero sm:hidden"> · em {emBom.get(p.id) ?? 0} {(emBom.get(p.id) ?? 0) === 1 ? "projeto" : "projetos"}</span>
           <span className="lg:hidden"> · alterada em {formatarDia(p.atualizadoEm)}</span>
+        </span>
+        </span>
         </span>
       </th>
       <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">{SETOR_LABEL[p.setor]}</td>
@@ -524,7 +537,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     <>
       {cabecalho}
       <div className={barraCls}>
-        <BuscaUrl largura={320} key="busca-pecas" placeholder="Buscar por código, nome ou família" ariaLabel="Buscar peça do catálogo" />
+        <BuscaUrl largura={320} key="busca-pecas" placeholder="Buscar por código, nome, família ou prova" ariaLabel="Buscar peça do catálogo" />
         {/* Celular: os setores rolam de lado numa linha só, em vez de quebrar a trilha. */}
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pills

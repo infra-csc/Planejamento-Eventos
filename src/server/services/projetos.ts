@@ -5,7 +5,7 @@ import { anexos, eventoItens, eventos, historico, pecas, projetoGrupos, projetoI
 import { normalizarGrupoProjeto } from "@/domain/grupos-projeto";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, ValidacaoError } from "@/domain/errors";
-import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento } from "./support";
+import { notificar, proximoCodigo, registrarHistorico, usuariosLogistica, buscaSemAcento, type Executor } from "./support";
 import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 
@@ -31,7 +31,7 @@ export async function listarGruposProjetos(usuario: UsuarioAtual) {
 
 type ProjetoTx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
 
-export async function resolverGrupoProjeto(tx: ProjetoTx, usuario: UsuarioAtual, nome: string | null | undefined) {
+export async function resolverGrupoProjeto(tx: ProjetoTx | Executor, usuario: UsuarioAtual, nome: string | null | undefined) {
   const grupo = normalizarGrupoProjeto(nome);
   if (!grupo) return null;
   const [criado] = await tx.insert(projetoGrupos).values({ ...grupo, criadoPorId: usuario.id })

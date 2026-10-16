@@ -168,11 +168,35 @@ export const pecas = pgTable("pecas", {
   permiteEmProjeto: boolean("permite_em_projeto").notNull().default(true),
   /** false = fica no catálogo, mas não aparece nas listas de seleção das solicitações (ex.: marcenaria, por enquanto). */
   disponivelEmSolicitacoes: boolean("disponivel_solicitacao").notNull().default(true),
+  /** Prova para a qual a peça foi feita (os mesmos grupos dos projetos); null = do galpão, de uso geral. */
+  grupoId: text("grupo_id").references((): AnyPgColumn => projetoGrupos.id, { onDelete: "set null" }),
   ativo: boolean("ativo").notNull().default(true),
   criadoPorId: text("criado_por_id").references(() => usuarios.id),
   criadoEm: criadoEm(),
   atualizadoEm: atualizadoEm(),
 });
+
+/**
+ * Fotos (IMAGEM, gravadas reduzidas) e anexos PDF de uma peça do catálogo. Como os anexos dos projetos:
+ * a coluna guarda o arquivo no banco ou a referência ao Object Storage (ver armazenamento.ts).
+ */
+export const pecaAnexos = pgTable(
+  "peca_anexos",
+  {
+    id: id(),
+    pecaId: text("peca_id")
+      .notNull()
+      .references(() => pecas.id, { onDelete: "cascade" }),
+    tipo: anexoTipoEnum("tipo").notNull(),
+    nomeArquivo: text("nome_arquivo").notNull(),
+    mime: text("mime").notNull(),
+    tamanho: integer("tamanho").notNull(),
+    conteudo: bytea("conteudo").notNull(),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("peca_anexos_peca_tipo_criado_idx").on(t.pecaId, t.tipo, t.criadoEm)],
+);
 
 /** Grupos organizacionais livres (nomes de eventos), sem vínculo com a tabela de eventos. */
 export const projetoGrupos = pgTable("projeto_grupos", {
@@ -676,8 +700,14 @@ export const usuariosRelations = relations(usuarios, ({ one }) => ({
   area: one(areas, { fields: [usuarios.areaId], references: [areas.id] }),
 }));
 
-export const pecasRelations = relations(pecas, ({ many }) => ({
+export const pecasRelations = relations(pecas, ({ many, one }) => ({
   projetoItens: many(projetoItens),
+  grupo: one(projetoGrupos, { fields: [pecas.grupoId], references: [projetoGrupos.id] }),
+  anexos: many(pecaAnexos),
+}));
+
+export const pecaAnexosRelations = relations(pecaAnexos, ({ one }) => ({
+  peca: one(pecas, { fields: [pecaAnexos.pecaId], references: [pecas.id] }),
 }));
 
 export const projetosRelations = relations(projetos, ({ many, one }) => ({
@@ -689,6 +719,7 @@ export const projetosRelations = relations(projetos, ({ many, one }) => ({
 
 export const projetoGruposRelations = relations(projetoGrupos, ({ many, one }) => ({
   projetos: many(projetos),
+  pecas: many(pecas),
   criadoPor: one(usuarios, { fields: [projetoGrupos.criadoPorId], references: [usuarios.id] }),
 }));
 

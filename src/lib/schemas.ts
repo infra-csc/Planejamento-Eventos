@@ -121,6 +121,17 @@ export const pecaSchema = z.object({
   descricao: textoOpcional(LIMITES.justificativa),
   estoqueProprio: z.coerce.number().int().min(0).default(0),
   permiteEmProjeto: bool,
+  /** Prova da peça (nome livre); vazio = do galpão; ausente no formulário = não mexe. */
+  grupoEvento: textoOpcional(120).optional(),
+  /** "1" quando a pessoa marcou "De uma prova": aí a prova é obrigatória. */
+  deProva: z.string().optional(),
+}).superRefine((v, ctx) => {
+  if (v.deProva === "1" && !v.grupoEvento) ctx.addIssue({ code: "custom", path: ["grupoEvento"], message: "Escolha a prova (ou marque “Do galpão”)." });
+}).transform((v) => {
+  // "deProva" só serve à validação acima; o serviço não recebe.
+  const dados = { ...v };
+  delete dados.deProva;
+  return dados;
 });
 
 export const projetoSchema = z.object({
