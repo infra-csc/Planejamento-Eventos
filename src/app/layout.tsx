@@ -17,7 +17,7 @@ const robotoMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Planejamento de Eventos · Norte Mkt", template: "%s · Norte Mkt" },
+  title: { default: "Planejamento de Eventos", template: "%s · Planejamento" },
   description: "Catálogo de peças, projetos padrão, ata da reunião de OS, OS automática e solicitações respondidas item a item.",
   // Sistema interno: não deve aparecer em buscadores.
   robots: { index: false, follow: false },

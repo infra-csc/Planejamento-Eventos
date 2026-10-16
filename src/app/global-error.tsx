@@ -16,7 +16,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   return (
     <html lang="pt-BR">
       <body>
-        <title>Erro · Norte Mkt</title>
+        <title>Erro · Planejamento</title>
         <main className="flex min-h-screen items-center justify-center bg-page px-6">
           <div role="alert" className="max-w-[440px]">
             <div className="mb-6 flex items-center gap-2.5">

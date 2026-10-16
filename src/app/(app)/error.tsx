@@ -14,7 +14,7 @@ export default function ErroApp({ error, reset }: { error: Error & { digest?: st
   return (
     <div role="alert" className="mx-auto flex max-w-md flex-col items-center px-4 py-14 text-center sm:py-20">
       {/* Componente cliente não exporta metadata: o React 19 leva o <title> para o <head>. */}
-      <title>Erro · Norte Mkt</title>
+      <title>Erro · Planejamento</title>
       <span aria-hidden className="mb-4 grid size-11 place-items-center rounded-full bg-danger-bg text-danger">
         <Icone nome={semConexao ? "alerta" : "erro"} tamanho={20} />
       </span>

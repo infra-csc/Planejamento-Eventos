@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const ev = await obterEventoCache(usuario, id).catch(() => null);
   // `template`: páginas com título próprio (Editar evento) ganham o código do evento e o sufixo do app.
-  return ev ? { title: { default: `${ev.codigo} ${ev.nome}`, template: `%s · ${ev.codigo} · Norte Mkt` } } : { title: "Evento" };
+  return ev ? { title: { default: `${ev.codigo} ${ev.nome}`, template: `%s · ${ev.codigo} · Planejamento` } } : { title: "Evento" };
 }
 
 const plural = (n: number, s: string, p: string) => (n === 0 ? null : `${n} ${n === 1 ? s : p}`);
