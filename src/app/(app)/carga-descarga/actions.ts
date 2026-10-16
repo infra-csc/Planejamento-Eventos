@@ -46,7 +46,7 @@ const veiculoSchema = z.object({
 });
 
 const revalidar = (eventoId?: string) => {
-  revalidatePath("/carga-descarga");
+  revalidatePath("/carga-descarga", "layout");
   if (eventoId) revalidatePath(`/eventos/${eventoId}`, "layout");
 };
 

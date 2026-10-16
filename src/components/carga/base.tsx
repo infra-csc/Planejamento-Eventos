@@ -31,6 +31,12 @@ export function IconeVeiculo({ tipo, className }: { tipo: TipoVeiculo; className
   );
 }
 
+const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "Qui 22 out" a partir de "AAAA-MM-DD". */
+export const diaCurto = (d: string) => `${DIAS[new Date(`${d}T12:00:00Z`).getUTCDay()]} ${Number(d.slice(8, 10))} ${MESES[Number(d.slice(5, 7)) - 1]}`;
+
 /** Cor de cada tag de carga (a mesma no filtro, no card e no formulário). */
 export const COR_TAG: Record<TagCarga, string> = { kit: "#9b2c4f", ceno: "#6b4fa3", estrutura: "#4f5b6b", ativacao: "#1f7a6e" };
 

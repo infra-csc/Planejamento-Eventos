@@ -408,7 +408,7 @@ export function CalendarioCarga({
           </span>
         </div>
         <div ref={barrasRef} className="relative overflow-x-auto pb-1">
-          <div className="flex h-[76px] min-w-max items-end gap-[3px]">
+          <div className="flex h-[76px] w-full items-end gap-[3px]" style={{ minWidth: semanas.length * 17 }}>
             {semanas.map((w, i) => {
               const t = totais[i];
               const total = t.carga + t.descarga + t.evento;
@@ -426,9 +426,9 @@ export function CalendarioCarga({
                   title={`${diaMesTexto(w)} – ${diaMesTexto(somarDias(w, 6))}: ${t.carga} cargas, ${t.descarga} descargas, ${t.evento} eventos`}
                   aria-label={`Semana de ${diaMesTexto(w)}: ${t.carga} cargas, ${t.descarga} descargas, ${t.evento} eventos`}
                   aria-current={sel ? "true" : undefined}
-                  className={cn("group flex h-full w-[14px] cursor-pointer flex-col items-center justify-end gap-0.5 rounded-[3px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent", sel && "bg-selected")}
+                  className={cn("group flex h-full min-w-[14px] flex-1 cursor-pointer flex-col items-center justify-end gap-0.5 rounded-[3px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent", sel && "bg-selected")}
                 >
-                  <span className={cn("flex w-[10px] flex-col-reverse overflow-hidden rounded-[2px]", total === 0 && "h-px bg-line")} style={{ height: total ? `${(total / maxSemana) * 54}px` : undefined }}>
+                  <span className={cn("flex w-[calc(100%-4px)] max-w-6 flex-col-reverse overflow-hidden rounded-[2px]", total === 0 && "h-px bg-line")} style={{ height: total ? `${(total / maxSemana) * 54}px` : undefined }}>
                     <span className="block bg-info" style={{ flexGrow: t.carga }} />
                     <span className="block bg-warning" style={{ flexGrow: t.descarga }} />
                     <span className="block bg-success" style={{ flexGrow: t.evento }} />

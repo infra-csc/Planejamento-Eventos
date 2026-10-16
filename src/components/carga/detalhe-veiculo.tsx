@@ -89,8 +89,41 @@ export function TrechosVeiculo({ v }: { v: VeiculoCargaView }) {
   );
 }
 
+/** A ida e a volta em uma linha cada, com os horários que contam (lista do cadastro). */
+export function ResumoTrechos({ v }: { v: VeiculoCargaView }) {
+  const i = v.ida;
+  const o = v.volta;
+  const ida = !i.ativo
+    ? null
+    : [
+        i.inicioCarga && i.fimCarga ? `carga ${dataHoraCurta(i.inicioCarga)} → fim ${dataHoraCurta(i.fimCarga)}` : i.fimCarga ? `fim carga ${dataHoraCurta(i.fimCarga)}` : i.inicioCarga ? `carga ${dataHoraCurta(i.inicioCarga)}` : "",
+        i.saida && `saída ${dataHoraCurta(i.saida)}`,
+        i.destino,
+        (i.descarga || i.chegadaDestino) && `descarga ${dataHoraCurta(i.descarga || i.chegadaDestino)}`,
+      ].filter(Boolean);
+  const volta = !o.ativo
+    ? null
+    : [
+        o.fimCarga ? `fim carga ${dataHoraCurta(o.fimCarga)}` : o.inicioCarga ? `carga ${dataHoraCurta(o.inicioCarga)}` : "",
+        o.saida && `saída ${dataHoraCurta(o.saida)}`,
+        (o.descargaGalpao || o.chegadaGalpao) && `descarga galpão ${dataHoraCurta(o.descargaGalpao || o.chegadaGalpao)}`,
+      ].filter(Boolean);
+  const linha = (rotulo: string, partes: Array<string | false> | null) => (
+    <p className={cn("numero m-0 text-pequeno", partes ? "text-ink-2" : "text-meta")}>
+      <span className="font-medium text-ink-3">{rotulo}: </span>
+      {partes ? partes.join(" · ") || "sem horários" : "descartada"}
+    </p>
+  );
+  return (
+    <div className="flex flex-col gap-0.5">
+      {linha("Ida", ida)}
+      {linha("Volta", volta)}
+    </div>
+  );
+}
+
 /** Ações de um veículo: excluir (com confirmação no próprio rodapé), duplicar e editar. */
-export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento }: { v: VeiculoCargaView; podeEditar: boolean; onEditar: () => void; onFeito: () => void; nomeEvento: string }) {
+export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento, tamanho = "md" }: { v: VeiculoCargaView; podeEditar: boolean; onEditar: () => void; onFeito: () => void; nomeEvento: string; tamanho?: "sm" | "md" }) {
   const [confirmar, setConfirmar] = useState(false);
   const [pendente, iniciar] = useTransition();
   if (!podeEditar) return null;
@@ -98,12 +131,12 @@ export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento }: {
   return confirmar ? (
     <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
       <span className="mr-auto text-pequeno text-danger">Excluir {rotulo} de {nomeEvento}?</span>
-      <Button variant="secondary" size="md" disabled={pendente} onClick={() => setConfirmar(false)}>
+      <Button variant="secondary" size={tamanho} disabled={pendente} onClick={() => setConfirmar(false)}>
         Não
       </Button>
       <Button
         variant="danger"
-        size="md"
+        size={tamanho}
         loading={pendente}
         onClick={() =>
           iniciar(async () => {
@@ -119,13 +152,13 @@ export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento }: {
     </div>
   ) : (
     <>
-      <Button variant="dangerOutline" size="md" onClick={() => setConfirmar(true)} className="sm:mr-auto">
+      <Button variant="dangerOutline" size={tamanho} onClick={() => setConfirmar(true)} className="sm:mr-auto">
         <Icone nome="lixeira" />
         Excluir
       </Button>
       <Button
         variant="secondary"
-        size="md"
+        size={tamanho}
         loading={pendente}
         title="Cria uma cópia com o mesmo cadastro (ida e volta)"
         onClick={() =>
@@ -140,7 +173,7 @@ export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento }: {
         <Icone nome="copiar" />
         Duplicar
       </Button>
-      <Button variant="primary" size="md" onClick={onEditar}>
+      <Button variant="primary" size={tamanho} onClick={onEditar}>
         <Icone nome="lapis" />
         Editar
       </Button>

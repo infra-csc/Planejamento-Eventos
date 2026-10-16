@@ -9,6 +9,12 @@ import { registrarHistorico } from "./support";
 /** Veículo como a tela usa: os dados, o evento e quem cadastrou/alterou por último. */
 export type VeiculoCargaView = VeiculoCarga & { atualizadoEm: string; atualizadoPor: string | null; criadoPor: string | null };
 
+/** Cadastro e duplicação: a mesma data em criado e atualizado (o default do banco pode diferir por milissegundos). */
+const nascimento = () => {
+  const agora = new Date();
+  return { criadoEm: agora, atualizadoEm: agora };
+};
+
 const descricaoVeiculo = (v: Pick<DadosVeiculo, "tipo" | "ident">, evento: string) => `${TIPO_VEICULO_LABEL[v.tipo]}${v.ident ? ` (${v.ident})` : ""} · ${evento}`;
 
 /**
@@ -43,7 +49,7 @@ export async function listarCarga(usuario: UsuarioAtual, filtro: { eventoId?: st
     ida: v.ida,
     volta: v.volta,
     atualizadoEm: v.atualizadoEm.toISOString(),
-    // Só conta como alteração depois do cadastro (no cadastro as duas datas são iguais).
+    // Só conta como alteração depois do cadastro (o cadastro grava as duas datas iguais).
     atualizadoPor: v.atualizadoPorId && v.atualizadoEm.getTime() !== v.criadoEm.getTime() ? (nomes.get(v.atualizadoPorId) ?? null) : null,
     criadoPor: criadoPor ?? null,
   }));
@@ -87,7 +93,7 @@ export async function salvarVeiculoCarga(usuario: UsuarioAtual, dados: { id?: st
     }
     const [novo] = await tx
       .insert(veiculosCarga)
-      .values({ eventoId: ev.id, tipo: v.tipo, ident: v.ident, ida: v.ida, volta: v.volta, criadoPorId: usuario.id, atualizadoPorId: usuario.id })
+      .values({ eventoId: ev.id, tipo: v.tipo, ident: v.ident, ida: v.ida, volta: v.volta, criadoPorId: usuario.id, atualizadoPorId: usuario.id, ...nascimento() })
       .returning({ id: veiculosCarga.id });
     await registrarHistorico(tx, {
       eventoId: ev.id,
@@ -111,7 +117,7 @@ export async function duplicarVeiculoCarga(usuario: UsuarioAtual, id: string) {
     if (!v) throw new NaoEncontradoError("Veículo");
     const [novo] = await tx
       .insert(veiculosCarga)
-      .values({ eventoId: v.eventoId, tipo: v.tipo, ident: v.ident, ida: v.ida, volta: v.volta, criadoPorId: usuario.id, atualizadoPorId: usuario.id })
+      .values({ eventoId: v.eventoId, tipo: v.tipo, ident: v.ident, ida: v.ida, volta: v.volta, criadoPorId: usuario.id, atualizadoPorId: usuario.id, ...nascimento() })
       .returning({ id: veiculosCarga.id });
     await registrarHistorico(tx, {
       eventoId: v.eventoId,
