@@ -10,7 +10,8 @@ export default function NotFound() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-page px-4">
       <div className="flex w-full max-w-md animate-fade-up flex-col items-center text-center">
         <div className="mb-8 flex items-center gap-2.5">
-          <span aria-hidden className="block size-4 rounded-chip bg-accent" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/marca-app.svg" alt="" aria-hidden className="block h-4 w-auto" />
           <span className="text-pequeno font-semibold uppercase tracking-[0.18em] text-ink">Norte Mkt</span>
         </div>
         <span aria-hidden className="mb-4 grid size-11 place-items-center rounded-full bg-surface text-ink-3">

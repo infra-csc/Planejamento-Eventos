@@ -173,10 +173,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
       >
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
-            {/* Mesma marca do favicon (src/app/icon.svg). */}
-            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-chip bg-accent">
-              <span className="block size-2.5 rounded-xs bg-accent-bg" />
-            </span>
+            {/* "N" da NORTE na cor do app (kit de identidade do Portal; o favicon é src/app/icon.svg). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/marca-app.svg" alt="" aria-hidden className="block h-6 w-auto shrink-0" />
             <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
               <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-meta">Norte Mkt</span>
               <span className="block text-corpo font-semibold tracking-[-0.01em] text-ink">Planejamento</span>

@@ -20,7 +20,8 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         <main className="flex min-h-screen items-center justify-center bg-page px-6">
           <div role="alert" className="max-w-[440px]">
             <div className="mb-6 flex items-center gap-2.5">
-              <span aria-hidden className="block size-[18px] rounded-chip bg-accent" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marca-app.svg" alt="" aria-hidden className="block h-[18px] w-auto" />
               <span className="text-pequeno font-semibold uppercase tracking-[0.18em] text-ink">Norte Mkt</span>
             </div>
             <h1 className="m-0 text-pagina font-semibold tracking-[-0.025em]">Algo deu errado</h1>
