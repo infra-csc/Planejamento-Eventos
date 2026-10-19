@@ -76,7 +76,7 @@ export async function listarEventosAceitando(usuario: UsuarioAtual, incluirEvent
   const db = await getDb();
   const aceitando = inArray(eventos.status, ["PREPARACAO", "ABERTO"]);
   return db
-    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, cliente: eventos.cliente, status: eventos.status, dataInicio: eventos.dataInicio, dataFim: eventos.dataFim, dataReuniao: eventos.dataReuniao, ataFechadaEm: eventos.ataFechadaEm })
+    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, cliente: eventos.cliente, status: eventos.status, dataInicio: eventos.dataInicio, dataFim: eventos.dataFim, dataReuniao: eventos.dataReuniao, ataFechadaEm: eventos.ataFechadaEm, janelaAlteracoesAte: eventos.janelaAlteracoesAte })
     .from(eventos)
     .where(incluirEventoId ? or(aceitando, eq(eventos.id, incluirEventoId)) : aceitando)
     .orderBy(asc(eventos.dataInicio));

@@ -71,6 +71,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     marco: e.status === "PREPARACAO" ? `reunião ${diaMesHora(e.dataReuniao)}` : e.ataFechadaEm ? `ata fechada ${diaMes(e.ataFechadaEm)}` : e.status,
     tipo: e.status === "PREPARACAO" || (e.status !== "ABERTO" && rascunho?.tipo === "PRE_REUNIAO") ? "PRE_REUNIAO" : "ALTERACAO",
     aceita: e.status === "PREPARACAO" || e.status === "ABERTO",
+    // Mesma regra do envio (envio.ts): sem data de fim da janela, ou dentro dela, a alteração entra direto na OS.
+    janelaAte: e.janelaAlteracoesAte ?? null,
+    entraDireto: e.status === "ABERTO" && (!e.janelaAlteracoesAte || hojeISO() <= String(e.janelaAlteracoesAte)),
   }));
 
   const itensIniciais: ItemNovo[] =

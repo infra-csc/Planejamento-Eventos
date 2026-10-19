@@ -339,11 +339,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                     { label: "Itens na ata", valor: `${gruposNaAta} de ${gruposItens.length}`, forte: true },
                   ]
                 : [
-                    {
+                    // Prazo só enquanto espera resposta; depois de respondida, vale "Respondida em".
+                    ...(STATUS_ABERTOS.includes(s.status) ? [{
                       label: "Prazo de resposta",
                       valor: s.prazoRespostaEm ? <span style={{ color: COR_TOM[pi.tom] }}>{diaMesHora(s.prazoRespostaEm)}</span> : "—",
                       alerta: pi.vencido,
-                    },
+                    }] : []),
                     { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
                     { label: "Itens respondidos", valor: `${gruposRespondidos} de ${gruposItens.length}`, forte: true },
                   ]),

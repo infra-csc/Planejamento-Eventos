@@ -6,7 +6,7 @@ import { getDb } from "@/server/db";
 import { daMinhaArea, pode } from "@/domain/permissions";
 import { statusExibicao } from "@/domain/evento";
 import { NaoEncontradoError } from "@/domain/errors";
-import { diaMes, diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/lib/format";
 import { EventoStatusBadge, Tag } from "@/components/ui/badge";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
@@ -70,7 +70,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
     {
       titulo: "Reunião de OS",
       quando: diaMesHora(ev.dataReuniao),
-      detalhe: ev.ataFechadaEm ? `ata fechada com ${nLinhas} ${nLinhas === 1 ? "linha" : "linhas"}` : ev.status === "EM_REUNIAO" ? "acontecendo agora" : "aguardando",
+      detalhe: ev.ataFechadaEm ? `ata fechada com ${nLinhas} ${nLinhas === 1 ? "linha" : "linhas"}` : ev.status === "EM_REUNIAO" ? (isoSP(ev.reuniaoIniciadaEm ?? ev.dataReuniao) < hojeISO() ? `aberta desde ${diaMes(ev.reuniaoIniciadaEm ?? ev.dataReuniao)} · ata por fechar` : "acontecendo agora") : "aguardando",
     },
     {
       titulo: "Aberto a alterações",

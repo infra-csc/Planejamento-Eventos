@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { DadosPainel } from "@/server/services/dashboard";
 import { statusExibicao } from "@/domain/evento";
-import { diaMesHora, hojeISO, periodoCurto, tempoRelativo } from "@/lib/format";
+import { diaMesHora, hojeISO, isoSP, periodoCurto, tempoRelativo } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { EventoStatusBadge } from "@/components/ui/badge";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
@@ -29,11 +29,14 @@ function Numeral({ valor, rotulo }: { valor: number; rotulo: string }) {
  * no rodapé, o que mudou por último. O rodapé é o único bloco colorido do cartão.
  */
 function Cartao({ e, mudancas }: { e: EventoCartao; mudancas: Mudanca[] }) {
+  // Reunião que passou sem começar e reunião aberta de outro dia (ata por fechar): não é "agora".
+  const hoje = hojeISO();
+  const diaReuniao = isoSP(e.dataReuniao);
   const proximo: { icone: NomeIcone; texto: string } =
     e.status === "PREPARACAO"
-      ? { icone: "calendario", texto: `Reunião de OS ${diaMesHora(e.dataReuniao)}` }
+      ? { icone: "calendario", texto: diaReuniao < hoje ? `Reunião não iniciada (${diaMesHora(e.dataReuniao)})` : `Reunião de OS ${diaMesHora(e.dataReuniao)}` }
       : e.status === "EM_REUNIAO"
-        ? { icone: "relogio", texto: "Reunião acontecendo agora" }
+        ? { icone: "relogio", texto: diaReuniao < hoje ? "Reunião aberta · ata por fechar" : "Reunião acontecendo agora" }
         : { icone: "calendario", texto: `Evento ${periodoCurto(e.dataInicio, e.dataFim)}` };
   const pendencia =
     e.rascunhos > 0

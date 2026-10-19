@@ -55,7 +55,7 @@ export default async function PerfilPage({ searchParams }: { searchParams: Promi
           <div className="flex gap-2.5 border-t border-line-soft px-cartao py-3 text-pequeno text-ink-2">
             <Icone nome="escudo" className="mt-0.5 shrink-0 text-ink-3" />
             <p className="m-0">
-              {PERFIL_DESCRICAO[u.perfil]} <span className="text-muted">Para mudar nome, perfil ou área, fale com o administrador.</span>
+              {PERFIL_DESCRICAO[u.perfil]} <span className="text-muted">{u.perfil === "ADMIN" ? "Nome, perfil e área de cada pessoa ficam em Administração › Usuários." : "Para mudar nome, perfil ou área, fale com o administrador."}</span>
             </p>
           </div>
         </section>

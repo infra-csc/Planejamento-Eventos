@@ -74,7 +74,7 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
         dia: diaReuniao,
         hora: hora(e.dataReuniao),
         titulo: `Reunião de OS · ${e.nome}`,
-        detalhe: e.status === "EM_REUNIAO" ? "acontecendo agora" : aberta ? "áreas enviam necessidades até aqui" : "ata fechada",
+        detalhe: e.status === "EM_REUNIAO" ? (diaReuniao < isoSP(new Date()) ? "reunião aberta · ata por fechar" : "acontecendo agora") : aberta ? "áreas enviam necessidades até aqui" : "ata fechada",
         href: conferir && aberta ? `/conferencia/${e.id}` : `/eventos/${e.id}/ata`,
         evento,
       });

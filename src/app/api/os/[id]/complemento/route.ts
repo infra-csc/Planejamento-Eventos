@@ -45,7 +45,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const mais = comp.diff.filter((d) => d.depois > d.antes);
   const menos = comp.diff.filter((d) => d.depois < d.antes);
   l = tituloSecao(ws, l, 7, "Peças a mais (embarcam além da OS enviada)", mais.length ? "Some estas quantidades à OS que já está no galpão." : "Nada a acrescentar.");
-  l = tabela(
+  // Sem peça nesta parte: fica só a frase ("Nada a acrescentar."), sem tabela vazia com cabeçalho e total.
+  if (mais.length) l = tabela(
     ws,
     "ComplementoMais",
     l,
@@ -62,7 +63,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   );
   l += 1;
   l = tituloSecao(ws, l, 7, "Peças a menos (não embarcam mais)", menos.length ? "Retire estas quantidades da OS enviada." : "Nada a retirar.");
-  l = tabela(
+  if (menos.length) l = tabela(
     ws,
     "ComplementoMenos",
     l,

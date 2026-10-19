@@ -1,6 +1,7 @@
 import type { ItemOperacao } from "@/server/db/schema";
 
-export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean };
+/** `janelaAte`: alteração pós-ata entra direto na OS até esta data (null = até o evento encerrar); depois, vai para a logística responder. */
+export type EventoOpcao = { id: string; codigo: string; nome: string; cliente: string; periodo: string; marco: string; tipo: "PRE_REUNIAO" | "ALTERACAO"; aceita: boolean; janelaAte: string | null; entraDireto: boolean };
 export type ItemNovo = {
   chave: string;
   operacao: ItemOperacao;

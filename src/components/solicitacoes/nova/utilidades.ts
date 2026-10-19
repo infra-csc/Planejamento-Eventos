@@ -87,7 +87,14 @@ export function sincronizarAcompanhantes(itens: ItemNovo[], pecas: readonly Refe
  * envio usa a sugestão: o título em cinza parecia preenchido e travava o envio com "falta título".
  */
 export function sugerirTitulo(itens: readonly ItemNovo[], pecas: readonly Referencia[]): string | null {
-  const nomeCurto = (i: ItemNovo) => (i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? i.rotulo) : i.rotulo);
+  // Sem o código na frente ("CONE-G · Cone grande" → "Cone grande"); alteração diz o que muda.
+  const semCodigo = (r: string) => r.replace(/^[A-Z0-9][A-Z0-9ÇÃÕÁÉÍÓÚ_./-]* · /, "");
+  const nomeCurto = (i: ItemNovo) => {
+    const nome = i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? semCodigo(i.rotulo)) : semCodigo(i.rotulo);
+    if (i.operacao === "REMOVER") return `Remover ${nome}`;
+    if (i.operacao === "ALTERAR_QUANTIDADE" && i.quantidadeAtual != null) return `${nome}: ${i.quantidadeAtual} → ${i.quantidade}`;
+    return nome;
+  };
   const nomes = [...new Set(itens.map(nomeCurto))];
   if (nomes.length === 0) return null;
   const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;

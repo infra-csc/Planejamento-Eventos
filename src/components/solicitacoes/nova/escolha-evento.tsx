@@ -122,7 +122,12 @@ export function EscolhaEvento({
               </div>
               <p className="m-0 flex items-center gap-1.5 text-pequeno text-ink-2 max-sm:basis-full">
                 <Icone nome="relogio" className="text-ink-3" />
-                {ehAlteracao ? (
+                {/* Dentro da janela a alteração entra direto na OS (antes dizia "resposta em até 48h" e entrava na hora). */}
+                {ehAlteracao && evento.entraDireto ? (
+                  <span>
+                    Entra direto na OS{evento.janelaAte ? <span className="numero"> · janela até {evento.janelaAte.split("-").reverse().slice(0, 2).join("/")}</span> : null}
+                  </span>
+                ) : ehAlteracao ? (
                   <span>
                     Resposta em até <span className="numero font-medium">{slaHoras}h</span> após o envio
                   </span>

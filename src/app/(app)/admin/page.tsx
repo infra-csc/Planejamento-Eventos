@@ -28,7 +28,8 @@ type Situacao = "ATIVOS" | "INATIVOS" | "TODOS";
 const SITUACOES: Situacao[] = ["ATIVOS", "INATIVOS", "TODOS"];
 
 function situacaoDe(filtro: string | undefined): Situacao {
-  return filtro === "ATIVOS" || filtro === "INATIVOS" ? filtro : "TODOS";
+  // Abre nos ativos (as contas antigas de demonstração, inativas, ficavam no meio da lista); "Todos" é escolha.
+  return filtro === "TODOS" || filtro === "INATIVOS" ? filtro : "ATIVOS";
 }
 
 function naSituacao(ativo: boolean, s: Situacao) {
@@ -60,7 +61,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const termo = (sp.q ?? "").trim().slice(0, 80);
   const situacao = situacaoDe(sp.filtro);
   const params = { aba: aba === "usuarios" ? undefined : aba, filtro: sp.filtro, q: sp.q, pagina: sp.pagina };
-  const abaSituacao = (s: Situacao, rotulos: Record<Situacao, string>, n: number) => ({ href: hrefCom("/admin", params, { filtro: s === "TODOS" ? null : s, pagina: null }), label: rotulos[s], n, ativo: situacao === s });
+  const abaSituacao = (s: Situacao, rotulos: Record<Situacao, string>, n: number) => ({ href: hrefCom("/admin", params, { filtro: s === "ATIVOS" ? null : s, pagina: null }), label: rotulos[s], n, ativo: situacao === s });
   const hrefPagina = (p: number) => hrefCom("/admin", params, { pagina: p === 1 ? null : p });
   const limparBusca = (
     <Link href={hrefCom("/admin", params, { q: null, pagina: null })} className="link text-corpo">

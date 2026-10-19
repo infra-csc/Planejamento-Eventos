@@ -1,7 +1,8 @@
 "use client";
 
 import { ActionForm } from "@/components/ui/action-form";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { HORA_DA_REUNIAO, reuniaoDoEvento } from "@/domain/ummense";
 import { salvarEventoAction } from "@/app/(app)/eventos/actions";
 import { Field, FormError, Input } from "@/components/ui/field";
 import { ButtonLink, SubmitButton } from "@/components/ui/button";
@@ -26,6 +27,10 @@ export type EventoFormValores = {
 export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValores; cancelarHref: string }) {
   const [state, action] = useActionState(salvarEventoAction, ESTADO_INICIAL);
   const c = !state.ok ? state.campos : undefined;
+  // Reunião de OS sugerida pela data do evento (terça, 35 dias antes ou mais, às 14:00 — a regra combinada
+  // com a logística); acompanha a data até alguém mudar a reunião à mão.
+  const [reuniao, setReuniao] = useState(valores.dataReuniao ?? "");
+  const [reuniaoManual, setReuniaoManual] = useState(Boolean(valores.dataReuniao));
   return (
     <ActionForm action={action} noValidate className="flex flex-col gap-4">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
@@ -46,10 +51,37 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
       <Section titulo="Datas" padded>
         <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
           <Field label="Data do evento" htmlFor="dataInicio" error={c?.dataInicio} obrigatorio hint="Mais de um dia: informe o primeiro.">
-            <Input id="dataInicio" name="dataInicio" type="date" defaultValue={valores.dataInicio ?? ""} required className="numero" />
+            <Input
+              id="dataInicio"
+              name="dataInicio"
+              type="date"
+              defaultValue={valores.dataInicio ?? ""}
+              required
+              className="numero"
+              onChange={(e) => {
+                if (!reuniaoManual && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setReuniao(`${reuniaoDoEvento(e.target.value)}T${HORA_DA_REUNIAO}`);
+              }}
+            />
           </Field>
-          <Field label="Reunião de OS" htmlFor="dataReuniao" error={c?.dataReuniao} obrigatorio hint="A logística confere tudo o que as áreas pediram. Envios vão até aqui.">
-            <Input id="dataReuniao" name="dataReuniao" type="datetime-local" defaultValue={valores.dataReuniao ?? ""} required className="numero" />
+          <Field
+            label="Reunião de OS"
+            htmlFor="dataReuniao"
+            error={c?.dataReuniao}
+            obrigatorio
+            hint={reuniao && !reuniaoManual ? "Sugerida: terça, 35 dias antes do evento, às 14:00. Mude se precisar." : "A logística confere tudo o que as áreas pediram. Envios vão até aqui."}
+          >
+            <Input
+              id="dataReuniao"
+              name="dataReuniao"
+              type="datetime-local"
+              value={reuniao}
+              onChange={(e) => {
+                setReuniao(e.target.value);
+                setReuniaoManual(true);
+              }}
+              required
+              className="numero"
+            />
           </Field>
           <Field label="Alterações até" htmlFor="janelaAlteracoesAte" error={c?.janelaAlteracoesAte} optional hint="Pode ficar para depois. Passada a data, alterações chegam “fora da janela”.">
             <Input id="janelaAlteracoesAte" name="janelaAlteracoesAte" type="date" defaultValue={valores.janelaAlteracoesAte ?? ""} className="numero" />

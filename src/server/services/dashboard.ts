@@ -397,7 +397,8 @@ async function mudancasRecentes(db: Awaited<ReturnType<typeof getDb>>, eventoIds
     .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
     .leftJoin(eventoItens, eq(historico.entidadeId, eventoItens.id))
     .leftJoin(areas, eq(eventoItens.areaId, areas.id))
-    .where(and(inArray(historico.eventoId, eventoIds), eq(historico.entidade, "evento_item"), inArray(historico.acao, ACOES_MUDANCA)))
+    // Remoção feita pelo próprio sistema (limpeza dos itens padrão antigos, sem pessoa) não é mudança para a área.
+    .where(and(inArray(historico.eventoId, eventoIds), eq(historico.entidade, "evento_item"), inArray(historico.acao, ACOES_MUDANCA), sql`not (${historico.usuarioId} is null and ${historico.acao} = 'ATA_REMOCAO')`))
     .orderBy(desc(historico.criadoEm))
     .limit(12);
   return rows.map((r) => {
