@@ -93,6 +93,10 @@ async function carregarEntradas(filtro: SQL, itemDaEntidade: (entidade: string, 
     .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
     .where(filtro)
     .orderBy(asc(historico.criadoEm));
+  // Registros do mesmo instante (mesma transação): o pedido vem antes do que aconteceu com ele
+  // (criado → enviado → entrou na ata/OS → resposta), e não na ordem aleatória dos ids.
+  const etapa = (acao: string) => (acao === "RASCUNHO_CRIADO" ? 0 : acao === "ENVIADA" ? 1 : 2);
+  rows.sort((x, y) => x.em.getTime() - y.em.getTime() || etapa(x.acao) - etapa(y.acao));
   return rows.map((r) => {
     const { titulo, tom } = rotular(r.acao, r.dadosDepois, r.perfil);
     return {

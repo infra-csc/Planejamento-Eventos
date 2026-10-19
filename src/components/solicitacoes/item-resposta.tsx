@@ -332,7 +332,7 @@ function DescricoesUnidades({ lista, quantidade }: { lista: string[] | null | un
   if (itens.length === 1 || iguais) {
     return (
       <p className="m-0 text-pequeno text-ink-2">
-        <span className="text-muted">{quantidade > 1 ? `Descrição (todas as ${quantidade} unidades): ` : "Descrição: "}</span>
+        <span className="text-muted">{quantidade > 1 ? `Descrição das ${quantidade} unidades: ` : "Descrição: "}</span>
         {itens[0]}
       </p>
     );
@@ -574,7 +574,8 @@ export function ItemResposta({
       {temContexto && (
         <div className="mt-2.5 flex flex-col gap-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5">
           <DescricoesUnidades lista={item.descricoes} quantidade={item.quantidadeSolicitada} />
-          {item.justificativa && (
+          {/* A observação que só repete a descrição não aparece duas vezes. */}
+          {item.justificativa && !((item.descricoes ?? []).some((d) => d.trim()) && (item.descricoes ?? []).every((d) => d.trim() === item.justificativa!.trim())) && (
             <p className="m-0 text-pequeno text-ink-2">
               <span className="text-muted">Observação: </span>
               {item.justificativa}
