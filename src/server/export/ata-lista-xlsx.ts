@@ -44,10 +44,10 @@ export function abaListaMateriais(wb: ExcelJS.Workbook, cab: CabecalhoAta, d: At
   escrever(ws, 4, 3, cab.presentes ?? "");
   ws.mergeCells(4, 3, 4, 6);
   const logistica: Array<[string, string | null, string, Valor]> = [
-    ["Caminhão carrega:", cab.caminhaoCarrega, "Nome evento:", cab.nome],
-    ["Caminhão sai:", cab.caminhaoSai, "Data evento", dataCurta(cab.dataEvento)],
-    ["Arena descarrega:", cab.arenaDescarrega, "Cidade e Local", cab.local],
-    ["Kit Descarrega:", cab.kitDescarrega, "Publico esperado", cab.publicoEsperado],
+    ["Caminhão carrega:", cab.caminhaoCarrega, "Nome do evento:", cab.nome],
+    ["Caminhão sai:", cab.caminhaoSai, "Data do evento:", dataCurta(cab.dataEvento)],
+    ["Arena descarrega:", cab.arenaDescarrega, "Cidade e local:", cab.local],
+    ["Kit descarrega:", cab.kitDescarrega, "Público esperado:", cab.publicoEsperado],
   ];
   logistica.forEach(([k, v, k2, v2], i) => {
     const r = 5 + i;

@@ -41,7 +41,7 @@ export function abaOsMarcenaria(wb: ExcelJS.Workbook, cab: CabecalhoMarcenaria, 
         escrever(ws, r, 2, k === 0 ? it.item : null, { bold: k === 0 });
         escrever(ws, r, 3, p.nome);
         escrever(ws, r, 4, p.quantidade);
-        escrever(ws, r, 5, null);
+        escrever(ws, r, 5, p.referencia);
         escrever(ws, r, 6, p.observacao);
         r++;
       });

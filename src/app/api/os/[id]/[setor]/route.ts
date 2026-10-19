@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUsuarioAtual } from "@/server/auth/session";
 import { pode } from "@/domain/permissions";
 import { obterEvento } from "@/server/services/eventos";
-import { calcularOsAtual, obterConteudosOs } from "@/server/services/os";
+import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
 import { SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
@@ -39,15 +39,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Versão pedida: só aquele JSON. Sem versão: OS calculada da ata atual.
   const sel = Number.isInteger(v) && v > 0 ? (await obterConteudosOs(id, [v])).get(v) : undefined;
   const os = sel ?? (await calcularOsAtual(await getDb(), id));
-  const rotulo = sel ? `v${v}` : "atual";
+  // Sem versão pedida: a OS de agora, com o número da última versão gravada ("v5 (atual)"), como no Excel.
+  const ultima = sel ? null : (await listarOsResumo(id))[0]?.numero;
+  const rotulo = sel ? `v${v}` : ultima ? `v${ultima} (atual)` : "prévia";
   const s = grupo ? totaisPorGrupo(os.setores, await mapaGruposPecas()).find((x) => x.grupo === grupo) : os.setores.find((x) => x.setor === (setor as Setor));
   const linhas = [["Evento", ev.codigo, ev.nome], grupo ? ["Material", GRUPO_LABEL[grupo]] : ["Setor", SETOR_LABEL[setor as Setor]], ["Versão", rotulo], [], ["Código", "Peça", "Unidade", "Total", "Composição"]];
-  for (const l of s?.linhas ?? []) linhas.push([l.codigo, l.nome, l.unidade, String(l.total), l.origens.map((o) => `${o.descricao} -> ${o.quantidade}`).join(" | ")]);
+  for (const l of s?.linhas ?? []) linhas.push([l.codigo, l.nome, l.unidade, String(l.total), l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")]);
+  if (!s?.linhas.length) linhas.push(["", grupo ? "Nenhuma peça deste material nesta OS." : "Nenhuma peça deste setor nesta OS."]);
   const csv = "﻿" + linhas.map((r) => r.map(csvEscape).join(";")).join("\r\n");
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="OS-${ev.codigo}-${setor}-${rotulo}.csv"`,
+      "Content-Disposition": `attachment; filename="OS-${ev.codigo}-${setor}-${sel ? `v${v}` : ultima ? `v${ultima}` : "previa"}.csv"`,
     },
   });
 }

@@ -84,10 +84,11 @@ describe("GET /api/os/[id]/[setor]", { timeout: 30_000 }, () => {
     expect(linha).toContain(";10;");
   });
 
-  it("setor sem peças sai só com o cabeçalho", async () => {
+  it("setor sem peças sai com o cabeçalho e o aviso de que não há peças", async () => {
     await entrar(E.logistica.id);
-    const csv = await (await chamar(eventoId, "MARCENARIA")).text();
-    expect(csv.trim().split("\r\n").at(-1)).toBe("Código;Peça;Unidade;Total;Composição");
+    const linhas = (await (await chamar(eventoId, "MARCENARIA")).text()).trim().split("\r\n");
+    expect(linhas.at(-2)).toBe("Código;Peça;Unidade;Total;Composição");
+    expect(linhas.at(-1)).toBe(";Nenhuma peça deste setor nesta OS.");
   });
 });
 

@@ -14,7 +14,8 @@ export type SecaoMarcenaria = (typeof SECOES_MARCENARIA)[number];
 export type ItemMarcenaria = {
   /** Como a cenografia escreve: "STAND 9X6 (4 UNID)". */
   item: string;
-  pecas: Array<{ nome: string; quantidade: number; observacao: string | null }>;
+  /** `referencia`: código da peça no catálogo (vazio no item descrito à mão). */
+  pecas: Array<{ nome: string; quantidade: number; referencia: string | null; observacao: string | null }>;
 };
 
 export type OsMarcenaria = {
@@ -50,7 +51,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
   let totalPecas = 0;
 
   // Projetos: por código, somando as unidades; as peças de marcenaria da lista de cada linha.
-  const porCodigo = new Map<string, { nome: string; quantidade: number; pecas: Map<string, { nome: string; total: number }>; locais: Set<string> }>();
+  const porCodigo = new Map<string, { nome: string; quantidade: number; pecas: Map<string, { codigo: string; nome: string; total: number }>; locais: Set<string> }>();
   for (const l of os.projetos ?? []) {
     if (l.quantidade <= 0) continue;
     const p = porCodigo.get(l.codigo) ?? { nome: l.nome, quantidade: 0, pecas: new Map(), locais: new Set<string>() };
@@ -58,7 +59,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
     if (l.destino?.trim()) p.locais.add(l.destino.trim());
     for (const pc of l.pecas) {
       if (pc.setor !== "MARCENARIA" || pc.total <= 0) continue;
-      p.pecas.set(pc.codigo, { nome: pc.nome, total: (p.pecas.get(pc.codigo)?.total ?? 0) + pc.total });
+      p.pecas.set(pc.codigo, { codigo: pc.codigo, nome: pc.nome, total: (p.pecas.get(pc.codigo)?.total ?? 0) + pc.total });
     }
     porCodigo.set(l.codigo, p);
   }
@@ -66,7 +67,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
     if (p.pecas.size === 0) continue;
     const item: ItemMarcenaria = {
       item: `${maiusculas(p.nome)} (${p.quantidade} UNID)`,
-      pecas: [...p.pecas.values()].map((pc, i) => ({ nome: maiusculas(pc.nome), quantidade: pc.total, observacao: i === 0 && p.locais.size ? [...p.locais].join(" / ") : null })),
+      pecas: [...p.pecas.values()].map((pc, i) => ({ nome: maiusculas(pc.nome), quantidade: pc.total, referencia: pc.codigo, observacao: i === 0 && p.locais.size ? [...p.locais].join(" / ") : null })),
     };
     totalPecas += item.pecas.reduce((a, x) => a + x.quantidade, 0);
     secoes.get(secaoDaCategoria(categorias.get(codigo)))!.push(item);
@@ -75,7 +76,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
   // Peças de marcenaria pedidas soltas (fora de projeto): um item por peça.
   for (const x of os.individuais ?? []) {
     if (x.setor !== "MARCENARIA" || x.quantidade <= 0) continue;
-    const item: ItemMarcenaria = { item: maiusculas(x.nome), pecas: [{ nome: maiusculas(x.nome), quantidade: x.quantidade, observacao: x.destino?.trim() || null }] };
+    const item: ItemMarcenaria = { item: maiusculas(x.nome), pecas: [{ nome: maiusculas(x.nome), quantidade: x.quantidade, referencia: x.codigo, observacao: x.destino?.trim() || null }] };
     totalPecas += x.quantidade;
     secoes.get(secaoDaPeca(familias.get(x.codigo)))!.push(item);
   }
@@ -83,7 +84,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
   // Itens fora do catálogo do setor marcenaria (descritos à mão).
   const marc = os.setores.find((s) => s.setor === "MARCENARIA");
   for (const a of marc?.avulsos ?? []) {
-    secoes.get("GERAL")!.push({ item: maiusculas(a.descricao), pecas: [{ nome: maiusculas(a.descricao), quantidade: a.quantidade, observacao: a.destino?.trim() || null }] });
+    secoes.get("GERAL")!.push({ item: maiusculas(a.descricao), pecas: [{ nome: maiusculas(a.descricao), quantidade: a.quantidade, referencia: null, observacao: a.destino?.trim() || null }] });
     totalPecas += a.quantidade;
   }
 

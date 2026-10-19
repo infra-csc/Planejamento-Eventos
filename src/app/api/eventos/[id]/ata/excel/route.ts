@@ -17,6 +17,17 @@ import { mapaGruposPecas, mapaGruposProjetos } from "@/server/services/grupos-ma
 
 const TIPO_LABEL = { PROJETO: "Projeto padrão", PECA: "Peça", AVULSO: "Fora do catálogo" } as const;
 
+/**
+ * Coluna Item: nome (sem o código, que já tem coluna própria), versão, tipo e grupo de material, sem
+ * repetir ("Fechamento de tenda · Fora do catálogo", e não "· Fora do catálogo · Fora do catálogo").
+ */
+function itemDaAta(x: { codigo: string | null; descricao: string; versao?: number | null; tipo: keyof typeof TIPO_LABEL }, g: GrupoMaterial) {
+  const semVersao = x.descricao.replace(/\s*\(v\d+\)$/, "");
+  const nome = x.codigo && semVersao.startsWith(`${x.codigo} · `) ? semVersao.slice(x.codigo.length + 3) : semVersao;
+  const partes = [`${nome}${x.versao ? ` (v${x.versao})` : ""}`, TIPO_LABEL[x.tipo], GRUPO_LABEL[g]];
+  return partes.filter((p, i) => partes.indexOf(p) === i).join(" · ");
+}
+
 /** Grupo de material de uma linha gravada na ata (pelo código do projeto ou da peça). */
 function grupoDaLinhaExport(x: { tipo: "PROJETO" | "PECA" | "AVULSO"; codigo: string | null }, grupos: { pecas: MapaGrupos; projetos: MapaGrupos }): GrupoMaterial {
   if (!x.codigo || x.tipo === "AVULSO") return "OUTROS";
@@ -111,7 +122,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     [...ata.linhas]
       .map((x) => ({ x, g: grupoDaLinhaExport(x, grupos) }))
       .sort((a, b) => ordemGrupo(a.g) - ordemGrupo(b.g))
-      .map(({ x, g }) => [x.codigo ?? "", `${x.descricao.replace(/\s*\(v\d+\)$/, "")}${x.versao ? ` (v${x.versao})` : ""} · ${TIPO_LABEL[x.tipo]} · ${GRUPO_LABEL[g]}`, x.quantidade, x.destino ?? "—", x.area ?? "Logística", x.origem, x.conferidoPor ? `☑ ${x.conferidoPor}` : "—"]),
+      .map(({ x, g }) => [x.codigo ?? "", itemDaAta(x, g), x.quantidade, x.destino ?? "—", x.area ?? "Logística", x.origem, x.conferidoPor ? `☑ ${x.conferidoPor}` : "—"]),
   );
   l += 1;
 
