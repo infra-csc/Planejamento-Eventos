@@ -22,6 +22,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "ummense_importado", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Evento de TESTE copiado do NIGHT RUN BH (EVT-0215) para ensaiar conferência e exportações (uma vez só).
+    try {
+      const { copiarEventoParaTeste } = await import("@/server/services/eventos/copia-teste");
+      const r = await copiarEventoParaTeste();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "evento_teste_copiado", codigo: r.codigo, solicitacoes: r.solicitacoes, linhas: r.linhas }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "evento_teste_copiado", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
   })();
 }
 
