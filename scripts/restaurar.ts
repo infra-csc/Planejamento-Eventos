@@ -70,7 +70,7 @@ async function viaPsql(url: string, arquivo: string, transacaoUnica: boolean) {
 async function viaNode(db: Executor & { transaction: <T>(fn: (tx: Executor) => Promise<T>) => Promise<T> }, arquivo: string) {
   const rl = readline.createInterface({ input: fs.createReadStream(arquivo).pipe(zlib.createGunzip()), crlfDelay: Infinity });
   await db.transaction(async (tx) => {
-    let copia: { tabela: string; colunas: string; n: number; lote: (string | null)[][] } | null = null;
+    let copia: { tabela: string; colunas: string; n: number; binarias: number[]; lote: (string | Buffer | null)[][] } | null = null;
     const gravarLote = async () => {
       if (!copia || copia.lote.length === 0) return;
       // Parâmetros sem tipo: o Postgres converte cada texto para o tipo da coluna (como o COPY faz).
@@ -91,7 +91,12 @@ async function viaNode(db: Executor & { transaction: <T>(fn: (tx: Executor) => P
           copia = null;
           continue;
         }
-        const campos = l.split("\t").map(valorDeCopy);
+        const campos: (string | Buffer | null)[] = l.split("\t").map(valorDeCopy);
+        // bytea vem em hexa ("\x89504e…"): o PGlite só aceita bytes, então converte aqui (o Postgres aceita os dois).
+        for (const i of copia.binarias) {
+          const v = campos[i];
+          if (typeof v === "string" && v.startsWith("\\x")) campos[i] = Buffer.from(v.slice(2), "hex");
+        }
         copia.lote.push(campos);
         copia.n++;
         // Até ~30 mil parâmetros por comando (o limite do protocolo é 65535).
@@ -102,7 +107,10 @@ async function viaNode(db: Executor & { transaction: <T>(fn: (tx: Executor) => P
       if (!t || t.startsWith("--") || /^(BEGIN|COMMIT);$/i.test(t)) continue;
       const m = /^COPY\s+(\S+)\s+\((.*)\)\s+FROM\s+stdin;$/i.exec(t);
       if (m) {
-        copia = { tabela: m[1], colunas: m[2], n: 0, lote: [] };
+        const nomes = m[2].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        const tabela = m[1].replace(/^public\./, "").replace(/^"|"$/g, "");
+        const bytea = linhas(await tx.execute(sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = ${tabela} and udt_name = 'bytea'`)).map((r) => String(r.column_name));
+        copia = { tabela: m[1], colunas: m[2], n: 0, binarias: nomes.flatMap((c, i) => (bytea.includes(c) ? [i] : [])), lote: [] };
         continue;
       }
       await tx.execute(sql.raw(t));

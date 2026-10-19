@@ -57,7 +57,8 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
   for (const l of linhas) {
     if (l.quantidade <= 0) continue;
     if (l.tipo === "PROJETO" && l.projeto) {
-      const origem = `${l.projeto.nome} × ${l.quantidade}`;
+      // Com o local ("Tenda 5×5 m · GV × 3"): sem ele, a composição juntava locais diferentes pela quantidade.
+      const origem = `${l.projeto.nome}${l.destino?.trim() ? ` · ${l.destino.trim()}` : ""} × ${l.quantidade}`;
       for (const b of l.projeto.bom) {
         acumular(b.setor, { id: b.pecaId, codigo: b.codigo, nome: b.nome, unidade: b.unidade }, b.quantidade * l.quantidade, origem);
       }
@@ -73,7 +74,8 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
           .map((b) => ({ codigo: b.codigo, nome: b.nome, setor: b.setor, unidade: b.unidade, porUnidade: b.quantidade, total: b.quantidade * l.quantidade })),
       });
     } else if (l.tipo === "PECA" && l.peca) {
-      const origem = l.destino ? `Avulso · ${l.destino}` : "Avulso";
+      // "Peça solta · Produção · GV": quem pediu (as regras da logística vêm sem área) e onde vai.
+      const origem = ["Peça solta", l.areaNome ?? "Logística", l.destino?.trim() || null].filter(Boolean).join(" · ");
       acumular(l.peca.setor, l.peca, l.quantidade, origem);
       individuais.push({ codigo: l.peca.codigo, nome: l.peca.nome, setor: l.peca.setor, unidade: l.peca.unidade, quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     } else {

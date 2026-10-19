@@ -16,7 +16,7 @@ import { BarraEnvioMovel, ResumoEnvio } from "./nova/resumo-envio";
 import { useAutosaveSolicitacao } from "./nova/use-autosave-solicitacao";
 import { ItensDaArea } from "./nova/itens-da-area";
 import { listasDaArea } from "@/domain/itens-por-area";
-import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes } from "./nova/utilidades";
+import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes, sugerirTitulo } from "./nova/utilidades";
 import type { EventoOpcao, ItemNovo, LinhaAta, Modo, RascunhoSolicitacao, Referencia } from "./nova/tipos";
 
 export type { EventoOpcao, ItemNovo, LinhaBom } from "./nova/tipos";
@@ -69,6 +69,8 @@ export function NovaSolicitacaoForm({
   const [copiaRecuperada, setCopiaRecuperada] = useState(false);
   const [modo, setModo] = useState<Modo>("projeto");
   const [titulo, setTitulo] = useState(rascunho?.titulo ?? "");
+  // Campo vazio: vale o título sugerido pelos itens (é o que aparece em cinza no campo).
+  const tituloFinal = titulo.trim() || sugerirTitulo(itens, pecas) || "";
   const [observacao, setObservacao] = useState(rascunho?.observacao ?? "");
   const [erroTitulo, setErroTitulo] = useState<string | null>(null);
   const [tentouEnviar, setTentouEnviar] = useState(false);
@@ -87,7 +89,7 @@ export function NovaSolicitacaoForm({
     areaId,
     eventoId,
     evento,
-    titulo,
+    titulo: tituloFinal,
     observacao,
     itens,
     desligado: edicaoEnviada,
@@ -195,7 +197,7 @@ export function NovaSolicitacaoForm({
     !evento ? { alvo: "evento", texto: "Escolher o evento" } : null,
     itens.length === 0 ? { alvo: "busca-itens", texto: "Adicionar ao menos um item" } : null,
     semDescricao.length > 0 ? { alvo: `descricoes-${semDescricao[0].chave}`, texto: semDescricao.length === 1 ? "Descrever as unidades de 1 item" : `Descrever as unidades de ${semDescricao.length} itens` } : null,
-    !titulo.trim() ? { alvo: "titulo", texto: "Dar um título" } : null,
+    !tituloFinal ? { alvo: "titulo", texto: "Dar um título" } : null,
   ].filter((p) => p !== null);
 
   const salvar = (enviar: boolean) => {
@@ -213,7 +215,7 @@ export function NovaSolicitacaoForm({
     }
     if (enviar) {
       setTentouEnviar(true);
-      validarTitulo(titulo);
+      validarTitulo(tituloFinal);
       if (itens.length === 0) {
         irPara("busca-itens");
         return;
@@ -222,7 +224,7 @@ export function NovaSolicitacaoForm({
         irPara(`descricoes-${semDescricao[0].chave}`);
         return;
       }
-      if (!titulo.trim()) {
+      if (!tituloFinal) {
         irPara("titulo");
         return;
       }

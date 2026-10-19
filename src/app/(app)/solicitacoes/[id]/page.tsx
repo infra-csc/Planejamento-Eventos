@@ -62,7 +62,6 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
   const pi = prazoInfo(s, agora);
   const aberta = STATUS_ABERTOS.includes(s.status);
-  const respondidos = s.itens.length - pendentes;
   const itens: ItemParaResposta[] = s.itens.map((i) => ({
     id: i.id,
     descricao: descricaoItem(i),
@@ -88,6 +87,9 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     const si = s.itens[n];
     return [si.operacao, si.projetoId ?? "", si.pecaId ?? "", si.eventoItemId ?? "", si.descricaoLivre ?? ""].join("|");
   });
+  // "Na ata" conta como o título "Itens": a tenda em 4 locais é 1 item (antes, "Itens 20" e "Na ata 25 de 25").
+  const gruposNaAta = gruposItens.filter((g) => g.every((i) => i.status === "ATENDIDO" || i.status === "PARCIAL")).length;
+  const gruposRespondidos = gruposItens.filter((g) => g.every((i) => i.status !== "EM_ANALISE")).length;
   // Os atalhos acompanham a ordem visível: tipo de tenda → local → configuração original.
   const itensNaOrdem = gruposItens.flatMap((g) => g[0].tenda ? agruparLocaisTenda(g).flatMap((local) => local.itens) : g);
   // "Outro item (descrever)": fora do catálogo até a logística cadastrar ou vincular.
@@ -192,7 +194,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             ) : s.enviadaEm ? (
               <Meta rotulo="Enviada em" valor={diaMesHora(s.enviadaEm)} />
             ) : null}
-            {s.itens.length > 0 && !semStatus && <Meta rotulo={naAta ? "Na ata" : "Respondidos"} valor={naAta ? `${s.itens.filter((i) => i.status === "ATENDIDO" || i.status === "PARCIAL").length} de ${s.itens.length}` : `${respondidos} de ${s.itens.length}`} />}
+            {s.itens.length > 0 && !semStatus && <Meta rotulo={naAta ? "Na ata" : "Respondidos"} valor={naAta ? `${gruposNaAta} de ${gruposItens.length}` : `${gruposRespondidos} de ${gruposItens.length}`} />}
           </>
         }
         actions={
@@ -333,8 +335,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               ...(naAta
                 ? [
                     { label: "Reunião de OS", valor: diaMesHora(s.evento.dataReuniao) },
-                    { label: "Situação", valor: `na ata · a logística confirma na reunião de ${diaMesHora(s.evento.dataReuniao)}` },
-                    { label: "Itens na ata", valor: `${s.itens.filter((i) => i.status === "ATENDIDO" || i.status === "PARCIAL").length} de ${s.itens.length}`, forte: true },
+                    { label: "Situação", valor: "na ata · a logística confere na reunião" },
+                    { label: "Itens na ata", valor: `${gruposNaAta} de ${gruposItens.length}`, forte: true },
                   ]
                 : [
                     {
@@ -343,7 +345,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                       alerta: pi.vencido,
                     },
                     { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
-                    { label: "Itens respondidos", valor: `${s.itens.length - pendentes} de ${s.itens.length}`, forte: true },
+                    { label: "Itens respondidos", valor: `${gruposRespondidos} de ${gruposItens.length}`, forte: true },
                   ]),
             ]}
           />

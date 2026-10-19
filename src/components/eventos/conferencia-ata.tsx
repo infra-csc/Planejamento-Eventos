@@ -588,7 +588,8 @@ function LinhaJunta({
             <li key={l.id} className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-ink-3">
               <span className="numero mr-1 inline-flex items-center gap-1">
                 {l.conferidoEm ? <Icone nome="check" className="size-3.5 text-success" /> : <span aria-hidden className="inline-block size-3.5 rounded-full border border-line-control" />}
-                Linha {i + 1} · {l.quantidade} un.
+                {/* Cavalete reto 12 (automático das mesas) + 20 (pedido a mais): o rótulo diz o que é cada linha. */}
+                {l.origem?.observacao?.startsWith(MARCA_ACOMPANHANTE) ? "Automático" : ls.some((x) => x.origem?.observacao?.startsWith(MARCA_ACOMPANHANTE)) ? "Pedido a mais" : `Linha ${i + 1}`} · {l.quantidade} un.
               </span>
               <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
               {onEditarDescricao && l.origem && (

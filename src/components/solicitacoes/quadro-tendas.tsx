@@ -72,7 +72,7 @@ export function QuadroTendas({
       return l.quantidade > 0 && ajustarDescricoes(l.descricoes, esperadas).some((d) => !d.trim());
     });
     if (semDescricaoLinha >= 0) {
-      setErro({ linha: semDescricaoLinha, msg: "Complete as descrições das tendas ou marque “Não precisa descrever cada unidade”." });
+      setErro({ linha: semDescricaoLinha, msg: "Complete as descrições das tendas ou desmarque “Descrever cada unidade”." });
       document.getElementById(`descricoes-tenda-${semDescricaoLinha}`)?.focus();
       return;
     }
@@ -111,7 +111,7 @@ export function QuadroTendas({
                   {p.rotulo}
                 </th>
               ))}
-              <th scope="col" className={cn(th, "min-w-[260px]")}>
+              <th scope="col" className={cn(th, "min-w-[180px]")}>
                 Descrição
               </th>
               <th scope="col" className="w-9">
@@ -178,7 +178,8 @@ export function QuadroTendas({
                     <DescricoesItem
                       item={itemDescricao}
                       destacarVazias={erro?.linha === n && !l.semDescricao}
-                      className="min-w-[240px]"
+                      compacto
+                      className="min-w-[220px]"
                       onChange={(patch) => mudar(n, {
                         ...(patch.descricoes !== undefined ? { descricoes: patch.descricoes } : {}),
                         ...(patch.semDescricao !== undefined ? { semDescricao: patch.semDescricao } : {}),

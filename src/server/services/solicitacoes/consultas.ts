@@ -57,9 +57,25 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
 }
 
 export type SolicitacaoLista = Awaited<ReturnType<typeof listarSolicitacoes>>[number];
+/** Linha da lista paginada: com a data da reunião do evento (coluna Prazo / reunião). */
+export type SolicitacaoListaPagina = SolicitacaoLista & { evento: SolicitacaoLista["evento"] & { dataReuniao: Date } };
 
-export const FILTROS_LISTA = ["TODAS", "ABERTAS", "ATRASADAS", "RASCUNHO", "RESPONDIDA"] as const;
+export const FILTROS_LISTA = ["TODAS", "NA_ATA", "ABERTAS", "ATRASADAS", "RASCUNHO", "RESPONDIDA"] as const;
 export type FiltroLista = (typeof FILTROS_LISTA)[number];
+
+/** Recorte pela data da reunião de OS do evento (dias de Brasília). */
+export const REUNIOES_LISTA = ["hoje", "amanha", "7dias"] as const;
+export type ReuniaoLista = (typeof REUNIOES_LISTA)[number];
+
+/** [início, fim) em horário de Brasília (UTC−3, sem horário de verão desde 2019). */
+function janelaReuniao(r: ReuniaoLista, agora = new Date()): [Date, Date] {
+  const dia = 24 * 60 * 60 * 1000;
+  const brt = new Date(agora.getTime() - 3 * 60 * 60 * 1000);
+  const hoje = Date.UTC(brt.getUTCFullYear(), brt.getUTCMonth(), brt.getUTCDate()) + 3 * 60 * 60 * 1000;
+  if (r === "hoje") return [new Date(hoje), new Date(hoje + dia)];
+  if (r === "amanha") return [new Date(hoje + dia), new Date(hoje + 2 * dia)];
+  return [new Date(hoje), new Date(hoje + 8 * dia)];
+}
 
 /**
  * Página da lista de solicitações com filtro, ordenação e paginação no banco, e a contagem de cada
@@ -84,10 +100,13 @@ export async function eventosComSolicitacoes(usuario: UsuarioAtual) {
   return rows.map((r) => ({ ...r, n: Number(r.n) }));
 }
 
-export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number; eventoId?: string | null; busca?: string | null }) {
+export async function paginarSolicitacoes(
+  usuario: UsuarioAtual,
+  opcoes: { filtro: FiltroLista; ordem?: string; dir?: string; pagina?: string; porPagina: number; eventoId?: string | null; busca?: string | null; areaId?: string | null; tipo?: "PRE_REUNIAO" | "ALTERACAO" | null; reuniao?: ReuniaoLista | null },
+) {
   const db = await getDb();
   const agora = sql`${new Date().toISOString()}::timestamptz`;
-  const vazio = { itens: [] as SolicitacaoLista[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
+  const vazio = { itens: [] as SolicitacaoListaPagina[], pagina: 1, paginas: 1, total: 0, de: 0, porPagina: opcoes.porPagina, contagens: { NA_ATA: 0, ABERTAS: 0, ATRASADAS: 0, RASCUNHO: 0, RESPONDIDA: 0, TODAS: 0 } };
   const base = [eq(solicitacoes.excluida, false)];
   if (!pode(usuario, "solicitacao.ver_todas")) {
     const minhas = areasDoUsuario(usuario);
@@ -97,8 +116,14 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     // Rascunho ainda não enviado é da área (a tela promete que "a logística nunca chegou a vê-lo").
     base.push(ne(solicitacoes.status, "RASCUNHO"));
   }
-  // Filtro por evento vale para a lista e para as contagens de cada aba.
+  // Filtros (evento, área, tipo, data da reunião) valem para a lista e para as contagens de cada aba.
   if (opcoes.eventoId) base.push(eq(solicitacoes.eventoId, opcoes.eventoId));
+  if (opcoes.areaId) base.push(eq(solicitacoes.areaId, opcoes.areaId));
+  if (opcoes.tipo) base.push(eq(solicitacoes.tipo, opcoes.tipo));
+  if (opcoes.reuniao) {
+    const [ini, fim] = janelaReuniao(opcoes.reuniao);
+    base.push(sql`${solicitacoes.eventoId} in (select e.id from eventos e where e.data_reuniao >= ${ini.toISOString()}::timestamptz and e.data_reuniao < ${fim.toISOString()}::timestamptz)`);
+  }
   // Busca por código ou título (também entra nas contagens). % e _ do termo são literais.
   const termo = opcoes.busca?.trim().slice(0, 80);
   if (termo) {
@@ -107,15 +132,20 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
   }
   // Aguardando resposta = alterações; necessidade pré-reunião não passa por avaliação (já está na ata).
   const abertas = sql`${solicitacoes.status} in ('ENVIADA', 'EM_ANALISE') and ${solicitacoes.tipo} = 'ALTERACAO'`;
+  // Na ata = pedido pré-reunião enviado de evento que ainda vai ter (ou está em) reunião: espera a conferência.
+  // Fica fora de "Respondidas" (antes, 45 "respondidas" eram quase todas pedidos que nem passaram pela reunião).
+  const naAta = sql`${solicitacoes.tipo} = 'PRE_REUNIAO' and ${solicitacoes.status} not in ('RASCUNHO', 'DEVOLVIDA', 'CANCELADA') and ${solicitacoes.eventoId} in (select e.id from eventos e where e.status in ('PREPARACAO', 'EM_REUNIAO'))`;
   const condicoes: Record<FiltroLista, SQL> = {
+    NA_ATA: naAta,
     ABERTAS: abertas,
     ATRASADAS: sql`${abertas} and ${solicitacoes.prazoRespostaEm} < ${agora}`,
     RASCUNHO: sql`${solicitacoes.status} in ('RASCUNHO', 'DEVOLVIDA')`,
-    RESPONDIDA: sql`${solicitacoes.status} = 'RESPONDIDA'`,
+    RESPONDIDA: sql`${solicitacoes.status} = 'RESPONDIDA' and not (${naAta})`,
     TODAS: sql`true`,
   };
   const [c] = await db
     .select({
+      NA_ATA: sql<number>`count(*) filter (where ${condicoes.NA_ATA})`,
       ABERTAS: sql<number>`count(*) filter (where ${condicoes.ABERTAS})`,
       ATRASADAS: sql<number>`count(*) filter (where ${condicoes.ATRASADAS})`,
       RASCUNHO: sql<number>`count(*) filter (where ${condicoes.RASCUNHO})`,
@@ -124,7 +154,7 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     })
     .from(solicitacoes)
     .where(and(...base));
-  const contagens = { ABERTAS: Number(c.ABERTAS), ATRASADAS: Number(c.ATRASADAS), RASCUNHO: Number(c.RASCUNHO), RESPONDIDA: Number(c.RESPONDIDA), TODAS: Number(c.TODAS) };
+  const contagens = { NA_ATA: Number(c.NA_ATA), ABERTAS: Number(c.ABERTAS), ATRASADAS: Number(c.ATRASADAS), RASCUNHO: Number(c.RASCUNHO), RESPONDIDA: Number(c.RESPONDIDA), TODAS: Number(c.TODAS) };
 
   const total = contagens[opcoes.filtro];
   const paginas = Math.max(1, Math.ceil(total / opcoes.porPagina));
@@ -141,10 +171,18 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     itens: [direcao(sql`(select count(*) from solicitacao_itens si where si.solicitacao_id = ${solicitacoes.id})`)],
     status: [direcao(sql`case ${solicitacoes.status} when 'DEVOLVIDA' then 0 when 'RASCUNHO' then 1 when 'ENVIADA' then 2 when 'EM_ANALISE' then 3 when 'RESPONDIDA' then 4 else 5 end`)],
     prazo: [prazo],
+    reuniao: [direcao(sql`(select e.data_reuniao from eventos e where e.id = ${solicitacoes.eventoId})`)],
   };
   // `hasOwn`: a chave também vem da URL ("__proto__" acharia Object.prototype).
-  // Sem ordem escolhida: em "Todas", o mais recente primeiro; nas filas, o prazo mais próximo primeiro.
-  const ordemPadrao = opcoes.filtro === "TODAS" || opcoes.filtro === "RESPONDIDA" ? [desc(solicitacoes.atualizadoEm)] : [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
+  // Sem ordem escolhida: em "Todas" e "Respondidas", a enviada mais recente primeiro (a última alterada embaralhava
+  // a lista a cada conferência); em "Na ata", a reunião mais próxima; nas filas, o prazo mais próximo.
+  const recentes = [sql`coalesce(${solicitacoes.enviadaEm}, ${solicitacoes.criadoEm}) desc`];
+  const ordemPadrao =
+    opcoes.filtro === "TODAS" || opcoes.filtro === "RESPONDIDA" || opcoes.filtro === "RASCUNHO"
+      ? recentes
+      : opcoes.filtro === "NA_ATA"
+        ? [sql`(select e.data_reuniao from eventos e where e.id = ${solicitacoes.eventoId}) asc`, ...recentes]
+        : [sql`${solicitacoes.prazoRespostaEm} asc nulls last`];
   const ordem = (opcoes.ordem && Object.hasOwn(ordens, opcoes.ordem) && ordens[opcoes.ordem]) || ordemPadrao;
   const ids = (
     await db
@@ -160,7 +198,7 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
   const rows = await db.query.solicitacoes.findMany({
     where: inArray(solicitacoes.id, ids),
     with: {
-      evento: { columns: { id: true, codigo: true, nome: true, status: true } },
+      evento: { columns: { id: true, codigo: true, nome: true, status: true, dataReuniao: true } },
       area: true,
       criadoPor: { columns: { id: true, nome: true } },
       itens: { columns: { id: true, status: true } },
@@ -172,6 +210,7 @@ export async function paginarSolicitacoes(usuario: UsuarioAtual, opcoes: { filtr
     .map((r) => ({ ...r, totalItens: r.itens.length, itensRespondidos: r.itens.filter((i) => i.status !== "EM_ANALISE").length }));
   return { itens, pagina, paginas, total, de, porPagina: opcoes.porPagina, contagens };
 }
+
 
 /** Primeira solicitação da fila da logística (botão "Responder em fila"). */
 export async function primeiraDaFila(usuario: UsuarioAtual) {

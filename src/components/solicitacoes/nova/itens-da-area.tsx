@@ -109,9 +109,11 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
                         </span>
                       )}
                       {p.nome}
-                      {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">{acomp?.texto}, automático</span>}
-                      {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos ({acomp?.texto}); aqui, só os extras</span>}
-                      {!automatico && auto === 0 && acomp && <span className="mt-0.5 block text-rotulo font-normal text-muted">{acomp.texto}, automático; aqui, só os extras</span>}
+                      {/* Mesmo formato nas três: "Automático · regra"; "aqui, só os extras" só quando a base está nesta lista
+                          (na Ativação não há mesa nem bancada, e o cavalete reto é pedido inteiro ali). */}
+                      {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp?.texto}</span>}
+                      {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos · {acomp?.texto} · aqui, só os extras</span>}
+                      {!automatico && auto === 0 && acomp && junto && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp.texto} · aqui, só os extras</span>}
                     </span>
                     {automatico ? (
                       <span className={cn("numero w-[104px] shrink-0 pr-3 text-right text-corpo", ativo ? "font-semibold text-ink" : "text-meta")} aria-label={`${auto} ${p.nome}, automático`}>

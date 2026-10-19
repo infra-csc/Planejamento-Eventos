@@ -14,6 +14,7 @@ import { Numero } from "@/components/ui/numero";
 import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
 import { agruparDescricoes } from "@/domain/descricoes-itens";
+import { OBS_REGISTRADO_NA_ATA } from "@/domain/solicitacao";
 import { agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
@@ -404,11 +405,6 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
           {!semStatus && mesmoEstado && <ItemStatusBadge status={primeiro.status} naAta={naAtaGrupo} className="shrink-0" />}
         </div>
         {mesmoEstado && naAtaGrupo && <p className="m-0 px-cartao pb-1 text-pequeno text-ink-2">Aguarda conferência na reunião de OS.</p>}
-        {itens.some((i) => i.ajustes?.trim()) && (
-          <p className="m-0 px-cartao pb-2 text-pequeno text-muted">
-            Ajustes são diferenças de peças por tenda; não representam totais de acessórios.
-          </p>
-        )}
         <div className="ml-cartao border-l-2 border-line-soft">
           {locais.map(({ local, itens: partes }, localIndex) => (
             <section key={`${local ?? "sem-local"}-${localIndex}`} aria-label={local ? `Local: ${local}` : "Local não informado"} className="min-w-0 border-b border-line-row last:border-b-0">
@@ -496,7 +492,8 @@ export function ItemResposta({
   const naAta = Boolean(item.aguardandoReuniao) && item.status === "ATENDIDO";
   const podeResponder = emAnalise && item.respondivel;
   const temContexto = Boolean(item.descricoes?.some((d) => d.trim()) || item.justificativa);
-  const observacao = naAta ? (estadoNoGrupo ? null : "Aguarda conferência na reunião de OS.") : item.observacaoLogistica;
+  // A frase automática do pedido pré-reunião se repetia em todo item depois da reunião: só a observação escrita aparece.
+  const observacao = naAta ? (estadoNoGrupo ? null : "Aguarda conferência na reunião de OS.") : item.observacaoLogistica?.trim() === OBS_REGISTRADO_NA_ATA ? null : item.observacaoLogistica;
   const rotuloOp = ROTULO_OPERACAO[item.operacao];
 
   return (
@@ -525,10 +522,9 @@ export function ItemResposta({
               {item.destino || <span className="font-normal text-muted">Local não informado</span>}
             </p>
           ) : localNoGrupo ? (
-            <p className="m-0 break-words text-rotulo font-medium text-ink-3">
-              Parte {parte}
-              {item.ajustes && <span className="font-normal"> · configuração específica</span>}
-            </p>
+            // "Tenda 1", "Tenda 2" (ou "3 tendas" quando a parte junta várias iguais): "Parte 1 · configuração
+            // específica" era linguagem do sistema, não de quem montou o pedido.
+            <p className="m-0 break-words text-rotulo font-medium text-ink-3">{item.quantidadeSolicitada === 1 ? `Tenda ${parte}` : `${item.quantidadeSolicitada} tendas`}</p>
           ) : (
             <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>
           )}

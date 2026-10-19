@@ -14,7 +14,9 @@ const VISIVEIS_RECOLHIDO = 6;
 /**
  * Cada unidade adicionada tem a descrição (texto, arte, medida): 10 pedidas, 10 linhas numeradas.
  * Acima de 50 unidades, uma linha só vale para todas. A descrição é obrigatória para enviar.
- * Nem todo item precisa disso (20 grades iguais): quem pede marca "não precisa descrever cada unidade".
+ * Nem todo item precisa disso (20 grades iguais): quem pede desmarca "Descrever cada unidade" (frase positiva e
+ * curta; a antiga, "Não precisa descrever cada unidade", confundia e ocupava duas linhas em cada tenda).
+ * `compacto`: no quadro de tendas, só a caixa de marcar, sem cartão, para a linha não mudar de altura.
  * O "onde vai ficar" saiu da tela a pedido do time (o local das tendas vem do quadro de tendas).
  */
 export type ItemDescricoes = {
@@ -32,27 +34,31 @@ export function DescricoesItem({
   destacarVazias,
   onChange,
   className,
+  compacto = false,
 }: {
   item: ItemDescricoes;
   destacarVazias: boolean;
+  compacto?: boolean;
   onChange: (patch: { descricoes?: string[]; locais?: string[]; semDescricao?: boolean }) => void;
   className?: string;
 }) {
   const [expandido, setExpandido] = useState(false);
   const esperadasComDescricao = descricoesEsperadas(item.operacao, item.quantidade);
-  if (!esperadasComDescricao) return null;
+  // Tenda zerada no quadro: reserva a altura da caixa, para as linhas de baixo não subirem sob o clique.
+  if (!esperadasComDescricao) return compacto ? <div aria-hidden className="h-5" /> : null;
   const idDispensa = `sem-descricao-${item.chave}`;
   const dispensa = (
     <Checkbox
       id={idDispensa}
-      label="Não precisa descrever cada unidade"
-      checked={Boolean(item.semDescricao)}
+      label="Descrever cada unidade"
+      checked={!item.semDescricao}
       onChange={(marcado) =>
-        onChange(marcado ? { semDescricao: true, locais: [item.locais[0] ?? ""] } : { semDescricao: false, locais: Array.from({ length: esperadasComDescricao }, () => item.locais[0] ?? "") })
+        onChange(marcado ? { semDescricao: false, locais: Array.from({ length: esperadasComDescricao }, () => item.locais[0] ?? "") } : { semDescricao: true, locais: [item.locais[0] ?? ""] })
       }
     />
   );
   if (item.semDescricao) {
+    if (compacto) return <div id={`descricoes-${item.chave}`} tabIndex={-1} className="focus:outline-none">{dispensa}</div>;
     return (
       <div id={`descricoes-${item.chave}`} tabIndex={-1} className={cn("mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 focus:outline-none", className === undefined && "sm:ml-[76px]", className)}>
         {dispensa}

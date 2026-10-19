@@ -81,3 +81,15 @@ export function sincronizarAcompanhantes(itens: ItemNovo[], pecas: readonly Refe
   }
   return lista;
 }
+
+/**
+ * Título sugerido a partir dos itens ("Cocho para água, Cone grande e mais 14"). Com o campo vazio, o
+ * envio usa a sugestão: o título em cinza parecia preenchido e travava o envio com "falta título".
+ */
+export function sugerirTitulo(itens: readonly ItemNovo[], pecas: readonly Referencia[]): string | null {
+  const nomeCurto = (i: ItemNovo) => (i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? i.rotulo) : i.rotulo);
+  const nomes = [...new Set(itens.map(nomeCurto))];
+  if (nomes.length === 0) return null;
+  const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
+  return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
+}

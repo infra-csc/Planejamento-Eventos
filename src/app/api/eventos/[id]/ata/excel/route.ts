@@ -121,7 +121,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Separado por material, como a lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena).
     [...ata.linhas]
       .map((x) => ({ x, g: grupoDaLinhaExport(x, grupos) }))
-      .sort((a, b) => ordemGrupo(a.g) - ordemGrupo(b.g))
+      // Dentro do material, por item e depois por local: as tendas 5×5 de cada local ficam juntas.
+      .sort((a, b) => ordemGrupo(a.g) - ordemGrupo(b.g) || a.x.descricao.localeCompare(b.x.descricao, "pt-BR") || (a.x.destino ?? "").localeCompare(b.x.destino ?? "", "pt-BR"))
       .map(({ x, g }) => [x.codigo ?? "", itemDaAta(x, g), x.quantidade, x.destino ?? "—", x.area ?? "Logística", x.origem, x.conferidoPor ? `☑ ${x.conferidoPor}` : "—"]),
   );
   l += 1;

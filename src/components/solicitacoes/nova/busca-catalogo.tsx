@@ -78,13 +78,16 @@ export function BuscaCatalogo({
           justificativa: "",
           descricoes: [],
           locais: [],
+          // Peça avulsa (pranchão, rampa) como na lista da área: descrever é opcional ("Descrever as unidades").
+          // Projeto (stand, quadro) continua pedindo a descrição de cada unidade (arte, marca).
+          semDescricao: tipo === "peca",
           ajustes: {},
           rotulo: tipo === "projeto" ? r.nome : `${r.codigo} · ${r.nome}`,
           meta: tipo === "projeto" ? `${r.codigo} · projeto padrão` : "peça do catálogo",
         },
       ];
     });
-    toastSucesso(`${r.nome} × ${qtd} ${existente ? "somado ao item" : "adicionado"}`, { acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
+    toastSucesso(`${r.nome} × ${qtd} ${existente ? "somado ao item" : "adicionado"}`, { grupo: "item-adicionado", acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
   };
 
   const adicionarAvulso = () => {
@@ -97,7 +100,7 @@ export function BuscaCatalogo({
     setErroAvulso(null);
     setAvulso("");
     setItens((l) => [...l, { chave, operacao: "ADICIONAR", projetoId: null, pecaId: null, eventoItemId: null, descricaoLivre: d, quantidade: 1, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], locais: [], ajustes: {}, rotulo: d, meta: "fora do catálogo" }]);
-    toastSucesso(`${d} adicionado`, { acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
+    toastSucesso(`${d} adicionado`, { grupo: "item-adicionado", acao: { rotulo: "Descrever", onClick: () => irPara(`item-${chave}`) } });
   };
 
   const adicionarLinha = (l: LinhaAta, operacao: "ALTERAR_QUANTIDADE" | "REMOVER") => {

@@ -33,7 +33,7 @@ export function DialogoTendas({
     const total = novos.reduce((a, x) => a + x.quantidade, 0);
     const nLocais = new Set(novos.map((x) => x.destino.trim().toLocaleLowerCase("pt-BR"))).size;
     const editando = itensDaTenda(itens, r.id).length > 0;
-    toastSucesso(`${r.nome} × ${total} ${editando ? "atualizada" : "adicionada"} (${nLocais} ${nLocais === 1 ? "local" : "locais"})`);
+    toastSucesso(`${r.nome} × ${total} ${editando ? "atualizada" : "adicionada"} (${nLocais} ${nLocais === 1 ? "local" : "locais"})`, { grupo: "item-adicionado" });
     const linhas: ItemNovo[] = novos.map((x) => ({
       chave: novaChave(),
       operacao: "ADICIONAR" as const,

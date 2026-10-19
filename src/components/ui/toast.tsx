@@ -8,7 +8,7 @@ import { useNavegacaoPendente } from "./navegacao";
 /** sucesso = algo foi feito; info = aviso neutro; erro = falhou (role=alert). */
 export type TipoToast = "info" | "sucesso" | "erro";
 type AcaoToast = { rotulo: string; onClick: () => void | Promise<void> };
-type ItemToast = { id: number; mensagem: string; tipo: TipoToast; desfazer?: () => void | Promise<void>; acao?: AcaoToast; restante: number; inicio: number | null };
+type ItemToast = { id: number; mensagem: string; tipo: TipoToast; desfazer?: () => void | Promise<void>; acao?: AcaoToast; grupo?: string; restante: number; inicio: number | null };
 
 const ICONE: Record<TipoToast, { nome: NomeIcone; cor: string }> = {
   sucesso: { nome: "check-circulo", cor: "text-success-light" },
@@ -67,14 +67,17 @@ function retomar() {
 /**
  * Toast escuro do handoff (§6): canto inferior direito, com ícone por tipo, "Desfazer" ou uma ação opcional.
  * Empilha até 3 (um novo não apaga o "Desfazer" do anterior), pausa no hover/foco e aceita Ctrl+Z.
+ * `grupo`: um aviso novo do mesmo grupo substitui o anterior (cinco "adicionado" seguidos cobriam o resumo).
  */
-export function toast(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast; duracao?: number; tipo?: TipoToast }) {
+export function toast(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast; duracao?: number; tipo?: TipoToast; grupo?: string }) {
+  if (opcoes?.grupo) for (const t of lista.filter((x) => x.grupo === opcoes.grupo)) remover(t.id);
   const item: ItemToast = {
     id: ++seq,
     mensagem,
     tipo: opcoes?.tipo ?? "info",
     desfazer: opcoes?.desfazer,
     acao: opcoes?.acao,
+    grupo: opcoes?.grupo,
     restante: opcoes?.duracao ?? (opcoes?.desfazer || opcoes?.acao ? 8000 : 5000),
     inicio: null,
   };
@@ -91,7 +94,7 @@ export function toastErro(mensagem: string) {
   toast(mensagem, { tipo: "erro", duracao: 7000 });
 }
 
-export function toastSucesso(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast }) {
+export function toastSucesso(mensagem: string, opcoes?: { desfazer?: () => void | Promise<void>; acao?: AcaoToast; grupo?: string }) {
   toast(mensagem, { ...opcoes, tipo: "sucesso" });
 }
 

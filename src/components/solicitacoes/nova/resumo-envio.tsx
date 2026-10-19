@@ -8,7 +8,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { hora } from "@/lib/format";
 import { Passo } from "./passo";
-import { agruparItensNovos, irPara } from "./utilidades";
+import { agruparItensNovos, ehAcompanhante, irPara, sugerirTitulo } from "./utilidades";
 import type { EstadoSalvo } from "./use-autosave-solicitacao";
 import type { EventoOpcao, ItemNovo, Pendencia, Referencia } from "./tipos";
 
@@ -60,15 +60,8 @@ export function ResumoEnvio({
   estadoSalvo: EstadoSalvo;
   codigoRascunho: string | null;
 }) {
-  /** Nome sem o código na frente (peça), para o título sugerido. */
-  const nomeCurto = (i: ItemNovo) => (i.pecaId ? (pecas.find((p) => p.id === i.pecaId)?.nome ?? i.rotulo) : i.rotulo);
-  // Título sugerido a partir dos itens: só placeholder e um atalho "Usar sugestão"; nunca preenche sozinho.
-  const sugestaoTitulo = (() => {
-    const nomes = [...new Set(itens.map(nomeCurto))];
-    if (nomes.length === 0) return null;
-    const texto = nomes.length === 1 ? nomes[0] : nomes.length === 2 ? `${nomes[0]} e ${nomes[1]}` : `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
-    return texto.length > 120 ? `${texto.slice(0, 119)}…` : texto;
-  })();
+  // Título sugerido a partir dos itens: aparece no campo e vale no envio se ninguém escrever outro.
+  const sugestaoTitulo = sugerirTitulo(itens, pecas);
   const textoSalvo = edicaoEnviada
     ? "As alterações ficam guardadas neste navegador até você salvar; o pedido como estava continua valendo."
     : estadoSalvo.tipo === "salvando"
@@ -118,6 +111,8 @@ export function ResumoEnvio({
                     <span className="line-clamp-2 min-w-0 flex-1 break-words text-ink" title={i.rotulo}>
                       {i.rotulo}
                       {nLocais > 1 && <span className="text-muted"> · {nLocais} locais</span>}
+                      {/* Cavaletes que vêm junto: o mesmo código pode aparecer duas vezes (automático e extras). */}
+                      {ehAcompanhante(i) && <span className="text-muted"> · automático</span>}
                     </span>
                     <span className="numero shrink-0 text-ink-2">{i.operacao === "REMOVER" ? "remover" : `× ${total}`}</span>
                   </button>
@@ -135,7 +130,7 @@ export function ResumoEnvio({
             hint={
               !titulo.trim() && sugestaoTitulo ? (
                 <>
-                  É o que a logística vê na fila.{" "}
+                  Vazio, vai com o sugerido.{" "}
                   <Button
                     variant="link"
                     size="xs"
@@ -144,7 +139,7 @@ export function ResumoEnvio({
                       setErroTitulo(null);
                     }}
                   >
-                    Usar a sugestão
+                    Editar a sugestão
                   </Button>
                 </>
               ) : (
