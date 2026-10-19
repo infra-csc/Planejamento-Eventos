@@ -19,6 +19,10 @@ type Local = { chave: string; nome: string | null; ls: LinhaConferencia[]; tenda
 
 const norm = (s: string | null) => (s ?? "").trim().toLocaleLowerCase("pt-BR");
 
+/** "1 calha", "2 calhas", "0 fechamentos". */
+const PLURAL: Record<Papel, [string, string]> = { fechamento: ["fechamento", "fechamentos"], calha: ["calha", "calhas"] };
+const contagem = (papel: Papel, n: number) => `${PLURAL[papel][n === 1 ? 0 : 1]}`;
+
 function locaisDe(ls: readonly LinhaConferencia[], colunas: readonly Coluna[]): Local[] {
   const m = new Map<string, Local>();
   for (const l of ls) {
@@ -97,7 +101,7 @@ export function BlocoTenda({
             return (
               <span key={c.papel}>
                 {" · "}
-                <b className="font-semibold text-ink">{n}</b> {c.rotulo.toLowerCase()}
+                <b className="font-semibold text-ink">{n}</b> {contagem(c.papel, n)}
               </span>
             );
           })}

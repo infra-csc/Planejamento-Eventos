@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -75,13 +75,14 @@ export async function conferirLinha(usuario: UsuarioAtual, eventoId: string, lin
   });
 }
 
-/** Conferência em lote (seed, testes, "conferir todas as restantes"). */
 /**
- * "Conferir as restantes": marca só as linhas que a pessoa tinha na tela (`linhaIds`). Linha que
- * chegou depois (pedido novo, correção que desfez a conferência) continua pendente e é contada em
- * `novas`, para a tela avisar. Sem `linhaIds` (scripts), vale para todas as pendentes.
+ * Conferência em lote ("conferir as restantes", um item ou um local de tenda inteiro): marca só as
+ * linhas pedidas (`linhaIds`). `conhecidas` são todas as linhas que a tela tinha: pendente que não
+ * está nelas chegou depois (pedido novo, correção que desfez a conferência) e é contada em `novas`,
+ * para a tela avisar. Sem `conhecidas`, não há como saber, e `novas` é 0. Sem `linhaIds` (scripts),
+ * vale para todas as pendentes.
  */
-export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: string, linhaIds?: string[]) {
+export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: string, linhaIds?: string[], conhecidas?: string[]) {
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -98,12 +99,13 @@ export async function conferirTodasLinhas(usuario: UsuarioAtual, eventoId: strin
     // Um registro por linha, gravados num insert só.
     await registrarHistoricos(
       tx,
-      marcadas.map((m) => ({ eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote: “conferir as restantes”)", usuarioId: usuario.id })),
+      marcadas.map((m) => ({ eventoId, entidade: "evento_item", entidadeId: m.id, acao: "CONFERIDO", descricao: "Conferida na reunião (em lote)", usuarioId: usuario.id })),
     );
+    if (!conhecidas) return { marcadas: marcadas.length, novas: 0 };
     const [{ pendentes }] = await tx
       .select({ pendentes: count() })
       .from(eventoItens)
-      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`));
+      .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), sql`${eventoItens.conferidoEm} is null`, ...(conhecidas.length ? [notInArray(eventoItens.id, conhecidas)] : [])));
     return { marcadas: marcadas.length, novas: Number(pendentes) };
   });
 }

@@ -28,11 +28,40 @@ import { conferenciaOpcional } from "@/domain/itens-padrao";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { MARCA_ACOMPANHANTE } from "@/components/solicitacoes/nova/utilidades";
 
+/** Item da seção: chave, linhas e, se ele vem junto de outro (regra fixa), de qual e por quê. */
+type ItemSecao = readonly [string, LinhaConferencia[], { nome: string; texto: string } | null];
+
+/**
+ * Itens que dependem de outro ("1 cocho = 2 cavaletes de ferro", "1 grade 2×1 = 2 pés") ficam logo
+ * abaixo do item de origem, na mesma seção, em vez de no lugar da ordem alfabética. Sem a origem na
+ * seção (filtro, outra área), o item fica onde estava.
+ */
+function juntarDependentes(itens: ReadonlyArray<readonly [string, LinhaConferencia[]]>): ItemSecao[] {
+  const regraDe = (ls: readonly LinhaConferencia[]) => ACOMPANHANTES.find((a) => ls.some((l) => l.codigo === a.acompanhante));
+  const dependentes = new Map<string, { regra: (typeof ACOMPANHANTES)[number]; ls: LinhaConferencia[] }>();
+  for (const [k, ls] of itens) {
+    const regra = regraDe(ls);
+    if (regra && itens.some(([, outro]) => outro.some((l) => l.codigo && regra.bases.includes(l.codigo)))) dependentes.set(k, { regra, ls });
+  }
+  const saida: ItemSecao[] = [];
+  for (const [k, ls] of itens) {
+    if (dependentes.has(k)) continue;
+    saida.push([k, ls, null]);
+    // Logo depois da origem: os itens que vêm junto dela (cada um só uma vez, junto da 1ª origem).
+    for (const [kd, d] of dependentes) {
+      if (!ls.some((l) => l.codigo && d.regra.bases.includes(l.codigo))) continue;
+      saida.push([kd, d.ls, { nome: ls[0].nome, texto: d.regra.texto }]);
+      dependentes.delete(kd);
+    }
+  }
+  return saida;
+}
+
 /** Evento da página: leva ao campo "Pessoas presentes" do painel da reunião (que escuta e foca o campo). */
 export const EVENTO_REGISTRAR_PRESENTES = "conferencia:registrar-presentes";
 export const pedirRegistroDePresentes = () => window.dispatchEvent(new CustomEvent(EVENTO_REGISTRAR_PRESENTES));
 
-/** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
+/** Resultado da conferência em lote: avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
   if (!r.ok) return toastErro(r.erro);
   toastSucesso(r.dados && r.dados.novas > 0 ? `${rotulo}. ${r.dados.novas} ${r.dados.novas === 1 ? "linha chegou" : "linhas chegaram"} depois e ${r.dados.novas === 1 ? "continua pendente" : "continuam pendentes"}: confira na lista.` : rotulo);
@@ -650,7 +679,8 @@ export function ConferenciaAta({
             toastSucesso("Tudo conferido. Registre os presentes e feche a ata.");
           }
         } else {
-          const r = await conferirTodasAction(eventoId, t.ids).catch(() => ({ ok: false as const, erro: "Sem conexão: as linhas não foram marcadas. Tente de novo." }));
+          // Todas as linhas que a tela conhece: pendente fora delas chegou depois (o aviso só conta essas).
+          const r = await conferirTodasAction(eventoId, t.ids, linhas.map((l) => l.id)).catch(() => ({ ok: false as const, erro: "Sem conexão: as linhas não foram marcadas. Tente de novo." }));
           if (!r.ok) setOverride((o) => ({ ...o, ...Object.fromEntries(t.ids.map((id) => [id, false])) }));
           avisarTodas(r, t.rotulo);
         }
@@ -731,16 +761,25 @@ export function ConferenciaAta({
           const k = `${l.tipo}|${l.codigo ?? l.nome}`;
           porItem.set(k, [...(porItem.get(k) ?? []), l]);
         }
-        const itens = [...porItem.entries()]
+        const ordenados = [...porItem.entries()]
           .map(([k, ls]) => [k, [...ls].sort((a, b) => porNome(a.destino ?? "", b.destino ?? "") || porNome(pessoaDe(a), pessoaDe(b)) || a.id.localeCompare(b.id))] as const)
           .sort(([, a], [, b]) => porNome(a[0].nome, b[0].nome));
-        return { area, itens };
+        return { area, itens: juntarDependentes(ordenados) };
       });
   }, [visiveis]);
   // Contagem por seção sobre a ata inteira (não só o recorte) e só das obrigatórias, como o progresso.
   const totalArea = (a: string) => {
     const ls = linhas.filter((l) => secaoDe(l) === a && !conferenciaOpcional(l));
-    return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length };
+    if (a === GRUPO_LABEL.TENDAS) {
+      // Um local de uma tenda = um "item" do quadro: conferido quando todas as linhas dele estão.
+      const locais = new Map<string, boolean>();
+      for (const l of ls) {
+        const k = `${l.codigo ?? l.nome}|${(l.destino ?? "").trim().toLocaleLowerCase("pt-BR")}`;
+        locais.set(k, (locais.get(k) ?? true) && Boolean(l.conferidoEm));
+      }
+      return { ok: [...locais.values()].filter(Boolean).length, n: locais.size, unidade: locais.size === 1 ? "local" : "locais" };
+    }
+    return { ok: ls.filter((l) => l.conferidoEm).length, n: ls.length, unidade: "" };
   };
   const filtrando = filtro !== "todas" || Boolean(areaAtiva) || Boolean(pessoaAtiva) || Boolean(grupoAtivo) || Boolean(busca.trim());
   const limparFiltros = () => {
@@ -770,6 +809,73 @@ export function ConferenciaAta({
       m.set(k, [...(m.get(k) ?? []), l]);
     }
     return [...m.values()];
+  };
+
+  /** Um item da seção: quadro da tenda, linha única ou bloco do item em vários pedidos ou locais. */
+  const renderizarItem = (chave: string, ls: LinhaConferencia[]) => {
+                  // Tenda: quadro por local (tendas, fechamentos, calhas), editável, em vez de linhas soltas com "peças ajustadas".
+                  if (ls[0].tenda) return <BlocoTenda key={chave} ls={ls} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} />;
+                  if (ls.length === 1) {
+                    const l = ls[0];
+                    return (
+                      <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
+                        <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} />
+                      </ul>
+                    );
+                  }
+                  const ok = ls.filter((l) => l.conferidoEm).length;
+                  const total = ls.reduce((a, l) => a + l.quantidade, 0);
+                  const p0 = ls[0];
+                  // Todas as linhas do item vêm da mesma pessoa e área: a origem sobe para o cabeçalho do bloco.
+                  const origemComum = ls.every((l) => quemDe(l) === quemDe(p0));
+                  const solComum = origemComum && Boolean(p0.origem) && ls.every((l) => l.origem?.solicitacaoId === p0.origem?.solicitacaoId);
+                  const ajustesComuns = p0.origem?.ajustes && ls.every((l) => l.origem?.ajustes === p0.origem?.ajustes) ? p0.origem.ajustes : null;
+                  const blocoOk = ok === ls.length;
+                  const nLocais = new Set(ls.map((l) => (l.destino ?? "").trim().toLocaleLowerCase("pt-BR")).filter(Boolean)).size;
+                  const textoLocais = nLocais === 0 ? "sem local" : `${nLocais} ${nLocais === 1 ? "local" : "locais"}`;
+                  return (
+                    <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
+                      <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
+                        <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
+                        {p0.tipo === "AVULSO" && <Tag tom="warning">{TIPO[p0.tipo]}</Tag>}
+                        {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
+                        <span className="text-pequeno text-muted">
+                          <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} linhas · {textoLocais}
+                          {origemComum && <> · {quemDe(p0)}</>}
+                          {solComum && p0.origem && (
+                            <>
+                              {" · "}
+                              <Link href={`/solicitacoes/${p0.origem.solicitacaoId}`} className="text-muted no-underline hover:text-accent hover:underline">
+                                <Codigo>{p0.origem.codigo}</Codigo>
+                              </Link>
+                            </>
+                          )}
+                        </span>
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-2">
+                          <span className={cn("numero inline-flex items-center gap-1 text-pequeno", blocoOk ? "text-success" : "text-ink-3")}>
+                            {blocoOk && <Icone nome="check" className="size-3.5" />}
+                            {ok}/{ls.length}
+                          </span>
+                          {editavel && !blocoOk && (
+                            <Button variant="ghost" size="xs" onClick={() => conferirGrupo(ls)} title={`Marcar as ${ls.length - ok} linhas de ${p0.nome} como conferidas`}>
+                              <Icone nome="check" />
+                              Conferir as {ls.length - ok}
+                            </Button>
+                          )}
+                        </span>
+                        {ajustesComuns && <span className="basis-full text-rotulo text-muted">Peças ajustadas em todas: {ajustesComuns}</span>}
+                      </h4>
+                      <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
+                        {juntar(ls).map((js) =>
+                          js.length > 1 ? (
+                            <LinhaJunta key={js[0].id} ls={js} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} onAjustar={setAjustando} onEditarDescricao={editarDescricao} origemComum={origemComum} />
+                          ) : (
+                            <Linha key={js[0].id} l={js[0]} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo origemComum={origemComum} solComum={solComum} ajustesNoBloco={Boolean(ajustesComuns)} />
+                          ),
+                        )}
+                      </ul>
+                    </section>
+                  );
   };
 
   /** Leva à próxima linha obrigatória sem conferir (na ordem da lista) e põe o foco no check dela. */
@@ -955,72 +1061,23 @@ export function ConferenciaAta({
                   <span className="text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">{nomeArea}</span>
                   <span className={cn("numero inline-flex items-center gap-1 text-pequeno font-normal", secaoOk ? "text-success" : "text-ink-3")}>
                     {secaoOk && <Icone nome="check" className="size-3.5" />}
-                    {t.n > 0 ? `${t.ok}/${t.n}` : "opcional"}
+                    {t.n > 0 ? `${t.ok}/${t.n}${t.unidade ? ` ${t.unidade}` : ""}` : "opcional"}
                   </span>
                 </h3>
-                {itens.map(([chave, ls]) => {
-                  // Tenda: quadro por local (tendas, fechamentos, calhas), editável, em vez de linhas soltas com "peças ajustadas".
-                  if (ls[0].tenda) return <BlocoTenda key={chave} ls={ls} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} />;
-                  if (ls.length === 1) {
-                    const l = ls[0];
-                    return (
-                      <ul key={chave} className="m-0 list-none border-b border-line-row p-0 last:border-b-0">
-                        <Linha l={l} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} />
-                      </ul>
-                    );
-                  }
-                  const ok = ls.filter((l) => l.conferidoEm).length;
-                  const total = ls.reduce((a, l) => a + l.quantidade, 0);
-                  const p0 = ls[0];
-                  // Todas as linhas do item vêm da mesma pessoa e área: a origem sobe para o cabeçalho do bloco.
-                  const origemComum = ls.every((l) => quemDe(l) === quemDe(p0));
-                  const solComum = origemComum && Boolean(p0.origem) && ls.every((l) => l.origem?.solicitacaoId === p0.origem?.solicitacaoId);
-                  const ajustesComuns = p0.origem?.ajustes && ls.every((l) => l.origem?.ajustes === p0.origem?.ajustes) ? p0.origem.ajustes : null;
-                  const blocoOk = ok === ls.length;
-                  return (
-                    <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
-                      <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
-                        <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
-                        {p0.tipo === "AVULSO" && <Tag tom="warning">{TIPO[p0.tipo]}</Tag>}
-                        {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
-                        <span className="text-pequeno text-muted">
-                          <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} locais
-                          {origemComum && <> · {quemDe(p0)}</>}
-                          {solComum && p0.origem && (
-                            <>
-                              {" · "}
-                              <Link href={`/solicitacoes/${p0.origem.solicitacaoId}`} className="text-muted no-underline hover:text-accent hover:underline">
-                                <Codigo>{p0.origem.codigo}</Codigo>
-                              </Link>
-                            </>
-                          )}
-                        </span>
-                        <span className="ml-auto inline-flex shrink-0 items-center gap-2">
-                          <span className={cn("numero inline-flex items-center gap-1 text-pequeno", blocoOk ? "text-success" : "text-ink-3")}>
-                            {blocoOk && <Icone nome="check" className="size-3.5" />}
-                            {ok}/{ls.length}
-                          </span>
-                          {editavel && !blocoOk && (
-                            <Button variant="ghost" size="xs" onClick={() => conferirGrupo(ls)} title={`Marcar as ${ls.length - ok} linhas de ${p0.nome} como conferidas`}>
-                              <Icone nome="check" />
-                              Conferir as {ls.length - ok}
-                            </Button>
-                          )}
-                        </span>
-                        {ajustesComuns && <span className="basis-full text-rotulo text-muted">Peças ajustadas em todas: {ajustesComuns}</span>}
-                      </h4>
-                      <ul className="m-0 ml-cartao list-none border-l-2 border-line-soft p-0 [&>li:last-child]:border-b-0">
-                        {juntar(ls).map((js) =>
-                          js.length > 1 ? (
-                            <LinhaJunta key={js[0].id} ls={js} eventoId={eventoId} editavel={editavel} onConferir={conferirVarias} onAjustar={setAjustando} onEditarDescricao={editarDescricao} origemComum={origemComum} />
-                          ) : (
-                            <Linha key={js[0].id} l={js[0]} eventoId={eventoId} editavel={editavel} onMudou={mudou} onAjustar={setAjustando} opcoes={opcoes} podeCadastrar={podeCadastrar} onEditarDescricao={editarDescricao} emGrupo origemComum={origemComum} solComum={solComum} ajustesNoBloco={Boolean(ajustesComuns)} />
-                          ),
-                        )}
-                      </ul>
-                    </section>
-                  );
-                })}
+                {itens.flatMap(([chave, ls, dep]) => [
+                  // Item que vem junto de outro: o aviso fica entre a origem e ele (a ordem já os põe lado a lado).
+                  dep ? (
+                    <p key={`${chave}:junto`} className="m-0 flex items-center gap-1.5 border-t border-dashed border-accent-border bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
+                      <span aria-hidden className="text-accent">
+                        ↳
+                      </span>
+                      <span>
+                        Vem junto de <b className="font-medium text-ink-2">{dep.nome}</b> · {dep.texto}
+                      </span>
+                    </p>
+                  ) : null,
+                  renderizarItem(chave, ls),
+                ])}
               </section>
             );
           })}

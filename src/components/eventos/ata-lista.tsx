@@ -291,7 +291,7 @@ export function AtaLista({
                     onClick={() =>
                       iniciarTodas(async () => {
                         // Só as linhas que estão na tela: o que chegar depois continua pendente.
-                        const r = await conferirTodasAction(eventoId, linhas.filter((l) => !l.conferidoEm).map((l) => l.id));
+                        const r = await conferirTodasAction(eventoId, linhas.filter((l) => !l.conferidoEm).map((l) => l.id), linhas.map((l) => l.id));
                         avisarTodas(r, "Linhas restantes marcadas como conferidas");
                       })
                     }

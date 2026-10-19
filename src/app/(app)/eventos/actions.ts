@@ -148,10 +148,11 @@ export async function conferirLinhaAction(eventoId: string, linhaId: string, con
   return r;
 }
 
-export async function conferirTodasAction(eventoId: string, linhaIds: string[]) {
+export async function conferirTodasAction(eventoId: string, linhaIds: string[], conhecidas?: string[]) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || !Array.isArray(linhaIds) || linhaIds.length > 2000 || linhaIds.some((x) => typeof x !== "string")) return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => conferirTodasLinhas(usuario, eventoId, linhaIds));
+  const lista = (x: unknown): x is string[] => Array.isArray(x) && x.length <= 2000 && x.every((y) => typeof y === "string");
+  if (typeof eventoId !== "string" || !lista(linhaIds) || (conhecidas !== undefined && !lista(conhecidas))) return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => conferirTodasLinhas(usuario, eventoId, linhaIds, conhecidas));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

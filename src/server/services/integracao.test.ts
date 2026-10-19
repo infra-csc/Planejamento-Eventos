@@ -350,11 +350,15 @@ describe("correções da auditoria", { timeout: 30_000 }, () => {
     const base = { referenciaTipo: "PECA" as const, projetoId: null, pecaId, descricaoLivre: null, destino: null, areaId: producao.areaId, justificativa: null };
     const a = await incluirLinhaAta(logistica, ev.id, { ...base, quantidade: 1 });
     const b = await incluirLinhaAta(logistica, ev.id, { ...base, quantidade: 2 });
-    const r = await conferirTodasLinhas(logistica, ev.id, [a.id]);
-    expect(r).toEqual({ marcadas: 1, novas: 1 });
+    // A tela conhecia a e b; conferiu só a (um item, um local): b não "chegou depois".
+    const r = await conferirTodasLinhas(logistica, ev.id, [a.id], [a.id, b.id]);
+    expect(r).toEqual({ marcadas: 1, novas: 0 });
     const db = await getDb();
     const lb = await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, b.id) });
     expect(lb?.conferidoEm).toBeNull();
+    // Linha que a tela não conhecia (pedido novo depois que ela abriu): essa sim conta como nova.
+    await incluirLinhaAta(logistica, ev.id, { ...base, quantidade: 3 });
+    expect(await conferirTodasLinhas(logistica, ev.id, [b.id], [a.id, b.id])).toEqual({ marcadas: 1, novas: 1 });
   });
 
   it("motivo de ajuste pós-ata vai só para a área dona da linha", async () => {
