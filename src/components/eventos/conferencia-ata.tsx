@@ -78,7 +78,7 @@ const ordemSecao = (s: string) => (s === GRUPO_LABEL.ESTRUTURA ? 0 : s === GRUPO
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 /** Origem em uma linha: "Produção · Ana Lima". */
-const quemDe = (l: LinhaConferencia) => `${areaDe(l)} · ${l.origem?.solicitante ?? (l.regra ? "Regra da logística" : "Incluída na reunião")}`;
+const quemDe = (l: LinhaConferencia) => `${areaDe(l)} · ${l.origem?.solicitante ?? (l.regra ? "Regra da logística" : "Incluída pela logística")}`;
 
 /** Nome da linha para leitor de tela e dicas: o item mais o local (ou o pedido, sem local) — duas linhas iguais não soam iguais. */
 const rotuloLinha = (l: LinhaConferencia) => `${l.nome}${l.destino ? `, ${l.destino}` : l.origem ? `, ${l.origem.codigo}` : ""}`;
@@ -300,6 +300,9 @@ function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidade
 }
 
 /** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
+/** "Quem pediu" só em texto (vai dentro de um link): título da linha sem local num grupo do mesmo item. */
+const textoPedidoPor = (l: LinhaConferencia) => (l.origem ? `${quemDe(l)} · ${l.origem.codigo}` : l.regra ? "Regra da logística" : `Incluída pela logística${l.incluidaPor ? ` · ${l.incluidaPor}` : ""}`);
+
 function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: boolean }) {
   if (l.origem)
     return (
@@ -312,7 +315,7 @@ function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: 
     );
   if (semPessoa) return null;
   if (l.regra) return <>Regra da logística · {l.regra}</>;
-  return <>Incluída na reunião{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>;
+  return <>Incluída pela logística{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>;
 }
 
 /** Ações de uma linha, sempre na mesma ordem e com o mesmo peso: ajustar a quantidade e abrir as peças. */
@@ -394,7 +397,8 @@ function Linha({
         {emGrupo ? (
           <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
-              {l.destino ?? "Sem local informado"}
+              {/* Sem local, o que diferencia as linhas é quem pediu (o cabeçalho do grupo já diz "sem local"). */}
+              {l.destino ?? textoPedidoPor(l)}
             </Link>
             {marcaOpcional}
           </p>
@@ -408,7 +412,7 @@ function Linha({
             {marcaOpcional}
           </p>
         )}
-        {!(emGrupo && origemComum && (!l.origem || solComum)) && (
+        {!(emGrupo && !l.destino) && !(emGrupo && origemComum && (!l.origem || solComum)) && (
           <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">
             {!emGrupo && <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>}
             <PedidoPor l={l} semPessoa={emGrupo && origemComum} />
@@ -541,7 +545,7 @@ function LinhaJunta({
 
       <div className="min-w-0">
         <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
-          {l0.destino ?? "Sem local informado"}
+          {l0.destino ?? <span className="font-normal text-ink-3">Sem local</span>}
           <span className="numero rounded-chip bg-control px-1.5 py-px text-rotulo font-normal text-ink-3">{ls.length} linhas</span>
         </p>
         <p className="m-0 mt-0.5 truncate text-pequeno text-ink-3">

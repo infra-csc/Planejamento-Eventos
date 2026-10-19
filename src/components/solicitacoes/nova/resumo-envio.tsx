@@ -22,6 +22,8 @@ export function ResumoEnvio({
   pendencias,
   titulo,
   setTitulo,
+  tituloSugerido,
+  voltarSugestao,
   observacao,
   setObservacao,
   erroTitulo,
@@ -45,6 +47,10 @@ export function ResumoEnvio({
   pendencias: Pendencia[];
   titulo: string;
   setTitulo: (v: string) => void;
+  /** O campo mostra o título sugerido pelos itens (ninguém escreveu outro). */
+  tituloSugerido: boolean;
+  /** Campo esvaziado: volta a mostrar (e acompanhar) a sugestão. */
+  voltarSugestao: () => void;
   observacao: string;
   setObservacao: (v: string) => void;
   erroTitulo: string | null;
@@ -127,25 +133,7 @@ export function ResumoEnvio({
             htmlFor="titulo"
             obrigatorio
             error={erroTitulo}
-            hint={
-              !titulo.trim() && sugestaoTitulo ? (
-                <>
-                  Vazio, vai com o sugerido.{" "}
-                  <Button
-                    variant="link"
-                    size="xs"
-                    onClick={() => {
-                      setTitulo(sugestaoTitulo);
-                      setErroTitulo(null);
-                    }}
-                  >
-                    Editar a sugestão
-                  </Button>
-                </>
-              ) : (
-                "É o que a logística vê na fila."
-              )
-            }
+            hint={tituloSugerido ? "Sugerido pelos itens; mude se quiser. É o que a logística vê na fila." : "É o que a logística vê na fila."}
           >
             <Input
               id="titulo"
@@ -156,9 +144,12 @@ export function ResumoEnvio({
                 if (erroTitulo && e.target.value.trim()) setErroTitulo(null);
               }}
               onBlur={(e) => {
-                if (tentouEnviar) validarTitulo(e.target.value);
+                if (!e.target.value.trim() && sugestaoTitulo) {
+                  voltarSugestao();
+                  setErroTitulo(null);
+                } else if (tentouEnviar) validarTitulo(e.target.value);
               }}
-              placeholder={sugestaoTitulo ?? "Ex.: Estrutura do palco principal"}
+              placeholder="Ex.: Estrutura do palco principal"
             />
           </Field>
           <Field label="Observação" htmlFor="observacao" optional>

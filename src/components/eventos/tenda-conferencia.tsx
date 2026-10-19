@@ -37,7 +37,7 @@ function locaisDe(ls: readonly LinhaConferencia[], colunas: readonly Coluna[]): 
   return [...m.values()].sort((a, b) => (a.nome ?? "~").localeCompare(b.nome ?? "~", "pt-BR"));
 }
 
-/** Quem pediu o local, em uma linha: "SOL-0074 · Produção · Ana Lima" (ou "Incluída na reunião"). */
+/** Quem pediu o local, em uma linha: "SOL-0074 · Produção · Ana Lima" (ou "Incluída pela logística"). */
 function Origem({ ls }: { ls: readonly LinhaConferencia[] }) {
   const pedidos = [...new Map(ls.filter((l) => l.origem).map((l) => [l.origem!.solicitacaoId, l])).values()];
   const semPedido = ls.some((l) => !l.origem);
@@ -55,7 +55,7 @@ function Origem({ ls }: { ls: readonly LinhaConferencia[] }) {
       {semPedido && (
         <>
           {pedidos.length > 0 && " · "}
-          {ls.find((l) => !l.origem)?.regra ? "Regra da logística" : `Incluída na reunião${ls.find((l) => !l.origem)?.incluidaPor ? ` · ${ls.find((l) => !l.origem)!.incluidaPor}` : ""}`}
+          {ls.find((l) => !l.origem)?.regra ? "Regra da logística" : `Incluída pela logística${ls.find((l) => !l.origem)?.incluidaPor ? ` · ${ls.find((l) => !l.origem)!.incluidaPor}` : ""}`}
         </>
       )}
     </span>

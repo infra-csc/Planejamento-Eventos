@@ -99,7 +99,7 @@ async function lembreteReuniao() {
   // Uma consulta para áreas + usuários e outra para quem já enviou, em vez de uma por evento × área.
   const [todasAreas, pessoas, enviaram] = await Promise.all([
     db.query.areas.findMany({ where: eq(areas.ativo, true), columns: { id: true, nome: true } }),
-    db.select({ id: usuarios.id, areaId: usuarios.areaId }).from(usuarios).where(and(eq(usuarios.ativo, true), isNotNull(usuarios.areaId))),
+    db.select({ id: usuarios.id, areaId: usuarios.areaId, perfil: usuarios.perfil }).from(usuarios).where(and(eq(usuarios.ativo, true), isNotNull(usuarios.areaId))),
     db
       .select({ eventoId: solicitacoes.eventoId, areaId: solicitacoes.areaId })
       .from(solicitacoes)
@@ -115,10 +115,13 @@ async function lembreteReuniao() {
       ),
   ]);
   const jaEnviaram = new Set(enviaram.map((e) => `${e.eventoId}:${e.areaId}`));
+  // A logística responde, não pede: a área Logística e quem tem esse perfil não recebem "ainda não enviou
+  // necessidades" (cada reunião de OS gerava um aviso inútil para a logística inteira).
+  const ehLogistica = (nome: string) => nome.normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase() === "logistica";
   for (const ev of proximos) {
     for (const a of todasAreas) {
-      if (jaEnviaram.has(`${ev.id}:${a.id}`)) continue;
-      const ids = pessoas.filter((p) => p.areaId === a.id).map((p) => p.id);
+      if (ehLogistica(a.nome) || jaEnviaram.has(`${ev.id}:${a.id}`)) continue;
+      const ids = pessoas.filter((p) => p.areaId === a.id && p.perfil !== "LOGISTICA").map((p) => p.id);
       if (!ids.length) continue;
       await notificar(db, {
         usuarioIds: ids,

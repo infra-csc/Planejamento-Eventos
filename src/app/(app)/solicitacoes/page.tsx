@@ -6,7 +6,7 @@ import { FiltroEvento } from "@/components/ui/filtro-evento";
 import { eventosComSolicitacoes, FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, REUNIOES_LISTA, type FiltroLista, type ReuniaoLista } from "@/server/services/solicitacoes";
 import { listarAreas } from "@/server/services/admin";
 import { FiltroSelectUrl } from "@/components/ui/filtro-select-url";
-import { diaMesHora, hora } from "@/lib/format";
+import { diaMesHora, hora, isoSP } from "@/lib/format";
 import { pode } from "@/domain/permissions";
 import { aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
@@ -36,8 +36,7 @@ const ROTULO_FILTRO: Record<FiltroLista, string> = {
   TODAS: "Todas",
 };
 
-/** Dia em Brasília ("2026-10-20"), para dizer "hoje" e "amanhã" na data da reunião. */
-const diaBrasilia = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+const diaBrasilia = isoSP;
 
 export default async function SolicitacoesPage({
   searchParams,

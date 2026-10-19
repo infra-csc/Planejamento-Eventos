@@ -4,7 +4,9 @@ import { requireUsuario } from "@/server/auth/session";
 import { listarEventos, type EventoLista } from "@/server/services/eventos";
 import { pode } from "@/domain/permissions";
 import { EVENTO_STATUS_LABEL, statusExibicao } from "@/domain/evento";
-import { diaMesHora, diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
+import { addDiasISO, diaMesHora, diaMesISO, hojeISO, hora, isoSP, periodoCurto } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { FiltroSelectUrl } from "@/components/ui/filtro-select-url";
 import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge, EventoStatusBadge } from "@/components/ui/badge";
@@ -43,14 +45,38 @@ function quando(dataInicio: string, hoje: string) {
   return d === 0 ? "evento hoje" : d > 0 ? `em ${d} ${d === 1 ? "dia" : "dias"}` : `há ${-d} ${-d === 1 ? "dia" : "dias"}`;
 }
 
-function marco(e: EventoLista, hoje: string) {
-  if (e.status === "PREPARACAO") return `reunião ${diaMesHora(e.dataReuniao)}`;
-  if (e.status === "EM_REUNIAO") return "reunião agora";
+/**
+ * O próximo marco do evento, com tom: reunião hoje/amanhã em destaque; reunião que passou sem começar em
+ * amarelo ("reunião não iniciada"); reunião aberta de outro dia não é "agora" (é ata por fechar).
+ */
+function marco(e: EventoLista, hoje: string): { texto: string; tom?: "accent" | "warning" } {
+  const diaReuniao = isoSP(e.dataReuniao);
+  if (e.status === "PREPARACAO") {
+    if (diaReuniao === hoje) return { texto: `reunião hoje ${hora(e.dataReuniao)}`, tom: "accent" };
+    if (diaReuniao === addDiasISO(hoje, 1)) return { texto: `reunião amanhã ${hora(e.dataReuniao)}`, tom: "accent" };
+    if (diaReuniao < hoje) return { texto: `não iniciada · ${diaMesHora(e.dataReuniao)}`, tom: "warning" };
+    return { texto: `reunião ${diaMesHora(e.dataReuniao)}` };
+  }
+  if (e.status === "EM_REUNIAO") return diaReuniao < hoje ? { texto: "ata por fechar", tom: "warning" } : { texto: "em reunião agora", tom: "accent" };
   // Sem janela, "aberto a alterações" só repetia a fase ao lado: mostra quando o evento acontece.
-  if (e.status === "ABERTO") return e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : quando(e.dataInicio, hoje);
-  if (e.status === "CANCELADO") return "cancelado";
-  return e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS";
+  if (e.status === "ABERTO") return { texto: e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : quando(e.dataInicio, hoje) };
+  if (e.status === "CANCELADO") return { texto: "cancelado" };
+  return { texto: e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS" };
 }
+const COR_MARCO = { accent: "font-medium text-accent", warning: "font-medium text-warning" } as const;
+
+/** Recortes pela reunião de OS (em preparação ou em reunião) e pela data do evento. */
+const REUNIOES = [
+  { value: "hoje", label: "Reunião hoje" },
+  { value: "amanha", label: "Reunião amanhã" },
+  { value: "7dias", label: "Reunião em 7 dias" },
+  { value: "atrasada", label: "Reunião não iniciada" },
+] as const;
+const PERIODOS = [
+  { value: "7dias", label: "Evento em 7 dias" },
+  { value: "30dias", label: "Evento em 30 dias" },
+  { value: "passados", label: "Eventos que já passaram" },
+] as const;
 
 /** O que exige ação agora (antes era o primeiro grupo da lista): reunião acontecendo ou solicitação esperando a logística. */
 const exigeAcao = (e: EventoLista) => e.status === "EM_REUNIAO" || (e.solicitacoesAbertas > 0 && e.status !== "CANCELADO");
@@ -86,7 +112,11 @@ function AreasQuePediram({ areas, pediram }: { areas: Array<{ id: string; nome: 
   );
 }
 
-export default async function EventosPage({ searchParams }: { searchParams: Promise<{ q?: string; fase?: string; acao?: string; ordem?: string; dir?: string; pagina?: string }> }) {
+export default async function EventosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; fase?: string; acao?: string; ordem?: string; dir?: string; pagina?: string; reuniao?: string; resp?: string; periodo?: string }>;
+}) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const hoje = hojeISO();
@@ -101,7 +131,23 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
 
   const nAcao = encontrados.filter(exigeAcao).length;
   const soAcao = sp.acao === "1";
-  const base = soAcao ? encontrados.filter(exigeAcao) : encontrados;
+  // Filtros de reunião, responsável e data do evento valem para a lista e para a contagem das abas.
+  const reuniao = REUNIOES.find((r) => r.value === sp.reuniao)?.value ?? null;
+  const periodo = PERIODOS.find((p) => p.value === sp.periodo)?.value ?? null;
+  const responsaveis = [...new Map(encontrados.map((e) => [e.responsavel.id, e.responsavel.nome])).entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  const resp = responsaveis.some((r) => r.value === sp.resp) ? sp.resp! : null;
+  const naReuniao = (e: EventoLista) => {
+    if (!reuniao) return true;
+    if (e.status !== "PREPARACAO" && e.status !== "EM_REUNIAO") return false;
+    const d = isoSP(e.dataReuniao);
+    if (reuniao === "hoje") return d === hoje;
+    if (reuniao === "amanha") return d === addDiasISO(hoje, 1);
+    if (reuniao === "7dias") return d >= hoje && d <= addDiasISO(hoje, 7);
+    return d < hoje;
+  };
+  const noPeriodo = (e: EventoLista) => (!periodo ? true : periodo === "passados" ? e.dataFim < hoje : e.dataInicio >= hoje && e.dataInicio <= addDiasISO(hoje, periodo === "7dias" ? 7 : 30));
+  const comFiltro = Boolean(reuniao || periodo || resp);
+  const base = (soAcao ? encontrados.filter(exigeAcao) : encontrados).filter((e) => naReuniao(e) && noPeriodo(e) && (!resp || e.responsavel.id === resp));
   const contagem = (v: Fase) => (v === "TODOS" ? base.length : base.filter((e) => faseDe(e) === v).length);
   const filtrados = fase === "TODOS" ? base : base.filter((e) => faseDe(e) === fase);
 
@@ -114,10 +160,11 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
   };
   // `hasOwn`: a chave vem da URL ("__proto__" acharia Object.prototype).
   const ordem = sp.ordem && Object.hasOwn(acessores, sp.ordem) ? sp.ordem : undefined;
-  const ordenados = ordem ? ordenar(filtrados, acessores, ordem, sp.dir) : [...filtrados].sort((a, b) => prioridade(a) - prioridade(b));
+  // Sem ordem escolhida: prioridade (ação agora, em andamento, o resto) e, dentro dela, o evento mais próximo.
+  const ordenados = ordem ? ordenar(filtrados, acessores, ordem, sp.dir) : [...filtrados].sort((a, b) => prioridade(a) - prioridade(b) || a.dataInicio.localeCompare(b.dataInicio));
   const pag = paginar(ordenados, sp.pagina, POR_PAGINA);
 
-  const params = { q: sp.q, fase: sp.fase, acao: sp.acao, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina };
+  const params = { q: sp.q, fase: sp.fase, acao: sp.acao, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, reuniao: sp.reuniao, resp: sp.resp, periodo: sp.periodo };
   const rotuloFase = FASES.find(([v]) => v === fase)?.[1] ?? "Todos";
   const rotuloAcao = ehLogistica ? "exige ação agora" : "aguardando a logística";
 
@@ -136,7 +183,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
     );
   };
 
-  const semFiltro = !busca && !soAcao && fase === "TODOS";
+  const semFiltro = !busca && !soAcao && !comFiltro && fase === "TODOS";
 
   return (
     <>
@@ -154,7 +201,15 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
 
       {/* Barra de filtros compacta (template de pedidos): busca à esquerda, o que é urgente à direita. */}
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <BuscaUrl largura={400} placeholder="Buscar por nome, código, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+        <BuscaUrl largura={300} placeholder="Buscar evento, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+        <FiltroSelectUrl param="reuniao" rotulo="Reunião de OS" todas="Qualquer reunião" opcoes={[...REUNIOES]} className="sm:w-[190px]" />
+        <FiltroSelectUrl param="periodo" rotulo="Data do evento" todas="Qualquer data" opcoes={[...PERIODOS]} className="sm:w-[190px]" />
+        {responsaveis.length > 1 && <FiltroSelectUrl param="resp" rotulo="Responsável" todas="Todos os responsáveis" opcoes={responsaveis} className="sm:w-[210px]" />}
+        {comFiltro && (
+          <Link href={hrefCom("/eventos", params, { reuniao: null, periodo: null, resp: null, pagina: null })} className="text-pequeno font-medium text-accent no-underline hover:underline">
+            Limpar filtros
+          </Link>
+        )}
         {soAcao ? (
           <Link href={hrefCom("/eventos", params, { acao: null, pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
             Mostrando só o que {ehLogistica ? "exige ação agora" : "aguarda a logística"} · ver todos
@@ -179,12 +234,16 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         {pag.total === 0 ? (
           <EmptyState
             title={busca ? `Nada encontrado para “${busca}”` : semFiltro ? "Nenhum evento cadastrado" : "Nenhum evento corresponde aos filtros"}
-            description={busca ? "Confira o código ou tente outra palavra do nome, do cliente ou do local." : semFiltro ? "Quando a logística criar um evento, ele aparece aqui." : "Volte para todas as fases ou mostre todos os eventos."}
+            description={busca ? "Confira o código ou tente outra palavra do nome, do cliente ou do local." : semFiltro ? "Quando a logística criar um evento, ele aparece aqui." : "Tire um filtro, volte para todas as fases ou mostre todos os eventos."}
             icone={busca ? "busca" : semFiltro ? "eventos" : undefined}
             action={
               busca ? (
                 <Link href={hrefCom("/eventos", params, { q: null, pagina: null })} className="link text-corpo">
                   Limpar busca
+                </Link>
+              ) : comFiltro ? (
+                <Link href={hrefCom("/eventos", params, { reuniao: null, periodo: null, resp: null, pagina: null })} className="link text-corpo">
+                  Limpar filtros
                 </Link>
               ) : semFiltro && pode(usuario, "evento.criar") ? (
                 <ButtonLink href="/eventos/novo" variant="primary" size="md" className="no-underline">
@@ -225,8 +284,10 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                 <tbody>
                   {pag.itens.map((e) => {
                     const st = faseDe(e);
-                    // Só junta o que existe: sem cliente/local não sobra "·" solto.
-                    const onde = [e.cliente, e.local].filter(Boolean).join(" · ");
+                    // Só junta o que existe: sem cliente/local não sobra "·" solto. O responsável vem junto (antes ficava
+                    // embaixo de "em dia", na coluna de pendências, e parecia uma pendência).
+                    const onde = [e.cliente, e.local, `resp. ${e.responsavel.nome}`].filter(Boolean).join(" · ");
+                    const m = marco(e, hoje);
                     return (
                       <LinhaLink key={e.id} href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
@@ -246,7 +307,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           )}
                           {/* Período sai da coluna em telas menores e desce para cá, sempre inteiro. */}
                           <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
-                            <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · {marco(e, hoje)}
+                            <span className="numero">{periodoCurto(e.dataInicio, e.dataFim)}</span> · <span className={m.tom ? COR_MARCO[m.tom] : undefined}>{m.texto}</span>
                           </span>
                           {/* Celular: fase e pendência dentro da célula do evento. */}
                           <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
@@ -267,7 +328,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 lg:table-cell">
                           <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
-                          <span className="block text-rotulo text-muted">{marco(e, hoje)}</span>
+                          <span className={cn("block text-rotulo", m.tom ? COR_MARCO[m.tom] : "text-muted")}>{m.texto}</span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 xl:table-cell">
                           <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
@@ -281,9 +342,6 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
                           ) : (
                             <span className="block text-pequeno text-meta">em dia</span>
                           )}
-                          <span className="block truncate text-rotulo text-meta" title={`Responsável: ${e.responsavel.nome}`}>
-                            {e.responsavel.nome}
-                          </span>
                         </td>
                         <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                           <Icone nome="chevron-direita" className="inline-block" />

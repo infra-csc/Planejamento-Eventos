@@ -20,6 +20,9 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
   const lista = (await listarSolicitacoes(usuario, { eventoId: id })).sort((a, b) => a.codigo.localeCompare(b.codigo));
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   const agora = new Date();
+  // Na ata: conta itens (a reunião é a do evento, no topo); alteração: quantos a logística já respondeu.
+  const textoItens = (x: (typeof lista)[number]) =>
+    aguardaReuniao(x.tipo, x.evento.status) ? `${x.totalItens} ${x.totalItens === 1 ? "item" : "itens"}` : `${x.itensRespondidos}/${x.totalItens} respondidos`;
   return (
     <Section
       titulo="Solicitações deste evento"
@@ -41,7 +44,7 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                 <Th className="hidden lg:table-cell" largura={140}>
                   Área
                 </Th>
-                <Th className="hidden xl:table-cell" largura={64} alinhar="right">
+                <Th className="hidden xl:table-cell" largura={128} alinhar="right">
                   Itens
                 </Th>
                 <Th className="hidden sm:table-cell" largura={124}>
@@ -75,31 +78,35 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                         por {s.criadoPor.nome}
                         <span className="xl:hidden">
                           {" · "}
-                          <span className="numero">
-                            {s.itensRespondidos}/{s.totalItens} itens
-                          </span>
+                          <span className="numero">{textoItens(s)}</span>
                         </span>
                       </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
                         <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                         <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                          {pi.vencido ? "atrasada" : pi.label}
+                          {aguardaReuniao(s.tipo, s.evento.status) ? "confere na reunião" : pi.vencido ? "atrasada" : pi.label}
                         </span>
                       </span>
                     </th>
                     <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
                     <td className="numero hidden border-b border-line-row px-3 py-3 text-right text-pequeno text-ink-3 xl:table-cell">
-                      {s.itensRespondidos}/{s.totalItens}
+                      {textoItens(s)}
                     </td>
                     <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
                       <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                     </td>
                     <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
+                      {aguardaReuniao(s.tipo, s.evento.status) ? (
+                        <span className="block text-pequeno text-ink-3">confere na reunião</span>
+                      ) : (
+                        <>
                       <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
                         {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
                         {pi.vencido ? "atrasada" : pi.label}
                       </span>
                       <span className="block text-rotulo text-meta">{pi.sub}</span>
+                        </>
+                      )}
                     </td>
                     <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
                       <Icone nome="chevron-direita" className="inline-block" />

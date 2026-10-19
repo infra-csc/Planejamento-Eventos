@@ -45,11 +45,29 @@ function Compromisso({ i, compacto, coluna = 0 }: { i: ItemCalendario; compacto?
       </Link>
     );
   }
+  // Reunião de OS pelo estado: feita (ata fechada) fica apagada com ✓; aberta de outro dia (ata por fechar) e a
+  // que passou sem começar ficam em amarelo. Antes as três tinham o mesmo azul e o mês não dizia o que faltava.
+  const hoje = hojeISO();
+  const estado = i.tipo !== "reuniao" ? null : i.evento.status === "ABERTO" || i.evento.status === "ENCERRADO" ? "feita" : i.evento.status === "EM_REUNIAO" && i.dia < hoje ? "aberta" : i.evento.status === "PREPARACAO" && i.dia < hoje ? "naoIniciada" : null;
+  const rotuloEstado = { feita: "reunião feita", aberta: "reunião aberta, ata por fechar", naoIniciada: "reunião não iniciada" } as const;
   return (
-    <Link href={i.href} title={dica} className={cn("relative z-[1] mx-1 block rounded-chip px-1.5 py-0.5 text-rotulo leading-snug no-underline transition-[filter] duration-150 [overflow-wrap:anywhere] hover:brightness-95", t.fundo, t.texto)}>
+    <Link
+      href={i.href}
+      title={estado ? `${dica} · ${rotuloEstado[estado]}` : dica}
+      className={cn(
+        "relative z-[1] mx-1 block rounded-chip px-1.5 py-0.5 text-rotulo leading-snug no-underline transition-[filter] duration-150 [overflow-wrap:anywhere] hover:brightness-95",
+        estado === "feita" ? "bg-subtle text-ink-3" : estado ? "bg-warning-bg text-warning" : cn(t.fundo, t.texto),
+      )}
+    >
+      {estado === "feita" && <span aria-hidden className="mr-0.5">✓</span>}
+      {(estado === "aberta" || estado === "naoIniciada") && <span aria-hidden className="mr-0.5 font-bold">!</span>}
       {i.hora ? <span className="numero mr-1 font-semibold">{i.hora}</span> : <span aria-hidden className={cn("mr-1 inline-block size-1.5 rounded-full align-middle", t.ponto)} />}
       {semPrefixo(i.titulo)}
-      <span className="sr-only"> · {t.rotulo}</span>
+      <span className="sr-only">
+        {" "}
+        · {t.rotulo}
+        {estado ? ` · ${rotuloEstado[estado]}` : ""}
+      </span>
     </Link>
   );
 }
@@ -131,6 +149,18 @@ function Legenda({ tipos }: { tipos: TipoCalendario[] }) {
           {TIPO[t].rotulo}
         </li>
       ))}
+      {tipos.includes("reuniao") && (
+        <>
+          <li className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="shrink-0 rounded-xs bg-subtle px-1 leading-4 text-ink-3">✓</span>
+            Reunião feita
+          </li>
+          <li className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="shrink-0 rounded-xs bg-warning-bg px-1 font-bold leading-4 text-warning">!</span>
+            Reunião por fechar ou não iniciada
+          </li>
+        </>
+      )}
     </ul>
   );
 }

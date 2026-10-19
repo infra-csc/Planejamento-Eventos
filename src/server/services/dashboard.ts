@@ -82,9 +82,29 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   // Agenda dos próximos 14 dias
   const montarAgenda = (evs: Awaited<typeof consultaEventos>) => {
     const agenda: ItemAgenda[] = [];
+    // Dia com 3 reuniões ou mais vira uma linha só ("15 reuniões de OS"): antes, as 6 linhas do painel eram
+    // todas do mesmo dia e o resto da quinzena sumia.
+    const reunioesPorDia = new Map<string, Array<(typeof evs)[number]>>();
     for (const e of evs) {
       const diaReuniao = isoSP(e.dataReuniao);
-      if ((e.status === "PREPARACAO" || e.status === "EM_REUNIAO") && diaReuniao >= hoje && diaReuniao <= limite14) {
+      if ((e.status === "PREPARACAO" || e.status === "EM_REUNIAO") && diaReuniao >= hoje && diaReuniao <= limite14) reunioesPorDia.set(diaReuniao, [...(reunioesPorDia.get(diaReuniao) ?? []), e]);
+    }
+    for (const [dia, lista] of reunioesPorDia) {
+      lista.sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
+      if (lista.length >= 3) {
+        const filtro = dia === hoje ? "hoje" : dia === addDiasISO(hoje, 1) ? "amanha" : null;
+        agenda.push({
+          chave: `rd-${dia}`,
+          ordem: lista[0].dataReuniao.getTime(),
+          dia: diaMesISO(dia),
+          titulo: `${lista.length} reuniões de OS`,
+          sub: `${[...new Set(lista.map((e) => hora(e.dataReuniao)))].join(", ")} · ${lista[0].nome}, ${lista[1].nome} e mais ${lista.length - 2}`,
+          tipo: "reuniao",
+          href: filtro ? `/eventos?reuniao=${filtro}` : "/calendario",
+        });
+        continue;
+      }
+      for (const e of lista)
         agenda.push({
           chave: `r-${e.id}`,
           ordem: e.dataReuniao.getTime(),
@@ -94,7 +114,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
           tipo: "reuniao",
           href: pode(usuario, "ata.consolidar") ? `/conferencia/${e.id}` : `/eventos/${e.id}`,
         });
-      }
+    }
+    for (const e of evs) {
       if (e.dataCarga && e.dataCarga >= hoje && e.dataCarga <= limite14) {
         agenda.push({ chave: `c-${e.id}`, ordem: new Date(`${e.dataCarga}T09:00:00Z`).getTime(), dia: diaMesISO(e.dataCarga), titulo: `Carga do caminhão · ${e.nome}`, sub: "OS final precisa estar estável", tipo: "carga", href: `/eventos/${e.id}` });
       }
@@ -246,6 +267,11 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   const emPreparacao = evs.filter((e) => e.status === "PREPARACAO").sort((a, b) => a.dataReuniao.getTime() - b.dataReuniao.getTime());
   const proximaPrep = emPreparacao.find((e) => isoSP(e.dataReuniao) >= hoje);
   const prepVencidas = emPreparacao.filter((e) => isoSP(e.dataReuniao) < hoje).length;
+  // Reunião aberta de outro dia (ata por fechar) e reunião que passou sem começar: viram ação no painel.
+  const reunioesAbertas = evs.filter((e) => e.status === "EM_REUNIAO" && isoSP(e.dataReuniao) < hoje);
+  const naoIniciadas = emPreparacao.filter((e) => isoSP(e.dataReuniao) < hoje);
+  const amanha = reunioesAtivas.filter((e) => isoSP(e.dataReuniao) === addDiasISO(hoje, 1));
+  const nomes = (l: Array<{ nome: string }>) => (l.length <= 2 ? l.map((e) => e.nome).join(" e ") : `${l[0].nome}, ${l[1].nome} e mais ${l.length - 2}`);
 
   return {
     tipo: "operacao" as const,
@@ -254,6 +280,11 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     fila,
     reuniaoHoje: reuniaoHoje ? { id: reuniaoHoje.id, nome: reuniaoHoje.nome, hora: hora(reuniaoHoje.dataReuniao) } : null,
     reunioesHoje: reunioesAtivas.filter((e) => isoSP(e.dataReuniao) === hoje).map((e) => hora(e.dataReuniao)),
+    reunioes: {
+      abertas: { n: reunioesAbertas.length, nomes: nomes(reunioesAbertas) },
+      naoIniciadas: { n: naoIniciadas.length, nomes: nomes(naoIniciadas) },
+      amanha: { n: amanha.length, horas: [...new Set(amanha.map((e) => hora(e.dataReuniao)))].join(", ") },
+    },
     metricas: {
       aguardando: fila.length,
       atrasadas: atrasadas.length,

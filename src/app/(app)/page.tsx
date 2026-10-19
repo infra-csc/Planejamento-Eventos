@@ -220,6 +220,43 @@ function acoesOperacao(d: Operacao, usuario: UsuarioPermissao, responde: boolean
       rotuloAcao: conferir ? "Abrir conferência" : "Ver evento",
     });
   }
+  // Reunião aberta há dias e reunião que passou sem começar: a ata não fecha sozinha e a OS não sai.
+  if (d.reunioes.abertas.n > 0) {
+    acoes.push({
+      chave: "reunioes-abertas",
+      icone: "alerta",
+      tom: "warning",
+      n: <Numero valor={d.reunioes.abertas.n} />,
+      titulo: plural(d.reunioes.abertas.n, "reunião aberta com a ata por fechar", "reuniões abertas com a ata por fechar"),
+      detalhe: d.reunioes.abertas.nomes,
+      href: "/eventos?fase=EM_REUNIAO",
+      rotuloAcao: "Ver eventos",
+    });
+  }
+  if (d.reunioes.naoIniciadas.n > 0) {
+    acoes.push({
+      chave: "reunioes-nao-iniciadas",
+      icone: "relogio",
+      tom: "warning",
+      n: <Numero valor={d.reunioes.naoIniciadas.n} />,
+      titulo: plural(d.reunioes.naoIniciadas.n, "reunião passou sem começar", "reuniões passaram sem começar"),
+      detalhe: d.reunioes.naoIniciadas.nomes,
+      href: "/eventos?reuniao=atrasada",
+      rotuloAcao: "Ver eventos",
+    });
+  }
+  if (d.reunioes.amanha.n > 0) {
+    acoes.push({
+      chave: "reunioes-amanha",
+      icone: "calendario",
+      tom: "info",
+      n: <Numero valor={d.reunioes.amanha.n} />,
+      titulo: plural(d.reunioes.amanha.n, "reunião de OS amanhã", "reuniões de OS amanhã"),
+      detalhe: d.reunioes.amanha.horas,
+      href: "/eventos?reuniao=amanha",
+      rotuloAcao: "Ver eventos",
+    });
+  }
   const { atrasadas, aguardando, piorAtraso } = d.metricas;
   if (atrasadas > 0) {
     acoes.push({

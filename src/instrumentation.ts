@@ -22,13 +22,13 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "ummense_importado", mensagem: err instanceof Error ? err.message : String(err) }));
     }
-    // Evento de TESTE copiado do NIGHT RUN BH (EVT-0215) para ensaiar conferência e exportações (uma vez só).
+    // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
-      const { copiarEventoParaTeste } = await import("@/server/services/eventos/copia-teste");
-      const r = await copiarEventoParaTeste();
-      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "evento_teste_copiado", codigo: r.codigo, solicitacoes: r.solicitacoes, linhas: r.linhas }));
+      const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");
+      const r = await apagarEventosDeTeste();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "eventos_teste_apagados", eventos: r.eventos, solicitacoes: r.solicitacoes }));
     } catch (err) {
-      console.error(JSON.stringify({ nivel: "erro", evento: "evento_teste_copiado", mensagem: err instanceof Error ? err.message : String(err) }));
+      console.error(JSON.stringify({ nivel: "erro", evento: "eventos_teste_apagados", mensagem: err instanceof Error ? err.message : String(err) }));
     }
   })();
 }

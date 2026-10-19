@@ -466,13 +466,13 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         <Codigo>{p.codigo}</Codigo>
       </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-        <span className="flex items-start gap-3">
+        <span className="flex items-center gap-3">
         {/* Capa (primeira foto): miniatura de 160 px; sem foto, um quadro vazio para as linhas alinharem. */}
         {p.capaFotoId ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/api/pecas/anexos/${p.capaFotoId}?w=160`} alt="" loading="lazy" decoding="async" className="mt-0.5 size-11 shrink-0 rounded-controle border border-line bg-white object-cover" />
+          <img src={`/api/pecas/anexos/${p.capaFotoId}?w=160`} alt="" loading="lazy" decoding="async" className="size-11 shrink-0 rounded-controle border border-line bg-white object-cover" />
         ) : (
-          <span aria-hidden className="mt-0.5 hidden size-11 shrink-0 rounded-controle border border-dashed border-line bg-subtle sm:block" />
+          <span aria-hidden className="hidden size-11 shrink-0 rounded-controle border border-dashed border-line bg-subtle sm:block" />
         )}
         <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
@@ -539,7 +539,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     <>
       {cabecalho}
       <div className={barraCls}>
-        <BuscaUrl largura={320} key="busca-pecas" placeholder="Buscar por código, nome, família ou prova" ariaLabel="Buscar peça do catálogo" />
+        <BuscaUrl largura={240} key="busca-pecas" placeholder="Buscar peça, família ou prova" ariaLabel="Buscar peça do catálogo por código, nome, família ou prova" />
         {/* Celular: os setores rolam de lado numa linha só, em vez de quebrar a trilha. */}
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pills
@@ -547,7 +547,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
           className="max-md:flex-nowrap"
           itens={[
             { label: "Todos", n: paraContagem.length, href: hrefCom("/biblioteca", params, { setor: null, pagina: null }), ativo: !setor },
-            ...SETORES.map((s) => ({ label: SETOR_LABEL[s], n: paraContagem.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
+            // Rótulo curto na pílula ("Estrutura", "Arena"): com o nome inteiro, os filtros quebravam em duas linhas.
+            ...SETORES.map((s) => ({ label: SETOR_LABEL[s].replace(/ \(.*\)$| e percurso$/, ""), n: paraContagem.filter((p) => p.setor === s).length, href: hrefCom("/biblioteca", params, { setor: s, pagina: null }), ativo: setor === s })),
           ]}
         />
         </div>

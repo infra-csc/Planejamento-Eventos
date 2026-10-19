@@ -18,7 +18,7 @@ import { Exportacoes } from "@/components/eventos/exportacoes";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
-const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída na reunião" } as const;
+const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída pela logística" } as const;
 
 export const metadata: Metadata = { title: "Ata" };
 

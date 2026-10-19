@@ -68,9 +68,16 @@ export function NovaSolicitacaoForm({
   const chaveCopia = edicaoEnviada && rascunho ? `norte:edicao-solicitacao:${rascunho.id}` : null;
   const [copiaRecuperada, setCopiaRecuperada] = useState(false);
   const [modo, setModo] = useState<Modo>("projeto");
-  const [titulo, setTitulo] = useState(rascunho?.titulo ?? "");
-  // Campo vazio: vale o título sugerido pelos itens (é o que aparece em cinza no campo).
-  const tituloFinal = titulo.trim() || sugerirTitulo(itens, pecas) || "";
+  const [titulo, setTituloDigitado] = useState(rascunho?.titulo ?? "");
+  // O título já vem preenchido com a sugestão dos itens e acompanha a lista enquanto ninguém mexe; quem
+  // digita fica com o que escreveu; apagar tudo e sair do campo volta para a sugestão.
+  const [tituloManual, setTituloManual] = useState(Boolean(rascunho?.titulo?.trim()));
+  const sugestaoTitulo = sugerirTitulo(itens, pecas) ?? "";
+  const tituloFinal = (tituloManual ? titulo.trim() : "") || sugestaoTitulo;
+  const setTitulo = (v: string) => {
+    setTituloDigitado(v);
+    setTituloManual(true);
+  };
   const [observacao, setObservacao] = useState(rascunho?.observacao ?? "");
   const [erroTitulo, setErroTitulo] = useState<string | null>(null);
   const [tentouEnviar, setTentouEnviar] = useState(false);
@@ -106,7 +113,8 @@ export function NovaSolicitacaoForm({
       if (Array.isArray(c.itens)) {
         // Leitura do armazenamento do navegador só existe no cliente: por isso num efeito, depois da hidratação.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTitulo(c.titulo ?? "");
+        setTituloDigitado(c.titulo ?? "");
+        setTituloManual(Boolean(c.titulo?.trim()));
         setObservacao(c.observacao ?? "");
         setItens(c.itens);
         setCopiaRecuperada(true);
@@ -355,8 +363,10 @@ export function NovaSolicitacaoForm({
           pecas={pecas}
           semDescricao={semDescricao}
           pendencias={pendencias}
-          titulo={titulo}
+          titulo={tituloManual ? titulo : sugestaoTitulo}
           setTitulo={setTitulo}
+          tituloSugerido={!tituloManual && Boolean(sugestaoTitulo)}
+          voltarSugestao={() => setTituloManual(false)}
           observacao={observacao}
           setObservacao={setObservacao}
           erroTitulo={erroTitulo}
