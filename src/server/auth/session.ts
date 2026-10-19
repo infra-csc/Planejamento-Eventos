@@ -144,12 +144,30 @@ export async function existeUsuarioAtivo(): Promise<boolean> {
   return Boolean(u);
 }
 
+/**
+ * Perfil Cenografia sem área no cadastro pede pela área "Cenografia" (Yan, 19/10: "requisitante
+ * cenográfica poder solicitar também"). Antes, sem área, a tela abria mas o envio recusava. Memoizado por
+ * requisição; sem uma área ativa com esse nome, fica sem área (e a tela orienta a falar com o admin).
+ */
+const areaDaCenografia = cache(async (): Promise<{ id: string; nome: string } | null> => {
+  const db = await getDb();
+  const [a] = await db.select({ id: areas.id, nome: areas.nome }).from(areas).where(and(eq(areas.ativo, true), sql`lower(${areas.nome}) = 'cenografia'`)).limit(1);
+  return a ?? null;
+});
+
+/** A área com que a pessoa pede: a do cadastro; sem ela, a padrão do perfil (só Cenografia tem). */
+async function comAreaPadrao<T extends { perfil: Perfil; areaId: string | null; areaNome: string | null }>(u: T): Promise<T> {
+  if (u.areaId || u.perfil !== "CENOGRAFIA") return u;
+  const a = await areaDaCenografia();
+  return a ? { ...u, areaId: a.id, areaNome: a.nome } : u;
+}
+
 async function carregarUsuario(id: string): Promise<UsuarioAtual | null> {
   const db = await getDb();
   const u = await db.query.usuarios.findFirst({ where: eq(usuarios.id, id), with: { area: true } });
   if (!u || !u.ativo) return null;
   const [p] = await db.select({ areas: areasPedidasSql(usuarios.id) }).from(usuarios).where(eq(usuarios.id, id));
-  return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null, areasPedidas: p?.areas ?? [], trocarSenha: exigeTroca(u.trocarSenha) };
+  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null, areasPedidas: p?.areas ?? [], trocarSenha: exigeTroca(u.trocarSenha) });
 }
 
 /**
@@ -192,7 +210,7 @@ export const getUsuarioReal = cache(async (): Promise<UsuarioAtual | null> => {
       db.update(usuarios).set({ ultimoAcessoEm: agora }).where(eq(usuarios.id, u.id)),
     ]);
   }
-  return { id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null, areasPedidas: u.areasPedidas ?? [], trocarSenha: exigeTroca(u.trocarSenha) };
+  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null, areasPedidas: u.areasPedidas ?? [], trocarSenha: exigeTroca(u.trocarSenha) });
 });
 
 /** Lê o cookie de "ver como" (perfil e área escolhidos), sem validar a área. */

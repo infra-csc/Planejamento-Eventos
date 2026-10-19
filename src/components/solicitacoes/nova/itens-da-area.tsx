@@ -14,13 +14,32 @@ import type { ItemNovo, Referencia } from "./tipos";
 const SO_AUTOMATICOS = new Set(["CAV-COCHO", "PE-GRADE-2X1"]);
 
 /**
+ * Cada peça que vem junto de outra (cavalete do cocho, cavalete reto da mesa ou bancada, pé da grade)
+ * logo abaixo da peça de origem, quando as duas estão na mesma lista; senão, onde já estava.
+ */
+function juntarAcompanhantes(pecas: Referencia[]): Referencia[] {
+  const saida = pecas.filter((p) => {
+    const a = ACOMPANHANTES.find((x) => x.acompanhante === p.codigo);
+    return !a || !pecas.some((b) => a.bases.includes(b.codigo));
+  });
+  for (const p of pecas) {
+    if (saida.includes(p)) continue;
+    const a = ACOMPANHANTES.find((x) => x.acompanhante === p.codigo)!;
+    // Depois da última base da lista (a mesa e a bancada ficam juntas, e o cavalete reto logo abaixo).
+    const ultima = Math.max(...saida.map((b, i) => (a.bases.includes(b.codigo) ? i : -1)));
+    saida.splice(ultima + 1, 0, p);
+  }
+  return saida;
+}
+
+/**
  * Passo "Itens da sua área": a lista de materiais da ata, já zerada. A área só põe a quantidade do que vai;
  * mudar o número inclui o item na solicitação, voltar a 0 tira (0 não é enviado). Outros itens: no passo seguinte.
  * O que está em 0 fica discreto; o que foi pedido ganha destaque, para a lista ser lida de relance.
  */
 export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number; areaNome: string | null; pecas: Referencia[]; itens: ItemNovo[]; setItens: Dispatch<SetStateAction<ItemNovo[]>> }) {
   const listas = listasDaArea(areaNome)
-    .map((l) => ({ ...l, pecas: l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p)) }))
+    .map((l) => ({ ...l, pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))) }))
     .filter((l) => l.pecas.length > 0);
   if (!listas.length) return null;
   // Só o que a área pediu; a linha automática (vem junto) aparece à parte.
@@ -72,6 +91,8 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
                 const automatico = SO_AUTOMATICOS.has(p.codigo);
                 const auto = autoDe(p.id);
                 const ativo = automatico ? auto > 0 : q > 0;
+                // Vem junto de uma peça desta mesma lista: recuado, com o "↳" ligando à de cima.
+                const junto = Boolean(acomp && l.pecas.some((b) => acomp.bases.includes(b.codigo)));
                 return (
                   <li
                     key={p.id}
@@ -81,10 +102,16 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
                       ativo ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle",
                     )}
                   >
-                    <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", ativo ? "font-medium text-ink" : "text-ink-2")}>
+                    <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", ativo ? "font-medium text-ink" : "text-ink-2", junto && "relative pl-4")}>
+                      {junto && (
+                        <span aria-hidden className="absolute left-0 top-0 text-accent">
+                          ↳
+                        </span>
+                      )}
                       {p.nome}
                       {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">{acomp?.texto}, automático</span>}
-                      {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos ({acomp?.texto})</span>}
+                      {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos ({acomp?.texto}); aqui, só os extras</span>}
+                      {!automatico && auto === 0 && acomp && <span className="mt-0.5 block text-rotulo font-normal text-muted">{acomp.texto}, automático; aqui, só os extras</span>}
                     </span>
                     {automatico ? (
                       <span className={cn("numero w-[104px] shrink-0 pr-3 text-right text-corpo", ativo ? "font-semibold text-ink" : "text-meta")} aria-label={`${auto} ${p.nome}, automático`}>
