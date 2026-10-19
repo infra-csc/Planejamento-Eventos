@@ -33,6 +33,8 @@ export type ItemParaResposta = {
   ajustes?: string | null;
   /** Item de um projeto de tendas; pode ter várias configurações para o mesmo destino. */
   tenda?: boolean;
+  /** Tenda: total de fechamentos e calhas deste item (por tenda × tendas). */
+  pecasTenda?: { fechamentos: number; calhas: number; temCalha: boolean };
   status: ItemStatus;
   quantidadeAtendida: number | null;
   observacaoLogistica: string | null;
@@ -198,7 +200,8 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const [status, setStatus] = useState<Exclude<ItemStatus, "EM_ANALISE">>(corrigir ? (item.status === "EM_ANALISE" ? "ATENDIDO" : item.status) : modo);
   const faixa = faixaParcial(item);
   const [qtd, setQtd] = useState<number>(corrigir && item.quantidadeAtendida ? item.quantidadeAtendida : Math.min(faixa.max, Math.max(faixa.min, item.quantidadeSolicitada - 1)));
-  const [obs, setObs] = useState(corrigir ? (item.observacaoLogistica ?? "") : "");
+  // A frase automática da pré-reunião não é motivo de ninguém: o campo começa vazio.
+  const [obs, setObs] = useState(corrigir && item.observacaoLogistica?.trim() !== OBS_REGISTRADO_NA_ATA ? (item.observacaoLogistica ?? "") : "");
   const [pendencia, setPendencia] = useState(corrigir ? item.pendenciaCompra : modo === "PARCIAL");
   const [justificativa, setJustificativa] = useState("");
   const [erro, setErro] = useState<{ campo: "qtd" | "obs" | "justificativa"; msg: string } | null>(null);
@@ -413,12 +416,46 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
                 {local || <span className="font-normal text-muted">Local não informado</span>}
                 <span className="ml-auto shrink-0 pl-2 text-rotulo font-normal text-muted">
                   {somenteAdicoes ? (
-                    <><Numero valor={partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0)} /> {partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0) === 1 ? "tenda" : "tendas"}</>
+                    <>
+                      <Numero valor={partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0)} /> {partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0) === 1 ? "tenda" : "tendas"}
+                      {(() => {
+                        // Total do local: "6 fechamentos · 3 calhas" (o que a área pediu, de uma vez).
+                        const f = partes.reduce((t, i) => t + (i.pecasTenda?.fechamentos ?? 0), 0);
+                        const c = partes.reduce((t, i) => t + (i.pecasTenda?.calhas ?? 0), 0);
+                        const comCalha = partes.some((i) => i.pecasTenda?.temCalha);
+                        return (
+                          <>
+                            {" · "}
+                            {f ? (
+                              <>
+                                <Numero valor={f} /> {f === 1 ? "fechamento" : "fechamentos"}
+                              </>
+                            ) : (
+                              "sem fechamento"
+                            )}
+                            {comCalha && (
+                              <>
+                                {" · "}
+                                {c ? (
+                                  <>
+                                    <Numero valor={c} /> {c === 1 ? "calha" : "calhas"}
+                                  </>
+                                ) : (
+                                  "sem calha"
+                                )}
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
                   ) : (
                     <><Numero valor={partes.length} /> {partes.length === 1 ? "parte" : "partes"}</>
                   )}
                 </span>
               </h3>
+              {/* Na ata, sem descrição por tenda: o resumo do local basta (a conferência ajusta). */}
+              {!(mesmoEstado && naAtaGrupo && somenteAdicoes && partes.every((i) => !i.descricoes?.some((d) => d.trim()))) && (
               <ul className="m-0 list-none p-0 [&>li:last-child>div]:border-b-0">
                 {partes.map((item, parteIndex) => (
                   <li key={item.id} className="min-w-0">
@@ -433,6 +470,7 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
                   </li>
                 ))}
               </ul>
+              )}
             </section>
           ))}
         </div>
@@ -558,7 +596,7 @@ export function ItemResposta({
           </p>
           {item.ajustes && (
             <p className="mb-0 mt-1 text-pequeno text-ink-2">
-              <span className="text-muted">Peças ajustadas: </span>
+              {!item.tenda && <span className="text-muted">Peças ajustadas: </span>}
               {item.ajustes}
             </p>
           )}

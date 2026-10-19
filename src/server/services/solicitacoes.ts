@@ -17,6 +17,7 @@ export {
   obterSolicitacao,
   obterSolicitacaoMemo,  paginarSolicitacoes,
   pedidosAnterioresPorEvento,
+  padraoTendaPorVersao,
   primeiraDaFila,
   REUNIOES_LISTA,
   type ReuniaoLista,

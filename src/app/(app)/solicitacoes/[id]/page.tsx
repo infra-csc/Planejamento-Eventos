@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { descricaoItem, listarFila } from "@/server/services/solicitacoes";
+import { descricaoItem, listarFila, padraoTendaPorVersao } from "@/server/services/solicitacoes";
 import { obterSolicitacaoCache } from "@/server/cache";
 import { resumirAjustes } from "@/domain/os";
 import { agruparItensPedido, agruparLocaisTenda } from "@/domain/agrupamento-pedido";
@@ -62,25 +62,49 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
   const pi = prazoInfo(s, agora);
   const aberta = STATUS_ABERTOS.includes(s.status);
-  const itens: ItemParaResposta[] = s.itens.map((i) => ({
+  // Tenda: o pedido guarda fechamentos e calhas como ajuste POR TENDA sobre a lista padrão da versão (a 5×5 v3
+  // já traz 1 calha). A tela mostra o resultado — "Depósito · 1 tenda · 4 fechamentos · sem calha" — e não
+  // "Peças ajustadas: +4 Fechamento lateral · −1 Calha de lona", que ninguém entendia.
+  const ehTendaItem = (i: (typeof s.itens)[number]) => Boolean((i.projeto?.nome ?? i.eventoItem?.projeto?.nome)?.trim().match(/^tendas?(?:\s|\d)/i));
+  const padraoTendas = await padraoTendaPorVersao([...new Set(s.itens.filter(ehTendaItem).map((i) => i.projetoVersaoId).filter((v): v is string => Boolean(v)))]);
+  const porTenda = (i: (typeof s.itens)[number], sufixo: "-FECH" | "-CALHA") => {
+    const padrao = padraoTendas.get(i.projetoVersaoId ?? "");
+    const base = sufixo === "-FECH" ? (padrao?.fechamentos ?? 0) : (padrao?.calhas ?? 0);
+    return Math.max(0, base + (i.ajustesBom ?? []).filter((a) => a.codigo.endsWith(sufixo)).reduce((t, a) => t + a.quantidade, 0));
+  };
+  const temCalha = (i: (typeof s.itens)[number]) => Boolean(padraoTendas.get(i.projetoVersaoId ?? "")?.temCalha || (i.ajustesBom ?? []).some((a) => a.codigo.endsWith("-CALHA")));
+  const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  const ajustesTenda = (i: (typeof s.itens)[number]) => {
+    const outros = (i.ajustesBom ?? []).filter((a) => !a.codigo.endsWith("-FECH") && !a.codigo.endsWith("-CALHA"));
+    const f = porTenda(i, "-FECH");
+    const c = porTenda(i, "-CALHA");
+    const partes = [`Por tenda: ${f ? plural(f, "fechamento", "fechamentos") : "sem fechamento"}${temCalha(i) ? ` · ${c ? plural(c, "calha", "calhas") : "sem calha"}` : ""}`, outros.length ? `outras peças: ${resumirAjustes(outros)}` : null].filter(Boolean);
+    return partes.join(" · ");
+  };
+  const itens: ItemParaResposta[] = s.itens.map((i) => {
+    const tenda = ehTendaItem(i);
+    return {
     id: i.id,
     descricao: descricaoItem(i),
-    tenda: Boolean((i.projeto?.nome ?? i.eventoItem?.projeto?.nome)?.trim().match(/^tendas?(?:\s|\d)/i)),
+    tenda,
+    pecasTenda: tenda ? { fechamentos: porTenda(i, "-FECH") * i.quantidadeSolicitada, calhas: porTenda(i, "-CALHA") * i.quantidadeSolicitada, temCalha: temCalha(i) } : undefined,
     operacao: i.operacao,
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
     destino: i.destino,
     justificativa: i.justificativa?.trim() || null,
     descricoes: i.descricoes ?? null,
-    ajustes: resumirAjustes(i.ajustesBom),
+    ajustes: tenda ? ajustesTenda(i) : resumirAjustes(i.ajustesBom),
     status: i.status,
     quantidadeAtendida: i.quantidadeAtendida,
     observacaoLogistica: i.observacaoLogistica,
     pendenciaCompra: i.pendenciaCompra,
     respondivel,
-    corrigivel: corrigivel && i.status !== "EM_ANALISE",
+    // Tenda na ata se ajusta na conferência (tendas, fechamentos e calhas por local), não por "parte" aqui.
+    corrigivel: corrigivel && i.status !== "EM_ANALISE" && !(naAta && tenda),
     aguardandoReuniao: naAta,
-  }));
+  };
+  });
   // O mesmo item pedido para vários locais vira um grupo (nome + total, uma linha por local), na ordem em
   // que aparece; a navegação por teclado segue a mesma ordem da tela.
   const gruposItens = agruparItensPedido(itens, (_item, n) => {
@@ -315,7 +339,15 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                 </span>
               }
               sub={respondivel ? (pendentes > 0 ? `${pendentes} ${pendentes === 1 ? "aguarda" : "aguardam"} resposta. Parcial e não atendido exigem motivo.` : "Todos os itens respondidos.") : undefined}
-              acoes={respondivel && pendentes > 0 ? <DicaAtalhos /> : undefined}
+              acoes={
+                respondivel && pendentes > 0 ? (
+                  <DicaAtalhos />
+                ) : naAta && ehLogistica && itens.some((i) => i.tenda) ? (
+                  <Link href={`/conferencia/${s.evento.id}`} className="link text-pequeno">
+                    Ajustar tendas na conferência
+                  </Link>
+                ) : undefined
+              }
             >
               {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : gruposItens.map((g) => (g.length === 1 && !g[0].tenda ? <ItemResposta key={g[0].id} item={g[0]} semStatus={semStatus} /> : <GrupoItens key={g[0].id} itens={g} semStatus={semStatus} />))}
             </Section>

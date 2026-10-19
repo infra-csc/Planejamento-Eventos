@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { and, asc, desc, eq, inArray, isNull, lt, ne, notInArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, eventos, solicitacaoItens, solicitacoes, usuarios, type SolicitacaoStatus } from "@/server/db/schema";
+import { areas, eventoItens, eventos, pecas, projetoItens, solicitacaoItens, solicitacoes, usuarios, type SolicitacaoStatus } from "@/server/db/schema";
 import type { PedidoAnterior, PedidosPorEvento, SituacaoPedido } from "@/domain/ja-pedido";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
@@ -427,4 +427,25 @@ export async function mudancasPosAta(eventoId: string): Promise<MudancaPosAta[]>
     }
   }
   return saida.sort((a, b) => (b.quando?.getTime() ?? 0) - (a.quando?.getTime() ?? 0));
+}
+
+/**
+ * Fechamentos e calhas que a lista padrão de cada versão de tenda já traz por tenda (a 5×5 v3 traz 1 calha):
+ * o total do local é (padrão + ajuste do pedido) × tendas — "−1 calha" sozinho não dizia nada.
+ */
+export async function padraoTendaPorVersao(versaoIds: string[]): Promise<Map<string, { fechamentos: number; calhas: number; temCalha: boolean }>> {
+  const mapa = new Map<string, { fechamentos: number; calhas: number; temCalha: boolean }>();
+  if (!versaoIds.length) return mapa;
+  const db = await getDb();
+  const rows = await db
+    .select({ versaoId: projetoItens.versaoId, codigo: pecas.codigo, quantidade: projetoItens.quantidade })
+    .from(projetoItens)
+    .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
+    .where(inArray(projetoItens.versaoId, versaoIds));
+  for (const id of versaoIds) {
+    const doProjeto = rows.filter((r) => r.versaoId === id);
+    const soma = (sufixo: string) => doProjeto.filter((r) => r.codigo.endsWith(sufixo)).reduce((t, r) => t + r.quantidade, 0);
+    mapa.set(id, { fechamentos: soma("-FECH"), calhas: soma("-CALHA"), temCalha: doProjeto.some((r) => r.codigo.endsWith("-CALHA") || r.codigo.startsWith("TND5-")) });
+  }
+  return mapa;
 }
