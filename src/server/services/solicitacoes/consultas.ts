@@ -7,6 +7,7 @@ import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { areasDoUsuario, pode, podeVerSolicitacao } from "@/domain/permissions";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { escopoRascunhos } from "./escopo";
 
 /* ------------------------------------------------------------------ */
 /* Consultas                                                            */
@@ -29,7 +30,7 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
     conds.push(inArray(solicitacoes.areaId, minhas));
   } else if (usuario.perfil !== "ADMIN") {
     // Rascunho ainda não enviado é da área (mesma regra de paginarSolicitacoes e da busca).
-    conds.push(ne(solicitacoes.status, "RASCUNHO"));
+    conds.push(escopoRascunhos(usuario));
   }
   if (filtro.eventoId) conds.push(eq(solicitacoes.eventoId, filtro.eventoId));
   if (filtro.areaId) conds.push(eq(solicitacoes.areaId, filtro.areaId));
@@ -89,7 +90,7 @@ export async function eventosComSolicitacoes(usuario: UsuarioAtual) {
     const minhas = areasDoUsuario(usuario);
     if (!minhas.length) return [];
     escopo.push(inArray(solicitacoes.areaId, minhas));
-  } else if (usuario.perfil !== "ADMIN") escopo.push(ne(solicitacoes.status, "RASCUNHO"));
+  } else if (usuario.perfil !== "ADMIN") escopo.push(escopoRascunhos(usuario));
   const rows = await db
     .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataInicio: eventos.dataInicio, n: sql<number>`count(*)` })
     .from(solicitacoes)
@@ -114,7 +115,7 @@ export async function paginarSolicitacoes(
     base.push(inArray(solicitacoes.areaId, minhas));
   } else if (usuario.perfil !== "ADMIN") {
     // Rascunho ainda não enviado é da área (a tela promete que "a logística nunca chegou a vê-lo").
-    base.push(ne(solicitacoes.status, "RASCUNHO"));
+    base.push(escopoRascunhos(usuario));
   }
   // Filtros (evento, área, tipo, data da reunião) valem para a lista e para as contagens de cada aba.
   if (opcoes.eventoId) base.push(eq(solicitacoes.eventoId, opcoes.eventoId));

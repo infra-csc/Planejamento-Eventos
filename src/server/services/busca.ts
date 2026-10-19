@@ -1,6 +1,7 @@
-import { and, asc, count, desc, eq, inArray, lt, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, lt } from "drizzle-orm";
 import { buscaSemAcento } from "./support";
 import { getDb } from "@/server/db";
+import { escopoRascunhos } from "./solicitacoes/escopo";
 import { eventos, pecas, projetos, solicitacoes } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { areasDoUsuario, pode } from "@/domain/permissions";
@@ -33,7 +34,7 @@ export async function buscar(usuario: UsuarioAtual, termoBruto: string): Promise
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   // Rascunho não enviado é da área: logística e gestão não o veem (mesma regra da lista de solicitações).
   const minhas = areasDoUsuario(usuario);
-  const escopoSolicitacoes = veTodas ? (usuario.perfil === "ADMIN" ? [] : [ne(solicitacoes.status, "RASCUNHO")]) : [inArray(solicitacoes.areaId, minhas.length ? minhas : ["__nenhuma__"])];
+  const escopoSolicitacoes = veTodas ? (usuario.perfil === "ADMIN" ? [] : [escopoRascunhos(usuario)]) : [inArray(solicitacoes.areaId, minhas.length ? minhas : ["__nenhuma__"])];
 
   const [reunioes, atrasadas, evs, sols, projs, pcs] = await Promise.all([
     pode(usuario, "ata.consolidar")

@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
+import { escopoRascunhos } from "../solicitacoes/escopo";
 import { eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
@@ -132,7 +133,7 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
 export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) {
   const db = await getDb();
   // Quem vê todas não conta rascunho de outra área (ainda não foi enviado); o admin vê tudo.
-  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : ne(solicitacoes.status, "RASCUNHO")) : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario));
+  const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : escopoRascunhos(usuario)) : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario));
   const [[linhas], sols, versaoOs] = await Promise.all([
     db
       .select({ n: count() })

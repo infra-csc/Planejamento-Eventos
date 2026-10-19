@@ -60,7 +60,8 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "ata.ajustar": ["LOGISTICA", "ADMIN"],
   "conferencia.editar_descricao": ["ADMIN"],
   "solicitacao.criar": [...REQUISITANTES, "ADMIN"],
-  "solicitacao.ver_todas": ["LOGISTICA", "GESTAO", "ADMIN"],
+  // Cenografia monta o que as outras áreas pedem (stand, ativação): consulta os pedidos de todas (19/10).
+  "solicitacao.ver_todas": ["LOGISTICA", "GESTAO", "CENOGRAFIA", "ADMIN"],
   "solicitacao.responder": ["LOGISTICA", "ADMIN"],
   // Todo mundo que participa do evento vê e exporta a OS; só a logística ajusta e envia.
   "os.ver": TODOS,

@@ -58,8 +58,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   const areaUsuarioNome = todasAreas.find((a) => a.id === usuario.areaId)?.nome ?? null;
   const semArea = usuario.perfil !== "ADMIN" && !usuario.areaId;
   // Alterar ou remover linha da ata: só o que a própria área pediu (ou o que a logística incluiu).
-  const veTodasAsAreas = pode(usuario, "solicitacao.ver_todas");
-  const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => veTodasAsAreas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
+  // (Ver todas as solicitações, como a Cenografia, não basta: mexer em linha de outra área é da logística e do admin.)
+  const mexeEmTodas = pode(usuario, "ata.ajustar");
+  const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => mexeEmTodas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,

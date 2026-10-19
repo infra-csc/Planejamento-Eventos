@@ -122,7 +122,8 @@ async function prepararItem(tx: Executor, s: { eventoId: string; tipo: "PRE_REUN
     });
     if (!linha) throw new DomainError("A linha da ata escolhida não existe mais.");
     // Uma área não altera nem remove o que outra pediu; linha sem área é da logística e fica com ela.
-    const podeMexer = (usuario && pode(usuario, "solicitacao.ver_todas")) || linha.areaId === s.areaId;
+    // Ver todas (Cenografia consulta) não dá direito de mexer no pedido de outra área: só logística e admin.
+    const podeMexer = (usuario && pode(usuario, "ata.ajustar")) || linha.areaId === s.areaId;
     if (!podeMexer) throw new DomainError("Esta linha da ata é de outra área. Peça a alteração à logística.");
     valores.eventoItemId = linha.id;
     if (dados.operacao === "ALTERAR_QUANTIDADE" && dados.quantidadeSolicitada === linha.quantidade) {
