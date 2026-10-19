@@ -19,6 +19,9 @@ export const SOLICITACAO_TIPO_LABEL: Record<SolicitacaoTipo, string> = {
   ALTERACAO: "Alteração pós-ata",
 };
 
+/** Observação gravada no item que entrou na ata sozinho (pedido pré-reunião): as exportações não repetem. */
+export const OBS_REGISTRADO_NA_ATA = "Registrado na ata automaticamente; conferido pela logística na reunião de OS.";
+
 export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
   EM_ANALISE: "Em análise",
   ATENDIDO: "Atendido",

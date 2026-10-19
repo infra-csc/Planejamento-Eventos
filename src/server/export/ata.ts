@@ -4,15 +4,19 @@ import { NaoEncontradoError } from "@/domain/errors";
 import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services/eventos";
 import type { AtaConteudo, AtaReuniao } from "@/server/db/schema";
 import { daMinhaArea, pode } from "@/domain/permissions";
+import { OBS_REGISTRADO_NA_ATA } from "@/domain/solicitacao";
 
 /** Observações da reunião são nota interna de quem conduz: não saem para as áreas. */
 const veObservacoes = (usuario: UsuarioAtual) => pode(usuario, "ata.consolidar") || pode(usuario, "historico.ver_tudo");
 
-/** Pedidos das áreas: quem não vê todas as solicitações leva só os da própria área. */
+/**
+ * Pedidos das áreas: quem não vê todas as solicitações leva só os da própria área. A observação automática
+ * do pedido pré-reunião sai vazia: repetida em quase toda linha, escondia as observações escritas de verdade.
+ */
 function filtrarPorArea(usuario: UsuarioAtual, lista: AtaConteudo["solicitacoesPreReuniao"]) {
-  if (pode(usuario, "solicitacao.ver_todas")) return lista;
   // Pelo id da área (o nome pode mudar depois do fechamento); atas antigas, sem id, pelo nome.
-  return lista.filter((s) => (s.areaId ? daMinhaArea(usuario, s.areaId) : s.area === usuario.areaNome));
+  const visiveis = pode(usuario, "solicitacao.ver_todas") ? lista : lista.filter((s) => (s.areaId ? daMinhaArea(usuario, s.areaId) : s.area === usuario.areaNome));
+  return visiveis.map((s) => ({ ...s, itens: s.itens.map((i) => (i.observacao?.trim() === OBS_REGISTRADO_NA_ATA ? { ...i, observacao: null } : i)) }));
 }
 
 /**

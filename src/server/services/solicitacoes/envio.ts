@@ -5,7 +5,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { aceitaSolicitacao } from "@/domain/evento";
 import { podeEditarSolicitacao } from "@/domain/permissions";
-import { podeCancelar, podeDevolver } from "@/domain/solicitacao";
+import { OBS_REGISTRADO_NA_ATA, podeCancelar, podeDevolver } from "@/domain/solicitacao";
 import { diaMesISO, formatarDataHora, hojeISO } from "@/lib/format";
 import { bloquearEvento, notificar, obterConfiguracoes, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "../support";
 import { faltamDescricoes } from "@/domain/descricoes-itens";
@@ -31,7 +31,7 @@ export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtu
     const ids = pendentes.map((p) => p.id);
     await tx
       .update(solicitacaoItens)
-      .set({ respondidoPorId: null, observacaoLogistica: "Registrado na ata automaticamente; conferido pela logística na reunião de OS." })
+      .set({ respondidoPorId: null, observacaoLogistica: OBS_REGISTRADO_NA_ATA })
       .where(inArray(solicitacaoItens.id, ids));
     await tx
       .update(historico)
