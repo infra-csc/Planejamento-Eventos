@@ -183,7 +183,8 @@ export function MesmoItemNoEvento({
               )}
               {l.descricao && (
                 <p className="m-0 mt-1 whitespace-pre-line break-words text-pequeno text-ink-2">
-                  <span className="text-muted">Descrição: </span>
+                  {/* O texto é do pedido (pode falar de mais unidades do que a linha tem depois de um ajuste). */}
+                  <span className="text-muted">Descrição no pedido: </span>
                   {l.descricao}
                 </p>
               )}

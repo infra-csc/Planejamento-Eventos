@@ -16,12 +16,15 @@ export function PainelReuniao({ eventoId, resumo, presentesOk, valores, observac
   useEffect(() => {
     const ir = () => {
       setAberto("dados");
-      requestAnimationFrame(() => {
+      const focar = () => {
         const campo = document.getElementById("reuniaoPresentes");
-        if (!campo) return;
+        if (!campo) return false;
         campo.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
         campo.focus({ preventScroll: true });
-      });
+        return true;
+      };
+      // Campo já na tela: foco na hora (quem digita logo em seguida não perde letras). Senão, depois de abrir a aba.
+      if (!focar()) requestAnimationFrame(() => void focar());
     };
     window.addEventListener(EVENTO_REGISTRAR_PRESENTES, ir);
     return () => window.removeEventListener(EVENTO_REGISTRAR_PRESENTES, ir);

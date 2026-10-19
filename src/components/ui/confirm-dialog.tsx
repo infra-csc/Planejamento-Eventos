@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import { useActionState, useEffect, useRef } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "./dialog";
@@ -52,12 +53,14 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
 
   const erro = !state.ok ? state.erro : null;
   const campos = !state.ok ? state.campos : undefined;
+  // Só título, texto e botões: sem corpo, os botões encostam no cabeçalho (sem uma faixa vazia no meio).
+  const semCorpo = !children && !reasonLabel && !erro;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && (
         <DialogContent title={title} description={description}>
-          <ActionForm action={formAction} className="flex flex-col gap-3.5">
+          <ActionForm action={formAction} className={cn("flex flex-col gap-3.5", semCorpo && "-mt-4")}>
             {hidden && Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
             {children}
             {reasonLabel && (
@@ -67,7 +70,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
             )}
             <FormError message={erro} />
             {/* O formulário já espaça os filhos (gap-3.5): sem o mt-4 padrão, o respiro antes dos botões fica igual ao das outras janelas. */}
-            <DialogFooter className="!mt-0.5">
+            <DialogFooter className={semCorpo ? "!mt-0 border-t-0" : "!mt-0.5"}>
               <SubmitButton variant={danger ? "danger" : "primary"} size="lg">
                 {confirmLabel}
               </SubmitButton>
