@@ -1,4 +1,4 @@
-/** Regras da logística na ata: tina e pallet por estande, tinas do palco show, ráfia por ultrabag. */
+/** Regras da logística na ata: ráfia por ultrabag, testeira a definir com tenda; tina e pallet saíram (vêm nos projetos). */
 import { beforeAll, describe, expect, it } from "vitest";
 
 process.env.PGLITE_DATA_DIR = "memory://";
@@ -41,36 +41,48 @@ const regras = async (eventoId: string) => {
 };
 
 describe("regras da logística na ata", () => {
-  it("acompanham a ata: estandes, palco show e ultrabags", async () => {
+  it("acompanham a ata: ráfia por ultrabag; estande e palco show não puxam mais tina nem pallet", async () => {
     const ev = await novoEvento(E.logistica);
     expect(await regras(ev.id)).toEqual({});
-    const linhaEstande = await incluirProjeto(E.logistica, ev.id, estande, 3, E.areas.a.id);
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 6, "pallet-ferro": 6 });
+    await incluirProjeto(E.logistica, ev.id, estande, 3, E.areas.a.id);
     await incluirProjeto(E.logistica, ev.id, palcoShow, 1, null);
-    await incluirPeca(E.logistica, ev.id, ultrabag, 5, null);
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 12, "pallet-ferro": 12, "saco-rafia": 5 });
-    // Estande de 3 para 1: tina e pallet descem.
-    await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaEstande.id, 1, "Só 1 estande");
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 8, "pallet-ferro": 8, "saco-rafia": 5 });
+    expect(await regras(ev.id)).toEqual({});
+    const linhaUb = await incluirPeca(E.logistica, ev.id, ultrabag, 5, null);
+    expect(await regras(ev.id)).toEqual({ "saco-rafia": 5 });
+    // Ultrabag de 5 para 2: a ráfia desce junto.
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaUb.id, 2, "Só 2");
+    expect(await regras(ev.id)).toEqual({ "saco-rafia": 2 });
     // Na conferência a linha da regra aparece com a explicação.
-    const tina = (await obterConferencia(ev.id)).find((l) => l.codigo === "TINA-1000")!;
-    expect(tina.regra).toBe("2 por stand + 6 por palco show");
+    const rafia = (await obterConferencia(ev.id)).find((l) => l.codigo === "SACO-RAFIA")!;
+    expect(rafia.regra).toBe("1 por lixeira ultra bag");
   });
 
   it("ajuste à mão na linha da regra fica como a logística deixou; depois da ata fechada a regra para", async () => {
     const ev = await novoEvento(E.logistica);
-    const linhaEstande = await incluirProjeto(E.logistica, ev.id, estande, 2, null);
+    const linhaUb = await incluirPeca(E.logistica, ev.id, ultrabag, 2, null);
     const db = await getDb();
-    const [tina] = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "tina-contrapeso")));
-    expect(tina.quantidade).toBe(4);
-    await ajustarLinhaNaConferencia(E.logistica, ev.id, tina.id, 10, "Levar reserva");
-    await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaEstande.id, 3, "Mais um estande");
-    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 10, "pallet-ferro": 6 });
+    const [rafia] = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "saco-rafia")));
+    expect(rafia.quantidade).toBe(2);
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, rafia.id, 10, "Levar reserva");
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaUb.id, 3, "Mais uma ultrabag");
+    expect(await regras(ev.id)).toEqual({ "saco-rafia": 10 });
     await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
     await fecharAta(E.admin, ev.id);
-    await ajustarLinhaNaConferencia(E.admin, ev.id, linhaEstande.id, 5, "Depois da ata").catch(() => null);
-    expect((await regras(ev.id))["pallet-ferro"]).toBe(6);
+    await ajustarLinhaNaConferencia(E.admin, ev.id, linhaUb.id, 5, "Depois da ata").catch(() => null);
+    expect((await regras(ev.id))["saco-rafia"]).toBe(10);
   });
+
+  it("linha antiga de tina (regra que saiu) fica como está e mostra por quê", async () => {
+    const db = await getDb();
+    const tina = (await db.query.pecas.findFirst({ where: eq(pecas.codigo, "TINA-1000") }))!;
+    const ev = await novoEvento(E.logistica);
+    await db.insert(eventoItens).values({ eventoId: ev.id, tipo: "PECA", pecaId: tina.id, quantidade: 6, origem: "AJUSTE_LOGISTICA", regra: "tina-contrapeso" });
+    await incluirPeca(E.logistica, ev.id, ultrabag, 1, null);
+    expect(await regras(ev.id)).toEqual({ "tina-contrapeso": 6, "saco-rafia": 1 });
+    const l = (await obterConferencia(ev.id)).find((x) => x.codigo === "TINA-1000")!;
+    expect(l.regra).toMatch(/agora vem dentro dos projetos/);
+  });
+
   it("testeira de madeira: com tenda 5×5 na ata entra a definir, o número sai da conferência; sem tenda, sai", async () => {
     const db = await getDb();
     const [cant] = await db.insert(pecas).values({ codigo: "TND5-CANT", nome: "Cantoneira tenda 5×5", setor: "TENDA" }).returning();

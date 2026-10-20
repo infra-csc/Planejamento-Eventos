@@ -5,7 +5,7 @@ import { grupoDaLinha, grupoDaPeca, grupoDoProjeto } from "./grupos-material";
 const qtd = (r: ReturnType<typeof calcularRegrasKit>) => Object.fromEntries(r.filter((x) => x.quantidade > 0).map((x) => [x.codigoPeca, x.quantidade]));
 
 describe("regras do kit", () => {
-  it("tina 1000 l e pallet: 2 por stand + 6 por palco show; ráfia: 1 por ultrabag", () => {
+  it("ráfia: 1 por ultrabag; tina 1000 l e pallet não são mais regra (vêm dentro dos projetos)", () => {
     const r = calcularRegrasKit([
       { tipo: "PROJETO", quantidade: 3, projeto: { nome: "Stand 9×6 m", categoria: "Stand" } },
       { tipo: "PROJETO", quantidade: 1, projeto: { nome: "Palco show grande 9×6 m com LED", categoria: "Palco" } },
@@ -13,7 +13,7 @@ describe("regras do kit", () => {
       { tipo: "PECA", quantidade: 10, pecaCodigo: "LIXEIRA-BAG" },
       { tipo: "PROJETO", quantidade: 2, projeto: { nome: "Kit limpeza", categoria: "Arena" }, bom: [{ codigo: "LIXEIRA-BAG", quantidade: 4 }] },
     ]);
-    expect(qtd(r)).toEqual({ "TINA-1000": 12, "PALLET-FE": 12, "SACO-RAFIA": 18 });
+    expect(qtd(r)).toEqual({ "SACO-RAFIA": 18 });
   });
 
   it("testeira de madeira a definir: com tenda do tamanho e sem a testeira já pedida", () => {

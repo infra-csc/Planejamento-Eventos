@@ -1,13 +1,12 @@
 /**
  * Regras da logística que dependem do que está na ata (observações das reuniões de OS):
- * - tina de 1000 l: 2 por stand + 6 por palco show;
- * - pallet de ferro: 2 por stand + 6 por palco show;
  * - saco de ráfia: 1 por lixeira ultra bag;
  * - acompanhantes que sempre vão junto: 2 cavaletes de ferro por cocho, 2 cavaletes de madeira por
  *   pranchão e por mesa de medalha, 2 pés por grade 2×1;
  * - grades 2×1 do prisma: 2 por prisma, somadas às grades pedidas (as do prisma não levam pés);
  * - testeira de madeira: com tenda na ata, entra "a definir" (quantidade 0) e o número é definido na conferência.
- * (a lona de teto já vem na lista de peças de cada stand e palco show)
+ * (a lona de teto já vem na lista de peças de cada stand e palco show; a tina de 1000 l e o pallet de ferro
+ * deixaram de ser regra em 20/10 e passam a vir dentro dos projetos)
  * O que a área já pediu da mesma peça à parte é descontado. A linha da regra acompanha a ata sozinha
  * até a ata fechar; se a logística ajustar à mão, fica como ela deixou.
  */
@@ -15,8 +14,6 @@
 export type RegraKit = { regra: string; codigoPeca: string; descricao: string; aDefinir?: boolean };
 
 export const REGRAS_KIT: readonly RegraKit[] = [
-  { regra: "tina-contrapeso", codigoPeca: "TINA-1000", descricao: "2 por stand + 6 por palco show" },
-  { regra: "pallet-ferro", codigoPeca: "PALLET-FE", descricao: "2 por stand + 6 por palco show" },
   { regra: "saco-rafia", codigoPeca: "SACO-RAFIA", descricao: "1 por lixeira ultra bag" },
   { regra: "cavalete-cocho", codigoPeca: "CAV-COCHO", descricao: "1 cocho = 2 cavaletes de ferro p/ cocho (cocho para água e posto de hidratação)" },
   { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "1 pranchão de madeira ou mesa de medalha = 2 cavaletes retos" },
@@ -51,9 +48,6 @@ export type LinhaParaRegra = {
   bom?: ReadonlyArray<{ codigo: string; quantidade: number }> | null;
 };
 
-const ehStand = (p: { nome: string; categoria?: string | null }) => ["estande", "stand"].includes((p.categoria ?? "").toLocaleLowerCase("pt-BR"));
-const ehPalcoShow = (p: { nome: string }) => /^palco show/i.test(p.nome.trim());
-
 /** Unidades de uma peça numa linha: peça solta, ou dentro da lista do projeto × quantidade. */
 const unidades = (l: LinhaParaRegra, codigo: string) =>
   l.tipo === "PROJETO" ? (l.bom ?? []).filter((b) => b.codigo === codigo).reduce((a, b) => a + b.quantidade, 0) * l.quantidade : l.tipo === "PECA" && l.pecaCodigo === codigo ? l.quantidade : 0;
@@ -62,18 +56,7 @@ const unidades = (l: LinhaParaRegra, codigo: string) =>
 export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<RegraKit & { quantidade: number; presente?: boolean }> {
   const ativas = linhas.filter((l) => l.quantidade > 0);
   const total = (codigo: string) => ativas.reduce((a, l) => a + unidades(l, codigo), 0);
-  let stands = 0;
-  let palcosShow = 0;
-  for (const l of ativas) {
-    if (l.tipo !== "PROJETO" || !l.projeto) continue;
-    if (ehStand(l.projeto)) stands += l.quantidade;
-    if (ehPalcoShow(l.projeto)) palcosShow += l.quantidade;
-  }
-  const precisa: Record<string, number> = {
-    "tina-contrapeso": stands * 2 + palcosShow * 6,
-    "pallet-ferro": stands * 2 + palcosShow * 6,
-    "saco-rafia": total(CODIGO_ULTRABAG),
-  };
+  const precisa: Record<string, number> = { "saco-rafia": total(CODIGO_ULTRABAG) };
   for (const a of ACOMPANHANTES) {
     const r = REGRAS_KIT.find((x) => x.codigoPeca === a.acompanhante)!;
     precisa[r.regra] = a.bases.reduce((s, b) => s + total(b), 0) * a.fator;
@@ -91,4 +74,10 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
   );
 }
 
-export const descricaoDaRegra = (regra: string | null | undefined) => (regra ? (REGRAS_KIT.find((r) => r.regra === regra)?.descricao ?? null) : null);
+/** Regras que saíram: as linhas que já estão nas atas ficam como estão (a regra não mexe mais nelas). */
+const REGRAS_RETIRADAS: Record<string, string> = {
+  "tina-contrapeso": "regra antiga (2 por stand + 6 por palco show); a tina agora vem dentro dos projetos",
+  "pallet-ferro": "regra antiga (2 por stand + 6 por palco show); o pallet agora vem dentro dos projetos",
+};
+
+export const descricaoDaRegra = (regra: string | null | undefined) => (regra ? (REGRAS_KIT.find((r) => r.regra === regra)?.descricao ?? REGRAS_RETIRADAS[regra] ?? null) : null);

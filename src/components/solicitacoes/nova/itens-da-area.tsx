@@ -121,7 +121,7 @@ export function ItensDaArea({
                 const acomp = ACOMPANHANTES.find((a) => a.acompanhante === p.codigo);
                 const automatico = SO_AUTOMATICOS.has(p.codigo);
                 const auto = autoDe(p.id);
-                const ativo = automatico ? auto > 0 : q > 0;
+                const ativo = automatico ? auto > 0 : q > 0 || auto > 0;
                 // Vem junto de uma peça desta mesma lista: recuado, com o "↳" ligando à de cima.
                 const junto = Boolean(acomp && l.pecas.some((b) => acomp.bases.includes(b.codigo)));
                 return (
@@ -143,8 +143,13 @@ export function ItensDaArea({
                       {/* Mesmo formato nas três: "Automático · regra"; "aqui, só os extras" só quando a base está nesta lista
                           (na Ativação não há mesa de medalha; o cavalete reto do pranchão vem automático). */}
                       {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp?.texto}</span>}
-                      {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos · {acomp?.texto} · aqui, só os extras</span>}
-                      {!automatico && auto === 0 && acomp && junto && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp.texto} · aqui, só os extras</span>}
+                      {/* O número já inclui os automáticos (antes era só "extras" e a pessoa digitava os mesmos de novo). */}
+                      {!automatico && auto > 0 && (
+                        <span className="mt-0.5 block text-rotulo font-normal text-muted">
+                          {auto} automáticos ({acomp?.texto}){q > 0 ? ` + ${q} a mais` : ""} · aumente só se precisar de mais
+                        </span>
+                      )}
+                      {!automatico && auto === 0 && acomp && junto && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp.texto}</span>}
                       {/* Ativação: quanto ainda tem no estoque no período do evento (só informa). */}
                       <AvisoEstoque info={estoque?.[p.id]} pedido={q} />
                     </span>
@@ -155,9 +160,9 @@ export function ItensDaArea({
                     ) : (
                       <Stepper
                         tamanho="sm"
-                        valor={q}
-                        min={0}
-                        onChange={(v) => definir(p, v)}
+                        valor={q + auto}
+                        min={auto}
+                        onChange={(v) => definir(p, Math.max(0, v - auto))}
                         label={`Quantidade de ${p.nome}`}
                         className={cn("shrink-0 transition-opacity duration-150", !ativo && "opacity-55 group-hover:opacity-100 focus-within:opacity-100")}
                       />
