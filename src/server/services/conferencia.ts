@@ -1,6 +1,6 @@
 import { grupoDaLinha } from "@/domain/grupos-material";
 import { descricaoDaRegra } from "@/domain/regras-kit";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -160,6 +160,8 @@ export async function obterConferencia(eventoId: string) {
       grupo: grupoDaLinha({ tipo: l.tipo, projeto: l.registro.projeto, peca: l.registro.peca }),
       /** Linha criada por regra da logística (ex.: "2 por stand + 6 por palco show"). */
       regra: descricaoDaRegra(l.registro.regra),
+      /** Chave da regra (ex.: "grade-prisma"): a tela decide se a linha aceita "a mais na reunião". */
+      regraChave: l.registro.regra ?? null,
       /** Tenda: tamanho e, por tenda, as peças que mudam por local (a conferência mostra o total do local). */
       tenda: tendaDe(l),
       ultimoAjuste: aj ? { por: aj.por ?? "—", em: aj.criadoEm.toISOString(), descricao: textoAjuste(aj) } : null,
@@ -323,6 +325,26 @@ export async function ajustarQuantidadeLinha(
  * Canetinha da conferência: muda a quantidade de uma linha na reunião, com log (motivo opcional).
  * Mesmo caminho do ajuste pela aba Ata (`ajustarQuantidadeLinha`).
  */
+/**
+ * Grades 2×1 do prisma: o que vem pelos prismas continua na linha da regra (acompanha os prismas); o que a
+ * reunião decide a mais fica numa linha própria da logística (mesma peça, sem pedido), e o bloco soma as duas.
+ * `extra` 0 tira a linha a mais. Ajuste e inclusão seguem o caminho de sempre (histórico, OS depois da ata).
+ */
+export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: string, linhaRegraId: string, extra: number, motivo: string) {
+  exigir(usuario, "ata.consolidar");
+  if (!Number.isInteger(extra) || extra < 0 || extra > 1_000_000) throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.");
+  const db = await getDb();
+  const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)) });
+  if (!regra?.regra || !regra.pecaId) throw new NaoEncontradoError("Linha da regra");
+  const aMais = await db.query.eventoItens.findFirst({
+    where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, regra.pecaId), eq(eventoItens.ativo, true), isNull(eventoItens.regra), isNull(eventoItens.solicitacaoItemId)),
+  });
+  const razao = motivo.trim() || "Decidido na reunião (além das do prisma)";
+  if (aMais) return ajustarQuantidadeLinha(usuario, eventoId, aMais.id, extra, razao, { contexto: "conferencia", quantidadeEsperada: aMais.quantidade });
+  if (extra === 0) return null;
+  return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: regra.pecaId, descricaoLivre: null, quantidade: extra, destino: null, areaId: null, justificativa: razao });
+}
+
 export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, motivo: string, opcoes: { quantidadeEsperada?: number | null } = {}) {
   return ajustarQuantidadeLinha(usuario, eventoId, linhaId, quantidade, motivo, { contexto: "conferencia", quantidadeEsperada: opcoes.quantidadeEsperada });
 }

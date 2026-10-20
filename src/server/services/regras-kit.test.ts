@@ -8,7 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, pecas, projetos } from "@/server/db/schema";
 import { criarPeca, criarProjeto, fecharAta, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
-import { ajustarLinhaNaConferencia, obterConferencia } from "./conferencia";
+import { ajustarLinhaNaConferencia, definirExtraDaRegra, obterConferencia } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
 import { ressincronizarAtasAbertas } from "./eventos/regras-kit";
 
@@ -121,5 +121,29 @@ describe("regras da logística na ata", () => {
     expect(await regras(ev.id)).toEqual({ "testeira-tenda-5x5": 0 });
     expect((await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "testeira-tenda-5x5"))))[0].ativo).toBe(true);
     expect(await ressincronizarAtasAbertas("teste:regras:1")).toEqual({ feito: false });
+  });
+  it("grades do prisma: as a mais da reunião ficam numa linha própria e somam; as do prisma seguem os prismas", async () => {
+    const db = await getDb();
+    const [prisma] = await db.insert(pecas).values({ codigo: "PRISMA", nome: "Prisma", setor: "ARENA" }).returning();
+    await db.insert(pecas).values({ codigo: "GRADE-2X1", nome: "Grade 2×1 m", setor: "ARENA" });
+    const ev = await novoEvento(E.logistica);
+    const linhaPrisma = await incluirPeca(E.logistica, ev.id, prisma.id, 5, null);
+    const linhasGrade = async () => (await db.select().from(eventoItens).where(eq(eventoItens.eventoId, ev.id))).filter((l) => l.ativo && l.pecaId && l.regra !== "pe-grade-2x1" && l.quantidade > 0);
+    const regraGrade = (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "grade-prisma"))))[0];
+    expect(regraGrade.quantidade).toBe(10);
+
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 6, "");
+    const grade = (await db.query.pecas.findFirst({ where: eq(pecas.codigo, "GRADE-2X1") }))!;
+    const aMais = (await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra);
+    expect(aMais.map((l) => l.quantidade)).toEqual([6]);
+    // Prismas de 5 para 7: as do prisma acompanham (14) e as a mais continuam 6.
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, linhaPrisma.id, 7, "");
+    expect(await regras(ev.id)).toMatchObject({ "grade-prisma": 14 });
+    expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([6]);
+    // Mudar o a mais ajusta a mesma linha; 0 tira.
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 9, "");
+    expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([9]);
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 0, "");
+    expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra)).toEqual([]);
   });
 });

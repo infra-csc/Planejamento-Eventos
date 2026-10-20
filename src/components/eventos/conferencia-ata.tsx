@@ -16,7 +16,7 @@ import { Pills } from "@/components/ui/pills";
 import { Select } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
-import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
+import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction, definirExtraDaRegraAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
@@ -71,9 +71,12 @@ type Filtro = "todas" | "pendentes" | "conferidas";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
-/** Estrutura e Tendas ficam juntas (todas as áreas numa seção só); o resto, por área. */
-const secaoDe = (l: LinhaConferencia) => (l.grupo === "ESTRUTURA" || l.grupo === "TENDAS" ? GRUPO_LABEL[l.grupo] : areaDe(l));
-const ordemSecao = (s: string) => (s === GRUPO_LABEL.ESTRUTURA ? 0 : s === GRUPO_LABEL.TENDAS ? 1 : 2);
+/**
+ * Seção pelo grupo de material, como a lista de materiais da OS (Estrutura, Tendas, Ativação, Percurso,
+ * Arena): a mesma peça pedida por várias áreas fica num bloco só, somada, com uma linha por quem pediu.
+ */
+const secaoDe = (l: LinhaConferencia) => GRUPO_LABEL[l.grupo];
+const ordemSecao = (s: string) => GRUPOS_MATERIAL.findIndex((g) => GRUPO_LABEL[g] === s);
 /** Quem pediu a linha (ou quem incluiu na reunião). */
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
@@ -121,6 +124,66 @@ function Check({ l, onAlternar }: { l: LinhaConferencia; onAlternar: (id: string
 }
 
 /** Modal da canetinha: nova quantidade + motivo (opcional); mostra o que a área vai ver. */
+/**
+ * Grades 2×1: as do prisma vêm sozinhas (acompanham os prismas); a reunião só diz quantas a mais. As duas
+ * ficam em linhas separadas do mesmo bloco, que mostra a soma.
+ */
+function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConferencia; extraAtual: number; eventoId: string; onFechar: () => void }) {
+  const [extra, setExtra] = useState(extraAtual);
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  const salvar = () => {
+    if (extra === extraAtual) return;
+    setErro(null);
+    iniciar(async () => {
+      const r = await definirExtraDaRegraAction(eventoId, l.id, extra, motivo);
+      if (!r.ok) return setErro(r.erro);
+      toastSucesso(`${l.nome}: ${l.quantidade} do prisma + ${extra} a mais = ${l.quantidade + extra}`);
+      onFechar();
+    });
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent title={`Ajustar ${l.nome}`} description={l.regra ?? undefined} width={480}>
+        <div className="flex flex-col gap-4">
+          <dl className="m-0 grid grid-cols-3 overflow-hidden rounded-controle border border-line-soft">
+            <div className="bg-subtle px-3.5 py-2.5">
+              <dt className="text-pequeno text-muted">Pelos prismas</dt>
+              <dd className="numero m-0 text-destaque font-semibold text-ink">{l.quantidade}</dd>
+            </div>
+            <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
+              <dt className="text-pequeno text-muted">A mais</dt>
+              <dd className="numero m-0 text-destaque font-semibold text-ink">{extra}</dd>
+            </div>
+            <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
+              <dt className="text-pequeno text-muted">Total</dt>
+              <dd className="numero m-0 text-destaque font-semibold text-accent">{l.quantidade + extra}</dd>
+            </div>
+          </dl>
+          <Field label="Grades a mais, decididas na reunião" htmlFor="extra-prisma" hint="As dos prismas continuam automáticas: se mudar o número de prismas, elas acompanham. 0 tira as a mais.">
+            <Stepper id="extra-prisma" valor={extra} onChange={setExtra} min={0} tamanho="md" autoFocus />
+          </Field>
+          <Field label="Motivo" htmlFor="motivo-extra" optional hint="Se escrever, vai para o histórico.">
+            <Textarea id="motivo-extra" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: fechamento da arena e área VIP" className="min-h-[76px]" />
+          </Field>
+          <FormError message={erro} />
+        </div>
+        <DialogFooter>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente} disabled={extra === extraAtual} motivoDesabilitado="Altere a quantidade para salvar">
+            Salvar
+          </Button>
+          <DialogClose asChild>
+            <Button variant="secondary" size="lg" disabled={pendente}>
+              Cancelar
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId: string; onFechar: () => void }) {
   const [qtd, setQtd] = useState(l.quantidade);
   const [motivo, setMotivo] = useState("");
@@ -755,22 +818,21 @@ export function ConferenciaAta({
     [linhas, filtro, areaAtiva, pessoaAtiva, grupoAtivo, busca],
   );
 
-  // Linha de regra não tem área: fica junto da mesma peça pedida por uma área (ex.: +6 cavaletes no bloco dos
-  // cavaletes da Produção, logo abaixo do cocho) ou, sem ela, junto da peça de origem; senão, na seção de sempre.
+  // Peça que vem junto de outra (cavalete do cocho, cavalete reto, pé da grade) fica na seção da origem, logo
+  // abaixo dela, com todas as linhas (as das áreas e a da regra) somadas num bloco só. Com várias origens, a maior.
   const secaoDaLinha = useMemo(() => {
     const m = new Map<string, string>();
-    for (const l of linhas) {
-      if (!l.regra || l.areaNome || !l.codigo) continue;
-      const mesma = linhas.find((o) => !o.regra && o.codigo === l.codigo);
-      const base = mesma ? null : linhas.find((o) => o.codigo && ACOMPANHANTES.some((a) => a.acompanhante === l.codigo && a.bases.includes(o.codigo!)));
-      const alvo = mesma ?? base;
-      if (alvo) m.set(l.id, secaoDe(alvo));
+    for (const a of ACOMPANHANTES) {
+      const bases = linhas.filter((o) => o.codigo && a.bases.includes(o.codigo));
+      if (!bases.length) continue;
+      const alvo = secaoDe(bases.reduce((x, y) => (y.quantidade > x.quantidade ? y : x)));
+      for (const l of linhas) if (l.codigo === a.acompanhante) m.set(l.id, alvo);
     }
     return (l: LinhaConferencia) => m.get(l.id) ?? secaoDe(l);
   }, [linhas]);
 
-  // Seção por área; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por local e pessoa.
-  // A ordem só depende de área, nome, local e pessoa: conferir uma linha não a tira do lugar.
+  // Seção por grupo de material; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por
+  // local e pessoa. A ordem só depende de grupo, nome, local e pessoa: conferir uma linha não a tira do lugar.
   const secoes = useMemo(() => {
     const porArea = new Map<string, LinhaConferencia[]>();
     for (const l of visiveis) porArea.set(secaoDaLinha(l), [...(porArea.get(secaoDaLinha(l)) ?? []), l]);
@@ -1161,7 +1223,18 @@ export function ConferenciaAta({
           </DialogContent>
         )}
       </Dialog>
-      {ajustando && <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />}
+      {ajustando &&
+        (ajustando.regraChave === "grade-prisma" ? (
+          <ExtraPrismaModal
+            l={ajustando}
+            // A mais: a linha da logística da mesma peça, sem pedido e sem regra (a que este quadro cria).
+            extraAtual={linhas.filter((o) => o.codigo === ajustando.codigo && !o.regraChave && !o.origem).reduce((a, o) => a + o.quantidade, 0)}
+            eventoId={eventoId}
+            onFechar={() => setAjustando(null)}
+          />
+        ) : (
+          <AjusteModal l={ajustando} eventoId={eventoId} onFechar={() => setAjustando(null)} />
+        ))}
       {descrevendo && <DescricaoModal l={descrevendo} eventoId={eventoId} onFechar={() => setDescrevendo(null)} />}
       <Dialog open={incluir} onOpenChange={setIncluir}>
         {incluir && (

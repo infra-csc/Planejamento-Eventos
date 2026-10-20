@@ -21,7 +21,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, editarDescricoesLinha } from "@/server/services/conferencia";
+import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, definirExtraDaRegra, editarDescricoesLinha } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { pecaSchema } from "@/lib/schemas";
@@ -202,6 +202,17 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
   if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: "Dados inválidos." } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo, { quantidadeEsperada }));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
+/** Grades do prisma: quantas a mais a reunião decidiu (linha própria, somada à da regra). */
+export async function definirExtraDaRegraAction(eventoId: string, linhaRegraId: string, extra: number, motivo: string) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || typeof linhaRegraId !== "string" || !Number.isInteger(extra) || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
+  const r = await executar(() => definirExtraDaRegra(usuario, eventoId, linhaRegraId, extra, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;
