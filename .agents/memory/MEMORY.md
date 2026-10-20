@@ -10,4 +10,5 @@
 - [SQL inspection results](sql-inspection-results.md) — combine metadata checks into one SELECT; multiple result sets can fail in the executeSql formatter.
 - [Publish build stall](publish-build-stall.md) — a log that stops with no error and uniformly slow steps means retry the publish, not a code fix.
 - [git pull waits on MERGE_MSG](git-pull-merge-editor.md) — user's pulls stall on the merge editor; finish merge, then migrate and check new drizzle files.
+- [Stale data cache in deploy](stale-data-cache-deploy.md) — workspace .next/cache/fetch-cache ships to prod and serves dev data; build must clear it.
 - [Startup data fixes](startup-data-fixes.md) — production data corrections run as idempotent background jobs in instrumentation register(), not direct prod writes.
