@@ -412,6 +412,8 @@ function Linha({
             {marcaOpcional}
           </p>
         )}
+        {/* Linha da regra no bloco da peça: diz por que está ali ("1 cocho = 2 cavaletes de ferro p/ cocho"). */}
+        {emGrupo && !l.destino && l.regra && <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">{l.regra}</p>}
         {!(emGrupo && !l.destino) && !(emGrupo && origemComum && (!l.origem || solComum)) && (
           <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">
             {!emGrupo && <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>}
@@ -753,11 +755,25 @@ export function ConferenciaAta({
     [linhas, filtro, areaAtiva, pessoaAtiva, grupoAtivo, busca],
   );
 
+  // Linha de regra não tem área: fica junto da mesma peça pedida por uma área (ex.: +6 cavaletes no bloco dos
+  // cavaletes da Produção, logo abaixo do cocho) ou, sem ela, junto da peça de origem; senão, na seção de sempre.
+  const secaoDaLinha = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of linhas) {
+      if (!l.regra || l.areaNome || !l.codigo) continue;
+      const mesma = linhas.find((o) => !o.regra && o.codigo === l.codigo);
+      const base = mesma ? null : linhas.find((o) => o.codigo && ACOMPANHANTES.some((a) => a.acompanhante === l.codigo && a.bases.includes(o.codigo!)));
+      const alvo = mesma ?? base;
+      if (alvo) m.set(l.id, secaoDe(alvo));
+    }
+    return (l: LinhaConferencia) => m.get(l.id) ?? secaoDe(l);
+  }, [linhas]);
+
   // Seção por área; dentro, um bloco por item (mesmo projeto/peça) em ordem alfabética; no bloco, por local e pessoa.
   // A ordem só depende de área, nome, local e pessoa: conferir uma linha não a tira do lugar.
   const secoes = useMemo(() => {
     const porArea = new Map<string, LinhaConferencia[]>();
-    for (const l of visiveis) porArea.set(secaoDe(l), [...(porArea.get(secaoDe(l)) ?? []), l]);
+    for (const l of visiveis) porArea.set(secaoDaLinha(l), [...(porArea.get(secaoDaLinha(l)) ?? []), l]);
     return [...porArea.entries()]
       .sort(([a], [b]) => ordemSecao(a) - ordemSecao(b) || porNome(a, b))
       .map(([area, doArea]) => {
@@ -771,10 +787,10 @@ export function ConferenciaAta({
           .sort(([, a], [, b]) => porNome(a[0].nome, b[0].nome));
         return { area, itens: juntarDependentes(ordenados) };
       });
-  }, [visiveis]);
+  }, [visiveis, secaoDaLinha]);
   // Contagem por seção sobre a ata inteira (não só o recorte) e só das obrigatórias, como o progresso.
   const totalArea = (a: string) => {
-    const ls = linhas.filter((l) => secaoDe(l) === a && !conferenciaOpcional(l));
+    const ls = linhas.filter((l) => secaoDaLinha(l) === a && !conferenciaOpcional(l));
     if (a === GRUPO_LABEL.TENDAS) {
       // Um local de uma tenda = um "item" do quadro: conferido quando todas as linhas dele estão.
       const locais = new Map<string, boolean>();
