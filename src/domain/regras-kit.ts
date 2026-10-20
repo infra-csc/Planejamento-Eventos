@@ -74,6 +74,20 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
   );
 }
 
+/** O que vem junto de outra peça: quanto a regra pede (pelas peças de origem) e quanto a ata tem hoje. */
+export type NecessidadeAcompanhante = { codigo: string; precisa: number; naAta: number; texto: string; bases: string[] };
+
+/**
+ * Para a conferência mostrar "a regra pede 6 · na ata 9": as origens contam só as linhas que não são de regra
+ * (as grades do prisma não levam pés), e o que está na ata conta todas, inclusive dentro dos projetos.
+ */
+export function necessidadesAcompanhantes(linhas: ReadonlyArray<LinhaParaRegra & { regra?: string | null }>): NecessidadeAcompanhante[] {
+  const ativas = linhas.filter((l) => l.quantidade > 0);
+  const total = (ls: typeof ativas, codigo: string) => ls.reduce((a, l) => a + unidades(l, codigo), 0);
+  const pedidas = ativas.filter((l) => !l.regra);
+  return ACOMPANHANTES.map((a) => ({ codigo: a.acompanhante, precisa: a.bases.reduce((s, b) => s + total(pedidas, b), 0) * a.fator, naAta: total(ativas, a.acompanhante), texto: a.texto, bases: [...a.bases] })).filter((n) => n.precisa > 0 || n.naAta > 0);
+}
+
 /**
  * Tina de 1000 l e pallet de ferro pela regra antiga (2 por stand + 6 por palco show), descontado o que as
  * linhas já levam (a versão nova dos stands e palcos traz os dois na lista de peças). Serve só para diminuir

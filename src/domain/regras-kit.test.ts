@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularRegrasKit } from "./regras-kit";
+import { calcularRegrasKit, necessidadesAcompanhantes } from "./regras-kit";
 import { grupoDaLinha, grupoDaPeca, grupoDoProjeto } from "./grupos-material";
 
 const qtd = (r: ReturnType<typeof calcularRegrasKit>) => Object.fromEntries(r.filter((x) => x.quantidade > 0).map((x) => [x.codigoPeca, x.quantidade]));
@@ -14,6 +14,20 @@ describe("regras do kit", () => {
       { tipo: "PROJETO", quantidade: 2, projeto: { nome: "Kit limpeza", categoria: "Arena" }, bom: [{ codigo: "LIXEIRA-BAG", quantidade: 4 }] },
     ]);
     expect(qtd(r)).toEqual({ "SACO-RAFIA": 18 });
+  });
+
+  it("conferência: quanto a regra pede de cavalete e quanto a ata tem (Blue Run Campinas: 2 mesas + 1 pranchão)", () => {
+    const ls = [
+      { tipo: "PECA", quantidade: 2, pecaCodigo: "MESA-1X1" },
+      { tipo: "PECA", quantidade: 1, pecaCodigo: "PRANCHÃO-220" },
+      { tipo: "PECA", quantidade: 4, pecaCodigo: "CAV-RETO" },
+      { tipo: "PECA", quantidade: 4, pecaCodigo: "CAV-RETO" },
+      { tipo: "PECA", quantidade: 1, pecaCodigo: "CAV-RETO" },
+    ];
+    expect(necessidadesAcompanhantes(ls).find((n) => n.codigo === "CAV-RETO")).toMatchObject({ precisa: 6, naAta: 9 });
+    // Grades do prisma (linha da regra) não pedem pés.
+    const grades = [{ tipo: "PECA", quantidade: 10, pecaCodigo: "GRADE-2X1" }, { tipo: "PECA", quantidade: 28, pecaCodigo: "GRADE-2X1", regra: "grade-prisma" }];
+    expect(necessidadesAcompanhantes(grades).find((n) => n.codigo === "PE-GRADE-2X1")).toMatchObject({ precisa: 20, naAta: 0 });
   });
 
   it("testeira de madeira a definir: com tenda do tamanho e sem a testeira já pedida", () => {

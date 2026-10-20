@@ -16,14 +16,14 @@ import { Pills } from "@/components/ui/pills";
 import { Select } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
-import { ajustarLinhaConferenciaAction, conferirLinhaAction, conferirTodasAction, definirExtraDaRegraAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
+import { ajustarLinhaConferenciaAction, completarAcompanhanteAction, conferirLinhaAction, conferirTodasAction, definirExtraDaRegraAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { BlocoTenda } from "./tenda-conferencia";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { GRUPO_LABEL, type GrupoMaterial } from "@/domain/grupos-material";
-import type { LinhaConferencia } from "@/server/services/conferencia";
+import type { AcompanhanteDaAta, LinhaConferencia } from "@/server/services/conferencia";
 import { conferenciaOpcional } from "@/domain/itens-padrao";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { MARCA_ACOMPANHANTE } from "@/components/solicitacoes/nova/utilidades";
@@ -60,6 +60,40 @@ function juntarDependentes(itens: ReadonlyArray<readonly [string, LinhaConferenc
   // Nenhuma linha some: o que não achou a origem como item próprio sai no fim da seção.
   for (const [kd, d] of dependentes) saida.push([kd, d.ls, null]);
   return saida;
+}
+
+/** Inclui de uma vez o que a regra pede (linha da logística, que entra conferida na reunião). */
+function BotaoCompletar({ eventoId, n }: { eventoId: string; n: AcompanhanteDaAta }) {
+  const [pendente, iniciar] = useTransition();
+  const falta = n.precisa - n.naAta;
+  return (
+    <Button
+      variant="secondary"
+      size="xs"
+      className="ml-auto"
+      loading={pendente}
+      onClick={() =>
+        iniciar(async () => {
+          const r = await completarAcompanhanteAction(eventoId, n.codigo);
+          if (!r.ok) return toastErro(r.erro);
+          toastSucesso(`${n.nome} × ${falta} incluído`);
+        })
+      }
+    >
+      Incluir {falta}
+    </Button>
+  );
+}
+
+/** "a regra pede 6 · na ata 9 · sobram 3": em amarelo quando a ata não bate com a regra. */
+function ContaAcompanhante({ n }: { n: AcompanhanteDaAta }) {
+  const dif = n.naAta - n.precisa;
+  return (
+    <span className={cn("numero", dif !== 0 && "font-medium text-warning")}>
+      · a regra pede {n.precisa} · na ata {n.naAta}
+      {dif > 0 ? ` · sobram ${dif}` : dif < 0 ? ` · faltam ${-dif}` : ""}
+    </span>
+  );
 }
 
 /** Evento da página: leva ao campo "Pessoas presentes" do painel da reunião (que escuta e foca o campo). */
@@ -706,8 +740,11 @@ export function ConferenciaAta({
   podeCadastrar = false,
   podeEditarDescricao = false,
   presentesOk = true,
+  acompanhantes = [],
 }: {
   eventoId: string;
+  /** Cavaletes e pés: quanto a regra pede pelas peças de origem e quanto a ata tem. */
+  acompanhantes?: AcompanhanteDaAta[];
   /** Administrador corrige a descrição das unidades na conferência. */
   podeEditarDescricao?: boolean;
   linhas: LinhaConferencia[];
@@ -968,6 +1005,9 @@ export function ConferenciaAta({
                   );
   };
 
+  // Aviso de cavalete/pé que falta: uma vez na tela, abaixo da primeira origem (renderização refeita do zero a cada vez).
+  const avisados = new Set<string>();
+
   /** Leva à próxima linha obrigatória sem conferir (na ordem da lista) e põe o foco no check dela. */
   const irParaProxima = () => {
     const alvo = listaRef.current?.querySelector<HTMLButtonElement>('[data-check][data-obrigatoria][aria-checked="false"], [data-check][data-obrigatoria][aria-checked="mixed"]');
@@ -1154,20 +1194,36 @@ export function ConferenciaAta({
                     {t.n > 0 ? `${t.ok}/${t.n}${t.unidade ? ` ${t.unidade}` : ""}` : "opcional"}
                   </span>
                 </h3>
-                {itens.flatMap(([chave, ls, dep]) => [
-                  // Item que vem junto de outro: o aviso fica entre a origem e ele (a ordem já os põe lado a lado).
-                  dep ? (
-                    <p key={`${chave}:junto`} className="m-0 flex items-center gap-1.5 border-t border-dashed border-accent-border bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
-                      <span aria-hidden className="text-accent">
-                        ↳
-                      </span>
-                      <span>
-                        Vem junto de <b className="font-medium text-ink-2">{dep.nome}</b> · {dep.texto}
-                      </span>
-                    </p>
-                  ) : null,
-                  renderizarItem(chave, ls),
-                ])}
+                {itens.flatMap(([chave, ls, dep]) => {
+                  const nec = acompanhantes.find((n) => n.codigo === ls[0].codigo);
+                  // Origem (mesa, pranchão, grade, cocho) cujo acompanhante não tem nenhuma linha na ata: aviso logo abaixo dela.
+                  const semNenhum = acompanhantes.filter((n) => n.naAta === 0 && n.precisa > 0 && ls.some((l) => l.codigo && n.bases.includes(l.codigo)) && !avisados.has(n.codigo));
+                  for (const n of semNenhum) avisados.add(n.codigo);
+                  return [
+                    // Item que vem junto de outro: o aviso fica entre a origem e ele, com quanto a regra pede e quanto a ata tem.
+                    dep ? (
+                      <p key={`${chave}:junto`} className="m-0 flex flex-wrap items-center gap-x-1.5 border-t border-dashed border-accent-border bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
+                        <span aria-hidden className="text-accent">
+                          ↳
+                        </span>
+                        <span>
+                          Vem junto de <b className="font-medium text-ink-2">{dep.nome}</b> · {dep.texto}
+                        </span>
+                        {nec && <ContaAcompanhante n={nec} />}
+                      </p>
+                    ) : null,
+                    renderizarItem(chave, ls),
+                    ...semNenhum.map((n) => (
+                      <p key={`${chave}:falta:${n.codigo}`} className="m-0 flex flex-wrap items-center gap-x-1.5 border-t border-dashed border-warning-border bg-warning-bg/50 px-cartao py-1.5 text-rotulo text-warning">
+                        <span aria-hidden>↳</span>
+                        <span>
+                          <b className="font-medium">{n.nome}</b>: nenhum na ata · {n.texto} · a regra pede <b className="numero font-semibold">{n.precisa}</b>
+                        </span>
+                        {editavel && <BotaoCompletar eventoId={eventoId} n={n} />}
+                      </p>
+                    )),
+                  ];
+                })}
               </section>
             );
           })}

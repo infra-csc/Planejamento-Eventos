@@ -1,5 +1,5 @@
 import { grupoDaLinha } from "@/domain/grupos-material";
-import { descricaoDaRegra } from "@/domain/regras-kit";
+import { descricaoDaRegra, necessidadesAcompanhantes } from "@/domain/regras-kit";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
@@ -170,6 +170,32 @@ export async function obterConferencia(eventoId: string) {
 }
 
 export type LinhaConferencia = Awaited<ReturnType<typeof obterConferencia>>[number];
+
+/** Cavaletes e pés da ata: quanto a regra pede pelas peças de origem e quanto a ata tem (com o nome da peça). */
+export async function acompanhantesDaAta(eventoId: string) {
+  const db = await getDb();
+  const linhas = await db.query.eventoItens.findMany({
+    where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)),
+    with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } } },
+  });
+  const nec = necessidadesAcompanhantes(linhas.map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot, regra: l.regra })));
+  const nomes = nec.length ? await db.select({ codigo: pecas.codigo, nome: pecas.nome }).from(pecas).where(inArray(pecas.codigo, nec.map((n) => n.codigo))) : [];
+  return nec.map((n) => ({ ...n, nome: nomes.find((p) => p.codigo === n.codigo)?.nome ?? n.codigo }));
+}
+
+export type AcompanhanteDaAta = Awaited<ReturnType<typeof acompanhantesDaAta>>[number];
+
+/** Completa o que vem junto (cavalete, pé) até o que a regra pede: inclui uma linha da logística com o que falta. */
+export async function completarAcompanhante(usuario: UsuarioAtual, eventoId: string, codigo: string) {
+  exigir(usuario, "ata.consolidar");
+  const n = (await acompanhantesDaAta(eventoId)).find((x) => x.codigo === codigo);
+  const falta = n ? n.precisa - n.naAta : 0;
+  if (!n || falta <= 0) throw new DomainError("Nada a completar: a ata já tem o que a regra pede.");
+  const db = await getDb();
+  const peca = await db.query.pecas.findFirst({ where: eq(pecas.codigo, codigo), columns: { id: true } });
+  if (!peca) throw new NaoEncontradoError("Peça");
+  return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: peca.id, descricaoLivre: null, quantidade: falta, destino: null, areaId: null, justificativa: `Completa a regra (${n.texto})` });
+}
 
 /** De onde veio o ajuste: canetinha da conferência (antes da ata) ou ajuste pela aba Ata/OS. */
 export type ContextoAjuste = "conferencia" | "ata";

@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
-import { obterConferencia } from "@/server/services/conferencia";
+import { acompanhantesDaAta, obterConferencia } from "@/server/services/conferencia";
 import { NaoEncontradoError } from "@/domain/errors";
 import { pode } from "@/domain/permissions";
 import { diaMesHora, periodoCurto } from "@/lib/format";
@@ -40,7 +40,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
   // Ata fechada: a conferência acabou. Quem acabou de fechar quer ver a OS que nasceu dela.
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") redirect(ev.status === "ABERTO" && pode(usuario, "os.ver") ? `/eventos/${id}/os` : `/eventos/${id}/ata`);
 
-  const [linhas, opcoes, areas] = await Promise.all([obterConferencia(id), opcoesReferenciasResumidas(), listarAreasCache()]);
+  const [linhas, opcoes, areas, acompanhantes] = await Promise.all([obterConferencia(id), opcoesReferenciasResumidas(), listarAreasCache(), acompanhantesDaAta(id)]);
   // O fechamento só exige as linhas obrigatórias ("a definir" e estaiamento ficam de fora).
   const obrigatorias = linhas.filter((l) => !conferenciaOpcional(l));
   const conferidas = obrigatorias.filter((l) => l.conferidoEm).length;
@@ -88,7 +88,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <ConferenciaAta eventoId={id} linhas={linhas} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} podeEditarDescricao={pode(usuario, "conferencia.editar_descricao")} presentesOk={Boolean(ev.reuniaoPresentes?.trim())} />
+        <ConferenciaAta eventoId={id} linhas={linhas} acompanhantes={acompanhantes} editavel opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} podeCadastrar={pode(usuario, "catalogo.gerenciar")} podeEditarDescricao={pode(usuario, "conferencia.editar_descricao")} presentesOk={Boolean(ev.reuniaoPresentes?.trim())} />
         <PainelReuniao
           eventoId={id}
           resumo={ev.reuniaoIniciadaEm && ev.status === "EM_REUNIAO" ? `Iniciada ${diaMesHora(ev.reuniaoIniciadaEm)} · responsável: ${ev.responsavel.nome}` : `Marcada para ${diaMesHora(ev.dataReuniao)} · responsável: ${ev.responsavel.nome}`}
