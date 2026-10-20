@@ -88,7 +88,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       />
 
       {p.usosDefasados.length > 0 && (
-        <Aviso tom="warning" titulo="Eventos usando versões anteriores" className="mb-5">
+        <Aviso tom="warning" titulo="Eventos que ficaram na versão anterior" className="mb-5">
           {p.usosDefasados.map((u, i) => (
             <span key={u.eventoId}>
               {i > 0 && " · "}
@@ -98,7 +98,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
               (<Codigo>v{u.versao}</Codigo>)
             </span>
           ))}
-          . A logística decide na ata de cada evento se atualiza para a <Codigo>v{p.versaoAtual}</Codigo>.
+          . Tinham peças ajustadas uma a uma no evento, por isso não foram atualizados sozinhos: a logística decide na ata se atualiza para a <Codigo>v{p.versaoAtual}</Codigo>.
         </Aviso>
       )}
 

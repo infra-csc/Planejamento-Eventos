@@ -44,8 +44,11 @@ function juntarDependentes(itens: ReadonlyArray<readonly [string, LinhaConferenc
     if (regra && itens.some(([, outro]) => outro.some((l) => l.codigo && regra.bases.includes(l.codigo)))) dependentes.set(k, { regra, ls });
   }
   const saida: ItemSecao[] = [];
+  // Os dependentes saem do mapa quando entram abaixo da origem: o conjunto fixo evita que voltem a sair no
+  // lugar de sempre (ex.: "Pé de grade" vem depois de "Grade" na ordem e aparecia duas vezes, com a mesma chave).
+  const ehDependente = new Set(dependentes.keys());
   for (const [k, ls] of itens) {
-    if (dependentes.has(k)) continue;
+    if (ehDependente.has(k)) continue;
     saida.push([k, ls, null]);
     // Logo depois da origem: os itens que vêm junto dela (cada um só uma vez, junto da 1ª origem).
     for (const [kd, d] of dependentes) {
@@ -54,6 +57,8 @@ function juntarDependentes(itens: ReadonlyArray<readonly [string, LinhaConferenc
       dependentes.delete(kd);
     }
   }
+  // Nenhuma linha some: o que não achou a origem como item próprio sai no fim da seção.
+  for (const [kd, d] of dependentes) saida.push([kd, d.ls, null]);
   return saida;
 }
 

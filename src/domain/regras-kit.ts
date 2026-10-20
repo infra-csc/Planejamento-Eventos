@@ -74,6 +74,23 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
   );
 }
 
+/**
+ * Tina de 1000 l e pallet de ferro pela regra antiga (2 por stand + 6 por palco show), descontado o que as
+ * linhas já levam (a versão nova dos stands e palcos traz os dois na lista de peças). Serve só para diminuir
+ * as linhas antigas da regra quando o projeto passa a trazer o contrapeso: não cria nem aumenta linha.
+ */
+export function contrapesoDaRegraAntiga(linhas: readonly LinhaParaRegra[]): Record<"tina-contrapeso" | "pallet-ferro", number> {
+  const ativas = linhas.filter((l) => l.quantidade > 0);
+  const total = (codigo: string) => ativas.reduce((a, l) => a + unidades(l, codigo), 0);
+  let pede = 0;
+  for (const l of ativas) {
+    if (l.tipo !== "PROJETO" || !l.projeto) continue;
+    if (["estande", "stand"].includes((l.projeto.categoria ?? "").toLocaleLowerCase("pt-BR"))) pede += 2 * l.quantidade;
+    if (/^palco show/i.test(l.projeto.nome.trim())) pede += 6 * l.quantidade;
+  }
+  return { "tina-contrapeso": Math.max(0, pede - total("TINA-1000")), "pallet-ferro": Math.max(0, pede - total("PALLET-FE")) };
+}
+
 /** Regras que saíram: as linhas que já estão nas atas ficam como estão (a regra não mexe mais nelas). */
 const REGRAS_RETIRADAS: Record<string, string> = {
   "tina-contrapeso": "regra antiga (2 por stand + 6 por palco show); a tina agora vem dentro dos projetos",

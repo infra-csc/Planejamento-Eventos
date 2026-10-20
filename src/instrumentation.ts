@@ -38,6 +38,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "regras_atas_abertas", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Eventos que ainda usam versão anterior de algum projeto passam para a atual (uma vez só).
+    try {
+      const { atualizarProjetosDefasados } = await import("@/server/services/eventos/versoes");
+      const r = await atualizarProjetosDefasados();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "projetos_atualizados_nos_eventos", eventos: r.eventos.length, linhas: r.linhas, pendentes: r.pendentes.length }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "projetos_atualizados_nos_eventos", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
       const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");

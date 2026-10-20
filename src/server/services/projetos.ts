@@ -190,24 +190,28 @@ export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: Da
       dadosAntes: bomMudou ? { itens: atual.itens.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })), grupoId: p.grupoId } : grupoId !== p.grupoId ? { grupoId: p.grupoId } : null,
       dadosDepois: bomMudou ? { itens: dados.itens, grupoId } : grupoId !== p.grupoId ? { grupoId } : null,
     });
+    let atualizacao: { eventos: string[]; pendentes: Array<{ evento: string; projeto: string }> } | null = null;
     if (bomMudou) {
-      const usos = await tx
-        .select({ eventoId: eventos.id, nome: eventos.nome })
-        .from(eventoItens)
-        .innerJoin(eventos, eq(eventoItens.eventoId, eventos.id))
-        .where(and(eq(eventoItens.projetoId, id), eq(eventoItens.ativo, true), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])));
-      const nomes = [...new Set(usos.map((u) => u.nome))];
-      if (nomes.length) {
+      // A versão nova vale nos eventos que usam o projeto (com a ata fechada, sai nova OS). Import tardio: ciclo com eventos/.
+      const { atualizarProjetosNosEventos } = await import("./eventos/versoes");
+      atualizacao = await atualizarProjetosNosEventos(tx, { projetoId: id, usuarioId: usuario.id });
+      const pendentes = [...new Set(atualizacao.pendentes.map((x) => x.evento))];
+      if (atualizacao.eventos.length || pendentes.length) {
         await notificar(tx, {
           usuarioIds: await usuariosLogistica(tx),
           tipo: "PROJETO_NOVA_VERSAO",
           titulo: `${p.nome} tem nova versão (v${novaVersao})`,
-          mensagem: `Em uso em: ${nomes.join(", ")}. Decida na ata de cada evento se a versão deve ser atualizada.`,
+          mensagem: [
+            atualizacao.eventos.length ? `Atualizado em: ${atualizacao.eventos.join(", ")} (com OS gerada, saiu versão nova da OS).` : null,
+            pendentes.length ? `Ficou na versão anterior em ${pendentes.join(", ")}: tem peças ajustadas uma a uma; atualize na ata se for o caso.` : null,
+          ]
+            .filter(Boolean)
+            .join(" "),
           link: `/projetos/${id}`,
         });
       }
     }
-    return { bomMudou, versao: novaVersao };
+    return { bomMudou, versao: novaVersao, atualizacao };
   });
 }
 
