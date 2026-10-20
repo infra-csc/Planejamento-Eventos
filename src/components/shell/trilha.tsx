@@ -42,6 +42,7 @@ const NOMES: Record<string, string> = {
   biblioteca: "Biblioteca",
   arena: "Arena 3D",
   "carga-descarga": "Carga e descarga",
+  estoque: "Estoque",
   projetos: "Biblioteca",
   catalogo: "Biblioteca",
   consolidacao: "Demanda de peças",

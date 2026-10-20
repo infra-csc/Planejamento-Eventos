@@ -17,6 +17,7 @@ import { useAutosaveSolicitacao } from "./nova/use-autosave-solicitacao";
 import { ItensDaArea } from "./nova/itens-da-area";
 import { listasDaArea } from "@/domain/itens-por-area";
 import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes, sugerirTitulo } from "./nova/utilidades";
+import type { EstoqueDoEvento } from "./nova/aviso-estoque";
 import type { EventoOpcao, ItemNovo, LinhaAta, Modo, RascunhoSolicitacao, Referencia } from "./nova/tipos";
 
 export type { EventoOpcao, ItemNovo, LinhaBom } from "./nova/tipos";
@@ -34,6 +35,7 @@ export function NovaSolicitacaoForm({
   pecas,
   linhasPorEvento,
   pedidosPorEvento = {},
+  estoque = null,
   slaHoras,
   edicaoEnviada = false,
 }: {
@@ -55,6 +57,8 @@ export function NovaSolicitacaoForm({
   linhasPorEvento: Record<string, LinhaAta[]>;
   /** O que já foi pedido de cada projeto/peça, por evento (aviso informativo). */
   pedidosPorEvento?: PedidosPorEvento;
+  /** Estoque da Ativação (peças ligadas) e o que outros eventos do período levam, por evento. */
+  estoque?: { porPeca: Record<string, { nome: string; quantidade: number }>; emOutros: Record<string, Record<string, number>> } | null;
   slaHoras: number;
 }) {
   const router = useRouter();
@@ -88,6 +92,10 @@ export function NovaSolicitacaoForm({
   const ehAlteracao = evento?.tipo === "ALTERACAO";
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
   const jaPedidos = useMemo(() => (eventoId ? (pedidosPorEvento[eventoId] ?? {}) : {}), [eventoId, pedidosPorEvento]);
+  const estoqueDoEvento: EstoqueDoEvento | null = useMemo(
+    () => (estoque && eventoId ? Object.fromEntries(Object.entries(estoque.porPeca).map(([id, v]) => [id, { ...v, emOutros: estoque.emOutros[eventoId]?.[id] ?? 0 }])) : null),
+    [estoque, eventoId],
+  );
 
   // Rascunho salvo automaticamente, numa fila única com o "Salvar rascunho" e o envio.
   const { rascunhoIdRef, codigoRascunho, estadoSalvo, setEstadoSalvo, enviandoRef, pendenteSalvarRef, salvoRef, assinatura, emFila, montarPayload, lembrarRascunho } = useAutosaveSolicitacao({
@@ -346,10 +354,10 @@ export function NovaSolicitacaoForm({
           />
 
           {/* Lista da ata da área, zerada: só preencher as quantidades. */}
-          {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} itens={itens} setItens={setItens} />}
+          {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} itens={itens} setItens={setItens} estoque={estoqueDoEvento} />}
 
           {/* 2 · Adicionar itens */}
-          <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} />
+          <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} estoque={estoqueDoEvento} />
 
           {/* 3 · Detalhar itens */}
           <ListaItens n={passo.itens} itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />

@@ -22,6 +22,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "ummense_importado", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Estoque da Ativação: o inventário de 2025 da planilha (uma vez só; a marca fica em `configuracoes`).
+    try {
+      const { importarEstoqueInicial } = await import("@/server/services/estoque");
+      const r = await importarEstoqueInicial();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "estoque_importado", itens: r.itens, ligados: r.ligados }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "estoque_importado", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
       const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");

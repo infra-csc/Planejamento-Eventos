@@ -768,6 +768,37 @@ export const veiculosCargaRelations = relations(veiculosCarga, ({ one }) => ({
   atualizadoPor: one(usuarios, { fields: [veiculosCarga.atualizadoPorId], references: [usuarios.id] }),
 }));
 
+/**
+ * Estoque da Ativação (o "Inventário - Ativação" da planilha): à parte da OS da logística. A Ativação e o
+ * administrador mantêm as quantidades; o item ligado a uma peça do catálogo (`pecaId`, ex.: Puff Cubo →
+ * PUFF) aparece na solicitação com "quanto ainda tem" no período do evento.
+ */
+export const estoqueItens = pgTable(
+  "estoque_itens",
+  {
+    id: id(),
+    nome: text("nome").notNull(),
+    /** Grupo da planilha: Ativação, Esporte, Reformas… */
+    categoria: text("categoria").notNull().default("Ativação"),
+    quantidade: integer("quantidade").notNull().default(0),
+    /** Quantas comprar (coluna "Comprar"); vazio = nada a comprar. */
+    comprar: integer("comprar"),
+    observacao: text("observacao"),
+    pecaId: text("peca_id").references(() => pecas.id, { onDelete: "set null" }),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    atualizadoPorId: text("atualizado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [index("estoque_itens_peca_idx").on(t.pecaId), check("estoque_itens_quantidade_chk", sql`${t.quantidade} >= 0`)],
+);
+
+export const estoqueItensRelations = relations(estoqueItens, ({ one }) => ({
+  peca: one(pecas, { fields: [estoqueItens.pecaId], references: [pecas.id] }),
+  atualizadoPor: one(usuarios, { fields: [estoqueItens.atualizadoPorId], references: [usuarios.id] }),
+}));
+
 export const eventosRelations = relations(eventos, ({ one, many }) => ({
   responsavel: one(usuarios, { fields: [eventos.responsavelId], references: [usuarios.id] }),
   veiculosCarga: many(veiculosCarga),

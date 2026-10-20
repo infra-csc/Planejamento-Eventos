@@ -134,6 +134,13 @@
       "when": 1792170000000,
       "tag": "0018_pecas_anexos_prova",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792503239120,
+      "tag": "0019_estoque_ativacao",
+      "breakpoints": true
     }
   ]
 }

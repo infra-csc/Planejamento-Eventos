@@ -15,6 +15,8 @@ import { descricaoItem } from "@/server/services/solicitacoes";
 import { extrasPermitidosTenda } from "@/domain/tendas";
 import { descricoesEsperadas } from "@/domain/descricoes-itens";
 import { listarAreasCache } from "@/server/cache";
+import { podeGerenciarEstoque } from "@/domain/estoque";
+import { estoqueParaSolicitacao } from "@/server/services/estoque";
 
 export const metadata: Metadata = { title: "Nova solicitação" };
 
@@ -61,6 +63,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   // (Ver todas as solicitações, como a Cenografia, não basta: mexer em linha de outra área é da logística e do admin.)
   const mexeEmTodas = pode(usuario, "ata.ajustar");
   const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => mexeEmTodas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
+
+  // Estoque da Ativação (só para ela e o admin): peças ligadas e quanto outros eventos do período levam.
+  const estoque = podeGerenciarEstoque(usuario) ? await estoqueParaSolicitacao(aceitando.map((e) => e.id)).catch(() => null) : null;
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,
@@ -133,6 +138,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
         pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
         linhasPorEvento={linhasPorEvento}
+        estoque={estoque}
         pedidosPorEvento={jaPedidos}
         slaHoras={Number(config.sla_resposta_horas)}
       />

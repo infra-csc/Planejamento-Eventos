@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { AvisoEstoque, type EstoqueDoEvento } from "./aviso-estoque";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/layout";
 import { TabsControladas } from "@/components/ui/tabs-nav";
@@ -32,7 +33,10 @@ export function BuscaCatalogo({
   setTendaAberta,
   n,
   temListaDaArea = false,
+  estoque = null,
 }: {
+  /** Estoque da Ativação das peças ligadas (mostra quanto ainda tem no cartão da peça). */
+  estoque?: EstoqueDoEvento | null;
   /** Número do passo (vem depois da lista da área, quando ela existe). */
   n: number;
   /** A área tem lista da ata: aqui ficam só os outros itens. */
@@ -295,6 +299,7 @@ export function BuscaCatalogo({
                             </span>
                           )}
                         </p>
+                        {modo === "peca" && <AvisoEstoque info={estoque?.[r.id]} pedido={jaNaLista + (qtdNova[r.id] ?? 1)} />}
                         <p className="mb-0 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-rotulo text-muted">
                           <span className="min-w-0 truncate">
                             <Codigo className="text-ink-3">{r.codigo}</Codigo>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
+import { AvisoEstoque, type EstoqueDoEvento } from "./aviso-estoque";
 import { cn } from "@/lib/cn";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
@@ -37,7 +38,7 @@ function juntarAcompanhantes(pecas: Referencia[]): Referencia[] {
  * mudar o número inclui o item na solicitação, voltar a 0 tira (0 não é enviado). Outros itens: no passo seguinte.
  * O que está em 0 fica discreto; o que foi pedido ganha destaque, para a lista ser lida de relance.
  */
-export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number; areaNome: string | null; pecas: Referencia[]; itens: ItemNovo[]; setItens: Dispatch<SetStateAction<ItemNovo[]>> }) {
+export function ItensDaArea({ n, areaNome, pecas, itens, setItens, estoque = null }: { n: number; areaNome: string | null; pecas: Referencia[]; itens: ItemNovo[]; setItens: Dispatch<SetStateAction<ItemNovo[]>>; estoque?: EstoqueDoEvento | null }) {
   const listas = listasDaArea(areaNome)
     .map((l) => ({ ...l, pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))) }))
     .filter((l) => l.pecas.length > 0);
@@ -114,6 +115,8 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens }: { n: number
                       {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp?.texto}</span>}
                       {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos · {acomp?.texto} · aqui, só os extras</span>}
                       {!automatico && auto === 0 && acomp && junto && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp.texto} · aqui, só os extras</span>}
+                      {/* Ativação: quanto ainda tem no estoque no período do evento (só informa). */}
+                      <AvisoEstoque info={estoque?.[p.id]} pedido={q} />
                     </span>
                     {automatico ? (
                       <span className={cn("numero w-[104px] shrink-0 pr-3 text-right text-corpo", ativo ? "font-semibold text-ink" : "text-meta")} aria-label={`${auto} ${p.nome}, automático`}>
