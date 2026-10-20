@@ -51,3 +51,8 @@ outputType = "webview"
 task = "shell.exec"
 args = "npx next dev -H 0.0.0.0 -p 5000"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.development]
+GIT_MERGE_AUTOEDIT = "no"
