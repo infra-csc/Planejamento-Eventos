@@ -22,7 +22,7 @@ import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { BlocoTenda } from "./tenda-conferencia";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
-import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
+import { GRUPO_LABEL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { LinhaConferencia } from "@/server/services/conferencia";
 import { conferenciaOpcional } from "@/domain/itens-padrao";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
@@ -81,7 +81,9 @@ const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
  * Arena): a mesma peça pedida por várias áreas fica num bloco só, somada, com uma linha por quem pediu.
  */
 const secaoDe = (l: LinhaConferencia) => GRUPO_LABEL[l.grupo];
-const ordemSecao = (s: string) => GRUPOS_MATERIAL.findIndex((g) => GRUPO_LABEL[g] === s);
+/** Ordem em que a reunião passa pelos materiais (pedido da logística): seções e filtro seguem esta ordem. */
+const ORDEM_CONFERENCIA: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
+const ordemSecao = (s: string) => ORDEM_CONFERENCIA.findIndex((g) => GRUPO_LABEL[g] === s);
 /** Quem pediu a linha (ou quem incluiu na reunião). */
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
@@ -807,7 +809,7 @@ export function ConferenciaAta({
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
   const pessoasNaAta = useMemo(() => [...new Set(linhas.map(pessoaDe))].sort(porNome), [linhas]);
   const pessoaAtiva = pessoa && pessoasNaAta.includes(pessoa) ? pessoa : "";
-  const gruposNaAta = useMemo(() => GRUPOS_MATERIAL.filter((g) => linhas.some((l) => l.grupo === g)), [linhas]);
+  const gruposNaAta = useMemo(() => ORDEM_CONFERENCIA.filter((g) => linhas.some((l) => l.grupo === g)), [linhas]);
   const grupoAtivo = grupo && gruposNaAta.includes(grupo) ? grupo : "";
 
   const visiveis = useMemo(
