@@ -30,6 +30,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "estoque_importado", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Regras passadas nas atas abertas (testeira a definir com tenda; pranchão no cavalete reto), uma vez só.
+    try {
+      const { ressincronizarAtasAbertas } = await import("@/server/services/eventos/regras-kit");
+      const r = await ressincronizarAtasAbertas();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "regras_atas_abertas", eventos: r.eventos, mudancas: r.mudancas }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "regras_atas_abertas", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
       const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");

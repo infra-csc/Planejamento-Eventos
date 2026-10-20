@@ -16,6 +16,18 @@ describe("regras do kit", () => {
     expect(qtd(r)).toEqual({ "TINA-1000": 12, "PALLET-FE": 12, "SACO-RAFIA": 18 });
   });
 
+  it("testeira de madeira a definir: com tenda do tamanho e sem a testeira já pedida", () => {
+    const presentes = (ls: Parameters<typeof calcularRegrasKit>[0]) => calcularRegrasKit(ls).filter((x) => x.presente).map((x) => x.regra);
+    const tenda5 = { tipo: "PROJETO", quantidade: 2, projeto: { nome: "Tenda 5×5 m" }, bom: [{ codigo: "TND5-CANT", quantidade: 4 }] };
+    const tenda3 = { tipo: "PROJETO", quantidade: 1, projeto: { nome: "Tenda 3×3 m" }, bom: [{ codigo: "TND3-CANT", quantidade: 4 }] };
+    expect(presentes([tenda5])).toEqual(["testeira-tenda-5x5"]);
+    expect(presentes([tenda5, tenda3])).toEqual(["testeira-tenda-5x5", "testeira-tenda-3x3"]);
+    expect(presentes([tenda5, { tipo: "PECA", quantidade: 2, pecaCodigo: "TND5-TESTEIRA" }])).toEqual([]);
+    expect(presentes([{ tipo: "PECA", quantidade: 5, pecaCodigo: "CONE-G" }])).toEqual([]);
+    // Não pede número: fica 0 (a definir) para a conferência.
+    expect(calcularRegrasKit([tenda5]).find((x) => x.regra === "testeira-tenda-5x5")?.quantidade).toBe(0);
+  });
+
   it("acompanhantes: cocho, pranchão/mesa e grade 2×1; o que já foi pedido à parte é descontado", () => {
     const r = calcularRegrasKit([
       { tipo: "PECA", quantidade: 15, pecaCodigo: "COCHO" },
