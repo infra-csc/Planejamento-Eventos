@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { listasDaArea } from "@/domain/itens-por-area";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { Passo } from "./passo";
-import { ehAcompanhante, novaChave } from "./utilidades";
+import { ehAcompanhante, kitDe, novaChave } from "./utilidades";
 import type { ItemNovo, Referencia } from "./tipos";
 
 /** Peças que só vêm junto de outra (não se digitam): cavalete do cocho, pé da grade. */
@@ -52,7 +52,7 @@ export function ItensDaArea({
   n: number;
   areaNome: string | null;
   pecas: Referencia[];
-  /** Projetos padrão: as tendas da lista vêm daqui e são pedidas por local, no quadro de tendas. */
+  /** Projetos padrão da lista: tenda é pedida por local (quadro de tendas); os outros (ex.: stand), pela quantidade. */
   projetos?: Referencia[];
   itens: ItemNovo[];
   setItens: Dispatch<SetStateAction<ItemNovo[]>>;
@@ -63,9 +63,9 @@ export function ItensDaArea({
     .map((l) => ({
       ...l,
       pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))),
-      tendas: abrirTenda ? (l.projetos ?? []).map((c) => projetos.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p)) : [],
+      projetosDaLista: (l.projetos ?? []).map((c) => projetos.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p) && (!kitDe(p!) || Boolean(abrirTenda))),
     }))
-    .filter((l) => l.pecas.length > 0 || l.tendas.length > 0);
+    .filter((l) => l.pecas.length > 0 || l.projetosDaLista.length > 0);
   if (!listas.length) return null;
   // Só o que a área pediu; a linha automática (vem junto) aparece à parte.
   const qtdDe = (pecaId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === pecaId && !ehAcompanhante(i)).reduce((a, i) => a + i.quantidade, 0);
@@ -81,13 +81,25 @@ export function ItensDaArea({
       ];
     });
 
-  // Tenda: cada local é uma linha do pedido; aqui só o resumo (tendas e locais) e o botão do quadro.
-  const tendasDe = (projetoId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.projetoId === projetoId);
-  const qtdTendas = (projetoId: string) => tendasDe(projetoId).reduce((a, i) => a + i.quantidade, 0);
+  // Projeto: pode ter várias linhas no pedido (tenda: uma por local); aqui só o total.
+  const linhasDoProjeto = (projetoId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.projetoId === projetoId);
+  const qtdProjeto = (projetoId: string) => linhasDoProjeto(projetoId).reduce((a, i) => a + i.quantidade, 0);
+  // Stand e outros projetos: como na busca do catálogo (pede a descrição de cada unidade em "Itens do pedido").
+  // Com o pedido já dividido em linhas, a diferença vai para a última; 0 tira todas.
+  const definirProjeto = (p: Referencia, v: number) =>
+    setItens((l) => {
+      const existentes = l.filter((i) => i.operacao === "ADICIONAR" && i.projetoId === p.id);
+      if (v <= 0) return l.filter((i) => !existentes.includes(i));
+      if (!existentes.length)
+        return [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: p.id, pecaId: null, eventoItemId: null, descricaoLivre: null, quantidade: v, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], locais: [], ajustes: {}, rotulo: p.nome, meta: `${p.codigo} · projeto padrão` }];
+      const ultima = existentes[existentes.length - 1];
+      const total = existentes.reduce((a, i) => a + i.quantidade, 0);
+      return l.map((i) => (i === ultima ? { ...i, quantidade: Math.max(1, i.quantidade + v - total) } : i));
+    });
 
-  const unicas = [...new Map(listas.flatMap((l) => [...l.pecas, ...l.tendas]).map((p) => [p.id, p])).values()];
-  const ehTenda = (p: Referencia) => listas.some((l) => l.tendas.includes(p));
-  const qtd = (p: Referencia) => (ehTenda(p) ? qtdTendas(p.id) : qtdDe(p.id));
+  const unicas = [...new Map(listas.flatMap((l) => [...l.pecas, ...l.projetosDaLista]).map((p) => [p.id, p])).values()];
+  const ehProjeto = (p: Referencia) => listas.some((l) => l.projetosDaLista.includes(p));
+  const qtd = (p: Referencia) => (ehProjeto(p) ? qtdProjeto(p.id) : qtdDe(p.id));
   const pedidos = unicas.filter((p) => !SO_AUTOMATICOS.has(p.codigo) && qtd(p) > 0);
   const unidades = pedidos.reduce((a, p) => a + qtd(p), 0);
 
@@ -111,7 +123,7 @@ export function ItensDaArea({
             <h3 className="m-0 mb-1 flex items-baseline justify-between text-micro font-semibold uppercase tracking-[0.08em] text-ink-3">
               {l.titulo}
               {(() => {
-                const k = l.pecas.filter((p) => qtdDe(p.id) > 0).length + l.tendas.filter((p) => qtdTendas(p.id) > 0).length;
+                const k = l.pecas.filter((p) => qtdDe(p.id) > 0).length + l.projetosDaLista.filter((p) => qtdProjeto(p.id) > 0).length;
                 return k ? <span className="numero font-normal normal-case tracking-normal text-meta">{k} no pedido</span> : null;
               })()}
             </h3>
@@ -170,9 +182,26 @@ export function ItensDaArea({
                   </li>
                 );
               })}
-              {l.tendas.map((t) => {
-                const q = qtdTendas(t.id);
-                const locais = tendasDe(t.id).length;
+              {l.projetosDaLista.map((t) => {
+                const q = qtdProjeto(t.id);
+                const locais = linhasDoProjeto(t.id).length;
+                if (!kitDe(t))
+                  return (
+                    <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
+                      <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
+                        {t.nome}
+                        {q > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">Descreva cada unidade (arte, marca) em “Itens do pedido”</span>}
+                      </span>
+                      <Stepper
+                        tamanho="sm"
+                        valor={q}
+                        min={0}
+                        onChange={(v) => definirProjeto(t, v)}
+                        label={`Quantidade de ${t.nome}`}
+                        className={cn("shrink-0 transition-opacity duration-150", q === 0 && "opacity-55 group-hover:opacity-100 focus-within:opacity-100")}
+                      />
+                    </li>
+                  );
                 return (
                   <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
                     <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
