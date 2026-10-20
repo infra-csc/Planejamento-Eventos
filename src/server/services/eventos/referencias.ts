@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { anexos, pecas, projetoItens, projetoVersoes, projetos } from "@/server/db/schema";
+import { anexos, pecas, projetoGrupos, projetoItens, projetoVersoes, projetos } from "@/server/db/schema";
 import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
 
 /* ------------------------------------------------------------------ */
@@ -13,7 +13,7 @@ import { cacheDados, TAGS_DADOS } from "@/server/cache-dados";
  */
 const REFERENCIAS_TAGS = [TAGS_DADOS.catalogo, TAGS_DADOS.projetos];
 const referenciasResumidasEmCache = cacheDados(consultarOpcoesReferenciasResumidas, "eventos:referencias-resumidas", REFERENCIAS_TAGS);
-const referenciasEmCache = cacheDados(consultarOpcoesReferencias, "eventos:referencias:v2", REFERENCIAS_TAGS);
+const referenciasEmCache = cacheDados(consultarOpcoesReferencias, "eventos:referencias:v3", REFERENCIAS_TAGS);
 
 /** Só o que o formulário "Incluir linha na ata" usa: nome/código de projetos e peças, sem listas de peças nem imagens. */
 export async function opcoesReferenciasResumidas() {
@@ -38,14 +38,14 @@ async function consultarOpcoesReferencias() {
   const db = await getDb();
   // Só a versão atual de cada projeto ativo e disponível para solicitação (os únicos que aparecem na resposta), filtrada no banco.
   const versaoAtualAtiva = and(eq(projetos.id, projetoVersoes.projetoId), eq(projetos.versaoAtual, projetoVersoes.numero), eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true));
-  const [proj, pcs, totais, linhasBom, capas] = await Promise.all([
+  const [proj, pcs, totais, linhasBom, capas, grupos] = await Promise.all([
     db
-      .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, descricao: projetos.descricao, versaoAtual: projetos.versaoAtual })
+      .select({ id: projetos.id, codigo: projetos.codigo, nome: projetos.nome, categoria: projetos.categoria, descricao: projetos.descricao, versaoAtual: projetos.versaoAtual, grupoId: projetos.grupoId })
       .from(projetos)
       .where(and(eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true)))
       .orderBy(asc(projetos.nome)),
     db
-      .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade, familia: pecas.familia, estoqueProprio: pecas.estoqueProprio })
+      .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome, setor: pecas.setor, unidade: pecas.unidade, familia: pecas.familia, estoqueProprio: pecas.estoqueProprio, grupoId: pecas.grupoId })
       .from(pecas)
       .where(and(eq(pecas.ativo, true), eq(pecas.disponivelEmSolicitacoes, true)))
       .orderBy(asc(pecas.codigo)),
@@ -70,6 +70,8 @@ async function consultarOpcoesReferencias() {
       .innerJoin(projetos, and(eq(projetos.id, anexos.projetoId), eq(projetos.ativo, true), eq(projetos.disponivelEmSolicitacoes, true)))
       .where(eq(anexos.tipo, "IMAGEM"))
       .orderBy(asc(anexos.criadoEm)),
+    // Grupos da biblioteca (provas): a solicitação abre no grupo do evento + padrão.
+    db.select({ id: projetoGrupos.id, nome: projetoGrupos.nome }).from(projetoGrupos).orderBy(asc(projetoGrupos.nome)),
   ]);
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
@@ -88,6 +90,7 @@ async function consultarOpcoesReferencias() {
       bom: bomDe.get(p.id) ?? [],
     })),
     pecas: pcs,
+    grupos,
   };
 }
 

@@ -26,7 +26,7 @@ export type ItemNovo = {
 };
 export type LinhaBom = { pecaId: string; codigo: string; nome: string; unidade: string; quantidade: number };
 /** `extras`: peças fora do padrão que o projeto aceita como ajuste (fechamento e calha de tenda, quantidade 0). */
-export type Referencia = { id: string; codigo: string; nome: string; meta: string; descricao?: string | null; bom?: LinhaBom[]; extras?: LinhaBom[]; capaId?: string | null };
+export type Referencia = { id: string; codigo: string; nome: string; meta: string; descricao?: string | null; bom?: LinhaBom[]; extras?: LinhaBom[]; capaId?: string | null; grupoId?: string | null };
 export type LinhaAta = { id: string; nome: string; quantidade: number; destino: string | null; areaNome: string | null };
 export type Modo = "projeto" | "peca" | "avulso" | "ata";
 /** Rascunho já existente (edição) ou `null` numa solicitação nova. */

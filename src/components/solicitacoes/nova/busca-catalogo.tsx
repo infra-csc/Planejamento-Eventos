@@ -11,6 +11,9 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { toastSucesso } from "@/components/ui/toast";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
+import { Select } from "@/components/ui/select";
+import { Tag } from "@/components/ui/badge";
+import { grupoDoEvento } from "@/domain/grupo-do-evento";
 import { combinaBusca, relevanciaBusca } from "@/lib/busca";
 import { cn } from "@/lib/cn";
 import { Passo } from "./passo";
@@ -18,6 +21,10 @@ import { irPara, kitDe, novaChave, POR_PAGINA } from "./utilidades";
 import type { PedidoAnterior } from "@/domain/ja-pedido";
 import { AcoesReferencia } from "./aviso-ja-pedido";
 import type { ItemNovo, LinhaAta, Modo, Referencia } from "./tipos";
+
+/** Valores do seletor de grupo além dos ids: todos os grupos, ou só o padrão (sem grupo). */
+const TODOS = "todos";
+const PADRAO = "padrao";
 
 /** Passo do catálogo: abas por tipo de item, busca no catálogo (projetos e peças), item descrito à mão e linhas da ata. */
 export function BuscaCatalogo({
@@ -34,7 +41,13 @@ export function BuscaCatalogo({
   n,
   temListaDaArea = false,
   estoque = null,
+  grupos = [],
+  eventoNome = null,
 }: {
+  /** Grupos da biblioteca (provas). O catálogo abre no grupo do evento + padrão. */
+  grupos?: Array<{ id: string; nome: string }>;
+  /** Nome do evento escolhido: dele sai o grupo sugerido ("BLUE RUN - SANTOS" → Blue Run). */
+  eventoNome?: string | null;
   /** Estoque da Ativação das peças ligadas (mostra quanto ainda tem no cartão da peça). */
   estoque?: EstoqueDoEvento | null;
   /** Número do passo (vem depois da lista da área, quando ela existe). */
@@ -142,20 +155,40 @@ export function BuscaCatalogo({
     return m;
   }, [itens]);
 
+  // Grupo da biblioteca: abre no grupo do evento + padrão; troca no seletor ao lado da busca.
+  const nomeGrupo = useMemo(() => new Map(grupos.map((g) => [g.id, g.nome])), [grupos]);
+  // Só os grupos com algum projeto ou peça disponível (um grupo vazio mostraria só o padrão).
+  const gruposComItens = useMemo(() => {
+    const usados = new Set([...projetos, ...pecas].map((x) => x.grupoId).filter(Boolean));
+    return grupos.filter((g) => usados.has(g.id));
+  }, [grupos, projetos, pecas]);
+  const sugerido = useMemo(() => (eventoNome ? grupoDoEvento(eventoNome, gruposComItens) : null), [eventoNome, gruposComItens]);
+  const [grupo, setGrupo] = useState<string>(sugerido?.id ?? TODOS);
+  const [eventoAnterior, setEventoAnterior] = useState(eventoNome);
+  if (eventoAnterior !== eventoNome) {
+    setEventoAnterior(eventoNome);
+    setGrupo(sugerido?.id ?? TODOS);
+  }
+  const doGrupo = useMemo(() => {
+    const filtra = (xs: Referencia[]) => (grupo === TODOS ? xs : grupo === PADRAO ? xs.filter((x) => !x.grupoId) : [...xs.filter((x) => x.grupoId === grupo), ...xs.filter((x) => !x.grupoId)]);
+    return { projetos: filtra(projetos), pecas: filtra(pecas) };
+  }, [grupo, projetos, pecas]);
+  const rotuloGrupo = grupo === TODOS ? null : grupo === PADRAO ? "padrão" : `${nomeGrupo.get(grupo) ?? "grupo"} + padrão`;
+
   const resultados = useMemo(() => {
-    // Lista completa (sem corte) e busca sem acento: "po" acha "Pórtico" e "Posto".
-    const filtra = <T extends { codigo?: string; nome: string; categoria?: string | null; familia?: string | null }>(xs: T[]) =>
+    // Lista completa (sem corte) e busca sem acento: "po" acha "Pórtico" e "Posto"; "blue run" acha o grupo.
+    const filtra = (xs: Referencia[]) =>
       busca.trim()
         ? xs
-            .filter((x) => combinaBusca(`${x.codigo ?? ""} ${x.nome} ${x.categoria ?? ""} ${x.familia ?? ""}`, busca))
+            .filter((x) => combinaBusca(`${x.codigo} ${x.nome} ${x.meta} ${x.grupoId ? (nomeGrupo.get(x.grupoId) ?? "") : "padrao"}`, busca))
             .map((x, i) => ({ x, i, r: relevanciaBusca(x.nome, busca) }))
             .sort((a, b) => a.r - b.r || a.i - b.i)
             .map((y) => y.x)
         : xs;
-    if (modo === "projeto") return filtra(projetos);
-    if (modo === "peca") return filtra(pecas);
+    if (modo === "projeto") return filtra(doGrupo.projetos);
+    if (modo === "peca") return filtra(doGrupo.pecas);
     return [];
-  }, [busca, modo, projetos, pecas]);
+  }, [busca, modo, doGrupo, nomeGrupo]);
   const [limite, setLimite] = useState(POR_PAGINA);
   const visiveis = resultados.slice(0, limite);
   const restantes = resultados.length - visiveis.length;
@@ -164,8 +197,8 @@ export function BuscaCatalogo({
   }, [busca, linhas]);
 
   const abas: Array<[Modo, string, number | null]> = [
-    ["projeto", "Projeto padrão", projetos.length],
-    ["peca", "Peça do catálogo", pecas.length],
+    ["projeto", "Projeto padrão", doGrupo.projetos.length],
+    ["peca", "Peça do catálogo", doGrupo.pecas.length],
     ["avulso", "Outro item", null],
     ...(ehAlteracao ? ([["ata", "Linha da ata", linhas.length]] as Array<[Modo, string, number | null]>) : []),
   ];
@@ -226,27 +259,46 @@ export function BuscaCatalogo({
           </div>
         ) : (
           <>
-            <div className="relative">
-              <Icone nome="busca" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
-              <Input
-                id="busca-itens"
-                type="search"
-                aria-label={modo === "projeto" ? "Buscar projeto padrão" : modo === "peca" ? "Buscar peça do catálogo" : "Buscar linha da ata"}
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value);
-                  setLimite(POR_PAGINA);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && busca) {
-                    e.preventDefault();
-                    setBusca("");
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-0 flex-1 basis-56">
+                <Icone nome="busca" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+                <Input
+                  id="busca-itens"
+                  type="search"
+                  aria-label={modo === "projeto" ? "Buscar projeto padrão" : modo === "peca" ? "Buscar peça do catálogo" : "Buscar linha da ata"}
+                  value={busca}
+                  onChange={(e) => {
+                    setBusca(e.target.value);
                     setLimite(POR_PAGINA);
-                  }
-                }}
-                placeholder={modo === "projeto" ? "Buscar projeto por nome ou código" : modo === "peca" ? "Buscar peça por código ou nome" : "Buscar linha da ata"}
-                className="pl-9"
-              />
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && busca) {
+                      e.preventDefault();
+                      setBusca("");
+                      setLimite(POR_PAGINA);
+                    }
+                  }}
+                  placeholder={modo === "projeto" ? "Buscar projeto por nome, código ou grupo" : modo === "peca" ? "Buscar peça por código, nome ou grupo" : "Buscar linha da ata"}
+                  className="pl-9"
+                />
+              </div>
+              {modo !== "ata" && gruposComItens.length > 0 && (
+                <Select
+                  aria-label="Grupo da biblioteca"
+                  value={grupo}
+                  onValueChange={(v) => {
+                    setGrupo(v);
+                    setLimite(POR_PAGINA);
+                  }}
+                  className="w-full sm:w-[240px]"
+                  grupos={[
+                    { label: "Deste evento", opcoes: sugerido ? [{ value: sugerido.id, label: `${sugerido.nome} + padrão` }] : [] },
+                    { label: "", opcoes: [{ value: TODOS, label: "Todos os grupos" }, { value: PADRAO, label: "Só padrão" }] },
+                    { label: "Outros grupos", opcoes: gruposComItens.filter((g) => g.id !== sugerido?.id).map((g) => ({ value: g.id, label: `${g.nome} + padrão` })) },
+                  ]}
+                  ordenarAlfabetico={false}
+                />
+              )}
             </div>
             <p className="mb-2 mt-2 text-pequeno text-muted" aria-live="polite">
               <Numero valor={modo === "ata" ? linhasFiltradas.length : resultados.length} />{" "}
@@ -261,7 +313,15 @@ export function BuscaCatalogo({
                   : linhasFiltradas.length === 1
                     ? "linha"
                     : "linhas"}
-              {busca.trim() ? ` para “${busca.trim()}”` : modo === "ata" ? " na ata" : " no catálogo"}
+              {busca.trim() ? ` para “${busca.trim()}”` : modo === "ata" ? " na ata" : rotuloGrupo ? "" : " no catálogo"}
+              {modo !== "ata" && rotuloGrupo && (
+                <>
+                  {" "}em {rotuloGrupo} ·{" "}
+                  <button type="button" className="link" onClick={() => setGrupo(TODOS)}>
+                    ver todos os grupos
+                  </button>
+                </>
+              )}
             </p>
 
             {modo !== "ata" && visiveis.length > 0 && (
@@ -305,6 +365,7 @@ export function BuscaCatalogo({
                             <Codigo className="text-ink-3">{r.codigo}</Codigo>
                             {r.meta ? ` · ${r.meta}` : ""}
                           </span>
+                          {r.grupoId && <Tag tom="info">{nomeGrupo.get(r.grupoId)}</Tag>}
                           {/* Descrição inteira e lista de peças ficam em "Ver peças"; o já pedido, no selo ao lado. */}
                           <AcoesReferencia
                             referencia={{ nome: r.nome, codigo: r.codigo, meta: r.meta, descricao: r.descricao, capaId: r.capaId, bom: modo === "projeto" ? r.bom : undefined }}
@@ -375,9 +436,13 @@ export function BuscaCatalogo({
                 <EmptyState
                   compact
                   title={modo === "ata" && linhas.length === 0 ? "A ata deste evento não tem linhas" : `Nada encontrado${busca.trim() ? ` para “${busca.trim()}”` : ""}`}
-                  description={modo === "ata" && linhas.length === 0 ? undefined : "Confira o código ou tente outra palavra. Não achou? Use “Outro item” e descreva."}
+                  description={modo === "ata" && linhas.length === 0 ? undefined : rotuloGrupo ? `Procurado só em ${rotuloGrupo}. Tente em todos os grupos ou use “Outro item” e descreva.` : "Confira o código ou tente outra palavra. Não achou? Use “Outro item” e descreva."}
                   action={
-                    modo !== "ata" ? (
+                    modo !== "ata" && rotuloGrupo ? (
+                      <Button variant="link" size="sm" onClick={() => setGrupo(TODOS)}>
+                        Buscar em todos os grupos
+                      </Button>
+                    ) : modo !== "ata" ? (
                       <Button
                         variant="link"
                         size="sm"

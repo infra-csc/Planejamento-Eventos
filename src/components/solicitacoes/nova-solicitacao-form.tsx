@@ -33,6 +33,7 @@ export function NovaSolicitacaoForm({
   itensIniciais,
   projetos,
   pecas,
+  grupos = [],
   linhasPorEvento,
   pedidosPorEvento = {},
   estoque = null,
@@ -54,6 +55,8 @@ export function NovaSolicitacaoForm({
   itensIniciais: ItemNovo[];
   projetos: Referencia[];
   pecas: Referencia[];
+  /** Grupos da biblioteca (provas): o catálogo abre no grupo do evento + padrão. */
+  grupos?: Array<{ id: string; nome: string }>;
   linhasPorEvento: Record<string, LinhaAta[]>;
   /** O que já foi pedido de cada projeto/peça, por evento (aviso informativo). */
   pedidosPorEvento?: PedidosPorEvento;
@@ -357,7 +360,7 @@ export function NovaSolicitacaoForm({
           {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} itens={itens} setItens={setItens} estoque={estoqueDoEvento} />}
 
           {/* 2 · Adicionar itens */}
-          <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} estoque={estoqueDoEvento} />
+          <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} grupos={grupos} eventoNome={evento?.nome ?? null} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} estoque={estoqueDoEvento} />
 
           {/* 3 · Detalhar itens */}
           <ListaItens n={passo.itens} itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />

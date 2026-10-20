@@ -135,8 +135,9 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
         edicaoEnviada={edicaoEnviada}
         eventoInicial={eventoInicial}
         itensIniciais={itensIniciais}
-        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId }))}
-        pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · ") }))}
+        projetos={opcoes.projetos.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, descricao: p.descricao, meta: [p.categoria, `v${p.versaoAtual}`, `${p.totalPecas} peças`].filter(Boolean).join(" · "), bom: p.bom, extras: extrasDe(p.bom), capaId: p.capaId, grupoId: p.grupoId }))}
+        pecas={opcoes.pecas.map((p) => ({ id: p.id, codigo: p.codigo, nome: p.nome, meta: [p.familia, p.estoqueProprio > 0 ? `estoque ${p.estoqueProprio} ${p.unidade}` : null].filter(Boolean).join(" · "), grupoId: p.grupoId }))}
+        grupos={opcoes.grupos}
         linhasPorEvento={linhasPorEvento}
         estoque={estoque}
         pedidosPorEvento={jaPedidos}
