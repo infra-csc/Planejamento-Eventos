@@ -27,7 +27,10 @@ export const REGRAS_KIT: readonly RegraKit[] = [
 ];
 
 /** Cantoneira de cada tamanho de tenda: com ela na ata, a testeira daquele tamanho entra a definir. */
-const TESTEIRA_POR_TENDA: Record<string, string> = { "testeira-tenda-5x5": "TND5-CANT", "testeira-tenda-3x3": "TND3-CANT" };
+const TESTEIRA_POR_TENDA: Record<string, { cantoneira: string; tamanho: string }> = {
+  "testeira-tenda-5x5": { cantoneira: "TND5-CANT", tamanho: "5" },
+  "testeira-tenda-3x3": { cantoneira: "TND3-CANT", tamanho: "3" },
+};
 
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
 export const ACOMPANHANTES: ReadonlyArray<{ bases: string[]; acompanhante: string; fator: number; texto: string }> = [
@@ -75,13 +78,15 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
     const r = REGRAS_KIT.find((x) => x.codigoPeca === a.acompanhante)!;
     precisa[r.regra] = a.bases.reduce((s, b) => s + total(b), 0) * a.fator;
   }
+  // Testeira já pedida como projeto ("Testeira Madeira Tenda 5×5"): a regra não põe outra a definir.
+  const temProjetoTesteira = (t: string) => ativas.some((l) => l.tipo === "PROJETO" && l.projeto && /testeira/i.test(l.projeto.nome) && new RegExp(`${t}\s*[x×]\s*${t}`, "i").test(l.projeto.nome));
   // Grades do prisma somam às pedidas (não descontam) e vão presas no prisma: não levam pés.
   const gradesPrisma = total(CODIGO_PRISMA) * 2;
   // O que já foi pedido da mesma peça (ex.: cavaletes que vieram na solicitação) conta para a regra.
   return REGRAS_KIT.map((r) =>
     r.aDefinir
       ? // Testeira: só a presença (tem tenda e a área não pediu a testeira à parte); o número fica para a conferência.
-        { ...r, quantidade: 0, presente: total(TESTEIRA_POR_TENDA[r.regra]) > 0 && total(r.codigoPeca) === 0 }
+        { ...r, quantidade: 0, presente: total(TESTEIRA_POR_TENDA[r.regra].cantoneira) > 0 && total(r.codigoPeca) === 0 && !temProjetoTesteira(TESTEIRA_POR_TENDA[r.regra].tamanho) }
       : { ...r, quantidade: r.regra === "grade-prisma" ? gradesPrisma : Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) },
   );
 }

@@ -24,6 +24,9 @@ describe("regras do kit", () => {
     expect(presentes([tenda5, tenda3])).toEqual(["testeira-tenda-5x5", "testeira-tenda-3x3"]);
     expect(presentes([tenda5, { tipo: "PECA", quantidade: 2, pecaCodigo: "TND5-TESTEIRA" }])).toEqual([]);
     expect(presentes([{ tipo: "PECA", quantidade: 5, pecaCodigo: "CONE-G" }])).toEqual([]);
+    // Já tem o projeto de testeira da tenda: não entra outra.
+    expect(presentes([tenda5, { tipo: "PROJETO", quantidade: 6, projeto: { nome: "Testeira Madeira Tenda 5×5" }, bom: [{ codigo: "MRC-TESTEIRADE5M", quantidade: 1 }] }])).toEqual([]);
+    expect(presentes([tenda5, tenda3, { tipo: "PROJETO", quantidade: 1, projeto: { nome: "Testeira Tenda 3×3" } }])).toEqual(["testeira-tenda-5x5"]);
     // Não pede número: fica 0 (a definir) para a conferência.
     expect(calcularRegrasKit([tenda5]).find((x) => x.regra === "testeira-tenda-5x5")?.quantidade).toBe(0);
   });
