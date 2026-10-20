@@ -11,7 +11,8 @@ import { Codigo } from "@/components/ui/numero";
 import { PecaForm } from "@/components/catalogo/peca-form";
 import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
 import { AnexosPeca } from "@/components/catalogo/anexos-peca";
-import { voltaDaBiblioteca } from "@/lib/url";
+import { ButtonLink } from "@/components/ui/button";
+import { hrefPeca, voltaDaBiblioteca } from "@/lib/url";
 
 export const metadata: Metadata = { title: "Editar peça" };
 
@@ -42,7 +43,15 @@ export default async function EditarPecaPage({ params, searchParams }: { params:
         }
         title={p.nome}
         breadcrumbs={[{ label: "Biblioteca", href: volta }, { label: p.codigo }]}
-        actions={<PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="lg" />}
+        actions={
+          <>
+            {/* Base para uma peça nova: mesmos dados, código novo. */}
+            <ButtonLink href={`${hrefPeca("/catalogo/nova", volta)}&de=${p.id}`} variant="secondary" size="lg" className="no-underline">
+              Duplicar
+            </ButtonLink>
+            <PecaAtivoBotao id={p.id} ativo={p.ativo} nome={`${p.codigo} · ${p.nome}`} size="lg" />
+          </>
+        }
         className="!mb-0"
       />
       {sp.nova && (
