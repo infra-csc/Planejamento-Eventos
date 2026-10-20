@@ -8,8 +8,10 @@ export type ListaDaArea = { titulo: string; codigos: string[] };
 const LISTAS: Record<string, ListaDaArea[]> = {
   producao: [
     { titulo: "Percurso", codigos: ["CAV-TRANSITO", "COCHO", "CAV-COCHO", "CONE-G", "CONE-P", "RAMPA-MAD", "PRISMA"] },
-    { titulo: "Arena", codigos: ["ESCADA-ALU", "ESCADA-MAD", "PALETEIRA", "GERADOR", "CARRINHO-PLAT", "LIXEIRA-ARAM", "LIXEIRA-BAG", "MESA-1X1", "TINA-500", "CAV-RETO"] },
+    { titulo: "Arena", codigos: ["PALETEIRA", "GERADOR", "CARRINHO-PLAT", "LIXEIRA-ARAM", "LIXEIRA-BAG", "MESA-1X1", "TINA-500", "CAV-RETO"] },
   ],
+  // As escadas são da cenografia (montagem de cenário), não da produção.
+  cenografia: [{ titulo: "Cenografia", codigos: ["ESCADA-ALU", "ESCADA-MAD"] }],
   ativacao: [{ titulo: "Ativação", codigos: ["BALCAO-120", "BANCADA-210", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] }],
 };
 
