@@ -357,7 +357,7 @@ export function NovaSolicitacaoForm({
           />
 
           {/* Lista da ata da área, zerada: só preencher as quantidades. */}
-          {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} itens={itens} setItens={setItens} estoque={estoqueDoEvento} />}
+          {temListaDaArea && <ItensDaArea n={passo.area} areaNome={areaNome} pecas={pecas} projetos={projetos} itens={itens} setItens={setItens} abrirTenda={setTendaAberta} estoque={estoqueDoEvento} />}
 
           {/* 2 · Adicionar itens */}
           <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} grupos={grupos} eventoNome={evento?.nome ?? null} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} estoque={estoqueDoEvento} />

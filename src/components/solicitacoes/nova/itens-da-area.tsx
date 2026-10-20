@@ -5,6 +5,7 @@ import { AvisoEstoque, type EstoqueDoEvento } from "./aviso-estoque";
 import { cn } from "@/lib/cn";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
+import { Button } from "@/components/ui/button";
 import { listasDaArea } from "@/domain/itens-por-area";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { Passo } from "./passo";
@@ -38,10 +39,33 @@ function juntarAcompanhantes(pecas: Referencia[]): Referencia[] {
  * mudar o número inclui o item na solicitação, voltar a 0 tira (0 não é enviado). Outros itens: no passo seguinte.
  * O que está em 0 fica discreto; o que foi pedido ganha destaque, para a lista ser lida de relance.
  */
-export function ItensDaArea({ n, areaNome, pecas, itens, setItens, estoque = null }: { n: number; areaNome: string | null; pecas: Referencia[]; itens: ItemNovo[]; setItens: Dispatch<SetStateAction<ItemNovo[]>>; estoque?: EstoqueDoEvento | null }) {
+export function ItensDaArea({
+  n,
+  areaNome,
+  pecas,
+  projetos = [],
+  itens,
+  setItens,
+  abrirTenda,
+  estoque = null,
+}: {
+  n: number;
+  areaNome: string | null;
+  pecas: Referencia[];
+  /** Projetos padrão: as tendas da lista vêm daqui e são pedidas por local, no quadro de tendas. */
+  projetos?: Referencia[];
+  itens: ItemNovo[];
+  setItens: Dispatch<SetStateAction<ItemNovo[]>>;
+  abrirTenda?: (projetoId: string) => void;
+  estoque?: EstoqueDoEvento | null;
+}) {
   const listas = listasDaArea(areaNome)
-    .map((l) => ({ ...l, pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))) }))
-    .filter((l) => l.pecas.length > 0);
+    .map((l) => ({
+      ...l,
+      pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))),
+      tendas: abrirTenda ? (l.projetos ?? []).map((c) => projetos.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p)) : [],
+    }))
+    .filter((l) => l.pecas.length > 0 || l.tendas.length > 0);
   if (!listas.length) return null;
   // Só o que a área pediu; a linha automática (vem junto) aparece à parte.
   const qtdDe = (pecaId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.pecaId === pecaId && !ehAcompanhante(i)).reduce((a, i) => a + i.quantidade, 0);
@@ -57,9 +81,15 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens, estoque = nul
       ];
     });
 
-  const unicas = [...new Map(listas.flatMap((l) => l.pecas).map((p) => [p.id, p])).values()];
-  const pedidos = unicas.filter((p) => !SO_AUTOMATICOS.has(p.codigo) && qtdDe(p.id) > 0);
-  const unidades = pedidos.reduce((a, p) => a + qtdDe(p.id), 0);
+  // Tenda: cada local é uma linha do pedido; aqui só o resumo (tendas e locais) e o botão do quadro.
+  const tendasDe = (projetoId: string) => itens.filter((i) => i.operacao === "ADICIONAR" && i.projetoId === projetoId);
+  const qtdTendas = (projetoId: string) => tendasDe(projetoId).reduce((a, i) => a + i.quantidade, 0);
+
+  const unicas = [...new Map(listas.flatMap((l) => [...l.pecas, ...l.tendas]).map((p) => [p.id, p])).values()];
+  const ehTenda = (p: Referencia) => listas.some((l) => l.tendas.includes(p));
+  const qtd = (p: Referencia) => (ehTenda(p) ? qtdTendas(p.id) : qtdDe(p.id));
+  const pedidos = unicas.filter((p) => !SO_AUTOMATICOS.has(p.codigo) && qtd(p) > 0);
+  const unidades = pedidos.reduce((a, p) => a + qtd(p), 0);
 
   return (
     <Passo
@@ -81,7 +111,7 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens, estoque = nul
             <h3 className="m-0 mb-1 flex items-baseline justify-between text-micro font-semibold uppercase tracking-[0.08em] text-ink-3">
               {l.titulo}
               {(() => {
-                const k = l.pecas.filter((p) => qtdDe(p.id) > 0).length;
+                const k = l.pecas.filter((p) => qtdDe(p.id) > 0).length + l.tendas.filter((p) => qtdTendas(p.id) > 0).length;
                 return k ? <span className="numero font-normal normal-case tracking-normal text-meta">{k} no pedido</span> : null;
               })()}
             </h3>
@@ -132,6 +162,35 @@ export function ItensDaArea({ n, areaNome, pecas, itens, setItens, estoque = nul
                         className={cn("shrink-0 transition-opacity duration-150", !ativo && "opacity-55 group-hover:opacity-100 focus-within:opacity-100")}
                       />
                     )}
+                  </li>
+                );
+              })}
+              {l.tendas.map((t) => {
+                const q = qtdTendas(t.id);
+                const locais = tendasDe(t.id).length;
+                return (
+                  <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
+                    <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
+                      {t.nome}
+                      <span className="mt-0.5 block text-rotulo font-normal text-muted">
+                        {q > 0 ? (
+                          <>
+                            <Numero valor={q} /> {q === 1 ? "tenda" : "tendas"} · <Numero valor={locais} /> {locais === 1 ? "local" : "locais"}
+                          </>
+                        ) : (
+                          "Por local: tendas, fechamentos e calhas"
+                        )}
+                      </span>
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => abrirTenda?.(t.id)}
+                      aria-label={`${q > 0 ? "Editar" : "Pedir"} ${t.nome} por local`}
+                      className={cn("w-[104px] shrink-0 transition-opacity duration-150", q === 0 && "opacity-55 group-hover:opacity-100 focus-visible:opacity-100")}
+                    >
+                      {q > 0 ? "Editar" : "Pedir"}
+                    </Button>
                   </li>
                 );
               })}
