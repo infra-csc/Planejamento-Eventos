@@ -16,12 +16,12 @@ describe("regras do kit", () => {
     expect(qtd(r)).toEqual({ "TINA-1000": 12, "PALLET-FE": 12, "SACO-RAFIA": 18 });
   });
 
-  it("acompanhantes: cocho, bancada/mesa e grade 2×1; o que já foi pedido à parte é descontado", () => {
+  it("acompanhantes: cocho, pranchão/mesa e grade 2×1; o que já foi pedido à parte é descontado", () => {
     const r = calcularRegrasKit([
       { tipo: "PECA", quantidade: 15, pecaCodigo: "COCHO" },
       { tipo: "PECA", quantidade: 5, pecaCodigo: "POSTO-HIDRATACAO" },
       { tipo: "PECA", quantidade: 40, pecaCodigo: "CAV-COCHO" },
-      { tipo: "PECA", quantidade: 3, pecaCodigo: "BANCADA-210" },
+      { tipo: "PECA", quantidade: 3, pecaCodigo: "PRANCHÃO-220" },
       { tipo: "PECA", quantidade: 1, pecaCodigo: "MESA-1X1" },
       { tipo: "PECA", quantidade: 2, pecaCodigo: "CAV-RETO" },
       { tipo: "PECA", quantidade: 45, pecaCodigo: "GRADE-2X1" },

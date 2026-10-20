@@ -16,7 +16,7 @@ import type { ItemNovo, Referencia } from "./tipos";
 const SO_AUTOMATICOS = new Set(["CAV-COCHO", "PE-GRADE-2X1"]);
 
 /**
- * Cada peça que vem junto de outra (cavalete do cocho, cavalete reto da mesa ou bancada, pé da grade)
+ * Cada peça que vem junto de outra (cavalete do cocho, cavalete reto da mesa ou pranchão, pé da grade)
  * logo abaixo da peça de origem, quando as duas estão na mesma lista; senão, onde já estava.
  */
 function juntarAcompanhantes(pecas: Referencia[]): Referencia[] {
@@ -27,7 +27,7 @@ function juntarAcompanhantes(pecas: Referencia[]): Referencia[] {
   for (const p of pecas) {
     if (saida.includes(p)) continue;
     const a = ACOMPANHANTES.find((x) => x.acompanhante === p.codigo)!;
-    // Depois da última base da lista (a mesa e a bancada ficam juntas, e o cavalete reto logo abaixo).
+    // Depois da última base da lista (a mesa e o pranchão ficam juntos, e o cavalete reto logo abaixo).
     const ultima = Math.max(...saida.map((b, i) => (a.bases.includes(b.codigo) ? i : -1)));
     saida.splice(ultima + 1, 0, p);
   }
@@ -141,7 +141,7 @@ export function ItensDaArea({
                       )}
                       {p.nome}
                       {/* Mesmo formato nas três: "Automático · regra"; "aqui, só os extras" só quando a base está nesta lista
-                          (na Ativação não há mesa nem bancada, e o cavalete reto é pedido inteiro ali). */}
+                          (na Ativação não há mesa de medalha; o cavalete reto do pranchão vem automático). */}
                       {automatico && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp?.texto}</span>}
                       {!automatico && auto > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">+{auto} automáticos · {acomp?.texto} · aqui, só os extras</span>}
                       {!automatico && auto === 0 && acomp && junto && <span className="mt-0.5 block text-rotulo font-normal text-muted">Automático · {acomp.texto} · aqui, só os extras</span>}

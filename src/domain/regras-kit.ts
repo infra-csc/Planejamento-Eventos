@@ -4,7 +4,7 @@
  * - pallet de ferro: 2 por stand + 6 por palco show;
  * - saco de ráfia: 1 por lixeira ultra bag;
  * - acompanhantes que sempre vão junto: 2 cavaletes de ferro por cocho, 2 cavaletes de madeira por
- *   bancada e por mesa de medalha, 2 pés por grade 2×1;
+ *   pranchão e por mesa de medalha, 2 pés por grade 2×1;
  * - grades 2×1 do prisma: 2 por prisma, somadas às grades pedidas (as do prisma não levam pés).
  * (a lona de teto já vem na lista de peças de cada stand e palco show)
  * O que a área já pediu da mesma peça à parte é descontado. A linha da regra acompanha a ata sozinha
@@ -17,7 +17,7 @@ export const REGRAS_KIT: readonly RegraKit[] = [
   { regra: "pallet-ferro", codigoPeca: "PALLET-FE", descricao: "2 por stand + 6 por palco show" },
   { regra: "saco-rafia", codigoPeca: "SACO-RAFIA", descricao: "1 por lixeira ultra bag" },
   { regra: "cavalete-cocho", codigoPeca: "CAV-COCHO", descricao: "1 cocho = 2 cavaletes de ferro p/ cocho (cocho para água e posto de hidratação)" },
-  { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "1 bancada de madeira ou mesa de medalha = 2 cavaletes retos" },
+  { regra: "cavalete-reto", codigoPeca: "CAV-RETO", descricao: "1 pranchão de madeira ou mesa de medalha = 2 cavaletes retos" },
   { regra: "grade-prisma", codigoPeca: "GRADE-2X1", descricao: "1 prisma = 2 grades 2×1 (além das grades pedidas)" },
   { regra: "pe-grade-2x1", codigoPeca: "PE-GRADE-2X1", descricao: "1 grade 2×1 = 2 pés (as grades do prisma não levam pés)" },
 ];
@@ -25,7 +25,7 @@ export const REGRAS_KIT: readonly RegraKit[] = [
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
 export const ACOMPANHANTES: ReadonlyArray<{ bases: string[]; acompanhante: string; fator: number; texto: string }> = [
   { bases: ["COCHO", "POSTO-HIDRATACAO"], acompanhante: "CAV-COCHO", fator: 2, texto: "1 cocho = 2 cavaletes de ferro p/ cocho" },
-  { bases: ["BANCADA-210", "MESA-1X1"], acompanhante: "CAV-RETO", fator: 2, texto: "1 bancada ou mesa de medalha = 2 cavaletes retos" },
+  { bases: ["PRANCHÃO-220", "MESA-1X1"], acompanhante: "CAV-RETO", fator: 2, texto: "1 pranchão ou mesa de medalha = 2 cavaletes retos" },
   { bases: ["GRADE-2X1"], acompanhante: "PE-GRADE-2X1", fator: 2, texto: "1 grade 2×1 = 2 pés" },
 ];
 

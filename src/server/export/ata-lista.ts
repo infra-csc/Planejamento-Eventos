@@ -34,7 +34,7 @@ const PERCURSO: ReadonlyArray<[string, string | null]> = [
 ];
 const ATIVACAO: ReadonlyArray<[string, string | null]> = [
   ["Balcão (1,20 x 1,0)", "BALCAO-120"],
-  ["Bancadas de madeira (2,10 x 1,0)", "BANCADA-210"],
+  ["Pranchão de madeira (2,20 x 0,80)", "PRANCHÃO-220"],
   ["Cavaletes Retos", "CAV-RETO"],
   ["Ombrelone", "OMBRELONE"],
   ["Tina Caixa D'água 300L", "TINA-300"],
@@ -96,7 +96,7 @@ export function montarAtaLista(os: OsConteudo): AtaLista {
     return true;
   };
   const percurso = secao("PERCURSO", PERCURSO, (c, p) => p.setor === "ARENA" && /cone|cocho|cavalete|tina|pallet|palet|rampa|prisma|grade 2|estaca|corda|malote/i.test(p.nome) && pega(c));
-  const ativacao = secao("ATIVAÇÃO", ATIVACAO, (c, p) => soltas.has(c) && (p.setor === "MARCENARIA" || /ombrel|puff|balc|bancada|mesa/i.test(p.nome)) && pega(c));
+  const ativacao = secao("ATIVAÇÃO", ATIVACAO, (c, p) => soltas.has(c) && (p.setor === "MARCENARIA" || /ombrel|puff|balc|bancada|pranch|mesa/i.test(p.nome)) && pega(c));
   const arena = secao("ARENA", ARENA, (c, p) => p.setor === "ARENA" && pega(c));
   // Itens fora do catálogo: na ARENA, com o local na OBS.
   for (const x of [...os.semSetor, ...os.setores.flatMap((s) => s.avulsos)]) {

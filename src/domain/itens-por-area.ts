@@ -17,7 +17,7 @@ const LISTAS: Record<string, ListaDaArea[]> = {
   ],
   // As escadas são da cenografia (montagem de cenário), não da produção.
   cenografia: [{ titulo: "Cenografia", codigos: ["ESCADA-ALU", "ESCADA-MAD"] }],
-  ativacao: [{ titulo: "Ativação", codigos: ["BALCAO-120", "BANCADA-210", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] }, TENDAS],
+  ativacao: [{ titulo: "Ativação", codigos: ["BALCAO-120", "PRANCHÃO-220", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] }, TENDAS],
 };
 
 const chave = (nome: string) => nome.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();

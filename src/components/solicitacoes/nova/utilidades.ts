@@ -38,7 +38,7 @@ export function agruparItensNovos(itens: readonly ItemNovo[]): Array<{ chave: st
 }
 
 /**
- * Peças que sempre vão junto (cocho → 2 cavaletes de ferro; bancada e mesa de medalha → 2 cavaletes de
+ * Peças que sempre vão junto (cocho → 2 cavaletes de ferro; pranchão e mesa de medalha → 2 cavaletes de
  * madeira; grade 2×1 → 2 pés): uma linha automática por acompanhante, derivada da lista. Ela é marcada
  * na observação ("Vem junto…"), que vai para o pedido: assim o rascunho salvo volta e não duplica.
  * Linha da mesma peça pedida à parte continua separada (a ata desconta).

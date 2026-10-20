@@ -69,7 +69,7 @@ export function NovaSolicitacaoForm({
   const [trocandoEvento, setTrocandoEvento] = useState(false);
   const [areaId, setAreaId] = useState<string | null>(areaInicial);
   const [itensBrutos, setItens] = useState<ItemNovo[]>(itensIniciais);
-  // Peças que sempre vão junto (cavaletes do cocho, da bancada e da mesa; pés da grade 2×1): linha derivada da lista.
+  // Peças que sempre vão junto (cavaletes do cocho, do pranchão e da mesa; pés da grade 2×1): linha derivada da lista.
   const itens = useMemo(() => sincronizarAcompanhantes(itensBrutos, pecas), [itensBrutos, pecas]);
   // Cópia local das alterações de um pedido já enviado (nada se perde se a aba fechar antes de salvar).
   const chaveCopia = edicaoEnviada && rascunho ? `norte:edicao-solicitacao:${rascunho.id}` : null;
