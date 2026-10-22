@@ -24,6 +24,7 @@ import { ValidacaoError } from "@/domain/errors";
 import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, completarAcompanhante, definirExtraDaRegra, editarDescricoesLinha } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
+import { salvarSeparacao } from "@/server/services/separacao";
 import { pecaSchema } from "@/lib/schemas";
 import { invalidarDados, revalidarTelasOperacao, TAGS_DADOS } from "@/server/cache-dados";
 
@@ -215,6 +216,15 @@ export async function definirExtraDaRegraAction(eventoId: string, linhaRegraId: 
   const r = await executar(() => definirExtraDaRegra(usuario, eventoId, linhaRegraId, extra, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
+/** Folha de separação: estrutura locada no local (box Q30, tendas e estaiamento fora; Q15 se marcado). */
+export async function salvarSeparacaoAction(eventoId: string, locada: boolean, q15Locado: boolean) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || typeof locada !== "boolean" || typeof q15Locado !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
+  const r = await executar(() => salvarSeparacao(usuario, eventoId, { locada, q15Locado }));
+  revalidatePath(`/eventos/${eventoId}/os`);
   return r;
 }
 

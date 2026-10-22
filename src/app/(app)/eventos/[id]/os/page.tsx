@@ -14,6 +14,8 @@ import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 import { DiffOs } from "@/components/eventos/diff-os";
 import { Exportacoes, type Exportacao } from "@/components/eventos/exportacoes";
+import { SeparacaoLocada } from "@/components/eventos/separacao-locada";
+import { obterSeparacao } from "@/server/services/separacao";
 import { obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { pode } from "@/domain/permissions";
 import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
@@ -47,7 +49,9 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes, complemento, grupos] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id), mapaGruposPecas()]);
+  const [ev, versoes, complemento, grupos, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id), mapaGruposPecas(), obterSeparacao(id)]);
+  // Estrutura locada no local: admin e logística tiram box, tendas e estaiamento da folha de separação.
+  const quadroSeparacao = pode(usuario, "ata.consolidar") ? <SeparacaoLocada eventoId={id} inicial={separacao} /> : null;
 
   if (versoes.length === 0) {
     // Antes do fechamento da ata, a logística confere o que a OS vai conter: mesma leitura, calculada ao vivo da ata em construção.
@@ -71,6 +75,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         {temAlgo && pode(usuario, "os.exportar") && (
           <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
             <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true)} />
+            {quadroSeparacao}
           </div>
         )}
       </div>
@@ -223,6 +228,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             itens={exportacoesOs(id, qsExport)}
           />
         )}
+        {quadroSeparacao}
         <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · nunca editadas à mão`}>
           <VersoesOs versoes={lista} />
         </Section>

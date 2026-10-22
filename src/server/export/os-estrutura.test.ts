@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aplicarAjustesBom, calcularOS, type LinhaAta } from "@/domain/os";
 import type { BomSnapshotLinha } from "@/server/db/schema";
-import { montarOsEstrutura, nomeAba, ROTULOS_Q30 } from "./os-estrutura";
+import { montarOsEstrutura, nomeAba, pecaDeEstruturaLocada, ROTULOS_Q30 } from "./os-estrutura";
 import { montarOsMarcenaria } from "./os-marcenaria";
 import { montarAtaLista } from "./ata-lista";
 import { textoSeguro } from "./excel";
@@ -87,6 +87,15 @@ describe("montarOsEstrutura", () => {
     ).outros;
     expect(o.filter((x) => x.rotulo === "GRADE 2×1 M")).toEqual([{ rotulo: "GRADE 2×1 M", valor: 136 }]);
     expect(o.filter((x) => x.rotulo === "CAVALETE RETO")).toEqual([{ rotulo: "CAVALETE RETO", valor: 14 }]);
+  });
+
+  it("estrutura locada: box Q30, tendas e estaiamento saem da folha; Q15 só se marcado; o resto fica", () => {
+    for (const c of ["BOX-3000", "CUBO", "PARAF", "BOX-300", "SAPATA", "TND5-CANT", "TND3-LONA", "ESTACA", "CORDA", "MALOTE"]) expect(pecaDeEstruturaLocada(c, { q15: false })).toBe(true);
+    for (const c of ["CONE-G", "GRADE-2X1", "PRISMA", "TESTEIRA-9M", "LONA-9X6", "Q15-2000"]) expect(pecaDeEstruturaLocada(c, { q15: false })).toBe(false);
+    expect(pecaDeEstruturaLocada("Q15-2000", { q15: true })).toBe(true);
+    expect(pecaDeEstruturaLocada("CUBO - 3F", { q15: false, nome: "Cubo de conexão Q30 (3 faces - L)" })).toBe(true);
+    expect(pecaDeEstruturaLocada("CUBO-2F", { q15: false })).toBe(true);
+    expect(pecaDeEstruturaLocada("Q15-CUBO", { q15: false, nome: "Cubo Q15" })).toBe(false);
   });
 
   it("MARCENARIA por seção (projeto e quantidade) com as peças do projeto", () => {

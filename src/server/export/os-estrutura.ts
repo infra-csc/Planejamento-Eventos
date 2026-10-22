@@ -105,6 +105,17 @@ const CODIGOS_OUTROS_BLOCOS = new Set([...ESTAIAMENTO.map(([c]) => c), ...OUTROS
 const ehQ15 = (codigo: string) => codigo.startsWith("Q15-");
 const ehTenda = (codigo: string) => codigo.startsWith("TND");
 
+/**
+ * Estrutura locada no local do evento (marcada na OS pela logística): box truss Q30 e conexões, peças de tenda
+ * e estaiamento não saem na folha de separação; o box Q15, só se marcado também.
+ */
+export function pecaDeEstruturaLocada(codigo: string, opcoes: { q15: boolean; nome?: string }): boolean {
+  if (ehQ15(codigo)) return opcoes.q15;
+  // Cubos e outras conexões Q30 têm códigos variados ("CUBO-2F", "CUBO - 3F"): o nome "… Q30 …" também vale.
+  const q30 = ROTULO_Q30.has(codigo) || codigo in OUTROS_ROTULOS || /^(BOX|CUBO|ANG|PRAT)[-\s]/.test(codigo) || /\bQ30\b/i.test(opcoes.nome ?? "");
+  return q30 || ehTenda(codigo) || ESTAIAMENTO.some(([c]) => c === codigo);
+}
+
 /** Rótulo da peça como na planilha; peça que a cenografia não nomeia sai com o nome do catálogo. */
 export function rotuloPeca(codigo: string, nome: string): string {
   return ROTULO_Q30.get(codigo) ?? ROTULO_Q15.get(codigo) ?? OUTROS_ROTULOS[codigo] ?? nome;

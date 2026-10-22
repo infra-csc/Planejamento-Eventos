@@ -8,6 +8,8 @@ import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
 import { ImprimirBotao } from "./imprimir-botao";
+import { obterSeparacao } from "@/server/services/separacao";
+import { pecaDeEstruturaLocada } from "@/server/export/os-estrutura";
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const usuario = await requirePermissao("os.exportar");
@@ -40,10 +42,15 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
   const { v } = await searchParams;
-  const [ev, versoes, mapa] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas()]);
+  const [ev, versoes, mapa, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas(), obterSeparacao(id)]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
   const os = (sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id));
-  const grupos = totaisPorGrupo(os.setores, mapa).sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
+  // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
+  const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
+  const grupos = totaisPorGrupo(os.setores, mapa)
+    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => vai(l.codigo, l.nome)) }))
+    .filter((g) => g.linhas.length > 0)
+    .sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
 
   return (
     <div className="mx-auto max-w-4xl rounded-cartao border border-line bg-surface p-5 text-corpo text-ink sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
@@ -79,6 +86,11 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
 
       <h2 className="mb-1 mt-0 text-titulo font-semibold">Separação</h2>
       <p className="mb-4 mt-0 text-pequeno text-ink-3">Tudo o que vai para o evento, somado por peça. Marque ao separar.</p>
+      {separacao.locada && (
+        <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">
+          Estrutura locada no local: box truss Q30, tendas e estaiamento{separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
+        </p>
+      )}
       {grupos.map((s) => (
         <section key={s.grupo} className="mb-8 break-inside-avoid">
           <h3 className="mb-2 mt-0 text-destaque font-semibold">{GRUPO_LABEL[s.grupo]}</h3>
