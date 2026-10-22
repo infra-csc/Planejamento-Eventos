@@ -118,3 +118,26 @@ export async function ressincronizarAtasAbertas(chave = "regras:atas-abertas:202
     return { feito: true, eventos: abertas.length, mudancas };
   });
 }
+
+/**
+ * Uma vez só, ao subir (22/10): atas que fecharam antes da regra do prisma existir ficaram sem as grades do prisma
+ * (1 prisma = 2 grades, somadas às pedidas). Aplica só essa regra nelas e gera a versão nova da OS de cada uma.
+ * Linha ajustada à mão fica como está. A marca em `configuracoes` entra na mesma transação.
+ */
+export async function aplicarGradesDoPrismaNasAtasFechadas(chave = "regras:grade-prisma-atas-fechadas:2026-10-22"): Promise<{ feito: false } | { feito: true; eventos: string[] }> {
+  const { gerarOsVersao } = await import("../os");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const [marca] = await tx.insert(configuracoes).values({ chave, valor: JSON.stringify({ status: "em andamento" }) }).onConflictDoNothing({ target: configuracoes.chave }).returning({ chave: configuracoes.chave });
+    if (!marca) return { feito: false };
+    const fechadas = await tx.select({ id: eventos.id, codigo: eventos.codigo }).from(eventos).where(eq(eventos.status, "ABERTO"));
+    const mudaram: string[] = [];
+    for (const e of fechadas) {
+      if (!(await sincronizarRegrasAta(tx, e.id, null, { ataFechada: true, soRegras: ["grade-prisma"] }))) continue;
+      await gerarOsVersao(tx, e.id, "AJUSTE_LOGISTICA", null, "Grades do prisma (1 prisma = 2 grades, somadas às pedidas)");
+      mudaram.push(e.codigo);
+    }
+    await tx.update(configuracoes).set({ valor: JSON.stringify({ status: "feito", em: new Date().toISOString(), eventos: mudaram }) }).where(eq(configuracoes.chave, chave));
+    return { feito: true, eventos: mudaram };
+  });
+}

@@ -6,11 +6,11 @@ delete process.env.DATABASE_URL;
 
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, pecas, projetos } from "@/server/db/schema";
+import { eventoItens, osVersoes, pecas, projetos } from "@/server/db/schema";
 import { criarPeca, criarProjeto, fecharAta, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { ajustarLinhaNaConferencia, definirExtraDaRegra, obterConferencia } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
-import { ressincronizarAtasAbertas } from "./eventos/regras-kit";
+import { aplicarGradesDoPrismaNasAtasFechadas, ressincronizarAtasAbertas } from "./eventos/regras-kit";
 
 let E: Elenco;
 let estande: string;
@@ -145,5 +145,25 @@ describe("regras da logística na ata", () => {
     expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([9]);
     await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 0, "");
     expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra)).toEqual([]);
+  });
+
+  it("ata fechada antes da regra do prisma: as grades do prisma entram uma vez, com nova OS", async () => {
+    const db = await getDb();
+    const prisma = (await db.query.pecas.findFirst({ where: eq(pecas.codigo, "PRISMA") }))!;
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, prisma.id, 9, null);
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    await fecharAta(E.admin, ev.id);
+    // Como nas atas antigas: sem a linha da regra.
+    await db.delete(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "grade-prisma")));
+    const { gerarOsVersao } = await import("./os");
+    await gerarOsVersao(db, ev.id, "AJUSTE_LOGISTICA", null, "OS antiga, sem as grades do prisma");
+    const versoes = async () => (await db.select().from(osVersoes).where(eq(osVersoes.eventoId, ev.id))).length;
+    const antes = await versoes();
+    const r = await aplicarGradesDoPrismaNasAtasFechadas("teste:prisma:1");
+    expect(r.feito && r.eventos).toContain(ev.codigo);
+    expect((await regras(ev.id))["grade-prisma"]).toBe(18);
+    expect(await versoes()).toBe(antes + 1);
+    expect(await aplicarGradesDoPrismaNasAtasFechadas("teste:prisma:1")).toEqual({ feito: false });
   });
 });

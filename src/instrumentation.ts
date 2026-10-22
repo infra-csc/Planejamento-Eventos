@@ -46,6 +46,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "projetos_atualizados_nos_eventos", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Atas fechadas antes da regra do prisma: grades do prisma (uma vez só, com nova versão da OS).
+    try {
+      const { aplicarGradesDoPrismaNasAtasFechadas } = await import("@/server/services/eventos/regras-kit");
+      const r = await aplicarGradesDoPrismaNasAtasFechadas();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "grades_prisma_atas_fechadas", eventos: r.eventos }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "grades_prisma_atas_fechadas", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
       const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");

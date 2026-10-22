@@ -249,6 +249,8 @@ export function montarOsEstrutura(os: OsConteudo): OsEstrutura {
   // cavalete dos pranchões (antes saía uma linha por pedido, e parecia que faltava).
   const soltas = new Map<string, { nome: string; destino: string | null | undefined; quantidade: number }>();
   for (const x of os.individuais ?? []) {
+    // O prisma são 2 grades: já está somado na GRADE 2×1 (regra do prisma), não sai como linha à parte.
+    if (x.codigo === "PRISMA") continue;
     if (x.setor === "MARCENARIA" || ROTULO_Q30.has(x.codigo) || ehQ15(x.codigo) || CODIGOS_OUTROS_BLOCOS.has(x.codigo) || pecas.some((p) => p.codigo === x.codigo)) continue;
     const chave = `${x.codigo}|${x.destino?.trim() ?? ""}`;
     const s = soltas.get(chave) ?? { nome: x.nome, destino: x.destino, quantidade: 0 };

@@ -87,6 +87,10 @@ describe("montarOsEstrutura", () => {
     ).outros;
     expect(o.filter((x) => x.rotulo === "GRADE 2×1 M")).toEqual([{ rotulo: "GRADE 2×1 M", valor: 136 }]);
     expect(o.filter((x) => x.rotulo === "CAVALETE RETO")).toEqual([{ rotulo: "CAVALETE RETO", valor: 14 }]);
+    // O prisma são 2 grades (já somadas na grade): não sai como linha à parte.
+    const comPrisma = montarOsEstrutura(calcularOS([peca("p1", "PRISMA", "Prisma (cavalete grande)", 18, "Produção"), peca("g3", "GRADE-2X1", "Grade 2×1 m", 36, null)])).outros;
+    expect(comPrisma.some((x) => x.rotulo.startsWith("PRISMA"))).toBe(false);
+    expect(comPrisma.find((x) => x.rotulo === "GRADE 2×1 M")?.valor).toBe(36);
   });
 
   it("estrutura locada: box Q30, tendas e estaiamento saem da folha; Q15 só se marcado; o resto fica", () => {

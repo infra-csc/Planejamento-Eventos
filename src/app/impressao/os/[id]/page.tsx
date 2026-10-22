@@ -24,10 +24,13 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 const tabela = "w-full min-w-[420px] table-fixed border-collapse [overflow-wrap:anywhere] print:min-w-0";
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
-const linha = "border-b border-line-strong";
+// Linha um pouco mais alta: a folha é impressa e a equipe escreve na coluna Obs.
+const linha = "h-9 border-b border-line-strong";
 const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 const sep = "w-14 py-1.5 text-center align-top";
+/** Observação escrita à mão na folha impressa: célula em branco com a linha de baixo. */
+const obs = "w-[34%] py-1.5 align-top";
 
 /** Mesma ordem da conferência da ata (a reunião passa pelos materiais assim). */
 const ORDEM: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
@@ -48,7 +51,8 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
   const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
   const grupos = totaisPorGrupo(os.setores, mapa)
-    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => vai(l.codigo, l.nome)) }))
+    // O prisma são 2 grades: já entra somado na grade 2×1 (regra do prisma), então não sai como item à parte.
+    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => l.codigo !== "PRISMA" && vai(l.codigo, l.nome)) }))
     .filter((g) => g.linhas.length > 0)
     .sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
 
@@ -101,6 +105,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                   <th scope="col" className={th}>Peça</th>
                   <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
+                  <th scope="col" className={`${th} w-[34%] pl-3`}>Obs.</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,6 +116,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                       <td className={td}>{l.nome}</td>
                       <td className={`${num} font-semibold`}>{qtd(l.total, l.unidade)}</td>
                       <td className={sep}>☐</td>
+                      <td className={obs} />
                     </tr>
                   ))}
               </tbody>
@@ -130,6 +136,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                   <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
                   <th scope="col" className={`${th} w-[30%]`}>Local · área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
+                  <th scope="col" className={`${th} w-[34%] pl-3`}>Obs.</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,6 +146,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                     <td className={`${num} font-semibold`}>{a.quantidade}</td>
                     <td className={`${td} text-rotulo text-ink-3`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
                     <td className={sep}>☐</td>
+                      <td className={obs} />
                   </tr>
                 ))}
               </tbody>
