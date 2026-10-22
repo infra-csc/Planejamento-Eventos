@@ -1,14 +1,12 @@
-import { individuaisAgrupadas, textoLocais } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
 import { obterEventoCache } from "@/server/cache";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
-import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo } from "@/domain/grupos-material";
+import { GRUPO_LABEL, totaisPorGrupo, type GrupoMaterial } from "@/domain/grupos-material";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
-import { Codigo } from "@/components/ui/numero";
 import { ImprimirBotao } from "./imprimir-botao";
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
@@ -16,18 +14,23 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
   const [{ id }, { v }] = await Promise.all([params, searchParams]);
   const ev = await obterEventoCache(usuario, id).catch(() => null);
   // Vira o nome sugerido do PDF ao imprimir.
-  return { title: ev ? `OS ${ev.codigo}${v ? ` v${v}` : ""} · ${ev.nome}` : "OS" };
+  return { title: ev ? `OS ${ev.nome}${v ? ` v${v}` : ""}` : "OS" };
 }
 
 /* Tipografia do design system, em tinta só (sem cores de tela): cabeçalho de tabela em caixa-alta pequena,
-   números tabulares à direita, códigos em mono. Cada tabela rola sozinha na tela estreita; no papel, não. */
-const tabela = "w-full min-w-[560px] table-fixed border-collapse [overflow-wrap:anywhere] print:min-w-0";
+   números tabulares à direita. Folha de quem separa: só o total, peça e quantidade (sem código, composição nem a quebra por projeto). */
+const tabela = "w-full min-w-[420px] table-fixed border-collapse [overflow-wrap:anywhere] print:min-w-0";
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
 const linha = "border-b border-line-strong";
 const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 const sep = "w-14 py-1.5 text-center align-top";
+
+/** Mesma ordem da conferência da ata (a reunião passa pelos materiais assim). */
+const ORDEM: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
+/** Quantidade com a unidade só quando não é "un" (12 m, 4 par). */
+const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${n} ${unidade}` : String(n));
 
 function Rolagem({ children }: { children: React.ReactNode }) {
   return <div className="overflow-x-auto print:overflow-visible">{children}</div>;
@@ -40,6 +43,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const [ev, versoes, mapa] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas()]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
   const os = (sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id));
+  const grupos = totaisPorGrupo(os.setores, mapa).sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
 
   return (
     <div className="mx-auto max-w-4xl rounded-cartao border border-line bg-surface p-5 text-corpo text-ink sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
@@ -52,9 +56,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       </div>
       <header className="mb-6 border-b border-ink pb-4">
         <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Norte Mkt · Ordem de serviço</p>
-        <h1 className="mb-0 mt-1 text-pagina font-semibold tracking-[-0.02em]">
-          <Codigo>{ev.codigo}</Codigo> · {ev.nome}
-        </h1>
+        <h1 className="mb-0 mt-1 text-pagina font-semibold tracking-[-0.02em]">{ev.nome}</h1>
         <dl className="mb-0 mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-pequeno sm:grid-cols-4">
           <div>
             <dt className="text-ink-3">Evento</dt>
@@ -70,155 +72,51 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           </div>
           <div>
             <dt className="text-ink-3">Versão</dt>
-            <dd className="m-0">
-              {v && sel ? (
-                <>
-                  <Codigo>v{sel.numero}</Codigo> <span className="numero">({formatarDataHora(sel.geradaEm)})</span>
-                </>
-              ) : versoes[0] ? (
-                <>
-                  <Codigo>v{versoes[0].numero}</Codigo> · atual
-                </>
-              ) : (
-                "prévia"
-              )}
-            </dd>
+            <dd className="numero m-0">{v && sel ? `v${sel.numero} (${formatarDataHora(sel.geradaEm)})` : versoes[0] ? `v${versoes[0].numero} · atual` : "prévia"}</dd>
           </div>
         </dl>
       </header>
 
-      <h2 className="mb-3 mt-0 text-titulo font-semibold">Totais por peça</h2>
-      {totaisPorGrupo(os.setores, mapa).map((s) => (
+      <h2 className="mb-1 mt-0 text-titulo font-semibold">Separação</h2>
+      <p className="mb-4 mt-0 text-pequeno text-ink-3">Tudo o que vai para o evento, somado por peça. Marque ao separar.</p>
+      {grupos.map((s) => (
         <section key={s.grupo} className="mb-8 break-inside-avoid">
           <h3 className="mb-2 mt-0 text-destaque font-semibold">{GRUPO_LABEL[s.grupo]}</h3>
           <Rolagem>
             <table className={tabela}>
               <thead>
                 <tr className={cabecalho}>
-                  <th scope="col" className={`${th} w-[112px]`}>Código</th>
-                  <th scope="col" className={`${th} w-[26%]`}>Peça</th>
-                  <th scope="col" className={`${th} w-16 text-right`}>Total</th>
-                  <th scope="col" className={`${th} w-12`}>Un.</th>
-                  <th scope="col" className={th}>Composição</th>
+                  <th scope="col" className={th}>Peça</th>
+                  <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                 </tr>
               </thead>
               <tbody>
-                {s.linhas.map((l) => (
-                  <tr key={l.pecaId} className={linha}>
-                    <td className={`${td} text-pequeno`}>
-                      <Codigo>{l.codigo}</Codigo>
-                    </td>
-                    <td className={td}>{l.nome}</td>
-                    <td className={`${num} font-semibold`}>{l.total}</td>
-                    <td className={`${td} text-pequeno text-ink-2`}>{l.unidade}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{l.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · ")}</td>
-                    <td className={sep}>☐</td>
-                  </tr>
-                ))}
+                {[...s.linhas]
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((l) => (
+                    <tr key={l.pecaId} className={linha}>
+                      <td className={td}>{l.nome}</td>
+                      <td className={`${num} font-semibold`}>{qtd(l.total, l.unidade)}</td>
+                      <td className={sep}>☐</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </Rolagem>
         </section>
       ))}
 
-      {os.projetos && os.projetos.length > 0 && (
-        <section className="mb-8 break-before-page">
-          <h2 className="mb-1 mt-0 text-titulo font-semibold">Por projeto</h2>
-          <p className="mb-4 mt-0 text-pequeno text-ink-3">O que cada projeto padrão leva, já com os ajustes pedidos pela área. As mesmas peças estão somadas nos totais acima.</p>
-          {os.projetos.map((p, i) => (
-            <div key={`${p.codigo}-${i}`} className="mb-6 break-inside-avoid">
-              <h3 className="mb-0.5 mt-0 flex flex-wrap items-baseline gap-x-2 text-secao font-semibold">
-                {p.nome}
-                <span className="numero">× {p.quantidade}</span>
-                <Codigo className="text-rotulo font-normal text-ink-3">
-                  {p.codigo} · v{p.versao}
-                </Codigo>
-              </h3>
-              <p className="mb-2 mt-0 text-rotulo text-ink-3">{[p.destino ? `Destino: ${p.destino}` : null, p.area, `${p.pecas.length} tipos de peça · ${p.pecas.reduce((a, x) => a + x.total, 0)} unidades`].filter(Boolean).join(" · ")}</p>
-              <Rolagem>
-                <table className={tabela}>
-                  <thead>
-                    <tr className={cabecalho}>
-                      <th scope="col" className={`${th} w-[112px]`}>Código</th>
-                      <th scope="col" className={th}>Peça</th>
-                      <th scope="col" className={`${th} w-[120px]`}>Material</th>
-                      <th scope="col" className={`${th} w-16 text-right`}>Por un.</th>
-                      <th scope="col" className={`${th} w-16 text-right`}>Total</th>
-                      <th scope="col" className={`${th} w-12`}>Un.</th>
-                      <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {p.pecas.map((x) => (
-                      <tr key={x.codigo} className={linha}>
-                        <td className={`${td} text-pequeno`}>
-                          <Codigo>{x.codigo}</Codigo>
-                        </td>
-                        <td className={td}>{x.nome}</td>
-                        <td className={`${td} text-rotulo text-ink-3`}>{GRUPO_LABEL[grupoDoCodigo(mapa, x.codigo, x.setor)]}</td>
-                        <td className={num}>{x.porUnidade}</td>
-                        <td className={`${num} font-semibold`}>{x.total}</td>
-                        <td className={`${td} text-pequeno text-ink-2`}>{x.unidade}</td>
-                        <td className={sep}>☐</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Rolagem>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {os.individuais && os.individuais.length > 0 && (
-        <section className="mb-8 break-inside-avoid">
-          <h2 className="mb-1 mt-0 text-destaque font-semibold">Peças pedidas soltas</h2>
-          <p className="mb-2 mt-0 text-rotulo text-ink-3">Fora de projeto padrão, somadas por peça. Também estão nos totais.</p>
-          <Rolagem>
-            <table className={tabela}>
-              <thead>
-                <tr className={cabecalho}>
-                  <th scope="col" className={`${th} w-[112px]`}>Código</th>
-                  <th scope="col" className={th}>Peça</th>
-                  <th scope="col" className={`${th} w-[120px]`}>Material</th>
-                  <th scope="col" className={`${th} w-16 text-right`}>Qtd.</th>
-                  <th scope="col" className={`${th} w-12`}>Un.</th>
-                  <th scope="col" className={`${th} w-[28%]`}>Destino · área</th>
-                  <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {individuaisAgrupadas(os.individuais).map((x) => (
-                  <tr key={x.codigo} className={linha}>
-                    <td className={`${td} text-pequeno`}>
-                      <Codigo>{x.codigo}</Codigo>
-                    </td>
-                    <td className={td}>{x.nome}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{GRUPO_LABEL[grupoDoCodigo(mapa, x.codigo, x.setor)]}</td>
-                    <td className={`${num} font-semibold`}>{x.quantidade}</td>
-                    <td className={`${td} text-pequeno text-ink-2`}>{x.unidade}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{textoLocais(x.locais)}</td>
-                    <td className={sep}>☐</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Rolagem>
-        </section>
-      )}
-
       {os.semSetor.length > 0 && (
         <section className="mb-8 break-inside-avoid">
-          <h2 className="mb-2 mt-0 text-destaque font-semibold">Itens fora do catálogo</h2>
+          <h3 className="mb-2 mt-0 text-destaque font-semibold">Fora do catálogo</h3>
           <Rolagem>
             <table className={tabela}>
               <thead>
                 <tr className={cabecalho}>
-                  <th scope="col" className={th}>Descrição</th>
-                  <th scope="col" className={`${th} w-16 text-right`}>Qtd.</th>
-                  <th scope="col" className={`${th} w-[24%]`}>Destino</th>
-                  <th scope="col" className={`${th} w-[16%]`}>Área</th>
+                  <th scope="col" className={th}>Item</th>
+                  <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
+                  <th scope="col" className={`${th} w-[30%]`}>Local · área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
                 </tr>
               </thead>
@@ -227,8 +125,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                   <tr key={i} className={linha}>
                     <td className={td}>{a.descricao}</td>
                     <td className={`${num} font-semibold`}>{a.quantidade}</td>
-                    <td className={td}>{a.destino ?? "—"}</td>
-                    <td className={td}>{a.area ?? "—"}</td>
+                    <td className={`${td} text-rotulo text-ink-3`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
                     <td className={sep}>☐</td>
                   </tr>
                 ))}
@@ -237,6 +134,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           </Rolagem>
         </section>
       )}
+
       <footer className="mt-10 grid grid-cols-2 gap-8 text-rotulo text-ink-3">
         <div className="border-t border-ink pt-2">Separado por / data</div>
         <div className="border-t border-ink pt-2">Conferido por / data</div>
