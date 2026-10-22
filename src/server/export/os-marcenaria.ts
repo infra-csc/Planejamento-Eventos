@@ -73,12 +73,20 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
     secoes.get(secaoDaCategoria(categorias.get(codigo)))!.push(item);
   }
 
-  // Peças de marcenaria pedidas soltas (fora de projeto): um item por peça.
+  // Peças de marcenaria pedidas soltas (fora de projeto): um item por peça e local, somando os pedidos.
+  const soltas = new Map<string, { codigo: string; nome: string; destino: string | null; quantidade: number }>();
   for (const x of os.individuais ?? []) {
     if (x.setor !== "MARCENARIA" || x.quantidade <= 0) continue;
-    const item: ItemMarcenaria = { item: maiusculas(x.nome), pecas: [{ nome: maiusculas(x.nome), quantidade: x.quantidade, referencia: x.codigo, observacao: x.destino?.trim() || null }] };
-    totalPecas += x.quantidade;
-    secoes.get(secaoDaPeca(familias.get(x.codigo)))!.push(item);
+    const destino = x.destino?.trim() || null;
+    const chave = `${x.codigo}|${destino ?? ""}`;
+    const s = soltas.get(chave) ?? { codigo: x.codigo, nome: x.nome, destino, quantidade: 0 };
+    s.quantidade += x.quantidade;
+    soltas.set(chave, s);
+  }
+  for (const s of soltas.values()) {
+    const item: ItemMarcenaria = { item: maiusculas(s.nome), pecas: [{ nome: maiusculas(s.nome), quantidade: s.quantidade, referencia: s.codigo, observacao: s.destino }] };
+    totalPecas += s.quantidade;
+    secoes.get(secaoDaPeca(familias.get(s.codigo)))!.push(item);
   }
 
   // Itens fora do catálogo do setor marcenaria (descritos à mão).

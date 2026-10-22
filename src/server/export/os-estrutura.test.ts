@@ -75,6 +75,20 @@ describe("montarOsEstrutura", () => {
     expect(r.outros.at(-1)).toEqual({ rotulo: "CONE GRANDE — PERCURSO", valor: 350 });
   });
 
+  it("OUTROS MATERIAIS soma a mesma peça no mesmo local (grade pedida + do prisma; cavalete das mesas + dos pranchões)", () => {
+    const peca = (id: string, codigo: string, nome: string, quantidade: number, areaNome: string | null): LinhaAta => ({ id, tipo: "PECA", quantidade, destino: null, areaNome, peca: { id: codigo.toLowerCase(), codigo, nome, setor: "ARENA", unidade: "un" } });
+    const o = montarOsEstrutura(
+      calcularOS([
+        peca("g1", "GRADE-2X1", "Grade 2×1 m", 100, "Cenografia"),
+        peca("c1", "CAV-RETO", "Cavalete reto", 6, "Cenografia"),
+        peca("g2", "GRADE-2X1", "Grade 2×1 m", 36, null),
+        peca("c2", "CAV-RETO", "Cavalete reto", 8, "Cenografia"),
+      ]),
+    ).outros;
+    expect(o.filter((x) => x.rotulo === "GRADE 2×1 M")).toEqual([{ rotulo: "GRADE 2×1 M", valor: 136 }]);
+    expect(o.filter((x) => x.rotulo === "CAVALETE RETO")).toEqual([{ rotulo: "CAVALETE RETO", valor: 14 }]);
+  });
+
   it("MARCENARIA por seção (projeto e quantidade) com as peças do projeto", () => {
     expect(r.marcenaria).toEqual([
       { tipo: "secao", nome: "ESTANDE 9×6 M", quantidade: 2 },
