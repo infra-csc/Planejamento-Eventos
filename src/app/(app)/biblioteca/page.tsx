@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { listarGruposProjetos, listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
+import { listarGruposComUso, listarGruposProjetos, listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
+import { GerenciarGrupos } from "@/components/projetos/gerenciar-grupos";
 import { contarPecasEmBom, listarPecas } from "@/server/services/catalogo";
 import { listarItensForaDoCatalogo } from "@/server/services/fora-catalogo";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
@@ -188,6 +189,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
             {projetos.length > 0 && <FiltroGrupoProjeto grupos={gruposProjeto} />}
             {projetos.length > 0 && <FiltroAlteracao key={chaveAlteracao} />}
             {projetos.length > 0 && pode(usuario, "projeto.gerenciar") && <FiltroSituacao />}
+            {pode(usuario, "projeto.gerenciar") && <GerenciarGrupos grupos={await listarGruposComUso(usuario)} />}
             {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
             {atalhoFora}
           </div>

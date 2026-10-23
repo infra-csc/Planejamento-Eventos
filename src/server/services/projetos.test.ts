@@ -9,7 +9,10 @@ delete process.env.DATABASE_URL;
 
 import { ValidacaoError } from "@/domain/errors";
 import { criarPeca, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
-import { alterarAtivoProjeto, criarProjeto, editarProjeto, listarGruposProjetos, listarProjetos, obterProjeto } from "./projetos";
+import { alterarAtivoProjeto, criarProjeto, editarProjeto, excluirGrupoProjeto, listarGruposComUso, listarGruposProjetos, listarProjetos, obterProjeto } from "./projetos";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { pecas } from "@/server/db/schema";
 import { normalizarGrupoProjeto } from "@/domain/grupos-projeto";
 
 let E: Elenco;
@@ -102,5 +105,22 @@ describe("grupos livres da biblioteca", () => {
     await expect(criarProjeto({ ...E.cenografia, perfil: "REQUISITANTE" }, dados("Grupo sem acesso", { grupoEvento: "Grupo proibido" }))).rejects.toThrow();
     expect((await listarGruposProjetos(E.cenografia)).some((g) => g.nome === "Grupo proibido")).toBe(false);
     await expect(criarProjeto(E.cenografia, dados("Grupo reservado", { grupoEvento: "Padrão" }))).rejects.toThrow();
+  });
+});
+
+describe("excluir grupo de prova", () => {
+  it("o que estava no grupo passa para Padrão; só cenografia e admin excluem", async () => {
+    const p = await criarProjeto(E.cenografia, dados("Pórtico do grupo que sai", { grupoEvento: "Prova que acabou" }));
+    const g = (await listarGruposComUso(E.cenografia)).find((x) => x.nome === "Prova que acabou")!;
+    const db = await getDb();
+    const peca = await criarPeca();
+    await db.update(pecas).set({ grupoId: g.id }).where(eq(pecas.id, peca.id));
+    expect((await listarGruposComUso(E.cenografia)).find((x) => x.id === g.id)).toMatchObject({ projetos: 1, pecas: 1 });
+
+    await expect(excluirGrupoProjeto(E.requisitante, g.id)).rejects.toThrow();
+    expect(await excluirGrupoProjeto(E.cenografia, g.id)).toEqual({ nome: "Prova que acabou", projetos: 1, pecas: 1 });
+    expect((await listarGruposProjetos(E.cenografia)).some((x) => x.id === g.id)).toBe(false);
+    expect((await obterProjeto(E.cenografia, p.id)).grupoId).toBeNull();
+    expect((await db.query.pecas.findFirst({ where: eq(pecas.id, peca.id) }))?.grupoId).toBeNull();
   });
 });

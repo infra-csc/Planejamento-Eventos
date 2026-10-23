@@ -29,6 +29,43 @@ export async function listarGruposProjetos(usuario: UsuarioAtual) {
   return db.select({ id: projetoGrupos.id, nome: projetoGrupos.nome }).from(projetoGrupos).orderBy(asc(projetoGrupos.nome));
 }
 
+/** Grupos com quantos projetos e peças (ativos ou não) estão em cada um: tela de gerenciar grupos. */
+export async function listarGruposComUso(usuario: UsuarioAtual) {
+  exigir(usuario, "projeto.gerenciar");
+  const db = await getDb();
+  const [grupos, proj, pcs] = await Promise.all([
+    db.select({ id: projetoGrupos.id, nome: projetoGrupos.nome }).from(projetoGrupos).orderBy(asc(projetoGrupos.nome)),
+    db.select({ grupoId: projetos.grupoId, n: sql<number>`count(*)::int` }).from(projetos).where(isNotNull(projetos.grupoId)).groupBy(projetos.grupoId),
+    db.select({ grupoId: pecas.grupoId, n: sql<number>`count(*)::int` }).from(pecas).where(isNotNull(pecas.grupoId)).groupBy(pecas.grupoId),
+  ]);
+  return grupos.map((g) => ({ ...g, projetos: Number(proj.find((p) => p.grupoId === g.id)?.n ?? 0), pecas: Number(pcs.find((p) => p.grupoId === g.id)?.n ?? 0) }));
+}
+
+/**
+ * Exclui um grupo de prova: os projetos e as peças dele passam para Padrão (sem grupo); nada mais é apagado.
+ * Fica no histórico com o que foi movido.
+ */
+export async function excluirGrupoProjeto(usuario: UsuarioAtual, grupoId: string) {
+  exigir(usuario, "projeto.gerenciar");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const g = await tx.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.id, grupoId) });
+    if (!g) throw new NaoEncontradoError("Grupo");
+    const movidosProj = await tx.update(projetos).set({ grupoId: null }).where(eq(projetos.grupoId, grupoId)).returning({ codigo: projetos.codigo });
+    const movidasPecas = await tx.update(pecas).set({ grupoId: null }).where(eq(pecas.grupoId, grupoId)).returning({ codigo: pecas.codigo });
+    await tx.delete(projetoGrupos).where(eq(projetoGrupos.id, grupoId));
+    await registrarHistorico(tx, {
+      entidade: "projeto_grupo",
+      entidadeId: grupoId,
+      acao: "GRUPO_EXCLUIDO",
+      descricao: `Grupo "${g.nome}" excluído: ${movidosProj.length} projeto(s) e ${movidasPecas.length} peça(s) passaram para Padrão.`,
+      usuarioId: usuario.id,
+      dadosAntes: { nome: g.nome, projetos: movidosProj.map((p) => p.codigo), pecas: movidasPecas.map((p) => p.codigo) },
+    });
+    return { nome: g.nome, projetos: movidosProj.length, pecas: movidasPecas.length };
+  });
+}
+
 type ProjetoTx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
 
 export async function resolverGrupoProjeto(tx: ProjetoTx | Executor, usuario: UsuarioAtual, nome: string | null | undefined) {

@@ -8,6 +8,7 @@ import { executar, type ActionResult } from "@/lib/action";
 import type { PecaOpcao } from "@/components/projetos/projeto-form";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
 import { desabilitarBibliotecaEmLote, organizarProjetosEmLote, type OrganizacaoProjetos } from "@/server/services/biblioteca-lote";
+import { excluirGrupoProjeto } from "@/server/services/projetos";
 
 /**
  * Catálogo de peças para o modal "Editar projeto" da Biblioteca. Vem só quando o modal abre,
@@ -63,4 +64,17 @@ export async function organizarProjetosEmLoteAction(formData: FormData): Promise
     ...resultado,
     mensagem: n ? `${n} ${n === 1 ? "projeto atualizado" : "projetos atualizados"}.` : "Os projetos selecionados já estavam assim.",
   };
+}
+
+/** Exclui um grupo de prova; os projetos e as peças dele passam para Padrão. */
+export async function excluirGrupoProjetoAction(grupoId: string): Promise<ActionResult<{ nome: string; projetos: number; pecas: number }>> {
+  const usuario = await requireUsuario();
+  if (typeof grupoId !== "string" || !grupoId) return { ok: false, erro: "Dados inválidos." };
+  const r = await executar(() => excluirGrupoProjeto(usuario, grupoId));
+  if (!r.ok) return r;
+  revalidatePath("/biblioteca");
+  revalidatePath("/projetos", "layout");
+  revalidatePath("/catalogo", "layout");
+  invalidarDados(TAGS_DADOS.projetos, TAGS_DADOS.catalogo);
+  return r;
 }
