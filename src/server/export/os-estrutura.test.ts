@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aplicarAjustesBom, calcularOS, type LinhaAta } from "@/domain/os";
+import { aplicarAjustesBom, calcularOS, osParaLeitura, type LinhaAta } from "@/domain/os";
 import type { BomSnapshotLinha } from "@/server/db/schema";
 import { montarOsEstrutura, nomeAba, pecaDeEstruturaLocada, ROTULOS_Q30 } from "./os-estrutura";
 import { montarOsMarcenaria } from "./os-marcenaria";
@@ -100,6 +100,17 @@ describe("montarOsEstrutura", () => {
     expect(pecaDeEstruturaLocada("CUBO - 3F", { q15: false, nome: "Cubo de conexão Q30 (3 faces - L)" })).toBe(true);
     expect(pecaDeEstruturaLocada("CUBO-2F", { q15: false })).toBe(true);
     expect(pecaDeEstruturaLocada("Q15-CUBO", { q15: false, nome: "Cubo Q15" })).toBe(false);
+  });
+
+  it("leitura da OS: prisma comum fora (as grades dele já estão na grade), aéreo fica; composição diz a regra", () => {
+    const peca = (id: string, codigo: string, quantidade: number, regra: string | null = null): LinhaAta => ({ id, tipo: "PECA", quantidade, destino: null, areaNome: regra ? null : "Produção", regra, peca: { id: codigo.toLowerCase(), codigo, nome: codigo, setor: "ARENA", unidade: "un" } });
+    const os = osParaLeitura(calcularOS([peca("p", "PRISMA", 16), peca("a", "PRISMA-AEREO", 2), peca("g", "GRADE-2X1", 10), peca("r", "GRADE-2X1", 32, "grade-prisma")]));
+    const linhas = os.setores.flatMap((x) => x.linhas);
+    expect(linhas.map((l) => l.codigo).sort()).toEqual(["GRADE-2X1", "PRISMA-AEREO"]);
+    const grade = linhas.find((l) => l.codigo === "GRADE-2X1")!;
+    expect(grade.total).toBe(42);
+    expect(grade.origens.map((o) => o.descricao)).toEqual(["Peça solta · Produção", "Regra: 1 prisma = 2 grades 2×1 (além das grades pedidas)"]);
+    expect(os.individuais?.some((x) => x.codigo === "PRISMA")).toBe(false);
   });
 
   it("MARCENARIA por seção (projeto e quantidade) com as peças do projeto", () => {

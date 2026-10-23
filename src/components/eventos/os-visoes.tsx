@@ -1,4 +1,4 @@
-import { SETOR_LABEL, individuaisAgrupadas, textoLocais } from "@/domain/os";
+import { SETOR_LABEL, individuaisAgrupadas, osParaLeitura, textoLocais } from "@/domain/os";
 import type { OsConteudo } from "@/server/db/schema";
 import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -41,7 +41,7 @@ function Total({ n, unidade }: { n: number; unidade: string }) {
  * Serve tanto para uma versão gravada quanto para a prévia calculada da ata em construção.
  */
 export function OsVisoes({
-  os,
+  os: osGravada,
   visao,
   hrefVisao,
   csvHref,
@@ -63,6 +63,8 @@ export function OsVisoes({
   /** Quem embute estas leituras com a própria navegação (visão geral do evento). */
   semNavegacao?: boolean;
 }) {
+  // O prisma comum são 2 grades, já somadas na grade: não sai como item próprio.
+  const os = osParaLeitura(osGravada);
   return (
     <>
       {!semNavegacao && (

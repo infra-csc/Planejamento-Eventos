@@ -1,3 +1,4 @@
+import { osParaLeitura } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
 import { obterEventoCache } from "@/server/cache";
@@ -47,12 +48,12 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const { v } = await searchParams;
   const [ev, versoes, mapa, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas(), obterSeparacao(id)]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
-  const os = (sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id));
+  // O prisma comum são 2 grades, já somadas na grade: não sai como item à parte.
+  const os = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
   // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
   const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
   const grupos = totaisPorGrupo(os.setores, mapa)
-    // O prisma são 2 grades: já entra somado na grade 2×1 (regra do prisma), então não sai como item à parte.
-    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => l.codigo !== "PRISMA" && vai(l.codigo, l.nome)) }))
+    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => vai(l.codigo, l.nome)) }))
     .filter((g) => g.linhas.length > 0)
     .sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
 

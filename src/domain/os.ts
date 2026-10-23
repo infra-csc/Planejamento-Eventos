@@ -1,5 +1,6 @@
 import type { AjusteBom, BomSnapshotLinha, OsConteudo, OsLinha, OsProjeto, OsSetor, Setor } from "@/server/db/schema";
 import { SETORES } from "@/domain/constantes";
+import { descricaoDaRegra } from "@/domain/regras-kit";
 
 /**
  * RN-01: OS de um setor = Σ (BOM × quantidade do projeto no evento) + peças avulsas do setor.
@@ -15,7 +16,25 @@ export type LinhaAta = {
   projeto?: { codigo: string; nome: string; versao: number; bom: BomSnapshotLinha[] } | null;
   peca?: { id: string; codigo: string; nome: string; setor: Setor; unidade: string } | null;
   descricaoLivre?: string | null;
+  /** Linha criada por regra da logística (ex.: "grade-prisma"): a composição diz a regra em vez de "Peça solta · Logística". */
+  regra?: string | null;
 };
+
+/**
+ * O prisma comum são 2 grades 2×1, que a regra do prisma já soma na grade: nas leituras da OS (tela, Excel, folha)
+ * ele não sai como item próprio. O prisma aéreo e os outros continuam.
+ */
+export const CODIGO_PRISMA_COMUM = "PRISMA";
+export const semPrismaComum = <T extends { codigo: string }>(linhas: readonly T[]): T[] => linhas.filter((l) => l.codigo !== CODIGO_PRISMA_COMUM);
+
+/** A OS como é lida (tela, Excel, folha): sem o prisma comum nos totais e nas peças soltas. */
+export function osParaLeitura(os: OsConteudo): OsConteudo {
+  return {
+    ...os,
+    setores: os.setores.map((s) => ({ ...s, linhas: semPrismaComum(s.linhas) })).filter((s) => s.linhas.length > 0 || s.avulsos.length > 0),
+    individuais: os.individuais ? semPrismaComum(os.individuais) : os.individuais,
+  };
+}
 
 export const SETOR_LABEL: Record<Setor, string> = {
   ESTRUTURA: "Estrutura (box truss)",
@@ -75,7 +94,8 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
       });
     } else if (l.tipo === "PECA" && l.peca) {
       // "Peça solta · Produção · GV": quem pediu (as regras da logística vêm sem área) e onde vai.
-      const origem = ["Peça solta", l.areaNome ?? "Logística", l.destino?.trim() || null].filter(Boolean).join(" · ");
+      const regra = l.regra ? descricaoDaRegra(l.regra) : null;
+      const origem = regra ? `Regra: ${regra}` : ["Peça solta", l.areaNome ?? "Logística", l.destino?.trim() || null].filter(Boolean).join(" · ");
       acumular(l.peca.setor, l.peca, l.quantidade, origem);
       individuais.push({ codigo: l.peca.codigo, nome: l.peca.nome, setor: l.peca.setor, unidade: l.peca.unidade, quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     } else {

@@ -25,6 +25,7 @@ function paraLinhaAta(r: RegistroLinha): LinhaAtaRegistro {
     projeto: r.tipo === "PROJETO" && r.projeto ? { codigo: r.projeto.codigo, nome: r.projeto.nome, versao: r.projetoVersao?.numero ?? 0, bom: r.bomSnapshot ?? [] } : null,
     peca: r.tipo === "PECA" && r.peca ? { id: r.peca.id, codigo: r.peca.codigo, nome: r.peca.nome, setor: r.peca.setor, unidade: r.peca.unidade } : null,
     descricaoLivre: r.descricaoLivre,
+    regra: r.regra,
     registro: r,
   };
 }

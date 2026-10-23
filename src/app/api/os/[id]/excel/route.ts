@@ -1,4 +1,4 @@
-import { individuaisAgrupadas, SETOR_LABEL } from "@/domain/os";
+import { individuaisAgrupadas, osParaLeitura, SETOR_LABEL } from "@/domain/os";
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getUsuarioAtual } from "@/server/auth/session";
@@ -235,7 +235,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const gravado = pedida ? (await obterConteudosOs(id, [pedida.numero])).get(pedida.numero) : undefined;
   // Sem versão pedida (ou versão atual gravada antes das visões novas): calcula da ata atual.
   const ehAtual = pedida && versoes[0]?.numero === pedida.numero;
-  const os = gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id);
+  // O prisma comum são 2 grades, já somadas na grade: não sai como item próprio.
+  const os = osParaLeitura(gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id));
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
   const wb = montarPastaOs(ev, os, rotulo, usuario.nome, await mapaGruposPecas());
   const buffer = await wb.xlsx.writeBuffer();

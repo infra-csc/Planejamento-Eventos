@@ -6,7 +6,7 @@ import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/serv
 import { getDb } from "@/server/db";
 import { SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
-import { SETOR_LABEL } from "@/domain/os";
+import { osParaLeitura, SETOR_LABEL } from "@/domain/os";
 import { NaoEncontradoError } from "@/domain/errors";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, totaisPorGrupo, type GrupoMaterial } from "@/domain/grupos-material";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const v = Number(new URL(request.url).searchParams.get("v"));
   // Versão pedida: só aquele JSON. Sem versão: OS calculada da ata atual.
   const sel = Number.isInteger(v) && v > 0 ? (await obterConteudosOs(id, [v])).get(v) : undefined;
-  const os = sel ?? (await calcularOsAtual(await getDb(), id));
+  const os = osParaLeitura(sel ?? (await calcularOsAtual(await getDb(), id)));
   // Sem versão pedida: a OS de agora, com o número da última versão gravada ("v5 (atual)"), como no Excel.
   const ultima = sel ? null : (await listarOsResumo(id))[0]?.numero;
   const rotulo = sel ? `v${v}` : ultima ? `v${ultima} (atual)` : "prévia";
