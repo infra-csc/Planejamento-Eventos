@@ -22,10 +22,10 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 
 **Demais**
 
-- [ ] 9. Novo evento — `/eventos/novo`
-- [ ] 10. Impressão da ata — `/impressao/ata/[id]`
-- [ ] 11. Projeto padrão — `/projetos/[id]`, `/projetos/[id]/editar`, `/projetos/novo` (e duplicar `?de=`)
-- [ ] 12. Peça do catálogo — `/catalogo/nova`, `/catalogo/[id]/editar`
+- [x] 9. Novo evento — `/eventos/novo`
+- [x] 10. Impressão da ata — `/impressao/ata/[id]`
+- [x] 11. Projeto padrão — `/projetos/[id]`, `/projetos/[id]/editar`, `/projetos/novo` (e duplicar `?de=`)
+- [x] 12. Peça do catálogo — `/catalogo/nova`, `/catalogo/[id]/editar`
 - [ ] 13. Calendário — `/calendario`
 - [ ] 14. Carga e descarga — `/carga-descarga`, `/carga-descarga/cadastro`
 - [ ] 15. Arena 3D — `/arena`, `/arena/nova`, `/arena/[slug]`, impressão `/impressao/arena/[slug]`
@@ -249,3 +249,44 @@ Vista: requisitante Produção, logística, gestão, cenografia e admin; desktop
 Arquivo: `src/components/painel/atender-rapido.tsx`.
 Validação: eslint; screenshots `antes-{producao,logistica,gestao,cenografia,admin}-*-raiz.png`,
 `depois-logistica-celular-raiz{,-recorte}.png`.
+
+### 9. Novo evento — `/eventos/novo`
+
+Vista: logística; desktop e celular. **Revisada, sem mudanças:** formulário curto em dois cartões (Evento,
+Datas), rótulos e dicas claros, "(opcional)" marcado, foco no nome, barra de salvar fixa no celular. Serve de
+referência para os outros formulários (itens 11 e 12).
+
+### 10. Impressão da ata — `/impressao/ata/[id]`
+
+Vista: logística, EVT-0001 (ata fechada); desktop e celular. **Revisada, sem mudanças:** é um documento para
+papel/PDF (cabeçalho da reunião, linhas conferidas, observações, pedidos por área, assinaturas) e lê bem em A4.
+- Pendente (P3): na tela do celular a tabela "O que vai para o evento" rola de lado e a coluna Código (com
+  códigos longos como `MRC-TESTEIRADEMADEIRADE3M`) toma metade da largura; como o uso real é imprimir, ficou
+  como está.
+
+### 11. Projeto padrão — `/projetos/[id]`, `/projetos/[id]/editar`, `/projetos/novo` (e duplicar `?de=`)
+
+Vista: cenografia; projeto PRJ-0042 (sem anexos), edição (8 peças), novo; desktop e celular.
+
+- P2 — Editar projeto no celular tem ~2.400 px (identificação + lista de peças) e "Salvar"/"Cancelar" só
+  apareciam no fim; o formulário do evento já tinha a barra fixa. **Resolvido:** na página (não no modal de
+  edição rápida, que tem o próprio rodapé) a barra de salvar fica fixa no rodapé do celular, com "Salvar" largo
+  e "Cancelar" discreto — o mesmo desenho do formulário do evento. Desktop igual.
+- Sem mudança: página do projeto (lista de peças agrupada por setor, versões, dados, histórico, anexos),
+  ações do cabeçalho.
+
+### 12. Peça do catálogo — `/catalogo/nova`, `/catalogo/[id]/editar`
+
+Vista: cenografia; nova peça e edição de uma peça usada em 22 projetos; desktop e celular.
+
+- P2 — Mesmo caso do item 11 (~1.800–2.300 px no celular, salvar só no fim). **Resolvido:** barra de salvar fixa
+  no rodapé do celular; "Cancelar" passa a `ghost`, como no evento.
+- Sem mudança: origem em cartões de escolha, classificação, "Usada em N projetos" com a lista.
+- Observação: no `next dev`, abrir a edição da peça registra no console um aviso do React sobre
+  `performance.measure` com tempo negativo — é do modo de desenvolvimento (não aparece no build).
+
+Arquivos (11 e 12): `src/components/projetos/projeto-form.tsx`, `src/components/catalogo/peca-form.tsx`.
+Validação: tsc, eslint; screenshots `antes-logistica-*-eventos_novo.png`, `antes-logistica-*-impressao_ata_*`,
+`antes-cenografia-*-projetos_a9639484*`, `antes-cenografia-*-catalogo_*`,
+`depois-cenografia-celular-{projetos_a9639484…_editar,catalogo_nova}-viewport.png` (barra fixa à vista no meio
+da rolagem).
