@@ -13,6 +13,7 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL } from "@/lib/action";
+import { cn } from "@/lib/cn";
 import type { Setor } from "@/server/db/schema";
 import { GrupoProjetoField, type GrupoProjetoOpcao } from "./grupo-projeto-field";
 
@@ -228,8 +229,10 @@ export function ProjetoForm({
       {!valores.id && <Aviso tom="info">Fotos e desenhos (render, modulação, PDF) são anexados na página do projeto, logo depois de criar.</Aviso>}
 
       <FormError message={!state.ok ? state.erro : null} />
-      <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center">
-        <SubmitButton size="lg" className="max-sm:w-full">
+      {/* Na página, a lista de peças passa de uma tela no celular: salvar fica fixo no rodapé (como no evento).
+          No modal, o rodapé do próprio modal já fica à vista. */}
+      <div className={cn("flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center", !onCancelar && "max-md:sticky max-md:bottom-0 max-md:z-10 max-sm:-mx-4 sm:max-md:-mx-5 max-md:border-line max-md:bg-page/95 max-sm:px-4 sm:max-md:px-5 max-md:py-3 max-md:backdrop-blur-sm max-md:flex-row max-md:items-center")}>
+        <SubmitButton size="lg" className={onCancelar ? "max-sm:w-full" : "max-md:flex-1"}>
           {valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}
         </SubmitButton>
         {onCancelar ? (
@@ -237,7 +240,7 @@ export function ProjetoForm({
             Cancelar
           </Button>
         ) : (
-          <ButtonLink href={cancelarHref} variant="secondary" size="lg" className="no-underline max-sm:w-full">
+          <ButtonLink href={cancelarHref} variant="ghost" size="lg" className="no-underline">
             Cancelar
           </ButtonLink>
         )}
