@@ -371,12 +371,14 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
 
 /**
  * Grade da linha. Celular (cartão): check · item · qtd, e as ações numa faixa abaixo, alinhadas ao texto.
- * md+: check · item · local · qtd · ações, numa linha só. Larguras fixas: alinham em todas as linhas
- * (também nas recuadas dos blocos por item).
+ * Lista com 768 px ou mais (consulta de contêiner `@3xl`, não da tela): check · item · local · qtd · ações,
+ * numa linha só. Larguras fixas: alinham em todas as linhas (também nas recuadas dos blocos por item).
+ * Pelo contêiner porque, a 1280 px, o painel da reunião ao lado deixa a lista com ~600 px e a coluna do
+ * item ficava com ~130 px (descrições quebradas palavra por palavra).
  */
-const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 md:grid-cols-[40px_minmax(0,1fr)_150px_56px_164px]";
+const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 @3xl:grid-cols-[40px_minmax(0,1fr)_150px_56px_164px]";
 /** Linha conferida ganha um fundo verde quase imperceptível; pendente fica neutra (a maioria é pendente). */
-const fundoLinha = (conferida: boolean) => cn("border-b border-line-row px-cartao py-3 transition-colors duration-200 last:border-b-0 md:py-2.5", conferida ? "bg-success-bg/40 hover:bg-success-bg/70" : "hover:bg-subtle");
+const fundoLinha = (conferida: boolean) => cn("border-b border-line-row px-cartao py-3 transition-colors duration-200 last:border-b-0 @3xl:py-2.5", conferida ? "bg-success-bg/40 hover:bg-success-bg/70" : "hover:bg-subtle");
 
 /** Descrição das unidades como quem pediu escreveu: uma linha por texto, com quantas unidades levam ele. */
 function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidades: number }> }) {
@@ -520,7 +522,7 @@ function Linha({
         {emGrupo && !l.destino && l.regra && <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">{l.regra}</p>}
         {!(emGrupo && !l.destino) && !(emGrupo && origemComum && (!l.origem || solComum)) && (
           <p className="m-0 mt-0.5 break-words text-pequeno text-ink-3">
-            {!emGrupo && <span className="md:hidden">{l.destino ? `${l.destino} · ` : ""}</span>}
+            {!emGrupo && <span className="@3xl:hidden">{l.destino ? `${l.destino} · ` : ""}</span>}
             <PedidoPor l={l} semPessoa={emGrupo && origemComum} />
           </p>
         )}
@@ -541,7 +543,7 @@ function Linha({
         )}
       </div>
 
-      <span className="hidden break-words text-pequeno text-ink-2 md:line-clamp-2" title={l.destino ?? undefined}>
+      <span className="hidden break-words text-pequeno text-ink-2 @3xl:line-clamp-2" title={l.destino ?? undefined}>
         {emGrupo ? null : (l.destino ?? <span className="text-meta">—</span>)}
       </span>
 
@@ -552,7 +554,7 @@ function Linha({
         {pedidoDiferente && <span className="numero block text-rotulo text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 
-      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden md:col-span-1 md:flex-nowrap md:justify-end md:pl-0">
+      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden @3xl:col-span-1 @3xl:flex-nowrap @3xl:justify-end @3xl:pl-0">
         {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
         <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
       </span>
@@ -712,7 +714,7 @@ function LinhaJunta({
         </ul>
       </div>
 
-      <span className="hidden md:block" />
+      <span className="hidden @3xl:block" />
 
       <span className="text-right">
         <span className="block text-secao font-semibold text-ink">
@@ -720,7 +722,7 @@ function LinhaJunta({
         </span>
         {pedido !== total && <span className="numero block text-rotulo text-muted">pedido {pedido}</span>}
       </span>
-      <span className="hidden md:block" />
+      <span className="hidden @3xl:block" />
     </li>
   );
 }
@@ -1174,8 +1176,8 @@ export function ConferenciaAta({
           <EmptyState icone="busca" title={busca.trim() ? `Nada encontrado para “${busca.trim()}”` : "Nenhuma linha com esses filtros"} description="Tente outra palavra ou tire um dos filtros." action={<Button variant="link" onClick={limparFiltros}>Limpar filtros</Button>} />
         )
       ) : (
-        <div ref={listaRef} onKeyDown={navegarComTeclado}>
-          <div className={cn(GRADE, "hidden border-b border-line-soft bg-subtle px-cartao py-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted md:grid")} aria-hidden>
+        <div ref={listaRef} onKeyDown={navegarComTeclado} className="@container">
+          <div className={cn(GRADE, "hidden border-b border-line-soft bg-subtle px-cartao py-2 text-micro font-semibold uppercase tracking-[0.06em] text-muted @3xl:grid")} aria-hidden>
             <span />
             <span>Item</span>
             <span>Local</span>
@@ -1259,7 +1261,7 @@ export function ConferenciaAta({
         {confirmarTodas && (
           <DialogContent
             title={`Conferir as ${pendentes} linhas restantes`}
-            description={`Ficam marcadas como conferidas em seu nome, com data e hora.${opcionais > 0 ? ` As ${opcionais} opcionais (a definir e estaiamento) ficam como estão.` : ""} Depois disso a ata pode ser fechada.`}
+            description={`Ficam marcadas como conferidas em seu nome, com data e hora.${opcionais === 1 ? " A linha opcional (a definir ou estaiamento) fica como está." : opcionais > 1 ? ` As ${opcionais} opcionais (a definir e estaiamento) ficam como estão.` : ""} Depois disso a ata pode ser fechada.`}
             width={460}
           >
             <DialogFooter className="!-mt-4 border-t-0">

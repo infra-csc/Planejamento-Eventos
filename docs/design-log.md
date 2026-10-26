@@ -12,7 +12,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 **Críticas**
 
 - [x] 1. Nova solicitação — `/solicitacoes/nova`
-- [ ] 2. Conferência da ata — `/conferencia/[id]` (e o redirecionamento `/eventos/[id]/reuniao`)
+- [x] 2. Conferência da ata — `/conferencia/[id]` (e o redirecionamento `/eventos/[id]/reuniao`)
 - [ ] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
 - [ ] 4. Lista de eventos — `/eventos`
 - [ ] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
@@ -66,3 +66,27 @@ Arquivos: `src/components/solicitacoes/nova-solicitacao-form.tsx`, `src/componen
 `src/components/solicitacoes/nova/itens-da-area.tsx`.
 Validação: tsc, eslint dos arquivos; screenshots `antes-producao-*-solicitacoes_nova*`, `antes-grafica-*`,
 `depois-producao-*-solicitacoes_nova_evento_EVT_0002.png`.
+
+### 2. Conferência da ata — `/conferencia/[id]`
+
+Vista: logística (Marina), EVT-0002 em preparação; desktop 1280, 1680 e celular; modais Ajustar quantidade,
+Incluir linha e Conferir as restantes. `/eventos/[id]/reuniao` só redireciona para cá.
+
+- P1 — Em 1280 px (notebook comum na reunião), o painel "Dados da reunião" ao lado deixa a lista com ~600 px,
+  mas a grade de colunas (item · local · qtd · ações) era escolhida pela largura da **tela** (`md:`). A
+  coluna do item ficava com ~130 px: "Produção · Paulo Ribeiro · SOL-0023" e as descrições das unidades
+  quebravam palavra por palavra, a página passava de 3.900 px de altura e "Ajustar/Peças" ficavam longe do
+  item. **Resolvido:** a grade passa a ser escolhida pela largura da **própria lista** (consulta de
+  contêiner `@3xl`, 768 px): em 1280 px a lista usa o cartão compacto (o mesmo do celular, com o local e as
+  ações abaixo do item); em 1680 px volta a tabela com as colunas. A tela de 1280 caiu para ~1.560 px de
+  altura, com a descrição legível em uma linha.
+- P3 — Confirmação "Conferir as restantes" dizia "As 1 opcionais … ficam como estão". **Resolvido:**
+  singular/plural.
+- Sem mudança: barra fixa de progresso, "Próxima a conferir", atalhos ↑/↓, modais (foco no campo, motivo
+  opcional, `motivoDesabilitado` em "Salvar ajuste"), banner escuro da reunião.
+- Pendente (P3): no celular, o seletor "Projeto padrão / Peça do catálogo / Item avulso" do modal Incluir
+  linha quebra em duas linhas; funciona, mas poderia caber numa só.
+
+Arquivo: `src/components/eventos/conferencia-ata.tsx`.
+Validação: tsc, eslint; screenshots `antes-logistica-*-conferencia_EVT_0002.png`,
+`depois-logistica-{desktop,largo,celular}-conferencia_EVT_0002*.png` (inclui os três modais).
