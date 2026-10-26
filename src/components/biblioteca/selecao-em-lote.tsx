@@ -183,33 +183,36 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
   const ctx = useContext(SelecaoContext);
   if (!gerencia || !ctx) return null;
   const count = ctx.selecionados.size;
+  // Nada marcado: só a dica, numa linha. A barra com "Limpar" e as ações (todas desabilitadas sem seleção)
+  // ocupava duas ou três linhas acima da lista o tempo todo, no celular quase uma tela.
+  if (count === 0)
+    return (
+      <p aria-live="polite" className="m-0 border-b border-line-soft bg-subtle/70 px-cartao py-2 text-pequeno text-muted">
+        Marque os itens ativos para organizar ou desabilitar vários de uma vez.
+      </p>
+    );
   return (
-    <div className="flex flex-col gap-2 border-b border-line-soft bg-subtle/70 px-cartao py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-b border-line-soft bg-selected px-cartao py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center justify-between gap-3 sm:justify-start">
-        <span aria-live="polite" className="text-pequeno font-medium text-ink-2">
-          {count === 0 ? "Selecione itens ativos nesta página" : `${count} ${count === 1 ? "item selecionado" : "itens selecionados"}`}
+        <span aria-live="polite" className="numero text-pequeno font-medium text-ink">
+          {count} {count === 1 ? "item selecionado" : "itens selecionados"}
         </span>
         <button
           type="button"
-          disabled={ctx.ocupado || count === 0}
+          disabled={ctx.ocupado}
           onClick={() => ctx.selecionarPagina(false)}
-          className="min-h-10 cursor-pointer border-0 bg-transparent px-1 text-pequeno font-medium text-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+          className="min-h-10 cursor-pointer border-0 bg-transparent px-1 text-pequeno font-medium text-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline sm:min-h-0"
         >
           Limpar seleção
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
         {ctx.abrirOrganizacao && (
-          <Button variant="secondary" size="sm" disabled={ctx.ocupado || count === 0} onClick={ctx.abrirOrganizacao}>
+          <Button variant="secondary" size="sm" disabled={ctx.ocupado} onClick={ctx.abrirOrganizacao}>
             Organizar selecionados
           </Button>
         )}
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={ctx.ocupado || count === 0}
-          onClick={ctx.abrirConfirmacao}
-        >
+        <Button variant="secondary" size="sm" disabled={ctx.ocupado} onClick={ctx.abrirConfirmacao}>
           Desabilitar selecionados
         </Button>
       </div>

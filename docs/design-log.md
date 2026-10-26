@@ -17,7 +17,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 4. Lista de eventos — `/eventos`
 - [x] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
 - [x] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
-- [ ] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
+- [x] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
 - [ ] 8. Painel — `/` (por perfil)
 
 **Demais**
@@ -207,3 +207,26 @@ os painéis Parcial e Não atender).
 27 de 28 passaram; 1 falhou por tempo (varredura · ativação, desktop: `page.evaluate` ficou parado 15 min
 em `/perfil`, tela que não foi alterada; no celular o mesmo perfil passou). Rodado de novo sozinho, passou
 em 31 s — tratado como instabilidade do ambiente, não do app.
+
+### 7. Biblioteca — `/biblioteca` (projetos, catálogo de peças, fora do catálogo)
+
+Vista: logística (projetos, peças, "Fora do catálogo") e cenografia (com seleção em lote, filtro de situação e
+"Grupos"); diálogo "Grupos de prova"; um item marcado; desktop e celular. `/catalogo` e `/projetos` só
+redirecionam para cá.
+
+- P2 — Para a cenografia, a barra de seleção em lote ("Selecione itens ativos nesta página · Limpar seleção ·
+  Organizar selecionados · Desabilitar selecionados", tudo desabilitado sem seleção) ficava sempre acima da
+  lista: duas linhas no desktop e ~150 px no celular, antes do primeiro projeto. **Resolvido:** sem nada
+  marcado, só uma dica de uma linha; ao marcar, aparece a barra com a contagem, "Limpar seleção" e as ações
+  (fundo de seleção).
+- P3 — "Fora do catálogo": a situação "já na OS" usava o selo vinho (`accent`), que é cor de ação. **Resolvido:**
+  `warning` — o item está na OS sem somar peças (separação manual), é um ponto de atenção.
+- Sem mudança: tabela de projetos com prévia ao lado (no celular a prévia vem depois da lista e o toque na
+  linha rola até ela), catálogo de peças com setores em pílulas, diálogo de grupos.
+- Pendente (P3): no celular os filtros da aba Projetos continuam empilhados (até 6 controles). Os seletores
+  de grupo, alteração e situação têm largura mínima de 170–190 px, que não cabe em meia linha de 375 px;
+  pareá-los exige mexer nesses componentes — fica para a próxima rodada.
+
+Arquivos: `src/components/biblioteca/selecao-em-lote.tsx`, `src/components/eventos/fila-fora-catalogo.tsx`.
+Validação: tsc, eslint; screenshots `antes-logistica-*-biblioteca*.png`, `antes-cenografia-*-biblioteca*.png`,
+`depois-cenografia-*-biblioteca{,-selecionado}.png`.

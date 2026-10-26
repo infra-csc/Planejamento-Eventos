@@ -61,7 +61,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                   </span>
                   {/* Celular: situação e ação embaixo do item (as colunas somem). */}
                   <span className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
-                    {i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}
+                    {i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="warning">já na OS</Badge>}
                     <VincularCatalogo linha={{ linhaId: i.id, descricao: i.descricao ?? "item", quantidade: i.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                   </span>
                 </th>
@@ -74,7 +74,7 @@ export function FilaForaCatalogo({ itens, opcoes, podeCadastrar }: { itens: Item
                   </span>
                 </td>
                 <td className="border-b border-line-row px-3 py-3 numero text-right text-pequeno font-medium text-ink">{i.quantidade}</td>
-                <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">{i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="accent">já na OS</Badge>}</td>
+                <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">{i.eventoStatus === "PREPARACAO" || i.eventoStatus === "EM_REUNIAO" ? <Badge tom="neutral">antes da ata</Badge> : <Badge tom="warning">já na OS</Badge>}</td>
                 <td className="hidden border-b border-line-row py-2.5 pl-3 pr-cartao text-right sm:table-cell">
                   <VincularCatalogo linha={{ linhaId: i.id, descricao: i.descricao ?? "item", quantidade: i.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />
                 </td>
