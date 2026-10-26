@@ -85,9 +85,10 @@ describe("regras da logística na ata", () => {
 
   it("testeira de madeira: com tenda 5×5 na ata entra a definir, o número sai da conferência; sem tenda, sai", async () => {
     const db = await getDb();
-    const [cant] = await db.insert(pecas).values({ codigo: "TND5-CANT", nome: "Cantoneira tenda 5×5", setor: "TENDA" }).returning();
+    // O pé diz o tamanho da tenda (a cantoneira é universal).
+    const [pe] = await db.insert(pecas).values({ codigo: "TND5-PE", nome: "Pé de tenda 5×5", setor: "TENDA" }).returning();
     await db.insert(pecas).values({ codigo: "TND5-TESTEIRA", nome: "Testeira de madeira (Tenda 5x5)", setor: "MARCENARIA" });
-    const tenda = (await criarProjeto(cant.id)).id;
+    const tenda = (await criarProjeto(pe.id)).id;
     const testeira = async (eventoId: string) => (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.regra, "testeira-tenda-5x5"))))[0];
 
     const ev = await novoEvento(E.logistica);
@@ -109,12 +110,12 @@ describe("regras da logística na ata", () => {
   });
   it("uma vez ao subir: atas abertas ganham a testeira; as outras regras não são mexidas", async () => {
     const db = await getDb();
-    const cant = (await db.query.pecas.findFirst({ where: eq(pecas.codigo, "TND5-CANT") }))!;
-    const tenda = (await criarProjeto(cant.id)).id;
+    const pe = (await db.query.pecas.findFirst({ where: eq(pecas.codigo, "TND5-PE") }))!;
+    const tenda = (await criarProjeto(pe.id)).id;
     const ev = await novoEvento(E.logistica);
     // Linhas gravadas direto (como numa ata de antes da regra): tenda e ultrabag, sem as linhas das regras.
     await db.insert(eventoItens).values([
-      { eventoId: ev.id, tipo: "PROJETO", projetoId: tenda, quantidade: 2, origem: "AJUSTE_LOGISTICA", bomSnapshot: [{ pecaId: cant.id, codigo: "TND5-CANT", nome: "Cantoneira", setor: "TENDA", unidade: "un", quantidade: 4 }] },
+      { eventoId: ev.id, tipo: "PROJETO", projetoId: tenda, quantidade: 2, origem: "AJUSTE_LOGISTICA", bomSnapshot: [{ pecaId: pe.id, codigo: "TND5-PE", nome: "Pé", setor: "TENDA", unidade: "un", quantidade: 4 }] },
       { eventoId: ev.id, tipo: "PECA", pecaId: ultrabag, quantidade: 3, origem: "AJUSTE_LOGISTICA" },
     ]);
     expect(await ressincronizarAtasAbertas("teste:regras:1")).toMatchObject({ feito: true });

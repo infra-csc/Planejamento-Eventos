@@ -1,5 +1,6 @@
 import type { OsConteudo, OsProjeto } from "@/server/db/schema";
 import { kitDaTenda, PAPEIS_TENDA, type KitTenda } from "@/domain/tendas";
+import { unificarPecasOs } from "@/domain/os";
 
 /*
  * OS de estrutura no formato exato da planilha da cenografia (OS ESTRUTURA_<evento>.xlsx, 193
@@ -192,7 +193,9 @@ export function nomeAba(nome: string, quantidade: number, usados: Set<string>): 
 
 type Variante = { codigo: string; nome: string; quantidade: number; linhas: OsProjeto[]; kit: KitTenda | null; assinatura: string };
 
-export function montarOsEstrutura(os: OsConteudo): OsEstrutura {
+export function montarOsEstrutura(bruta: OsConteudo): OsEstrutura {
+  // OS gravada antes da cantoneira universal: a da 3×3 soma na universal.
+  const os = unificarPecasOs(bruta);
   const semProjetos = !os.projetos;
   const linhasProjeto = (os.projetos ?? []).filter((l) => l.quantidade > 0);
 

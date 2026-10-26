@@ -1,6 +1,7 @@
 import type { AjusteBom, BomSnapshotLinha, OsConteudo, OsLinha, OsProjeto, OsSetor, Setor } from "@/server/db/schema";
 import { SETORES } from "@/domain/constantes";
 import { descricaoDaRegra } from "@/domain/regras-kit";
+import { NOME_CANTONEIRA_UNIVERSAL, PECAS_UNIFICADAS } from "@/domain/tendas";
 
 /**
  * RN-01: OS de um setor = Σ (BOM × quantidade do projeto no evento) + peças avulsas do setor.
@@ -43,8 +44,49 @@ export function renomearPecasOs(os: OsConteudo, nome: NomeAtual): OsConteudo {
   };
 }
 
-/** A OS como é lida (tela, Excel, folha): sem o prisma comum nos totais e nas peças soltas. */
-export function osParaLeitura(os: OsConteudo): OsConteudo {
+/**
+ * Peças que viraram uma só (a cantoneira de tenda 3×3 entrou na universal, 26/10): nas OS gravadas antes, as linhas
+ * da antiga passam para a atual e somam com ela.
+ */
+export function unificarPecasOs(os: OsConteudo): OsConteudo {
+  const unificadas = new Set([...Object.keys(PECAS_UNIFICADAS), ...Object.values(PECAS_UNIFICADAS)]);
+  const atual = (codigo: string) => PECAS_UNIFICADAS[codigo] ?? codigo;
+  const nomeDe = (codigo: string, nome: string) => (unificadas.has(codigo) ? NOME_CANTONEIRA_UNIVERSAL : nome);
+  const antiga = (codigo: string) => codigo in PECAS_UNIFICADAS;
+  if (!os.setores.some((s) => s.linhas.some((l) => antiga(l.codigo))) && !os.projetos?.some((p) => p.pecas.some((x) => antiga(x.codigo))) && !os.individuais?.some((x) => antiga(x.codigo))) return os;
+  const juntar = <T extends { codigo: string; nome: string }>(lista: readonly T[], somar: (a: T, b: T) => void): T[] => {
+    const saida: T[] = [];
+    for (const l of lista) {
+      const codigo = atual(l.codigo);
+      const ja = saida.find((x) => x.codigo === codigo);
+      if (ja) somar(ja, l);
+      else saida.push({ ...l, codigo, nome: nomeDe(l.codigo, l.nome) });
+    }
+    return saida;
+  };
+  return {
+    ...os,
+    setores: os.setores.map((s) => ({
+      ...s,
+      linhas: juntar(s.linhas, (a, b) => {
+        a.total += b.total;
+        a.origens = [...a.origens, ...b.origens];
+      }),
+    })),
+    projetos: os.projetos?.map((p) => ({
+      ...p,
+      pecas: juntar(p.pecas, (a, b) => {
+        a.porUnidade += b.porUnidade;
+        a.total += b.total;
+      }),
+    })),
+    individuais: os.individuais?.map((x) => ({ ...x, codigo: atual(x.codigo), nome: nomeDe(x.codigo, x.nome) })),
+  };
+}
+
+/** A OS como é lida (tela, Excel, folha): sem o prisma comum nos totais e nas peças soltas; peças unificadas somadas. */
+export function osParaLeitura(bruta: OsConteudo): OsConteudo {
+  const os = unificarPecasOs(bruta);
   return {
     ...os,
     setores: os.setores.map((s) => ({ ...s, linhas: semPrismaComum(s.linhas) })).filter((s) => s.linhas.length > 0 || s.avulsos.length > 0),

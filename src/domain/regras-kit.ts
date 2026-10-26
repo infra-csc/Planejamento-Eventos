@@ -23,10 +23,13 @@ export const REGRAS_KIT: readonly RegraKit[] = [
   { regra: "testeira-tenda-3x3", codigoPeca: "MRC-TESTEIRADEMADEIRADE3M", descricao: "tenda 3×3 na ata: testeira a definir na conferência", aDefinir: true },
 ];
 
-/** Cantoneira de cada tamanho de tenda: com ela na ata, a testeira daquele tamanho entra a definir. */
-const TESTEIRA_POR_TENDA: Record<string, { cantoneira: string; tamanho: string }> = {
-  "testeira-tenda-5x5": { cantoneira: "TND5-CANT", tamanho: "5" },
-  "testeira-tenda-3x3": { cantoneira: "TND3-CANT", tamanho: "3" },
+/**
+ * Pé de cada tamanho de tenda: com ele na ata, a testeira daquele tamanho entra a definir. (Era a cantoneira, que
+ * desde 26/10 é a mesma nos dois tamanhos.)
+ */
+const TESTEIRA_POR_TENDA: Record<string, { pe: string; tamanho: string }> = {
+  "testeira-tenda-5x5": { pe: "TND5-PE", tamanho: "5" },
+  "testeira-tenda-3x3": { pe: "TND3-PE", tamanho: "3" },
 };
 
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
@@ -62,14 +65,14 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
     precisa[r.regra] = a.bases.reduce((s, b) => s + total(b), 0) * a.fator;
   }
   // Testeira já pedida como projeto ("Testeira Madeira Tenda 5×5"): a regra não põe outra a definir.
-  const temProjetoTesteira = (t: string) => ativas.some((l) => l.tipo === "PROJETO" && l.projeto && /testeira/i.test(l.projeto.nome) && new RegExp(`${t}\s*[x×]\s*${t}`, "i").test(l.projeto.nome));
+  const temProjetoTesteira = (t: string) => ativas.some((l) => l.tipo === "PROJETO" && l.projeto && /testeira/i.test(l.projeto.nome) && new RegExp(`${t}\\s*[x×]\\s*${t}`, "i").test(l.projeto.nome));
   // Grades do prisma somam às pedidas (não descontam) e vão presas no prisma: não levam pés.
   const gradesPrisma = total(CODIGO_PRISMA) * 2;
   // O que já foi pedido da mesma peça (ex.: cavaletes que vieram na solicitação) conta para a regra.
   return REGRAS_KIT.map((r) =>
     r.aDefinir
       ? // Testeira: só a presença (tem tenda e a área não pediu a testeira à parte); o número fica para a conferência.
-        { ...r, quantidade: 0, presente: total(TESTEIRA_POR_TENDA[r.regra].cantoneira) > 0 && total(r.codigoPeca) === 0 && !temProjetoTesteira(TESTEIRA_POR_TENDA[r.regra].tamanho) }
+        { ...r, quantidade: 0, presente: total(TESTEIRA_POR_TENDA[r.regra].pe) > 0 && total(r.codigoPeca) === 0 && !temProjetoTesteira(TESTEIRA_POR_TENDA[r.regra].tamanho) }
       : { ...r, quantidade: r.regra === "grade-prisma" ? gradesPrisma : Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) },
   );
 }

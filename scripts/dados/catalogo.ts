@@ -94,7 +94,8 @@ export const PECAS: PecaCatalogo[] = [
   { codigo: "MALOTE", nome: "Malote de areia (contrapeso)", setor: E, familia: "Estaiamento" },
   { codigo: "GANCHO-MALOTE", nome: "Gancho para malote", setor: E, familia: "Estaiamento" },
   // ---- Tendas 5×5 ---------------------------------------------------------------------------
-  { codigo: "TND5-CANT", nome: "Cantoneira de tenda 5×5", setor: T, familia: "Tenda 5×5" },
+  // Cantoneira universal: a mesma nas tendas 3×3 e 5×5 (26/10; a antiga TND3-CANT ficou inativa).
+  { codigo: "TND5-CANT", nome: "Cantoneira universal", setor: T, familia: "Tenda" },
   { codigo: "TND5-TRAV", nome: "Travessa de tenda 5 m", setor: T, familia: "Tenda 5×5" },
   { codigo: "TND5-PE", nome: "Pé de tenda 5×5", setor: T, familia: "Tenda 5×5" },
   { codigo: "TND5-MASTRO", nome: "Mastro central de tenda 5×5", setor: T, familia: "Tenda 5×5" },
@@ -104,7 +105,6 @@ export const PECAS: PecaCatalogo[] = [
   { codigo: "TND5-CALHA", nome: "Calha de lona 5 m (união de tendas)", setor: T, familia: "Tenda 5×5" },
   { codigo: "TND5-TESTEIRA", nome: "Testeira de madeira para tenda 5×5", setor: M, familia: "Tenda 5×5" },
   // ---- Tendas 3×3 ---------------------------------------------------------------------------
-  { codigo: "TND3-CANT", nome: "Cantoneira de tenda 3×3", setor: T, familia: "Tenda 3×3" },
   { codigo: "TND3-TRAV", nome: "Travessa de tenda 3 m", setor: T, familia: "Tenda 3×3" },
   { codigo: "TND3-PE", nome: "Pé de tenda 3×3", setor: T, familia: "Tenda 3×3" },
   { codigo: "TND3-MASTRO", nome: "Mastro central de tenda 3×3", setor: T, familia: "Tenda 3×3" },
@@ -640,7 +640,7 @@ export const PROJETOS: ProjetoCatalogo[] = [
     imagens: ["tenda-3x3-esquema.jpg"],
     categoria: "Tenda",
     descricao: "Estrutura da tenda 3×3 com lona. Fechamentos laterais pedidos por unidade.",
-    itens: [["TND3-CANT", 4], ["TND3-TRAV", 4], ["TND3-PE", 4], ["TND3-MASTRO", 1], ["TND3-CABO", 1], ["TND3-LONA", 1]],
+    itens: [["TND5-CANT", 4], ["TND3-TRAV", 4], ["TND3-PE", 4], ["TND3-MASTRO", 1], ["TND3-CABO", 1], ["TND3-LONA", 1]],
   },
   // ---- Percurso -------------------------------------------------------------------------------
   {

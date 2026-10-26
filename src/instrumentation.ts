@@ -54,6 +54,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "grades_prisma_atas_fechadas", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Cantoneira universal (26/10): a da tenda 3×3 entra na da 5×5 em projetos, atas e solicitações (uma vez só).
+    try {
+      const { unificarCantoneiras } = await import("@/server/services/cantoneira-universal");
+      const r = await unificarCantoneiras();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "cantoneira_universal", projetos: r.projetos, linhasAta: r.linhasAta, solicitacoes: r.solicitacoes }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "cantoneira_universal", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Atas fechadas antes de o pranchão voltar ao cavalete reto (20/10): cavaletes dos pranchões (uma vez só, com nova OS).
     try {
       const { aplicarCavaleteRetoNasAtasFechadas } = await import("@/server/services/eventos/regras-kit");

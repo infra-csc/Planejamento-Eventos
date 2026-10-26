@@ -2,9 +2,10 @@
  * Tendas: como a cenografia pede hoje na planilha de OS de estrutura — por local, com a quantidade
  * de tendas, os fechamentos laterais e as calhas de união daquele local.
  *
- * Regra de domínio: um projeto é "de tenda" quando a lista de peças dele contém a cantoneira ou o
- * fechamento de um dos kits abaixo (códigos do catálogo real, scripts/dados/catalogo.ts). O tamanho
- * da tenda vem do kit encontrado.
+ * Regra de domínio: um projeto é "de tenda" quando a lista de peças dele contém uma peça própria do tamanho
+ * (fechamento, travessa, pé, mastro, cabo ou calha) de um dos kits abaixo (códigos do catálogo real,
+ * scripts/dados/catalogo.ts). O tamanho da tenda vem do kit encontrado. A cantoneira é a mesma nos dois
+ * tamanhos (cantoneira universal, 26/10) e por isso não diz o tamanho.
  *
  * Fechamento e calha variam por local. O fechamento não faz parte do padrão do projeto; a calha da
  * 5×5 faz (1 por tenda) e o quadro ajusta o total do local. O que não está no padrão (a lista de peças
@@ -32,21 +33,29 @@ export const PAPEIS_POR_LOCAL: readonly PapelTenda[] = ["fechamento", "calha"];
 
 export type KitTenda = { tamanho: string; pecas: Partial<Record<PapelTenda, string>> };
 
+/** Cantoneira universal: serve à tenda 3×3 e à 5×5 (26/10). Ficou com o código da antiga da 5×5. */
+export const CANTONEIRA_UNIVERSAL = "TND5-CANT";
+export const NOME_CANTONEIRA_UNIVERSAL = "Cantoneira universal";
+/** Peças que viraram outra (código antigo → código atual): OS já geradas e listas antigas somam na atual. */
+export const PECAS_UNIFICADAS: Readonly<Record<string, string>> = { "TND3-CANT": CANTONEIRA_UNIVERSAL };
+
 export const KITS_TENDA: readonly KitTenda[] = [
   {
     tamanho: "5×5",
-    pecas: { fechamento: "TND5-FECH", cantoneira: "TND5-CANT", travessa: "TND5-TRAV", pe: "TND5-PE", mastro: "TND5-MASTRO", cabo: "TND5-CABO", calha: "TND5-CALHA" },
+    pecas: { fechamento: "TND5-FECH", cantoneira: CANTONEIRA_UNIVERSAL, travessa: "TND5-TRAV", pe: "TND5-PE", mastro: "TND5-MASTRO", cabo: "TND5-CABO", calha: "TND5-CALHA" },
   },
   {
     tamanho: "3×3",
-    pecas: { fechamento: "TND3-FECH", cantoneira: "TND3-CANT", travessa: "TND3-TRAV", pe: "TND3-PE", mastro: "TND3-MASTRO", cabo: "TND3-CABO" },
+    pecas: { fechamento: "TND3-FECH", cantoneira: CANTONEIRA_UNIVERSAL, travessa: "TND3-TRAV", pe: "TND3-PE", mastro: "TND3-MASTRO", cabo: "TND3-CABO" },
   },
 ];
 
 /** Kit da tenda do projeto (pela lista de peças), ou `null` quando o projeto não é de tenda. */
 export function kitDaTenda(codigosBom: Iterable<string>): KitTenda | null {
   const codigos = new Set(codigosBom);
-  return KITS_TENDA.find((k) => (k.pecas.cantoneira && codigos.has(k.pecas.cantoneira)) || (k.pecas.fechamento && codigos.has(k.pecas.fechamento))) ?? null;
+  // A cantoneira universal não diz o tamanho; a antiga da 3×3 (listas de antes de 26/10) ainda diz.
+  if (codigos.has("TND3-CANT")) return KITS_TENDA.find((k) => k.tamanho === "3×3")!;
+  return KITS_TENDA.find((k) => Object.entries(k.pecas).some(([papel, c]) => papel !== "cantoneira" && c && codigos.has(c))) ?? null;
 }
 
 export function ehProjetoTenda(codigosBom: Iterable<string>): boolean {

@@ -12,12 +12,14 @@ const bom5 = [
 const codigos5 = bom5.map((b) => b.codigo);
 
 describe("projeto de tenda", () => {
-  it("reconhece pelo kit (cantoneira ou fechamento) e acha o tamanho", () => {
+  it("reconhece pelas peças do tamanho (a cantoneira universal não diz o tamanho)", () => {
     expect(kitDaTenda(codigos5)?.tamanho).toBe("5×5");
     expect(kitDaTenda(["TND3-CANT", "TND3-PE"])?.tamanho).toBe("3×3");
     expect(kitDaTenda(["TND3-FECH"])?.tamanho).toBe("3×3");
+    expect(kitDaTenda(["TND5-CANT", "TND3-TRAV", "TND3-PE"])?.tamanho).toBe("3×3");
+    expect(kitDaTenda(["TND5-CANT"])).toBeNull();
     expect(ehProjetoTenda(["BOX-3000", "CUBO", "PARAF"])).toBe(false);
-    // Lona sozinha não caracteriza tenda: a regra olha cantoneira ou fechamento.
+    // Lona sozinha não caracteriza tenda.
     expect(ehProjetoTenda(["TND5-LONA"])).toBe(false);
   });
 
