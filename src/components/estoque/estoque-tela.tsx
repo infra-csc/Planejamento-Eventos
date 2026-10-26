@@ -109,14 +109,18 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
           <EmptyState compact title={busca ? `Nada encontrado para “${busca}”` : "Nenhum item neste filtro"} description="Troque o filtro ou inclua um item novo." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse sm:min-w-[640px]">
+            {/* Celular: item, quantidade e editar cabem em 375 px (sem data-responsiva a tabela ganhava 640 px e o
+                stepper, que é a ação da tela, ficava fora da vista, só rolando a tabela de lado). */}
+            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px]">
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
                   <th className="hidden px-3 py-2.5 md:table-cell">Categoria</th>
-                  <th className="px-3 py-2.5 text-center">Quantidade</th>
+                  <th className="px-3 py-2.5 text-center max-sm:px-1">Quantidade</th>
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell">Comprar</th>
-                  <th className="w-24 px-3 py-2.5 pr-cartao">
+                  {/* relative: o rótulo sr-only (absoluto) fica preso à célula; sem isso escapava da rolagem da
+                      tabela e alargava a página no celular (559 px numa tela de 375). */}
+                  <th className="relative w-24 px-3 py-2.5 pr-cartao max-sm:w-12 max-sm:px-1">
                     <span className="sr-only">Editar</span>
                   </th>
                 </tr>
@@ -172,7 +176,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="text-corpo font-medium text-ink">{item.nome}</span>
           {item.pecaCodigo && (
-            <Tag tom="accent" className="text-rotulo">
+            <Tag tom="accent" className="text-rotulo max-sm:whitespace-normal">
               na solicitação: {item.pecaCodigo}
             </Tag>
           )}
@@ -182,7 +186,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         <span className="block text-rotulo text-meta md:hidden">{item.categoria}</span>
       </td>
       <td className="hidden px-3 py-2.5 align-middle text-pequeno text-ink-2 md:table-cell">{item.categoria}</td>
-      <td className="px-3 py-2.5 align-middle">
+      <td className="px-3 py-2.5 align-middle max-sm:px-1">
         <div className="relative flex justify-center">
           <Stepper tamanho="sm" valor={valor} min={0} onChange={mudar} label={`Quantidade de ${item.nome}`} disabled={!item.ativo} />
           <span className="pointer-events-none absolute left-full top-1/2 ml-1.5 -translate-y-1/2 whitespace-nowrap text-rotulo text-meta" aria-live="polite">
@@ -191,10 +195,11 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         </div>
       </td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
-      <td className="px-3 py-2.5 pr-cartao text-right align-middle">
-        <Button variant="ghost" size="xs" onClick={onEditar}>
+      <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-1">
+        <Button variant="ghost" size="xs" onClick={onEditar} className="max-sm:px-2.5">
           <Icone nome="lapis" />
-          Editar
+          {/* Celular: só o lápis (o nome continua para o leitor de tela). */}
+          <span className="max-sm:sr-only">Editar</span>
         </Button>
       </td>
     </tr>
