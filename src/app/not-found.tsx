@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { ButtonLink } from "@/components/ui/button";
 import { Icone } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Página não encontrada" };
 
-/** 404 fora do shell (endereço que não é de nenhuma rota): tela cheia, curta, com a marca. */
-export default function NotFound() {
+/**
+ * 404 fora do shell (endereço que não é de nenhuma rota): tela cheia, curta, com a marca.
+ * Renderizada a cada requisição: estática, saía sem o nonce da CSP e o navegador bloqueava os scripts dela.
+ */
+export default async function NotFound() {
+  await connection();
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-page px-4">
       <div className="flex w-full max-w-md animate-fade-up flex-col items-center text-center">

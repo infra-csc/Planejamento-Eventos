@@ -16,14 +16,14 @@ async function conferirXlsx(page: Page, nomeLink: RegExp) {
   expect(corpo.subarray(0, 2).toString("latin1"), `${href} não parece um .xlsx`).toBe("PK");
 }
 
-/** (d) Exportações de um evento com ata fechada: OS em Excel, planilha de estrutura e ata em Excel. */
+/** (d) Exportações de um evento com ata fechada: OS em Excel, OS de estrutura e ata em Excel. */
 test("exportações da OS e da ata respondem 200 com xlsx", async ({ page }) => {
   await entrar(page, USUARIOS.marina);
   const eventoId = await abrirEvento(page, EVENTOS.aberto);
 
   await page.goto(`/eventos/${eventoId}/os`);
   await conferirXlsx(page, /^Excel completo/);
-  await conferirXlsx(page, /^Planilha de estrutura/);
+  await conferirXlsx(page, /^OS de estrutura/);
 
   await page.goto(`/eventos/${eventoId}/ata`);
   await conferirXlsx(page, /^Excel da ata/);

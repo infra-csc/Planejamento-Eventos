@@ -4,10 +4,11 @@
  * Chave: nome da área (sem acento, minúsculo). Peças pelo código do catálogo; projetos pelo código do projeto
  * (tenda pedida por local, no mesmo quadro de tendas do catálogo; os outros, pela quantidade).
  */
-export type ListaDaArea = { titulo: string; codigos: string[]; projetos?: string[] };
+/** `nomeProjeto`: o projeto achado pelo código só entra se o nome bater (num banco em que o código seja de outro projeto, não aparece). */
+export type ListaDaArea = { titulo: string; codigos: string[]; projetos?: string[]; nomeProjeto?: RegExp };
 
 /** Tenda 3×3 m e Tenda 5×5 m (projetos padrão). */
-const TENDAS: ListaDaArea = { titulo: "Tendas", codigos: [], projetos: ["PRJ-0033", "PRJ-0006"] };
+const TENDAS: ListaDaArea = { titulo: "Tendas", codigos: [], projetos: ["PRJ-0033", "PRJ-0006"], nomeProjeto: /^tenda/i };
 
 const LISTAS: Record<string, ListaDaArea[]> = {
   producao: [
@@ -20,7 +21,7 @@ const LISTAS: Record<string, ListaDaArea[]> = {
   ativacao: [
     { titulo: "Ativação", codigos: ["BALCAO-120", "PRANCHÃO-220", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] },
     // Stand 9×6 m e Stand 11×6 m (projetos padrão): pedidos pela quantidade, com a descrição de cada unidade.
-    { titulo: "Stands", codigos: [], projetos: ["PRJ-0018", "PRJ-0019"] },
+    { titulo: "Stands", codigos: [], projetos: ["PRJ-0018", "PRJ-0019"], nomeProjeto: /^stand/i },
     TENDAS,
   ],
 };

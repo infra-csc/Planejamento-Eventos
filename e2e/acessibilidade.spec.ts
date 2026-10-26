@@ -80,7 +80,7 @@ test.describe("acessibilidade (axe)", () => {
   test("Nova solicitação", async ({ page }) => {
     await entrar(page, USUARIOS.paulo);
     await page.goto("/solicitacoes/nova");
-    await expect(page.getByRole("heading", { name: "Adicione o que precisa" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^(Adicione o que precisa|Outros itens)$/ })).toBeVisible();
     await auditar(page, "nova-solicitacao");
   });
 

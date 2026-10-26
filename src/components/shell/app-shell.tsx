@@ -266,12 +266,15 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           <SinoNotificacoes naoLidas={naoLidas} />
           <div aria-hidden className="h-[22px] w-px bg-line max-sm:hidden" />
           <Dropdown>
-            <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 transition-colors duration-150 hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] max-md:min-h-10" aria-label={`Menu de ${usuario.nome}`}>
-              <span className="flex size-7 items-center justify-center rounded-full bg-accent-bg text-rotulo font-semibold text-accent">{iniciais(usuario.nome)}</span>
-              <span className="text-left max-sm:hidden">
+            <DropdownTrigger className="flex cursor-pointer items-center gap-[9px] rounded-cartao border border-transparent bg-transparent py-1 pl-1 pr-2 transition-colors duration-150 hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04] max-md:min-h-10">
+              {/* Nome acessível = o texto que aparece (nome e perfil) + "menu da conta"; as iniciais são decorativas.
+                  No celular o nome some da tela, mas continua para o leitor de tela. */}
+              <span aria-hidden className="flex size-7 items-center justify-center rounded-full bg-accent-bg text-rotulo font-semibold text-accent">{iniciais(usuario.nome)}</span>
+              <span className="text-left max-sm:sr-only">
                 <span className="block text-pequeno font-medium leading-tight text-ink">{usuario.nome}</span>
                 <span className="block text-rotulo leading-tight text-muted">{perfilTexto}</span>
               </span>
+              <span className="sr-only">, menu da conta</span>
             </DropdownTrigger>
             <DropdownContent>
               <DropdownLabel>{usuario.email}</DropdownLabel>

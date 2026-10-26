@@ -63,7 +63,9 @@ export function ItensDaArea({
     .map((l) => ({
       ...l,
       pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))),
-      projetosDaLista: (l.projetos ?? []).map((c) => projetos.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p) && (!kitDe(p!) || Boolean(abrirTenda))),
+      projetosDaLista: (l.projetos ?? [])
+        .map((c) => projetos.find((p) => p.codigo === c))
+        .filter((p): p is Referencia => Boolean(p) && (!l.nomeProjeto || l.nomeProjeto.test(p!.nome)) && (!kitDe(p!) || Boolean(abrirTenda))),
     }))
     .filter((l) => l.pecas.length > 0 || l.projetosDaLista.length > 0);
   if (!listas.length) return null;
@@ -176,7 +178,7 @@ export function ItensDaArea({
                         min={auto}
                         onChange={(v) => definir(p, Math.max(0, v - auto))}
                         label={`Quantidade de ${p.nome}`}
-                        className={cn("shrink-0 transition-opacity duration-150", !ativo && "opacity-55 group-hover:opacity-100 focus-within:opacity-100")}
+                        className={cn("shrink-0 transition-opacity duration-150", !ativo && "opacity-75 group-hover:opacity-100 focus-within:opacity-100")}
                       />
                     )}
                   </li>
@@ -198,7 +200,7 @@ export function ItensDaArea({
                         min={0}
                         onChange={(v) => definirProjeto(t, v)}
                         label={`Quantidade de ${t.nome}`}
-                        className={cn("shrink-0 transition-opacity duration-150", q === 0 && "opacity-55 group-hover:opacity-100 focus-within:opacity-100")}
+                        className={cn("shrink-0 transition-opacity duration-150", q === 0 && "opacity-75 group-hover:opacity-100 focus-within:opacity-100")}
                       />
                     </li>
                   );
@@ -221,7 +223,7 @@ export function ItensDaArea({
                       size="sm"
                       onClick={() => abrirTenda?.(t.id)}
                       aria-label={`${q > 0 ? "Editar" : "Pedir"} ${t.nome} por local`}
-                      className={cn("w-[104px] shrink-0 transition-opacity duration-150", q === 0 && "opacity-55 group-hover:opacity-100 focus-visible:opacity-100")}
+                      className={cn("w-[104px] shrink-0 transition-opacity duration-150", q === 0 && "opacity-75 group-hover:opacity-100 focus-visible:opacity-100")}
                     >
                       {q > 0 ? "Editar" : "Pedir"}
                     </Button>

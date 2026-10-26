@@ -26,7 +26,9 @@ test("logística confere a ata, registra a reunião e fecha a ata", async ({ pag
 
   await trocarUsuario(page, USUARIOS.marina);
   await page.goto(`/conferencia/${eventoId}`);
-  await expect(page.getByRole("heading", { name: `Conferência · ${nomeEvento}`, level: 1 })).toBeVisible();
+  // Título da tela e, logo acima, o evento (link de volta).
+  await expect(page.getByRole("heading", { name: "Conferência da ata", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: new RegExp(nomeEvento) }).first()).toBeVisible();
 
   // Em preparação: inicia a reunião (bloqueia novos envios).
   await page.getByRole("button", { name: "Iniciar reunião" }).click();
@@ -40,9 +42,10 @@ test("logística confere a ata, registra a reunião e fecha a ata", async ({ pag
   await expect(progresso).toHaveAttribute("aria-valuenow", "0");
 
   // Uma linha à mão.
-  const check = conferencia.getByRole("checkbox", { name: `${PROJETOS.portico4}: marcar como conferido` });
+  // O nome traz o pedido de origem ("Pórtico…, SOL-0021: marcar como conferido").
+  const check = conferencia.getByRole("checkbox", { name: new RegExp(`^${PROJETOS.portico4}(, SOL-[0-9]+)?: marcar como conferido$`) });
   await check.click();
-  await expect(conferencia.getByRole("checkbox", { name: `${PROJETOS.portico4}: conferido, clique para desfazer` })).toBeChecked();
+  await expect(conferencia.getByRole("checkbox", { name: new RegExp(`^${PROJETOS.portico4}(, SOL-[0-9]+)?: conferido, clique para desfazer$`) })).toBeChecked();
   await expect(progresso).toHaveAttribute("aria-valuenow", "1");
 
   // As restantes em lote (com confirmação).
@@ -56,7 +59,8 @@ test("logística confere a ata, registra a reunião e fecha a ata", async ({ pag
   await painel.getByRole("textbox", { name: "Público esperado" }).fill("1200");
   await painel.getByRole("textbox", { name: "Caminhão sai" }).fill("véspera, 6h");
   await painel.getByRole("textbox", { name: "Caminhão sai" }).blur();
-  await expect(painel.getByText("Salvo", { exact: true })).toBeVisible();
+  // "✓ Salvo" (o ✓ é decorativo).
+  await expect(painel.getByText(/^✓?\s*Salvo$/)).toBeVisible();
 
   // O fechamento libera depois que a página reflete os presentes gravados.
   await page.reload();

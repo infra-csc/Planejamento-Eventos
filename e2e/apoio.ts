@@ -111,7 +111,8 @@ export type ItemPedido = { projeto: string; quantidade: number; descricoes: stri
  */
 export async function criarSolicitacao(page: Page, { eventoId, titulo, itens }: { eventoId: string; titulo: string; itens: ItemPedido[] }): Promise<string> {
   await page.goto(`/solicitacoes/nova?evento=${eventoId}`);
-  await expect(page.getByRole("heading", { name: "Adicione o que precisa" })).toBeVisible();
+  // Área com lista padrão (Produção, Ativação…) vê "Outros itens"; sem lista, "Adicione o que precisa".
+  await expect(page.getByRole("heading", { name: /^(Adicione o que precisa|Outros itens)$/ })).toBeVisible();
 
   for (const item of itens) {
     const busca = page.getByRole("searchbox", { name: "Buscar projeto padrão" });

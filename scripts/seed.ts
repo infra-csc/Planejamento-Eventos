@@ -117,13 +117,18 @@ async function main() {
     const p = await criarProjeto(bruno, { nome: pr.nome, categoria: pr.categoria, descricao: pr.descricao, observacaoVersao: null, itens: bom(pr.itens) });
     criados.push({ id: p.id, nome: pr.nome });
   }
-  const proj = (nome: string) => criados.find((p) => p.nome === nome)!;
+  // Nome que sumiu do catálogo (renomeado) para o seed na hora, dizendo qual: antes caía em "reading id" lá embaixo.
+  const proj = (nome: string) => {
+    const p = criados.find((x) => x.nome === nome);
+    if (!p) throw new Error(`Seed: projeto "${nome}" não está no catálogo (scripts/dados/catalogo.ts). Foi renomeado?`);
+    return p;
+  };
   // Apelidos usados no cenário de demonstração abaixo.
   const portico660 = proj("Pórtico boca de 6 m com orelha");
   const portico4 = proj("Pórtico boca de 4 m com orelha");
   const quadroFoto = proj("Quadro de fotos 4×3 m");
   const palco84 = proj("Palco 8×4 m com escada e rampa");
-  const estande = proj("Estande 9×6 m");
+  const estande = proj("Stand 9×6 m");
   const tenda5 = proj("Tenda 5×5 m");
   const tenda3 = proj("Tenda 3×3 m");
 
@@ -172,7 +177,9 @@ async function main() {
   /* ---------------------------------------------------------------- */
   /* EVT-0001 — Festival Praia Sonora (ABERTO, cenário completo)        */
   /* ---------------------------------------------------------------- */
-  const e1 = await ev({ nome: "Festival Praia Sonora 2026", cliente: "Prefeitura de Marítima", local: "Orla Norte — Arena de Areia", dataMontagem: d(9), dataInicio: d(12), dataFim: d(14), dataDesmontagem: d(15), dataReuniao: dt(-6, 14), dataCarga: d(8), responsavelId: marina.id });
+  const e1 = await ev({ nome: "Festival Praia Sonora 2026", cliente: "Prefeitura de Marítima", local: "Orla Norte — Arena de Areia", dataMontagem: d(9), dataInicio: d(12), dataFim: d(14), dataDesmontagem: d(15), dataReuniao: dt(-6, 14), dataCarga: d(8), responsavelId: marina.id, janelaAlteracoesAte: d(-1) });
+  // Janela de alterações já encerrada: as alterações pós-ata passam pela logística (respostas, devolução,
+  // pendências do cenário). Sem data, a alteração entraria direto na OS.
   const s1a = await solicitar(paulo, e1.id, "Estruturas principais", [
     { projetoId: portico660.id, qtd: 2, destino: "Entrada norte e sul" },
     { projetoId: estande.id, qtd: 1, destino: "Área VIP" },
@@ -200,7 +207,7 @@ async function main() {
   await devolverSolicitacao(marina, s1f, "Confirme com a produção se a terceira tenda cabe no backstage antes de reenviar");
   const linhaFech = linhasE1.find((l) => l.descricaoLivre === "Fechamento de tenda")!;
   await solicitar(ana, e1.id, "Revisão dos fechamentos", [{ operacao: "REMOVER", eventoItemId: linhaFech.id, qtd: 0, just: "Cliente desistiu do fechamento lateral." }], false);
-  const linhaTenda = linhasE1.find((l) => l.projeto?.nome === "Estande 9×6 m")!;
+  const linhaTenda = linhasE1.find((l) => l.projeto?.nome === estande.nome)!;
   await alterarQuantidadeLinha(marina, e1.id, linhaTenda.id, 2, "Cliente aprovou segundo estande VIP por telefone; produção confirmará por solicitação formal.");
   // Deixa a solicitação da Gráfica atrasada
   await db.update(solicitacoes).set({ enviadaEm: dt(-3, 9), prazoRespostaEm: dt(-1, 9) }).where(eq(solicitacoes.id, s1e));

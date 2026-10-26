@@ -56,6 +56,14 @@ import { removerPosicaoArena, restaurarPlantaArena, salvarPosicaoArena } from ".
 import { marcarOsEnviada } from "./os";
 import { vincularAoCatalogo } from "./fora-catalogo";
 import { consolidarPeriodo } from "./consolidacao";
+import { salvarSeparacao } from "./separacao";
+import { excluirGrupoProjeto } from "./projetos";
+import { definirExtraDaRegra } from "./conferencia";
+import { salvarItemEstoque } from "./estoque";
+import { podeGerenciarEstoque } from "@/domain/estoque";
+import { getDb } from "@/server/db";
+import { eventoItens, pecas as tabelaPecas, projetoGrupos } from "@/server/db/schema";
+import { and, eq } from "drizzle-orm";
 import {
   criarPeca,
   criarProjeto,
@@ -411,6 +419,41 @@ caso({
   executar: (u, a) => restaurarPlantaArena(u, a.slug),
 });
 caso({ nome: "consolidar período", acao: "consolidacao.ver", executar: (u) => consolidarPeriodo(u, { inicio: dia(0), fim: dia(30) }) });
+
+/* ---------- Ações novas (out/2026) ---------- */
+
+caso({ nome: "estrutura locada na folha de separação", acao: "ata.consolidar", preparar: () => novoEvento(E.logistica), executar: (u, ev) => salvarSeparacao(u, ev.id, { locada: true, q15Locado: false }) });
+caso({
+  nome: "excluir grupo de prova",
+  acao: "projeto.gerenciar",
+  preparar: async () => {
+    const nome = unico("Grupo de prova");
+    const [g] = await (await getDb()).insert(projetoGrupos).values({ nome, nomeNormalizado: nome.toLowerCase() }).returning();
+    return g;
+  },
+  executar: (u, g) => excluirGrupoProjeto(u, g.id),
+});
+caso({
+  nome: "grades a mais do prisma na conferência",
+  acao: "ata.consolidar",
+  preparar: async () => {
+    const db = await getDb();
+    await db.insert(tabelaPecas).values([{ codigo: "PRISMA", nome: "Prisma", setor: "ARENA" }, { codigo: "GRADE-2X1", nome: "Grade 2×1 m", setor: "ARENA" }]).onConflictDoNothing();
+    const prisma = (await db.query.pecas.findFirst({ where: eq(tabelaPecas.codigo, "PRISMA") }))!;
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, prisma.id, 3, null);
+    const [regra] = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "grade-prisma")));
+    return { ev, regra };
+  },
+  executar: (u, p) => definirExtraDaRegra(u, p.ev.id, p.regra.id, 4, ""),
+});
+caso({
+  nome: "item do estoque da Ativação",
+  // O estoque não é uma ação da matriz: é da área Ativação e do administrador (podeGerenciarEstoque).
+  acao: "admin.areas",
+  permitido: (u) => podeGerenciarEstoque(u),
+  executar: (u) => salvarItemEstoque(u, { nome: unico("Item de estoque"), categoria: "Ativação", quantidade: 1, comprar: null, observacao: null, pecaId: null }),
+});
 
 /* ------------------------------------------------------------------ */
 /* Execução                                                             */

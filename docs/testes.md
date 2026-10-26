@@ -77,6 +77,8 @@ npx playwright show-report                 # relatório HTML (playwright-report/
 | `E2E_REUSAR_SERVIDOR=1` | usa um app já rodando na porta, sem recriar o banco |
 | `CI` | `retries: 1`, proíbe `test.only`, reporter do GitHub |
 
+Varredura (`e2e/varredura.spec.ts`): cada perfil do seed abre todas as telas, em desktop e celular, e reprova 5xx, tela de erro, erro de JavaScript/console, página mais larga que a tela no celular e link de linha em célula escondida; cada visita vai para `test-results/varredura.jsonl`. Resultado e achados de QA em `docs/QA_REPORT.md`.
+
 Fluxos (seletores só por papel e rótulo acessível — `getByRole`/`getByLabel`, nunca classes CSS):
 
 | Arquivo | O que cobre |

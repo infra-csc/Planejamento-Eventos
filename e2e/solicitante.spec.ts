@@ -33,7 +33,6 @@ test("solicitante envia necessidade com 2 unidades descritas e ela fica na ata",
     await page.getByRole("textbox", { name: `Descrição da unidade ${n + 1} de ${PROJETOS.portico4}`, exact: true }).fill(d);
   }
   await expect(page.getByText("2 de 2 descritas")).toBeVisible();
-  await page.getByRole("textbox", { name: `Onde vai ficar`, exact: false }).first().fill("Entradas");
 
   // 4 · Título e envio.
   await page.getByRole("textbox", { name: /^Título/ }).fill(titulo);
