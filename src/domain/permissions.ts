@@ -69,7 +69,8 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "catalogo.ver": TODOS,
   "catalogo.gerenciar": ["LOGISTICA", "CENOGRAFIA", "ADMIN"],
   "projeto.ver": TODOS,
-  "projeto.gerenciar": ["CENOGRAFIA", "ADMIN"],
+  // Logística corrige projetos padrão que saem errados na OS (26/10).
+  "projeto.gerenciar": ["LOGISTICA", "CENOGRAFIA", "ADMIN"],
   // Por enquanto só o administrador: demanda de peças ainda em validação.
   "consolidacao.ver": ["ADMIN"],
   // Mapa 3D: todo mundo vê o que já existe; só o administrador cria, edita e exclui.
@@ -140,7 +141,7 @@ export function perfilUsaArea(perfil: Perfil): boolean {
 export const PERFIL_DESCRICAO: Record<Perfil, string> = {
   REQUISITANTE: "Envia necessidades e alterações da própria área. Vê apenas o que a área enviou.",
   CENOGRAFIA: "Além de solicitar, mantém os projetos padrão e o catálogo de peças.",
-  LOGISTICA: "Conduz a reunião, responde item a item, fecha a ata e gera a OS.",
+  LOGISTICA: "Conduz a reunião, responde item a item, fecha a ata e gera a OS. Também edita projetos padrão.",
   GESTAO: "Acompanha todos os eventos e é o único perfil que reabre um evento encerrado.",
   ADMIN: "Acesso total: gerencia usuários, áreas e configurações e pode executar qualquer ação dos outros perfis.",
 };

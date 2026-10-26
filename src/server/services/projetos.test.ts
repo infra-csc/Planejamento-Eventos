@@ -109,7 +109,7 @@ describe("grupos livres da biblioteca", () => {
 });
 
 describe("excluir grupo de prova", () => {
-  it("o que estava no grupo passa para Padrão; só cenografia e admin excluem", async () => {
+  it("o que estava no grupo passa para Padrão; requisitante não exclui", async () => {
     const p = await criarProjeto(E.cenografia, dados("Pórtico do grupo que sai", { grupoEvento: "Prova que acabou" }));
     const g = (await listarGruposComUso(E.cenografia)).find((x) => x.nome === "Prova que acabou")!;
     const db = await getDb();

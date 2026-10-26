@@ -110,7 +110,8 @@ describe("permissões", () => {
     expect(pode({ perfil: "LOGISTICA", areaId: null }, "consolidacao.ver")).toBe(false);
     expect(pode({ perfil: "ADMIN", areaId: null }, "arena.ver")).toBe(true);
     expect(pode({ perfil: "CENOGRAFIA", areaId: "a" }, "projeto.gerenciar")).toBe(true);
-    expect(pode({ perfil: "LOGISTICA", areaId: null }, "projeto.gerenciar")).toBe(false);
+    expect(pode({ perfil: "LOGISTICA", areaId: null }, "projeto.gerenciar")).toBe(true);
+    expect(pode({ perfil: "REQUISITANTE", areaId: "a" }, "projeto.gerenciar")).toBe(false);
     expect(pode({ perfil: "GESTAO", areaId: null }, "evento.reabrir")).toBe(true);
     expect(pode({ perfil: "ADMIN", areaId: null }, "admin.usuarios")).toBe(true);
     // Pendências de compra: a operação vê; logística (e admin) resolve.

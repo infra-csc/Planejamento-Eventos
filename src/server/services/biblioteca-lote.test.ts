@@ -76,12 +76,13 @@ describe("desabilitar em lote", () => {
     await expect(desabilitarBibliotecaEmLote(E.admin, "fora", ["x"])).rejects.toBeInstanceOf(ValidacaoError);
   });
 
-  it("requisitante não pode fazer lote e logística não gerencia projetos", async () => {
+  it("requisitante não pode fazer lote; logística também desabilita projetos", async () => {
     const p = await projeto("Projeto protegido por perfil");
     await expect(desabilitarBibliotecaEmLote(E.requisitante, "projetos", [p.id])).rejects.toBeInstanceOf(DomainError);
     await expect(desabilitarBibliotecaEmLote(E.requisitante, "pecas", ["x"])).rejects.toBeInstanceOf(DomainError);
-    await expect(desabilitarBibliotecaEmLote(E.logistica, "projetos", [p.id])).rejects.toBeInstanceOf(DomainError);
     expect((await (await getDb()).query.projetos.findFirst({ where: eq(projetos.id, p.id) }))?.ativo).toBe(true);
+    await desabilitarBibliotecaEmLote(E.logistica, "projetos", [p.id]);
+    expect((await (await getDb()).query.projetos.findFirst({ where: eq(projetos.id, p.id) }))?.ativo).toBe(false);
   });
 });
 
