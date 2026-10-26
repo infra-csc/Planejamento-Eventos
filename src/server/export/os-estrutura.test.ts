@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aplicarAjustesBom, calcularOS, osParaLeitura, type LinhaAta } from "@/domain/os";
+import { aplicarAjustesBom, calcularOS, osParaLeitura, renomearPecasOs, type LinhaAta } from "@/domain/os";
 import type { BomSnapshotLinha } from "@/server/db/schema";
 import { montarOsEstrutura, nomeAba, pecaDeEstruturaLocada, ROTULOS_Q30 } from "./os-estrutura";
 import { montarOsMarcenaria } from "./os-marcenaria";
@@ -111,6 +111,16 @@ describe("montarOsEstrutura", () => {
     expect(grade.total).toBe(42);
     expect(grade.origens.map((o) => o.descricao)).toEqual(["Peça solta · Produção", "Regra: 1 prisma = 2 grades 2×1 (além das grades pedidas)"]);
     expect(os.individuais?.some((x) => x.codigo === "PRISMA")).toBe(false);
+  });
+
+  it("peça renomeada no catálogo aparece com o nome novo em toda a OS (totais, por projeto, soltas)", () => {
+    const novos: Record<string, string> = { PARAF: "Q30 - PARAFUSOS", "CONE-G": "Cone grande laranja" };
+    const r2 = renomearPecasOs(os, (_id, codigo) => novos[codigo]);
+    expect(r2.setores.flatMap((x) => x.linhas).find((l) => l.codigo === "PARAF")?.nome).toBe("Q30 - PARAFUSOS");
+    expect(r2.projetos?.flatMap((p) => p.pecas).filter((x) => x.codigo === "PARAF").every((x) => x.nome === "Q30 - PARAFUSOS")).toBe(true);
+    expect(r2.individuais?.find((x) => x.codigo === "CONE-G")?.nome).toBe("Cone grande laranja");
+    // Sem nome novo, fica o gravado.
+    expect(r2.setores.flatMap((x) => x.linhas).find((l) => l.codigo === "CUBO")?.nome).toBe("Peça CUBO");
   });
 
   it("MARCENARIA por seção (projeto e quantidade) com as peças do projeto", () => {

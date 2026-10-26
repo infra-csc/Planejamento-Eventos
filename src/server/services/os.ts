@@ -1,7 +1,7 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, osVersoes, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
-import { calcularOS, diffOS, osIguais, resumoVersaoOs, type LinhaAta } from "@/domain/os";
+import { eventoItens, eventos, osVersoes, pecas, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
+import { calcularOS, diffOS, osIguais, renomearPecasOs, resumoVersaoOs, type LinhaAta, type NomeAtual } from "@/domain/os";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { bloquearEvento, registrarHistorico, type Executor } from "./support";
@@ -15,14 +15,31 @@ type RegistroLinha = typeof eventoItens.$inferSelect & {
 
 export type LinhaAtaRegistro = LinhaAta & { registro: RegistroLinha };
 
-function paraLinhaAta(r: RegistroLinha): LinhaAtaRegistro {
+/**
+ * Nomes atuais do catálogo das peças citadas (por id e por código): a lista de peças copiada para a linha do
+ * projeto e as versões gravadas da OS guardam o nome da época; a leitura usa o de hoje.
+ */
+async function nomesAtuais(ex: Executor, ids: Iterable<string>, codigos: Iterable<string>): Promise<NomeAtual> {
+  const listaIds = [...new Set(ids)];
+  const listaCodigos = [...new Set(codigos)];
+  if (!listaIds.length && !listaCodigos.length) return () => undefined;
+  const rows = await ex
+    .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome })
+    .from(pecas)
+    .where(listaIds.length && listaCodigos.length ? or(inArray(pecas.id, listaIds), inArray(pecas.codigo, listaCodigos)) : listaIds.length ? inArray(pecas.id, listaIds) : inArray(pecas.codigo, listaCodigos));
+  const porId = new Map(rows.map((r) => [r.id, r.nome]));
+  const porCodigo = new Map(rows.map((r) => [r.codigo, r.nome]));
+  return (id, codigo) => (id ? porId.get(id) : undefined) ?? porCodigo.get(codigo);
+}
+
+function paraLinhaAta(r: RegistroLinha, nome: NomeAtual = () => undefined): LinhaAtaRegistro {
   return {
     id: r.id,
     tipo: r.tipo,
     quantidade: r.quantidade,
     destino: r.destino,
     areaNome: r.area?.nome ?? null,
-    projeto: r.tipo === "PROJETO" && r.projeto ? { codigo: r.projeto.codigo, nome: r.projeto.nome, versao: r.projetoVersao?.numero ?? 0, bom: r.bomSnapshot ?? [] } : null,
+    projeto: r.tipo === "PROJETO" && r.projeto ? { codigo: r.projeto.codigo, nome: r.projeto.nome, versao: r.projetoVersao?.numero ?? 0, bom: (r.bomSnapshot ?? []).map((b) => ({ ...b, nome: nome(b.pecaId, b.codigo) ?? b.nome })) } : null,
     peca: r.tipo === "PECA" && r.peca ? { id: r.peca.id, codigo: r.peca.codigo, nome: r.peca.nome, setor: r.peca.setor, unidade: r.peca.unidade } : null,
     descricaoLivre: r.descricaoLivre,
     regra: r.regra,
@@ -37,7 +54,8 @@ export async function montarLinhasAta(ex: Executor, eventoId: string, opcoes: { 
     with: { projeto: true, peca: true, area: true, projetoVersao: true },
     orderBy: (t, { asc }) => [asc(t.criadoEm)],
   });
-  return rows.map(paraLinhaAta);
+  const nome = await nomesAtuais(ex, rows.flatMap((r) => (r.bomSnapshot ?? []).map((b) => b.pecaId)), []);
+  return rows.map((r) => paraLinhaAta(r, nome));
 }
 
 /** Linhas ativas de vários eventos numa consulta só (consolidação, formulário de solicitação). */
@@ -49,7 +67,8 @@ export async function montarLinhasAtaDeEventos(ex: Executor, eventoIds: string[]
     with: { projeto: true, peca: true, area: true, projetoVersao: true },
     orderBy: (t, { asc }) => [asc(t.criadoEm)],
   });
-  for (const r of rows) mapa.get(r.eventoId)?.push(paraLinhaAta(r));
+  const nome = await nomesAtuais(ex, rows.flatMap((r) => (r.bomSnapshot ?? []).map((b) => b.pecaId)), []);
+  for (const r of rows) mapa.get(r.eventoId)?.push(paraLinhaAta(r, nome));
   return mapa;
 }
 
@@ -107,7 +126,13 @@ export async function obterConteudosOs(eventoId: string, numeros: number[]): Pro
     .select({ numero: osVersoes.numero, conteudo: osVersoes.conteudo })
     .from(osVersoes)
     .where(and(eq(osVersoes.eventoId, eventoId), inArray(osVersoes.numero, alvo)));
-  return new Map(rows.map((r) => [r.numero, r.conteudo]));
+  // Versões gravadas guardam o nome da época: a leitura mostra o nome de hoje do catálogo.
+  const nome = await nomesAtuais(
+    db,
+    rows.flatMap((r) => r.conteudo.setores.flatMap((s) => s.linhas.map((l) => l.pecaId))),
+    rows.flatMap((r) => [...(r.conteudo.projetos ?? []).flatMap((p) => p.pecas.map((x) => x.codigo)), ...(r.conteudo.individuais ?? []).map((x) => x.codigo)]),
+  );
+  return new Map(rows.map((r) => [r.numero, renomearPecasOs(r.conteudo, nome)]));
 }
 
 /**

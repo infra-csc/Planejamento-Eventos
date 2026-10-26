@@ -27,6 +27,22 @@ export type LinhaAta = {
 export const CODIGO_PRISMA_COMUM = "PRISMA";
 export const semPrismaComum = <T extends { codigo: string }>(linhas: readonly T[]): T[] => linhas.filter((l) => l.codigo !== CODIGO_PRISMA_COMUM);
 
+/** Nome atual de uma peça no catálogo (pelo id quando houver, senão pelo código); undefined = mantém o gravado. */
+export type NomeAtual = (pecaId: string | undefined, codigo: string) => string | undefined;
+
+/**
+ * A OS com os nomes de hoje do catálogo: peça renomeada na Biblioteca (ex.: "Parafuso com porca…" → "Q30 -
+ * PARAFUSOS") aparece com o nome novo também nas versões já gravadas e nas listas copiadas para o evento.
+ */
+export function renomearPecasOs(os: OsConteudo, nome: NomeAtual): OsConteudo {
+  return {
+    ...os,
+    setores: os.setores.map((s) => ({ ...s, linhas: s.linhas.map((l) => ({ ...l, nome: nome(l.pecaId, l.codigo) ?? l.nome })) })),
+    projetos: os.projetos?.map((p) => ({ ...p, pecas: p.pecas.map((x) => ({ ...x, nome: nome(undefined, x.codigo) ?? x.nome })) })),
+    individuais: os.individuais?.map((x) => ({ ...x, nome: nome(undefined, x.codigo) ?? x.nome })),
+  };
+}
+
 /** A OS como é lida (tela, Excel, folha): sem o prisma comum nos totais e nas peças soltas. */
 export function osParaLeitura(os: OsConteudo): OsConteudo {
   return {
