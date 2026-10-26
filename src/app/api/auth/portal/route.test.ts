@@ -1,6 +1,6 @@
 /**
  * GET /api/auth/portal (entrada pelo Portal NORTE) chamado direto, com PGlite em memória: cria o
- * usuário na primeira entrada, atualiza o perfil nas seguintes, recusa token repetido/vencido/de
+ * usuário na primeira entrada (perfil do portal), mantém nas seguintes o perfil e a situação do app, recusa token repetido/vencido/de
  * outro app e fica desligada sem PORTAL_SSO_SECRET.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,14 +58,20 @@ describe("GET /api/auth/portal", () => {
     expect(s.usuarioId).toBe(u.id);
   });
 
-  it("entrada seguinte: o papel do portal atualiza o perfil e reativa a conta", async () => {
+  it("entrada seguinte: vale o perfil definido no app, não o papel do portal; conta desativada no app não entra", async () => {
     const db = await getDb();
-    await db.update(usuarios).set({ ativo: false }).where(sql`lower(${usuarios.email}) = 'ana@nortemkt.com'`);
-    const r = await chamar(token({ role: "Cenografia" }));
-    expect(destino(r)).toBe("/");
-    const [u] = await db.select().from(usuarios).where(sql`lower(${usuarios.email}) = 'ana@nortemkt.com'`);
-    expect(u.perfil).toBe("CENOGRAFIA");
-    expect(u.ativo).toBe(true);
+    const daAna = sql`lower(${usuarios.email}) = 'ana@nortemkt.com'`;
+    // O admin tirou a Ana de logística no app; o portal ainda manda outro papel.
+    await db.update(usuarios).set({ perfil: "REQUISITANTE" }).where(daAna);
+    expect(destino(await chamar(token({ role: "Cenografia" })))).toBe("/");
+    expect((await db.select().from(usuarios).where(daAna))[0].perfil).toBe("REQUISITANTE");
+    // Desativada no app: o portal não reativa.
+    cookieGravado.valor = null;
+    await db.update(usuarios).set({ ativo: false }).where(daAna);
+    expect(destino(await chamar(token({ role: "Cenografia" })))).toBe("/login?erro=portal-inativo");
+    expect((await db.select().from(usuarios).where(daAna))[0].ativo).toBe(false);
+    expect(cookieGravado.valor).toBeNull();
+    await db.update(usuarios).set({ ativo: true }).where(daAna);
   });
 
   it("o mesmo token não entra duas vezes; vencido e de outro app voltam ao login com o motivo", async () => {

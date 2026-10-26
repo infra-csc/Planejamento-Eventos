@@ -41,10 +41,11 @@ export async function entrarPeloPortal(jwt: string): Promise<EntradaPortal> {
   let id: string;
   if (existente) {
     id = existente.id;
-    const mudou = existente.perfil !== perfil || !existente.ativo || (v.token.nome !== null && existente.nome !== v.token.nome);
-    if (mudou) {
-      await db.update(usuarios).set({ perfil, ativo: true, nome: v.token.nome ?? existente.nome }).where(eq(usuarios.id, id));
-      await registrarHistorico(db, { entidade: "acesso", entidadeId: id, acao: "PORTAL", descricao: `Entrada pelo Portal NORTE: perfil ${perfil}${existente.ativo ? "" : ", conta reativada"}.`, usuarioId: id, verComo: null }).catch(() => undefined);
+    // Quem já existe mantém o perfil e a situação (ativo/inativo) definidos na Administração do app: antes o papel do
+    // portal regravava o perfil a cada entrada (quem saía de admin aqui voltava a ser admin) e reativava conta
+    // desativada. O papel do portal só vale na criação (abaixo). Conta inativa não entra (abrirSessaoUsuario).
+    if (v.token.nome !== null && existente.nome !== v.token.nome) {
+      await db.update(usuarios).set({ nome: v.token.nome }).where(eq(usuarios.id, id));
     }
   } else {
     // Sem senha própria: a pessoa entra pelo portal; "Esqueci minha senha" cria uma se precisar.
