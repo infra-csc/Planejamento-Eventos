@@ -14,7 +14,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 1. Nova solicitação — `/solicitacoes/nova`
 - [x] 2. Conferência da ata — `/conferencia/[id]` (e o redirecionamento `/eventos/[id]/reuniao`)
 - [x] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
-- [ ] 4. Lista de eventos — `/eventos`
+- [x] 4. Lista de eventos — `/eventos`
 - [ ] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
 - [ ] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
 - [ ] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
@@ -122,3 +122,19 @@ Validação: tsc, eslint; medição no navegador (tabela da diferença com 341 p
 screenshots `antes-logistica-*-eventos_evento_os.png`, `antes-logistica-*-impressao_os_evento.png`,
 `depois-logistica-{desktop,celular}-eventos_evento_os.png`, `depois-logistica-*-eventos_EVT_0002_os.png`,
 `depois-logistica-*-impressao_os_evento.png`.
+
+### 4. Lista de eventos — `/eventos`
+
+Vista: requisitante Produção e logística; desktop e celular; abas de fase, filtros, paginação.
+
+- P2 — No celular, busca + três listas (reunião, data, responsável) vinham empilhadas, uma por linha: quatro
+  campos de 40 px antes do primeiro evento. **Resolvido:** grade de duas colunas no celular — busca na linha
+  toda, "Reunião" e "Data" lado a lado, "Responsável" e os avisos na linha toda. No desktop a barra continua
+  numa linha.
+- Sem mudança: tabela com `LinhaLink`, fase com barra de progresso, "áreas que pediram", contagem por aba,
+  ordenação e vazios por caso (busca, filtro, sem eventos) — consistentes com o padrão de lista.
+- Pendente (P3): a coluna "Pendências" mostra "em dia" em quase todas as linhas; é informação, mas ocupa
+  espaço. Fica como está até a equipe dizer se prefere vazio quando não há pendência.
+
+Arquivo: `src/app/(app)/eventos/page.tsx`.
+Validação: tsc, eslint; screenshots `antes-producao-*-eventos.png`, `depois-logistica-{desktop,celular}-eventos.png`.

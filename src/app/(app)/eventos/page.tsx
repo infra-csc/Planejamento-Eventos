@@ -199,24 +199,25 @@ export default async function EventosPage({
         }
       />
 
-      {/* Barra de filtros compacta (template de pedidos): busca à esquerda, o que é urgente à direita. */}
-      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <BuscaUrl largura={300} placeholder="Buscar evento, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+      {/* Barra de filtros compacta (template de pedidos): busca à esquerda, o que é urgente à direita.
+          Celular: busca na linha toda e as listas curtas aos pares (antes eram 4 campos empilhados antes da lista). */}
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center">
+        <BuscaUrl largura={300} className="col-span-2" placeholder="Buscar evento, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
         <FiltroSelectUrl param="reuniao" rotulo="Reunião de OS" todas="Qualquer reunião" opcoes={[...REUNIOES]} className="sm:w-[190px]" />
         <FiltroSelectUrl param="periodo" rotulo="Data do evento" todas="Qualquer data" opcoes={[...PERIODOS]} className="sm:w-[190px]" />
-        {responsaveis.length > 1 && <FiltroSelectUrl param="resp" rotulo="Responsável" todas="Todos os responsáveis" opcoes={responsaveis} className="sm:w-[210px]" />}
+        {responsaveis.length > 1 && <FiltroSelectUrl param="resp" rotulo="Responsável" todas="Todos os responsáveis" opcoes={responsaveis} className="col-span-2 sm:w-[210px]" />}
         {comFiltro && (
-          <Link href={hrefCom("/eventos", params, { reuniao: null, periodo: null, resp: null, pagina: null })} className="text-pequeno font-medium text-accent no-underline hover:underline">
+          <Link href={hrefCom("/eventos", params, { reuniao: null, periodo: null, resp: null, pagina: null })} className="col-span-2 text-pequeno font-medium text-accent no-underline hover:underline">
             Limpar filtros
           </Link>
         )}
         {soAcao ? (
-          <Link href={hrefCom("/eventos", params, { acao: null, pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
+          <Link href={hrefCom("/eventos", params, { acao: null, pagina: null })} className="col-span-2 inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
             Mostrando só o que {ehLogistica ? "exige ação agora" : "aguarda a logística"} · ver todos
           </Link>
         ) : (
           nAcao > 0 && (
-            <Link href={hrefCom("/eventos", params, { acao: "1", pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
+            <Link href={hrefCom("/eventos", params, { acao: "1", pagina: null })} className="col-span-2 inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
               <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-warning" />
               {nAcao} {nAcao === 1 ? "evento" : "eventos"} {ehLogistica ? (nAcao === 1 ? "exige ação agora" : "exigem ação agora") : rotuloAcao}
             </Link>
