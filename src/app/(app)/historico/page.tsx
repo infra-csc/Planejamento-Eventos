@@ -209,7 +209,9 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
       </td>
       <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
         {h.evento && h.eventoId ? (
-          <Link href={`/eventos/${h.eventoId}`} className="link block truncate" title={h.evento.nome}>
+          // Até 2 linhas, quebrando: com "truncate" (sem quebra) a coluna crescia até caber o nome inteiro e
+          // espremia "O que aconteceu" numa coluna estreita.
+          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words" title={h.evento.nome}>
             <Codigo>{h.evento.codigo}</Codigo> {h.evento.nome}
           </Link>
         ) : (
@@ -322,7 +324,7 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
       </td>
       <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
         {h.evento && h.eventoId ? (
-          <Link href={`/eventos/${h.eventoId}`} className="link block truncate" title={h.evento.nome}>
+          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words" title={h.evento.nome}>
             <Codigo>{h.evento.codigo}</Codigo> {h.evento.nome}
           </Link>
         ) : (
