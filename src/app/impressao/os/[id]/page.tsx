@@ -22,7 +22,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 /* Tipografia do design system, em tinta só (sem cores de tela): cabeçalho de tabela em caixa-alta pequena,
    números tabulares à direita. Folha de quem separa: só o total, peça e quantidade (sem código, composição nem a quebra por projeto). */
-const tabela = "w-full min-w-[420px] table-fixed border-collapse [overflow-wrap:anywhere] print:min-w-0";
+const tabela = "w-full table-fixed sm:min-w-[420px] border-collapse [overflow-wrap:anywhere] print:min-w-0";
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
 // Linha um pouco mais alta: a folha é impressa e a equipe escreve na coluna Obs.
@@ -31,12 +31,13 @@ const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 const sep = "w-14 py-1.5 text-center align-top";
 /** Observação escrita à mão na folha impressa: célula em branco com a linha de baixo. */
-const obs = "w-[34%] py-1.5 align-top";
+const obs = "w-[34%] py-1.5 align-top not-print:max-sm:hidden";
 
 /** Mesma ordem da conferência da ata (a reunião passa pelos materiais assim). */
 const ORDEM: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
-/** Quantidade com a unidade só quando não é "un" (12 m, 4 par). */
-const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${n} ${unidade}` : String(n));
+/** Quantidade com a unidade só quando não é "un" (12 m, 4 par); milhar com ponto, como na tela da OS (1.520). */
+const fmt = (n: number) => n.toLocaleString("pt-BR");
+const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${fmt(n)} ${unidade}` : fmt(n));
 
 function Rolagem({ children }: { children: React.ReactNode }) {
   return <div className="overflow-x-auto print:overflow-visible">{children}</div>;
@@ -106,7 +107,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
                   <th scope="col" className={th}>Peça</th>
                   <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                  <th scope="col" className={`${th} w-[34%] pl-3`}>Obs.</th>
+                  <th scope="col" className={`${th} w-[34%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,24 +131,25 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         <section className="mb-8 break-inside-avoid">
           <h3 className="mb-2 mt-0 text-destaque font-semibold">Fora do catálogo</h3>
           <Rolagem>
-            <table className={tabela}>
+            {/* Cinco colunas não cabem em 375 px: no celular esta rola de lado; as de peça cabem sem Obs. */}
+            <table className={`${tabela} min-w-[420px]`}>
               <thead>
                 <tr className={cabecalho}>
                   <th scope="col" className={th}>Item</th>
                   <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
-                  <th scope="col" className={`${th} w-[30%]`}>Local · área</th>
+                  <th scope="col" className={`${th} w-[24%]`}>Local · área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                  <th scope="col" className={`${th} w-[34%] pl-3`}>Obs.</th>
+                  <th scope="col" className={`${th} w-[26%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
                 </tr>
               </thead>
               <tbody>
                 {os.semSetor.map((a, i) => (
                   <tr key={i} className={linha}>
                     <td className={td}>{a.descricao}</td>
-                    <td className={`${num} font-semibold`}>{a.quantidade}</td>
+                    <td className={`${num} font-semibold`}>{fmt(a.quantidade)}</td>
                     <td className={`${td} text-rotulo text-ink-3`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
                     <td className={sep}>☐</td>
-                      <td className={obs} />
+                    <td className={`${obs} !w-[26%]`} />
                   </tr>
                 ))}
               </tbody>

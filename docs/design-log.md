@@ -13,7 +13,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 
 - [x] 1. Nova solicitação — `/solicitacoes/nova`
 - [x] 2. Conferência da ata — `/conferencia/[id]` (e o redirecionamento `/eventos/[id]/reuniao`)
-- [ ] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
+- [x] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
 - [ ] 4. Lista de eventos — `/eventos`
 - [ ] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
 - [ ] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
@@ -90,3 +90,35 @@ Incluir linha e Conferir as restantes. `/eventos/[id]/reuniao` só redireciona p
 Arquivo: `src/components/eventos/conferencia-ata.tsx`.
 Validação: tsc, eslint; screenshots `antes-logistica-*-conferencia_EVT_0002.png`,
 `depois-logistica-{desktop,largo,celular}-conferencia_EVT_0002*.png` (inclui os três modais).
+
+### 3. OS do evento — `/eventos/[id]/os` e folha de separação `/impressao/os/[id]`
+
+Vista: logística, EVT-0001 (aberto, v9, 9 versões) e EVT-0002 (prévia, sem versão); folha de separação da
+v9; desktop e celular.
+
+- P1 — No celular, "Envio ao carregamento" (a ação principal, "Marcar v9 como enviada") e "Exportar"
+  (Excel, OS de estrutura/marcenaria, Imprimir) ficavam depois da OS inteira — a página tem ~7.600 px; quem
+  está no galpão precisava rolar tudo para enviar ou baixar. **Resolvido:** no celular a ordem é envio →
+  exportar → folha de separação → o que mudou → OS → versões. No desktop nada muda de lugar (grade de duas
+  linhas: a OS ocupa a coluna da esquerda; à direita, envio/exportar/separação em cima e versões embaixo).
+  Na prévia (sem versão), o mesmo: aviso → exportar → prévia. O DOM segue a ordem do celular.
+  Efeito colateral aceito: no desktop com versões, o bloco da direita deixou de ser fixo ao rolar (com as
+  versões ele já passava da altura da tela, e o fim da lista de versões só aparecia no fim da página).
+- P2 — "O que mudou na vN" no celular rolava de lado e cortava o nome da peça (6 colunas com largura mínima
+  de 640 px). **Resolvido:** a tabela é `data-responsiva`; no celular, situação e código descem para baixo do
+  nome; ficam peça, antes, depois e "Dif.".
+- P2 — Folha de separação imprimia "1520" enquanto a tela da OS mostra "1.520". **Resolvido:** milhar com
+  ponto nas quantidades (também nos itens fora do catálogo).
+- P3 — Na tela da folha aberta no celular, a coluna Obs. (em branco, para escrever no papel) espremia o nome
+  da peça. **Resolvido:** Obs. some só na tela do celular (continua na impressão). "Fora do catálogo" ganhou
+  colunas mais equilibradas (item com mais espaço) e rola de lado no celular.
+- Pendente (decisão): a folha mostra peça e quantidade, sem o código da peça (BOX-2000…). Foi decisão
+  registrada no código ("só o total, peça e quantidade"); se a separação no galpão procura pelo código,
+  vale incluir.
+
+Arquivos: `src/app/(app)/eventos/[id]/os/page.tsx`, `src/components/eventos/diff-os.tsx`,
+`src/app/impressao/os/[id]/page.tsx`.
+Validação: tsc, eslint; medição no navegador (tabela da diferença com 341 px no celular, sem rolagem lateral);
+screenshots `antes-logistica-*-eventos_evento_os.png`, `antes-logistica-*-impressao_os_evento.png`,
+`depois-logistica-{desktop,celular}-eventos_evento_os.png`, `depois-logistica-*-eventos_EVT_0002_os.png`,
+`depois-logistica-*-impressao_os_evento.png`.

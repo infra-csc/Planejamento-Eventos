@@ -28,6 +28,7 @@ function Contagem({ n, tipo }: { n: number; tipo: Tipo }) {
 /**
  * Diferença entre duas versões da OS, peça a peça: o que entrou, saiu ou mudou de quantidade,
  * com antes → depois e a diferença em cor semântica (verde soma, laranja tira). Tabela com rolagem própria.
+ * No celular, situação e código descem para baixo do nome: a peça e os números cabem sem rolar de lado.
  */
 export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; sub?: string; diff: DiffLinha[]; vazio: string; acoes?: React.ReactNode }) {
   const linhas = [...diff].sort((a, b) => ORDEM[tipoDe(a)] - ORDEM[tipoDe(b)] || a.codigo.localeCompare(b.codigo, "pt-BR"));
@@ -47,21 +48,27 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
             <Contagem n={n("saiu")} tipo="saiu" />
           </div>
           <div className="max-h-[420px] overflow-auto">
-            <table className="w-full min-w-[600px] border-collapse">
+            <table data-responsiva className="w-full border-collapse sm:min-w-[600px]">
               <CaptionOculta>{titulo}</CaptionOculta>
               <thead className="sticky top-0 z-[1]">
                 <tr>
-                  <Th largura={92}>Situação</Th>
-                  <Th largura={120}>Código</Th>
-                  <Th>Peça</Th>
-                  <Th largura={72} alinhar="right">
+                  <Th largura={92} className="max-sm:hidden">
+                    Situação
+                  </Th>
+                  <Th largura={120} className="max-sm:hidden">
+                    Código
+                  </Th>
+                  <Th className="max-sm:pl-cartao">Peça</Th>
+                  <Th largura={60} alinhar="right">
                     Antes
                   </Th>
-                  <Th largura={72} alinhar="right">
+                  <Th largura={60} alinhar="right">
                     Depois
                   </Th>
-                  <Th largura={90} alinhar="right">
-                    Diferença
+                  <Th largura={72} alinhar="right">
+                    {/* "Diferença" não cabe na coluna estreita do celular. */}
+                    <span className="sm:hidden">Dif.</span>
+                    <span className="max-sm:hidden">Diferença</span>
                   </Th>
                 </tr>
               </thead>
@@ -71,15 +78,19 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
                   const delta = d.depois - d.antes;
                   return (
                     <tr key={d.codigo} className="hover:bg-subtle">
-                      <td className="border-b border-line-row py-2 pl-cartao pr-3">
+                      <td className="border-b border-line-row py-2 pl-cartao pr-3 max-sm:hidden">
                         <Tag tom={TOM[t]}>{t}</Tag>
                       </td>
-                      <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-2">
+                      <td className="border-b border-line-row px-3 py-2 text-pequeno text-ink-2 max-sm:hidden">
                         <Codigo>{d.codigo}</Codigo>
                       </td>
-                      <th scope="row" className="border-b border-line-row px-3 py-2 text-left font-normal">
+                      <th scope="row" className="border-b border-line-row px-3 py-2 text-left font-normal max-sm:pl-cartao">
                         <span className="block text-corpo text-ink">{d.nome}</span>
                         <span className="block text-rotulo text-muted">{SETOR_LABEL[d.setor]}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-rotulo text-ink-2 sm:hidden">
+                          <Tag tom={TOM[t]}>{t}</Tag>
+                          <Codigo>{d.codigo}</Codigo>
+                        </span>
                       </th>
                       <td className={cn("numero border-b border-line-row px-3 py-2 text-right text-corpo", t === "entrou" ? "text-meta" : "text-ink-3")}>{t === "entrou" ? "—" : fmt(d.antes)}</td>
                       <td className="numero border-b border-line-row px-3 py-2 text-right text-corpo font-medium text-ink">{t === "saiu" ? "—" : fmt(d.depois)}</td>

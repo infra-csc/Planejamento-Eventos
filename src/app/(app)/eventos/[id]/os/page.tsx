@@ -58,12 +58,19 @@ export default async function OsPage({ params, searchParams }: { params: Promise
     const previa = await calcularOsAoVivo(id);
     const visao = visaoDe(sp.visao);
     const temAlgo = previa.setores.length > 0 || previa.semSetor.length > 0;
+    // Celular: aviso, exportações e só então a prévia (longa); desktop: exportações fixas na coluna da direita.
     return (
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-4">
-          <Aviso tom="warning" titulo="Prévia: a OS ainda não foi gerada">
-            Leitura atual da ata em construção. A v1 nasce no fechamento da ata; até lá, tudo pode mudar na reunião.
-          </Aviso>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr] lg:items-start">
+        <Aviso tom="warning" titulo="Prévia: a OS ainda não foi gerada" className="lg:col-start-1 lg:row-start-1">
+          Leitura atual da ata em construção. A v1 nasce no fechamento da ata; até lá, tudo pode mudar na reunião.
+        </Aviso>
+        {temAlgo && pode(usuario, "os.exportar") && (
+          <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true)} />
+            {quadroSeparacao}
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-2">
           {temAlgo ? (
             <OsVisoes os={previa} grupos={grupos} visao={visao} titulo="Prévia da OS" hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, { visao: sp.visao }, { visao: v === "totais" ? null : v })} />
           ) : (
@@ -72,12 +79,6 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             </Section>
           )}
         </div>
-        {temAlgo && pode(usuario, "os.exportar") && (
-          <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
-            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true)} />
-            {quadroSeparacao}
-          </div>
-        )}
       </div>
     );
   }
@@ -153,9 +154,47 @@ export default async function OsPage({ params, searchParams }: { params: Promise
     };
   });
 
+  /*
+   * Celular: envio e exportações vêm antes da OS (a lista de peças passa de 7.000 px; a ação principal e o
+   * Excel ficavam no fim da página). Desktop: a OS ocupa a coluna da esquerda nas duas linhas; à direita,
+   * envio, exportar e separação em cima e as versões embaixo. A ordem do DOM é a do celular.
+   */
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr] lg:items-start">
+      <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1">
+        <Section
+          titulo="Envio ao carregamento"
+          sub={
+            complemento ? (
+              <>
+                Enviada: <Codigo>v{complemento.numero}</Codigo>
+              </>
+            ) : (
+              "Ainda não enviada"
+            )
+          }
+        >
+          <EnvioOs
+            eventoId={id}
+            versaoAtual={atual.numero}
+            podeEnviar={pode(usuario, "ata.ajustar") && (ev.status === "ABERTO" || ev.status === "ENCERRADO")}
+            enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois })), avulsosNovos: complemento.avulsosNovos.length } : null}
+          />
+        </Section>
+        {pode(usuario, "os.exportar") && (
+          <Exportacoes
+            sub={
+              <>
+                <Codigo>v{exibida.numero}</Codigo>
+                {exibida.numero === atual.numero ? " · versão atual" : ` · de ${diaMesHora(exibida.geradaEm)}`}
+              </>
+            }
+            itens={exportacoesOs(id, qsExport)}
+          />
+        )}
+        {quadroSeparacao}
+      </div>
+      <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
         {exibida.numero !== atual.numero && (
           <Aviso
             tom="neutro"
@@ -197,38 +236,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         />
       </div>
 
-      <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
-        <Section
-          titulo="Envio ao carregamento"
-          sub={
-            complemento ? (
-              <>
-                Enviada: <Codigo>v{complemento.numero}</Codigo>
-              </>
-            ) : (
-              "Ainda não enviada"
-            )
-          }
-        >
-          <EnvioOs
-            eventoId={id}
-            versaoAtual={atual.numero}
-            podeEnviar={pode(usuario, "ata.ajustar") && (ev.status === "ABERTO" || ev.status === "ENCERRADO")}
-            enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois })), avulsosNovos: complemento.avulsosNovos.length } : null}
-          />
-        </Section>
-        {pode(usuario, "os.exportar") && (
-          <Exportacoes
-            sub={
-              <>
-                <Codigo>v{exibida.numero}</Codigo>
-                {exibida.numero === atual.numero ? " · versão atual" : ` · de ${diaMesHora(exibida.geradaEm)}`}
-              </>
-            }
-            itens={exportacoesOs(id, qsExport)}
-          />
-        )}
-        {quadroSeparacao}
+      <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-2">
         <Section titulo="Versões" sub={`${versoes.length} ${versoes.length === 1 ? "versão" : "versões"} · nunca editadas à mão`}>
           <VersoesOs versoes={lista} />
         </Section>
