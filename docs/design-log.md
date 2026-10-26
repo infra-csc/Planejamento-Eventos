@@ -18,7 +18,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
 - [x] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
 - [x] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
-- [ ] 8. Painel — `/` (por perfil)
+- [x] 8. Painel — `/` (por perfil)
 
 **Demais**
 
@@ -230,3 +230,22 @@ redirecionam para cá.
 Arquivos: `src/components/biblioteca/selecao-em-lote.tsx`, `src/components/eventos/fila-fora-catalogo.tsx`.
 Validação: tsc, eslint; screenshots `antes-logistica-*-biblioteca*.png`, `antes-cenografia-*-biblioteca*.png`,
 `depois-cenografia-*-biblioteca{,-selecionado}.png`.
+
+### 8. Painel — `/` (por perfil)
+
+Vista: requisitante Produção, logística, gestão, cenografia e admin; desktop e celular.
+
+- P3 — Logística/admin, "Fila de resposta" no celular: os botões "Atender" e "Parcial / não atender" da faixa
+  de resposta rápida ficavam lado a lado e passavam da borda da faixa. **Resolvido:** no celular os botões
+  quebram linha dentro da faixa; no desktop continuam na mesma linha.
+- Sem mudança: "Precisa de você agora" por perfil (cartões com contagem e ação), fila com prazo, métricas,
+  agenda de 14 dias, "O que mudou" e "Como funciona" do requisitante, saúde do sistema e atalhos do admin.
+- Pendente (P3): requisitante no celular — "Seus eventos" lista todos os eventos da área em cartões (6 no
+  demo, ~1.700 px) antes das solicitações e respostas; limitar a 3–4 com "Todos os eventos" encurtaria a
+  página, mas muda o que aparece: fica para decisão da equipe.
+- Pendente (P3): em "Suas solicitações em andamento" a situação sai como texto ("rascunho") e em "Respostas
+  recebidas" como selo; uniformizar com `SolicitacaoStatusBadge`.
+
+Arquivo: `src/components/painel/atender-rapido.tsx`.
+Validação: eslint; screenshots `antes-{producao,logistica,gestao,cenografia,admin}-*-raiz.png`,
+`depois-logistica-celular-raiz{,-recorte}.png`.

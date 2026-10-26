@@ -19,7 +19,8 @@ export function AtenderRapido({ itemId, codigo, rotulo, href, sufixo }: { itemId
           {rotulo}
         </span>
       </span>
-      <span className="flex shrink-0 items-center gap-2">
+      {/* Celular: os botões quebram linha dentro da faixa (lado a lado passavam da borda dela). */}
+      <span className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
         <Button
           variant="atender"
           size="xs"
