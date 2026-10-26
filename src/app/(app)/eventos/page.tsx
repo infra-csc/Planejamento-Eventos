@@ -49,21 +49,22 @@ function quando(dataInicio: string, hoje: string) {
  * O próximo marco do evento, com tom: reunião hoje/amanhã em destaque; reunião que passou sem começar em
  * amarelo ("reunião não iniciada"); reunião aberta de outro dia não é "agora" (é ata por fechar).
  */
-function marco(e: EventoLista, hoje: string): { texto: string; tom?: "accent" | "warning" } {
+function marco(e: EventoLista, hoje: string): { texto: string; tom?: "info" | "warning" } {
   const diaReuniao = isoSP(e.dataReuniao);
   if (e.status === "PREPARACAO") {
-    if (diaReuniao === hoje) return { texto: `reunião hoje ${hora(e.dataReuniao)}`, tom: "accent" };
-    if (diaReuniao === addDiasISO(hoje, 1)) return { texto: `reunião amanhã ${hora(e.dataReuniao)}`, tom: "accent" };
+    if (diaReuniao === hoje) return { texto: `reunião hoje ${hora(e.dataReuniao)}`, tom: "info" };
+    if (diaReuniao === addDiasISO(hoje, 1)) return { texto: `reunião amanhã ${hora(e.dataReuniao)}`, tom: "info" };
     if (diaReuniao < hoje) return { texto: `não iniciada · ${diaMesHora(e.dataReuniao)}`, tom: "warning" };
     return { texto: `reunião ${diaMesHora(e.dataReuniao)}` };
   }
-  if (e.status === "EM_REUNIAO") return diaReuniao < hoje ? { texto: "ata por fechar", tom: "warning" } : { texto: "em reunião agora", tom: "accent" };
+  if (e.status === "EM_REUNIAO") return diaReuniao < hoje ? { texto: "ata por fechar", tom: "warning" } : { texto: "em reunião agora", tom: "info" };
   // Sem janela, "aberto a alterações" só repetia a fase ao lado: mostra quando o evento acontece.
   if (e.status === "ABERTO") return { texto: e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : quando(e.dataInicio, hoje) };
   if (e.status === "CANCELADO") return { texto: "cancelado" };
   return { texto: e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS" };
 }
-const COR_MARCO = { accent: "font-medium text-accent", warning: "font-medium text-warning" } as const;
+// Reunião hoje/amanhã/agora é estado (em andamento): azul de informação; o vinho é só para "aja aqui".
+const COR_MARCO = { info: "font-medium text-info", warning: "font-medium text-warning" } as const;
 
 /** Recortes pela reunião de OS (em preparação ou em reunião) e pela data do evento. */
 const REUNIOES = [

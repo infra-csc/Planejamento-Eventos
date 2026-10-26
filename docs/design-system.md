@@ -154,6 +154,8 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
 ### 5.1 Lista (referência: `/solicitacoes`, `/eventos`)
 1. `PageHeader title divisor actions` — ação principal (`primary`, `size="lg"`) à direita; secundárias antes dela.
 2. Barra de filtros numa linha: `BuscaUrl` (com ícone e spinner), `FiltroEvento`/`Pills`; alertas curtos à direita (`sm:ml-auto`).
+   No celular, `grid grid-cols-2 sm:flex …`: busca, evento e avisos com `col-span-2`; listas curtas (`FiltroSelectUrl`)
+   aos pares, em vez de um campo de 40 px por linha antes da lista.
 3. Cartão (`rounded-cartao border border-line bg-surface overflow-hidden`) com `TabsNav` no topo (`className="mb-0 px-2 pt-1"`), contagem em cada aba.
 4. Tabela: `CaptionOculta`, `ThOrdenavel`/`Th`, linhas `LinhaLink` (linha inteira clicável), números com `numero` e alinhados à direita, código com `Codigo`.
 5. `Paginacao` no rodapé. Vazio: `EmptyState` dentro do cartão (título + 1 frase + ação).
@@ -201,6 +203,11 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
 - **Foco visível** em todo interativo: anel 2 px `accent` com folga 2 px (global, camada base); anel
   **interno** onde o contêiner rola ou recorta (abas, pílulas, paginação, itens de lista). Nunca `outline-none` sem substituto.
 - Abas com rolagem horizontal esmaecem a borda do lado com mais abas e centralizam a aba ativa.
+- Tabela com versão de celular própria (colunas que somem ou descem para a célula do nome) marca `data-responsiva`;
+  sem isso, abaixo de 1024 px toda tabela ganha `min-width: 640px` e rola de lado (`globals.css`).
+- Lista ao lado de um painel (conferência com os dados da reunião) escolhe as colunas pela **largura da lista**
+  (`@container` + `@3xl:`), não da tela: a 1280 px o painel deixa a lista com ~600 px.
+- `Aviso` com `acoes`: no celular as ações descem para baixo do texto (o componente já faz).
 - Ícones decorativos `aria-hidden`; botão só com ícone sempre com `label`.
 - Movimento reduzido respeitado globalmente.
 

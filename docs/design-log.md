@@ -16,7 +16,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
 - [x] 4. Lista de eventos — `/eventos`
 - [x] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
-- [ ] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
+- [x] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
 - [ ] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
 - [ ] 8. Painel — `/` (por perfil)
 
@@ -170,3 +170,40 @@ Arquivos: `src/components/ui/layout.tsx` (Aviso), `src/components/eventos/mudanc
 Validação: tsc, eslint; screenshots `antes-logistica-*-eventos_evento*.png`,
 `antes-logistica-*-eventos_EVT_0002_itens_*.png`, `depois-logistica-*-eventos_evento{,_ata,_solicitacoes}.png`,
 `depois-logistica-celular-eventos_evento-recorte.png`, `depois-producao-*-eventos_EVT_0002.png`.
+
+### 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
+
+Vista: requisitante Produção e logística; lista (abas, filtros, celular em cartões) e detalhe com resposta
+pendente (SOL-0005: fora da janela, item fora do catálogo; painéis "Parcial" e "Não atender") e na ata;
+requisitante abrindo solicitação de outra área (vai para "sem permissão", como esperado); desktop e celular.
+
+- P1 (bug) — O filtro **Área** da logística não filtrava nada: o valor da URL era validado com `/^[w-]{1,64}$/`
+  (só aceita "w" e "-"), então o id da área (UUID) era descartado e a lista seguia com todas as áreas.
+  **Resolvido:** `/^[\w-]{1,64}$/`, como o filtro de evento logo acima. Conferido no navegador: 18 → 6
+  linhas, todas da Ativação. É correção de validação de parâmetro na página (não muda regra, permissão nem
+  serviço) — registrado também nos riscos.
+- P2 — No celular, busca + evento + área + tipo + reunião eram cinco campos empilhados. **Resolvido:** busca,
+  evento e área na linha toda; tipo e reunião lado a lado (mesmo padrão da lista de eventos; `FiltroEvento`
+  ganhou `className`). Padrão registrado em `docs/design-system.md` § 5.1.
+- P3 — Requisitante só vê a própria área, mas a tabela tinha a coluna "Área" repetindo o mesmo nome em todas
+  as linhas. **Resolvido:** a coluna (e o nome da área na linha, em telas médias) só aparece para quem vê
+  todas as áreas.
+- P3 — "em reunião" / "reunião hoje" em vinho na coluna Prazo (e "reunião hoje/amanhã/em reunião agora" na
+  lista de eventos): é estado, não ação. **Resolvido:** azul de informação (`text-info`), nas duas listas.
+- Sem mudança: detalhe da solicitação (cabeçalho com prazo, aviso de fora da janela, item fora do catálogo
+  com "Vincular", resposta Atender/Parcial/Não atender com atalhos A/P/N, painel de motivo, histórico,
+  dados e evento) — claro e consistente; no celular os painéis de resposta cabem sem rolagem lateral.
+
+Arquivos: `src/app/(app)/solicitacoes/page.tsx`, `src/app/(app)/eventos/page.tsx`,
+`src/components/ui/filtro-evento.tsx`, `docs/design-system.md`.
+Validação: tsc, eslint; filtro de área conferido com script no navegador; screenshots
+`antes-*-solicitacoes*.png`, `depois-{producao,logistica}-*-solicitacoes.png`,
+`depois-logistica-desktop-solicitacoes-filtro-area.png`, `depois-logistica-*-solicitacoes_62ab3eaa*` (com
+os painéis Parcial e Não atender).
+
+### Checagem E2E depois dos itens 1–6
+
+`npx next build` + `E2E_SEM_BUILD=1 npx playwright test e2e/acessibilidade.spec.ts e2e/varredura.spec.ts`:
+27 de 28 passaram; 1 falhou por tempo (varredura · ativação, desktop: `page.evaluate` ficou parado 15 min
+em `/perfil`, tela que não foi alterada; no celular o mesmo perfil passou). Rodado de novo sozinho, passou
+em 31 s — tratado como instabilidade do ambiente, não do app.

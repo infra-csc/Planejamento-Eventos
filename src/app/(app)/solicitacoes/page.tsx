@@ -53,7 +53,8 @@ export default async function SolicitacoesPage({
   const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : "TODAS";
   const eventoId = sp.evento && /^[\w-]{1,64}$/.test(sp.evento) ? sp.evento : null;
   const busca = sp.q?.trim().slice(0, 80) || null;
-  const areaId = veTodas && sp.area && /^[w-]{1,64}$/.test(sp.area) ? sp.area : null;
+  // `\w`: o id da área é um UUID (letras, números e hífen); com `[w-]` o filtro de área nunca valia.
+  const areaId = veTodas && sp.area && /^[\w-]{1,64}$/.test(sp.area) ? sp.area : null;
   const tipo = sp.tipo === "PRE_REUNIAO" || sp.tipo === "ALTERACAO" ? sp.tipo : null;
   const reuniao = (REUNIOES_LISTA as readonly string[]).includes(sp.reuniao ?? "") ? (sp.reuniao as ReuniaoLista) : null;
   const [pag, primeiraFila, eventosFiltro, areasFiltro] = await Promise.all([
@@ -119,12 +120,13 @@ export default async function SolicitacoesPage({
         }
       />
 
-      {/* Barra de filtros compacta (template de pedidos): busca, situação e evento na mesma linha. */}
-      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <BuscaUrl placeholder="Buscar código ou título" ariaLabel="Buscar solicitação por código ou título" largura={240} />
+      {/* Barra de filtros compacta (template de pedidos): busca, situação e evento na mesma linha.
+          Celular: busca e evento na linha toda; tipo e reunião lado a lado (antes, cinco campos empilhados). */}
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center">
+        <BuscaUrl placeholder="Buscar código ou título" ariaLabel="Buscar solicitação por código ou título" largura={240} className="col-span-2" />
         {/* Campo com busca: aguenta centenas de eventos. */}
-        {eventosFiltro.length > 1 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
-        {areasFiltro.length > 1 && <FiltroSelectUrl param="area" rotulo="Área" todas="Todas as áreas" opcoes={areasFiltro.map((a) => ({ value: a.id, label: a.nome })).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))} />}
+        {eventosFiltro.length > 1 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido className="col-span-2" />}
+        {areasFiltro.length > 1 && <FiltroSelectUrl param="area" rotulo="Área" todas="Todas as áreas" opcoes={areasFiltro.map((a) => ({ value: a.id, label: a.nome })).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))} className="col-span-2" />}
         <FiltroSelectUrl
           param="tipo"
           rotulo="Tipo"
@@ -145,12 +147,12 @@ export default async function SolicitacoesPage({
           ]}
         />
         {comFiltro && (
-          <Link href="/solicitacoes" className="text-pequeno font-medium text-accent no-underline hover:underline">
+          <Link href="/solicitacoes" className="col-span-2 text-pequeno font-medium text-accent no-underline hover:underline">
             Limpar filtros
           </Link>
         )}
         {pag.contagens.ATRASADAS > 0 && filtro !== "ATRASADAS" && (
-          <Link href={hrefCom("/solicitacoes", params, { filtro: "ATRASADAS", pagina: null })} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-danger no-underline hover:underline sm:ml-auto">
+          <Link href={hrefCom("/solicitacoes", params, { filtro: "ATRASADAS", pagina: null })} className="col-span-2 inline-flex items-center gap-1.5 text-pequeno font-medium text-danger no-underline hover:underline sm:ml-auto">
             <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-danger" />
             {pag.contagens.ATRASADAS} {pag.contagens.ATRASADAS === 1 ? "atrasada" : "atrasadas"}
           </Link>
@@ -231,9 +233,12 @@ export default async function SolicitacoesPage({
                     <Th className="hidden xl:table-cell xl:w-[17%]">
                       Evento
                     </Th>
-                    <Th className="hidden lg:table-cell" largura={120}>
-                      Área
-                    </Th>
+                    {/* Requisitante só vê a própria área: a coluna repetiria o mesmo nome em todas as linhas. */}
+                    {veTodas && (
+                      <Th className="hidden lg:table-cell" largura={120}>
+                        Área
+                      </Th>
+                    )}
                     <Th className="hidden lg:table-cell" largura={128}>
                       Itens
                     </Th>
@@ -262,7 +267,7 @@ export default async function SolicitacoesPage({
                           </span>
                           <span className="mt-0.5 block text-pequeno text-muted">
                             <span className="xl:hidden">{s.evento.nome} · </span>
-                            <span className="lg:hidden">{s.area.nome} · </span>
+                            {veTodas && <span className="lg:hidden">{s.area.nome} · </span>}
                             por {s.criadoPor.nome}
                             <span className="lg:hidden">
                               {" · "}
@@ -283,7 +288,7 @@ export default async function SolicitacoesPage({
                             {s.evento.nome}
                           </span>
                         </td>
-                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
+                        {veTodas && <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>}
                         <td className="numero hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 lg:table-cell">{textoItens(s)}</td>
                         <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
                           <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
@@ -291,7 +296,7 @@ export default async function SolicitacoesPage({
                         <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
                           {aguardaReuniao(s.tipo, s.evento.status) ? (
                             <>
-                              <span className={cn("numero block text-pequeno font-medium", s.evento.status === "EM_REUNIAO" || diaBrasilia(s.evento.dataReuniao) === hojeBr ? "text-accent" : reuniaoPassou(s) ? "text-warning" : "text-ink-2")}>
+                              <span className={cn("numero block text-pequeno font-medium", s.evento.status === "EM_REUNIAO" || diaBrasilia(s.evento.dataReuniao) === hojeBr ? "text-info" : reuniaoPassou(s) ? "text-warning" : "text-ink-2")}>
                                 {s.evento.status === "EM_REUNIAO" ? "em reunião" : rotuloReuniao(s.evento.dataReuniao)}
                               </span>
                               {/* Reunião aberta e ainda sem ata fechada: a data marcada fica embaixo (não é "agora"). */}

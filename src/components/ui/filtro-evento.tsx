@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/cn";
 import { ComboBox } from "./combobox";
 import { Button } from "./button";
 import { useSinalizarNavegacao } from "./navegacao";
@@ -10,7 +11,7 @@ import { useSinalizarNavegacao } from "./navegacao";
  * Filtro por evento que aguenta centenas de eventos: campo com busca (nome ou código) em vez de
  * uma fileira de pílulas. Escreve `?evento=` na URL e zera a paginação; "Limpar" tira o filtro.
  */
-export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rotuloOculto = false, fluido = false }: { eventos: Array<{ id: string; codigo: string; nome: string; n?: number }>; param?: string; rotulo?: string; rotuloOculto?: boolean; /** Ocupa o espaço que sobrar na linha de filtros (em vez de 420px fixos). */ fluido?: boolean }) {
+export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rotuloOculto = false, fluido = false, className }: { eventos: Array<{ id: string; codigo: string; nome: string; n?: number }>; param?: string; rotulo?: string; rotuloOculto?: boolean; /** Ocupa o espaço que sobrar na linha de filtros (em vez de 420px fixos). */ fluido?: boolean; className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -28,7 +29,7 @@ export function FiltroEvento({ eventos, param = "evento", rotulo = "Evento", rot
   };
 
   return (
-    <div className={fluido ? "flex w-full min-w-0 items-center gap-2 sm:w-auto sm:min-w-[260px] sm:flex-1" : "flex w-full min-w-0 items-center gap-2 sm:w-auto"} aria-busy={pendente || undefined}>
+    <div className={cn(fluido ? "flex w-full min-w-0 items-center gap-2 sm:w-auto sm:min-w-[260px] sm:flex-1" : "flex w-full min-w-0 items-center gap-2 sm:w-auto", className)} aria-busy={pendente || undefined}>
       <label htmlFor="filtro-evento" className={rotuloOculto ? "sr-only" : "shrink-0 text-pequeno text-ink-3"}>
         {rotulo}
       </label>
