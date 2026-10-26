@@ -65,7 +65,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
       </div>
       <div className="flex items-center justify-end gap-3 bg-subtle px-cartao py-3">
         {mudou && <span className="text-pequeno text-muted">alterações não salvas</span>}
-        <Button variant="primary" size="md" loading={pendente} disabled={!mudou} onClick={salvar}>
+        <Button variant="primary" size="md" loading={pendente} disabled={!mudou} motivoDesabilitado="Nada mudou: altere um valor para salvar" onClick={salvar}>
           Salvar configurações
         </Button>
       </div>
