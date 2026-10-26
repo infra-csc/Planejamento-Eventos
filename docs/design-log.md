@@ -26,18 +26,18 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 10. Impressão da ata — `/impressao/ata/[id]`
 - [x] 11. Projeto padrão — `/projetos/[id]`, `/projetos/[id]/editar`, `/projetos/novo` (e duplicar `?de=`)
 - [x] 12. Peça do catálogo — `/catalogo/nova`, `/catalogo/[id]/editar`
-- [ ] 13. Calendário — `/calendario`
-- [ ] 14. Carga e descarga — `/carga-descarga`, `/carga-descarga/cadastro`
-- [ ] 15. Arena 3D — `/arena`, `/arena/nova`, `/arena/[slug]`, impressão `/impressao/arena/[slug]`
-- [ ] 16. Consolidação — `/consolidacao` (`/consolidacao/pendencias` só redireciona)
-- [ ] 17. Pendências — `/pendencias`
-- [ ] 18. Estoque — `/estoque`
-- [ ] 19. Histórico geral — `/historico`
-- [ ] 20. Notificações — `/notificacoes`
-- [ ] 21. Perfil — `/perfil`
-- [ ] 22. Admin — `/admin` (abas usuários, áreas, configurações; `/admin/usuarios|areas|configuracoes` só redirecionam)
-- [ ] 23. Sem permissão — `/sem-permissao`; 404 (`not-found.tsx`); erro (`error.tsx`)
-- [ ] 24. Autenticação — `/login`, `/recuperar-senha`, `/redefinir-senha/[token]` (fora do escopo: a tela de login não é alterada)
+- [x] 13. Calendário — `/calendario`
+- [x] 14. Carga e descarga — `/carga-descarga`, `/carga-descarga/cadastro`
+- [x] 15. Arena 3D — `/arena`, `/arena/nova`, `/arena/[slug]`, impressão `/impressao/arena/[slug]`
+- [x] 16. Consolidação — `/consolidacao` (`/consolidacao/pendencias` só redireciona)
+- [x] 17. Pendências — `/pendencias`
+- [x] 18. Estoque — `/estoque`
+- [x] 19. Histórico geral — `/historico`
+- [x] 20. Notificações — `/notificacoes`
+- [x] 21. Perfil — `/perfil`
+- [x] 22. Admin — `/admin` (abas usuários, áreas, configurações; `/admin/usuarios|areas|configuracoes` só redirecionam)
+- [x] 23. Sem permissão — `/sem-permissao`; 404 (`not-found.tsx`); erro (`error.tsx`)
+- [x] 24. Autenticação — `/login`, `/recuperar-senha`, `/redefinir-senha/[token]` (fora do escopo: a tela de login não é alterada)
 
 ## 26/10/2026 — revisão tela a tela
 
@@ -290,3 +290,95 @@ Validação: tsc, eslint; screenshots `antes-logistica-*-eventos_novo.png`, `ant
 `antes-cenografia-*-projetos_a9639484*`, `antes-cenografia-*-catalogo_*`,
 `depois-cenografia-celular-{projetos_a9639484…_editar,catalogo_nova}-viewport.png` (barra fixa à vista no meio
 da rolagem).
+
+### 13. Calendário — `/calendario`
+
+Vista: logística; desktop (grade do mês + próximos 21 dias) e celular (lista por dia, dias passados recolhidos).
+**Revisada, sem mudanças:** legenda, filtros por tipo com contagem, "Hoje", lista do celular começando em hoje.
+- Pendente (P3): o rótulo "hoje"/mês na linha do tempo semanal de `carga-descarga` usa `text-[9px]` (abaixo do
+  mínimo de 11,5 px do design system); é um rótulo de gráfico minúsculo — trocar exige refazer a escala do gráfico.
+
+### 14. Carga e descarga — `/carga-descarga`, `/carga-descarga/cadastro` (e a aba Carga do evento)
+
+Vista: logística; calendário da semana, volume por semana, cadastro com lista de eventos e vazio "Escolha um
+evento"; desktop e celular. **Revisada, sem mudanças:** densa mas organizada (filtros, semana com cargas e
+descargas por dia, alerta de eventos sem veículo).
+
+### 15. Arena 3D — `/arena`, `/arena/nova`, `/arena/[slug]`, `/impressao/arena/[slug]`
+
+Vista: logística (lista, mapa da Eco Run em planta, impressão); `/arena/nova` para logística leva a "sem
+permissão" (esperado: só quem edita a arena); desktop e celular.
+
+- P2 — Mapa no celular: a fileira "Perspectiva · De cima · Planta" + Camadas + Tela cheia não cabia em 375 px e o
+  botão de tela cheia ficava cortado na borda do mapa. **Resolvido:** no celular as três vistas dividem a
+  largura que sobra (encolhem o recuo, sem cortar o texto) e os dois botões cabem inteiros.
+- P2 — Impressão da arena aberta no celular: a lista "Pontos do mapa" alargava a página (564 px numa tela de 375,
+  a página inteira rolava de lado). **Resolvido:** a lista rola de lado dentro do próprio bloco na tela; no
+  papel nada muda.
+- P3 — Cabeçalho da arena: data, largadas e público em Roboto Mono (o design system reserva mono para códigos).
+  **Resolvido:** números tabulares na fonte normal; o SKU continua em mono.
+- Pendente (P3): a impressão da arena usa tamanhos próprios de papel (`text-[10px]`, `text-[11px]`) fora dos
+  tokens; é uma folha A4 densa e foi mantida.
+
+Arquivos: `src/components/arena/arena-barra-ferramentas.tsx`, `src/components/arena/impressao-arena.tsx`,
+`src/components/arena/arena-cabecalho.tsx`.
+
+### 16. Consolidação — `/consolidacao` (e `/consolidacao/pendencias`)
+### 17. Pendências — `/pendencias`
+
+Vista: logística, desktop e celular. **Revisadas, sem mudanças:** as duas telas estão desligadas a pedido da
+operação (`src/domain/telas.ts`): saem do menu e respondem "Não encontrado" dentro do shell. Nada a revisar
+enquanto estiverem inativas.
+
+### 18. Estoque — `/estoque`
+
+Vista: requisitante Ativação (244 itens); desktop e celular; diálogo "Novo item".
+
+- P1 — No celular a página inteira ficava mais larga que a tela (559 px em 375): o rótulo oculto "Editar" do
+  cabeçalho (absoluto, sem célula `relative`) escapava da rolagem da tabela. Além disso a tabela tinha 640 px
+  mínimos e o stepper de quantidade — a ação desta tela — só aparecia rolando a tabela de lado. **Resolvido:**
+  cabeçalho com `relative`; tabela `data-responsiva` com item, quantidade (stepper) e editar (só o lápis no
+  celular, nome mantido para leitor de tela) cabendo em 341 px. Medido no navegador: tabela 341 px, página 375 px.
+- Observação: a varredura E2E usa emulação de celular com página "ampliável", que esconde esse transbordo
+  (o layout cresce para 559 px e a checagem compara com ele); vale endurecer a varredura (pendente abaixo).
+
+Arquivo: `src/components/estoque/estoque-tela.tsx`.
+
+### 19. Histórico geral — `/historico`
+
+Vista: logística (642 registros, filtros por período, evento e pessoa); desktop e celular.
+
+- P2 — Na largura de desktop a coluna "Evento" usava `truncate` (sem quebra) e crescia até caber o nome inteiro
+  do evento ("EVT-0016 DESAFIO ENERGIA PETROBRÁS - TRAVESSIA - RIO DE JANEIRO"), espremendo "O que aconteceu" numa
+  coluna de ~160 px (descrições em 4–5 linhas). **Resolvido:** o evento quebra em até 2 linhas (nome inteiro no
+  `title`); a coluna fica com a largura prevista e a descrição volta a 1–2 linhas. Mesma correção na linha de
+  sequências agrupadas.
+
+Arquivo: `src/app/(app)/historico/page.tsx`.
+
+### 20. Notificações — `/notificacoes`
+### 21. Perfil — `/perfil`
+
+Vista: logística; desktop e celular. **Revisadas, sem mudanças:** notificações com não lidas marcadas (fundo e
+filete), grupos por período, "Marcar todas como lidas"; perfil com dados, sessões e senha do app recolhida.
+
+### 22. Admin — `/admin` (usuários, áreas, configurações)
+
+Vista: admin; abas Usuários (tabela/celular em cartões, diálogo "Novo usuário"), Áreas (diálogo "Nova área"),
+Configurações; desktop e celular. `/admin/usuarios|areas|configuracoes` só redirecionam.
+
+- P3 — "Salvar configurações" desabilitado sem dizer por quê. **Resolvido:** `motivoDesabilitado` ("Nada mudou:
+  altere um valor para salvar") — o motivo aparece no `title` e é lido pelo leitor de tela.
+
+Arquivo: `src/components/admin/config-painel.tsx`.
+
+### 23. Sem permissão, 404 e erro
+
+Vista: `/sem-permissao` e uma rota inexistente (logística), desktop e celular. **Revisadas, sem mudanças:**
+ícone, uma frase, "Ir para o painel" e "Voltar". A tela de erro (`error.tsx`) foi revisada só pelo código
+(não há como provocar um erro de servidor sem mexer no app): mensagem, "Tentar de novo" e código do erro.
+
+### 24. Autenticação — `/login`, `/recuperar-senha`, `/redefinir-senha/[token]`
+
+Fora do escopo por regra (a tela de login não é alterada). A tela de login foi usada pelos scripts para entrar,
+mas não foi revisada.
