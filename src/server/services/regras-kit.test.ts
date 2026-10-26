@@ -10,7 +10,7 @@ import { eventoItens, osVersoes, pecas, projetos } from "@/server/db/schema";
 import { criarPeca, criarProjeto, fecharAta, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { ajustarLinhaNaConferencia, definirExtraDaRegra, obterConferencia } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
-import { aplicarGradesDoPrismaNasAtasFechadas, ressincronizarAtasAbertas } from "./eventos/regras-kit";
+import { aplicarCavaleteRetoNasAtasFechadas, aplicarGradesDoPrismaNasAtasFechadas, ressincronizarAtasAbertas } from "./eventos/regras-kit";
 
 let E: Elenco;
 let estande: string;
@@ -165,5 +165,28 @@ describe("regras da logística na ata", () => {
     expect((await regras(ev.id))["grade-prisma"]).toBe(18);
     expect(await versoes()).toBe(antes + 1);
     expect(await aplicarGradesDoPrismaNasAtasFechadas("teste:prisma:1")).toEqual({ feito: false });
+  });
+
+  it("ata fechada antes de o pranchão voltar ao cavalete reto: os cavaletes entram uma vez, descontando os já pedidos", async () => {
+    const db = await getDb();
+    const [pranchao] = await db.insert(pecas).values({ codigo: "PRANCHÃO-220", nome: "Pranchão 2,20 m", setor: "MARCENARIA" }).returning();
+    const [cavalete] = await db.insert(pecas).values({ codigo: "CAV-RETO", nome: "Cavalete reto", setor: "ARENA" }).returning();
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 6, null);
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    await fecharAta(E.admin, ev.id);
+    // Como nas atas fechadas antes de 20/10: sem a linha da regra e com 4 cavaletes pedidos à parte.
+    await db.delete(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "cavalete-reto")));
+    await db.insert(eventoItens).values({ eventoId: ev.id, tipo: "PECA", pecaId: cavalete.id, quantidade: 4, origem: "AJUSTE_LOGISTICA" });
+    const { gerarOsVersao } = await import("./os");
+    await gerarOsVersao(db, ev.id, "AJUSTE_LOGISTICA", null, "OS antiga, só com os cavaletes pedidos");
+    const versoes = async () => (await db.select().from(osVersoes).where(eq(osVersoes.eventoId, ev.id))).length;
+    const antes = await versoes();
+    const r = await aplicarCavaleteRetoNasAtasFechadas("teste:cavalete:1");
+    expect(r.feito && r.eventos).toContain(ev.codigo);
+    // 6 pranchões = 12 cavaletes; 4 já estavam na ata, a regra completa com 8.
+    expect((await regras(ev.id))["cavalete-reto"]).toBe(8);
+    expect(await versoes()).toBe(antes + 1);
+    expect(await aplicarCavaleteRetoNasAtasFechadas("teste:cavalete:1")).toEqual({ feito: false });
   });
 });

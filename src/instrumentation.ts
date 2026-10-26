@@ -54,6 +54,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "grades_prisma_atas_fechadas", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Atas fechadas antes de o pranchão voltar ao cavalete reto (20/10): cavaletes dos pranchões (uma vez só, com nova OS).
+    try {
+      const { aplicarCavaleteRetoNasAtasFechadas } = await import("@/server/services/eventos/regras-kit");
+      const r = await aplicarCavaleteRetoNasAtasFechadas();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "cavalete_reto_atas_fechadas", eventos: r.eventos }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "cavalete_reto_atas_fechadas", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Eventos de teste fora da produção: EVT-0261 (cópia do NIGHT RUN BH), EVT-0206 e EVT-0207 (uma vez só).
     try {
       const { apagarEventosDeTeste } = await import("@/server/services/eventos/limpeza-testes");

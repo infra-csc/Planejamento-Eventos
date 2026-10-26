@@ -120,11 +120,11 @@ export async function ressincronizarAtasAbertas(chave = "regras:atas-abertas:202
 }
 
 /**
- * Uma vez só, ao subir (22/10): atas que fecharam antes da regra do prisma existir ficaram sem as grades do prisma
- * (1 prisma = 2 grades, somadas às pedidas). Aplica só essa regra nelas e gera a versão nova da OS de cada uma.
- * Linha ajustada à mão fica como está. A marca em `configuracoes` entra na mesma transação.
+ * Uma vez só, ao subir: aplica uma regra nas atas já fechadas (evento aberto) que fecharam antes de a regra existir
+ * ou mudar, e gera a versão nova da OS de cada ata que mudou. Linha ajustada à mão fica como está; o que a ata já
+ * tem da mesma peça fora da regra conta (não duplica). A marca em `configuracoes` entra na mesma transação.
  */
-export async function aplicarGradesDoPrismaNasAtasFechadas(chave = "regras:grade-prisma-atas-fechadas:2026-10-22"): Promise<{ feito: false } | { feito: true; eventos: string[] }> {
+async function aplicarRegraNasAtasFechadas(regra: string, chave: string, motivo: string): Promise<{ feito: false } | { feito: true; eventos: string[] }> {
   const { gerarOsVersao } = await import("../os");
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -133,11 +133,23 @@ export async function aplicarGradesDoPrismaNasAtasFechadas(chave = "regras:grade
     const fechadas = await tx.select({ id: eventos.id, codigo: eventos.codigo }).from(eventos).where(eq(eventos.status, "ABERTO"));
     const mudaram: string[] = [];
     for (const e of fechadas) {
-      if (!(await sincronizarRegrasAta(tx, e.id, null, { ataFechada: true, soRegras: ["grade-prisma"] }))) continue;
-      await gerarOsVersao(tx, e.id, "AJUSTE_LOGISTICA", null, "Grades do prisma (1 prisma = 2 grades, somadas às pedidas)");
+      if (!(await sincronizarRegrasAta(tx, e.id, null, { ataFechada: true, soRegras: [regra] }))) continue;
+      await gerarOsVersao(tx, e.id, "AJUSTE_LOGISTICA", null, motivo);
       mudaram.push(e.codigo);
     }
     await tx.update(configuracoes).set({ valor: JSON.stringify({ status: "feito", em: new Date().toISOString(), eventos: mudaram }) }).where(eq(configuracoes.chave, chave));
     return { feito: true, eventos: mudaram };
   });
 }
+
+/** 22/10: atas que fecharam antes da regra do prisma ficaram sem as grades do prisma (1 prisma = 2 grades). */
+export const aplicarGradesDoPrismaNasAtasFechadas = (chave = "regras:grade-prisma-atas-fechadas:2026-10-22") =>
+  aplicarRegraNasAtasFechadas("grade-prisma", chave, "Grades do prisma (1 prisma = 2 grades, somadas às pedidas)");
+
+/**
+ * 26/10: o pranchão voltou à regra do cavalete reto em 20/10, mas só as atas abertas foram refeitas; as que já
+ * estavam fechadas (todas menos as que ainda estavam em preparação, como Blue Run Santos) ficaram sem os cavaletes
+ * dos pranchões na OS e na folha.
+ */
+export const aplicarCavaleteRetoNasAtasFechadas = (chave = "regras:cavalete-reto-atas-fechadas:2026-10-26") =>
+  aplicarRegraNasAtasFechadas("cavalete-reto", chave, "Cavaletes retos (1 pranchão ou mesa de medalha = 2 cavaletes)");
