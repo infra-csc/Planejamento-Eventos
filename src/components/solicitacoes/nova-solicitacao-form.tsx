@@ -363,7 +363,7 @@ export function NovaSolicitacaoForm({
           <BuscaCatalogo n={passo.catalogo} temListaDaArea={temListaDaArea} modo={modo} setModo={setModo} ehAlteracao={ehAlteracao} projetos={projetos} pecas={pecas} grupos={grupos} eventoNome={evento?.nome ?? null} linhas={linhas} jaPedidos={jaPedidos} itens={itens} setItens={setItens} setTendaAberta={setTendaAberta} estoque={estoqueDoEvento} />
 
           {/* 3 · Detalhar itens */}
-          <ListaItens n={passo.itens} itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />
+          <ListaItens n={passo.itens} passoArea={passo.area} passoBusca={passo.catalogo} itens={itens} projetos={projetos} jaPedidos={jaPedidos} semDescricao={semDescricao} tentouEnviar={tentouEnviar} mudar={mudar} removerItem={removerItem} removerItens={removerItens} editarTendas={setTendaAberta} />
         </div>
 
         {/* 4 · Resumo e envio: acompanha a rolagem no desktop; no celular vem depois dos passos. */}

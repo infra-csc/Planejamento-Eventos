@@ -35,9 +35,14 @@ export function ListaItens({
   removerItens,
   editarTendas,
   n,
+  passoArea = 0,
+  passoBusca,
 }: {
   /** Número do passo. */
   n: number;
+  /** Passo da lista da área (0 = a área não tem lista) e o da busca no catálogo: o vazio aponta para eles. */
+  passoArea?: number;
+  passoBusca: number;
   itens: ItemNovo[];
   projetos: Referencia[];
   /** Já pedido neste evento, por id de projeto/peça (aviso informativo na linha do item). */
@@ -254,7 +259,7 @@ export function ListaItens({
       {itens.length === 0 ? (
         <div className="px-cartao py-3.5">
           <div className={cn("rounded-cartao border border-dashed", tentouEnviar ? "border-danger-input" : "border-line-strong")}>
-            <EmptyState compact title="Nenhum item ainda" description="Busque no passo 2 e use “Adicionar”. Cada item recebe resposta separada da logística." />
+            <EmptyState compact title="Nenhum item ainda" description={`${passoArea ? `Ponha a quantidade na lista do passo ${passoArea} ou busque` : "Busque"} no passo ${passoBusca} e use “Adicionar”. Cada item recebe resposta separada da logística.`} />
           </div>
           {tentouEnviar && <ErroCampo className="mt-2">Adicione ao menos um item para enviar.</ErroCampo>}
         </div>

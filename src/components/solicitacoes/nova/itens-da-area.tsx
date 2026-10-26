@@ -168,7 +168,7 @@ export function ItensDaArea({
                       <AvisoEstoque info={estoque?.[p.id]} pedido={q} />
                     </span>
                     {automatico ? (
-                      <span className={cn("numero w-[104px] shrink-0 pr-3 text-right text-corpo", ativo ? "font-semibold text-ink" : "text-meta")} aria-label={`${auto} ${p.nome}, automático`}>
+                      <span className={cn("numero w-[110px] shrink-0 text-center text-corpo max-md:w-[130px]", ativo ? "font-semibold text-ink" : "text-meta")} aria-label={`${auto} ${p.nome}, automático`}>
                         {auto}
                       </span>
                     ) : (
