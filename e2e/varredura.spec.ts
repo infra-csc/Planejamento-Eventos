@@ -123,7 +123,10 @@ for (const [perfil, email] of Object.entries(PERFIS)) {
       const final = new URL(page.url()).pathname;
       const titulo = (await page.locator("h1").first().textContent({ timeout: 2_000 }).catch(() => null))?.trim() ?? "";
       const telaDeErro = /Não foi possível (carregar esta página|montar a versão para impressão)/.test(titulo);
-      const largura = celular ? await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, tela: window.innerWidth })) : null;
+      // Compara com a largura do aparelho (375), não com window.innerWidth: com a emulação de celular a página
+      // que transborda "amplia" o layout e innerWidth cresce junto (o estoque passava com 559 px numa tela de 375).
+      const telaAparelho = info.project.use.viewport?.width ?? 375;
+      const largura = celular ? await page.evaluate((tela) => ({ doc: document.documentElement.scrollWidth, tela: Math.min(window.innerWidth, tela) }), telaAparelho) : null;
       const transborda = largura ? largura.doc > largura.tela + 1 : false;
       // Link da linha (LinhaLink) dentro de célula escondida nesta largura: a linha fica sem link para teclado/leitor de tela.
       const linksOcultos = await page.evaluate(() => [...document.querySelectorAll("a[data-linha-link]")].filter((a) => { const c = a.closest("td,th"); return c && getComputedStyle(c).display === "none"; }).length);

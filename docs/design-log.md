@@ -382,3 +382,13 @@ Vista: `/sem-permissao` e uma rota inexistente (logística), desktop e celular. 
 
 Fora do escopo por regra (a tela de login não é alterada). A tela de login foi usada pelos scripts para entrar,
 mas não foi revisada.
+
+### Varredura E2E mais rigorosa no celular
+
+A checagem "página mais larga que a tela" comparava `scrollWidth` com `window.innerWidth`; com a emulação de
+celular do Playwright (`isMobile`), uma página que transborda amplia o layout e `innerWidth` cresce junto, então
+o estoque (559 px numa tela de 375) passava. A varredura agora compara com a largura do aparelho do projeto
+(375). Conferido à parte com um script sem emulação, em 375 e 768 px, perfis admin, Ativação, cenografia e
+Produção, em 33 telas: nenhuma página mais larga que a tela depois das correções.
+
+Arquivo: `e2e/varredura.spec.ts`.
