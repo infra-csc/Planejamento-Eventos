@@ -392,3 +392,28 @@ o estoque (559 px numa tela de 375) passava. A varredura agora compara com a lar
 Produção, em 33 telas: nenhuma página mais larga que a tela depois das correções.
 
 Arquivo: `e2e/varredura.spec.ts`.
+
+### Validação final (26/10/2026)
+
+| Suíte | Resultado |
+| --- | --- |
+| `npx tsc --noEmit -p .` | ok |
+| `npx eslint .` | ok (0 problemas) |
+| `npx vitest run` | 709 passaram, 3 pulados (concorrência sem Postgres), 0 falhas |
+| `npx next build` + `E2E_SEM_BUILD=1 npx playwright test` (suíte inteira, banco novo) | 38 de 38 passaram (8,3 min), já com a varredura mais rigorosa no celular |
+
+### Pendências desta rodada (resumo)
+
+- P3 — `Button` com `motivoDesabilitado`: no celular o motivo só existe no `title`/leitor de tela; quem toca não
+  vê por que "Encerrar evento" está desabilitado. Mudança do componente em todo o app.
+- P3 — Biblioteca no celular: filtros da aba Projetos ainda empilhados (seletores com largura mínima).
+- P3 — Painel do requisitante no celular: "Seus eventos" mostra todos os eventos da área antes das
+  solicitações (decisão de produto: limitar a 3–4?).
+- P3 — Painel: situação como texto em "Suas solicitações em andamento" e como selo em "Respostas recebidas".
+- P3 — Conferência: seletor de tipo do modal "Incluir linha" quebra em duas linhas no celular.
+- P3 — Histórico do evento: registros iguais seguidos ("Conferida na reunião (em lote)") não são agrupados como
+  no histórico geral.
+- P3 — Impressões (ata, arena) e o gráfico semanal de carga usam tamanhos próprios (`text-[9px]`…`text-[11px]`).
+- Decisão — Folha de separação sem o código da peça (decisão anterior registrada no código); incluir se a
+  separação no galpão procura pelo código.
+- Decisão — Coluna "Pendências" da lista de eventos mostra "em dia" na maioria das linhas.
