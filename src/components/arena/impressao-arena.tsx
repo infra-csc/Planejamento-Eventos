@@ -236,7 +236,9 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
       {/* Página 2 em diante: lista numerada. */}
       <section className="pt-1">
         <h2 className="mb-2 text-base font-semibold">Pontos do mapa</h2>
-        <table className="w-full border-collapse">
+        {/* Na tela do celular a lista rola de lado dentro dela (alargava a página); no papel, sem rolagem. */}
+        <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full min-w-[640px] border-collapse print:min-w-0">
           <thead>
             <tr className="border-b border-black text-left text-[10px] uppercase tracking-wide">
               <th className="w-10 py-1 pr-2">Nº</th>
@@ -273,6 +275,7 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
             })}
           </tbody>
         </table>
+        </div>
         <p className="mt-1 text-[10px] text-neutral-500">Posição em metros a partir do marco da arena: x cresce para leste, z cresce para sul.</p>
       </section>
 

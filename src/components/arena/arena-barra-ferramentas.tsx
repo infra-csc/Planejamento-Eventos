@@ -163,8 +163,10 @@ export function BarraFerramentasMapa({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-start gap-2 max-sm:justify-between">
-        <Pills rotulo="Vista do mapa" className="pointer-events-auto shrink-0 shadow-pill" itens={VISTAS.map(([v, rotulo]) => ({ label: rotulo, ativo: vistaMapa === v, onSelect: () => escolherVista(v) }))} />
+      {/* Celular: as três vistas dividem a largura que sobra (encolhidas, sem cortar o texto); antes, o botão de
+          tela cheia ficava cortado na borda do mapa. */}
+      <div className="flex shrink-0 items-start gap-2 max-sm:min-w-0 max-sm:justify-between">
+        <Pills rotulo="Vista do mapa" className="pointer-events-auto shrink-0 shadow-pill max-sm:min-w-0 max-sm:flex-1 max-sm:shrink max-sm:flex-nowrap max-sm:[&>button]:flex-1 max-sm:[&>button]:justify-center max-sm:[&>button]:!px-1.5" itens={VISTAS.map(([v, rotulo]) => ({ label: rotulo, ativo: vistaMapa === v, onSelect: () => escolherVista(v) }))} />
         <div className="pointer-events-auto relative">
           <div className={cn("overflow-hidden", cartao)}>
             <BotaoMapa rotulo="Camadas" ativo={painelCamadas} onClick={() => setPainelCamadas((v) => !v)} tamanho="campo">

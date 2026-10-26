@@ -25,12 +25,13 @@ export function CabecalhoArena({
       tamanho="sm"
       title={arena.evento.nome}
       eyebrow={<span className="font-mono">{arena.evento.sku}</span>}
+      // Data, largadas e público em números tabulares (Meta sem `mono`): mono é só para códigos, como o SKU.
       meta={
         <>
-          {arena.evento.data && <Meta rotulo={arena.evento.largadas.length > 0 ? "Prova" : "Data"} valor={DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))} mono />}
-          {arena.evento.largadas.length > 0 && <Meta rotulo="Largadas" valor={arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")} mono />}
+          {arena.evento.data && <Meta rotulo={arena.evento.largadas.length > 0 ? "Prova" : "Data"} valor={DATA.format(new Date(`${arena.evento.data}T12:00:00Z`))} />}
+          {arena.evento.largadas.length > 0 && <Meta rotulo="Largadas" valor={arena.evento.largadas.map((l) => `${l.distancia} ${l.hora}`).join(" · ")} />}
           {arena.evento.largadas.length === 0 && arena.evento.local && <Meta rotulo="Local" valor={arena.evento.local} />}
-          {arena.evento.publicoEsperado && <Meta rotulo="Público" valor={<span className="tabular-nums">{arena.evento.publicoEsperado.toLocaleString("pt-BR")}</span>} mono />}
+          {arena.evento.publicoEsperado && <Meta rotulo="Público" valor={arena.evento.publicoEsperado.toLocaleString("pt-BR")} />}
           {arena.evento.diretorProva && <Meta rotulo="Direção" valor={arena.evento.diretorProva} />}
         </>
       }
