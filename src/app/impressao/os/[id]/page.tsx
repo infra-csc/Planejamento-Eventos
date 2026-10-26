@@ -4,7 +4,8 @@ import Link from "next/link";
 import { obterEventoCache } from "@/server/cache";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
-import { GRUPO_LABEL, totaisPorGrupo, type GrupoMaterial } from "@/domain/grupos-material";
+import { grupoDoCodigo } from "@/domain/grupos-material";
+import { montarFolhaSeparacao, standsDaOs, type SecaoFolha } from "@/domain/folha-separacao";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
@@ -33,8 +34,6 @@ const sep = "w-14 py-1.5 text-center align-top";
 /** Observação escrita à mão na folha impressa: célula em branco com a linha de baixo. */
 const obs = "w-[34%] py-1.5 align-top not-print:max-sm:hidden";
 
-/** Mesma ordem da conferência da ata (a reunião passa pelos materiais assim). */
-const ORDEM: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
 /** Quantidade com a unidade só quando não é "un" (12 m, 4 par); milhar com ponto, como na tela da OS (1.520). */
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${fmt(n)} ${unidade}` : fmt(n));
@@ -53,10 +52,13 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const os = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
   // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
   const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
-  const grupos = totaisPorGrupo(os.setores, mapa)
-    .map((g) => ({ ...g, linhas: g.linhas.filter((l) => vai(l.codigo, l.nome)) }))
-    .filter((g) => g.linhas.length > 0)
-    .sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
+  // Na ordem da lista de carregamento da logística (domain/folha-separacao), com cinta catraca e corda pela regra.
+  const secoes = montarFolhaSeparacao(
+    os.setores.flatMap((s) => s.linhas.filter((l) => vai(l.codigo, l.nome)).map((l) => ({ ...l, setor: s.setor, grupo: grupoDoCodigo(mapa, l.codigo, s.setor) }))),
+    { stands: standsDaOs(os.projetos) },
+  );
+  const antesDaMarcenaria = secoes.filter((x) => !x.bloco);
+  const marcenaria = secoes.filter((x) => x.bloco);
 
   return (
     <div className="mx-auto max-w-4xl rounded-cartao border border-line bg-surface p-5 text-corpo text-ink sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
@@ -97,39 +99,13 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           Estrutura locada no local: box truss Q30, tendas e estaiamento{separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
         </p>
       )}
-      {grupos.map((s) => (
-        <section key={s.grupo} className="mb-8 break-inside-avoid">
-          <h3 className="mb-2 mt-0 text-destaque font-semibold">{GRUPO_LABEL[s.grupo]}</h3>
-          <Rolagem>
-            <table className={tabela}>
-              <thead>
-                <tr className={cabecalho}>
-                  <th scope="col" className={th}>Peça</th>
-                  <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
-                  <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                  <th scope="col" className={`${th} w-[34%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...s.linhas]
-                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-                  .map((l) => (
-                    <tr key={l.pecaId} className={linha}>
-                      <td className={td}>{l.nome}</td>
-                      <td className={`${num} font-semibold`}>{qtd(l.total, l.unidade)}</td>
-                      <td className={sep}>☐</td>
-                      <td className={obs} />
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </Rolagem>
-        </section>
+      {antesDaMarcenaria.map((secao) => (
+        <TabelaSecao key={secao.id} secao={secao} />
       ))}
 
       {os.semSetor.length > 0 && (
         <section className="mb-8 break-inside-avoid">
-          <h3 className="mb-2 mt-0 text-destaque font-semibold">Fora do catálogo</h3>
+          <h3 className="mb-2 mt-0 text-destaque font-semibold">Materiais fora de catálogo</h3>
           <Rolagem>
             {/* Cinco colunas não cabem em 375 px: no celular esta rola de lado; as de peça cabem sem Obs. */}
             <table className={`${tabela} min-w-[420px]`}>
@@ -158,10 +134,53 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         </section>
       )}
 
+      {marcenaria.length > 0 && (
+        <>
+          <h3 className="mb-3 mt-0 text-destaque font-semibold">Marcenaria</h3>
+          {marcenaria.map((secao) => (
+            <TabelaSecao key={secao.id} secao={secao} sub />
+          ))}
+        </>
+      )}
+
       <footer className="mt-10 grid grid-cols-2 gap-8 text-rotulo text-ink-3">
         <div className="border-t border-ink pt-2">Separado por / data</div>
         <div className="border-t border-ink pt-2">Conferido por / data</div>
       </footer>
     </div>
+  );
+}
+
+/** Uma seção da folha: peça (com a regra, quando a quantidade vem dela), quantidade, separado e observação à mão. */
+function TabelaSecao({ secao, sub = false }: { secao: SecaoFolha; sub?: boolean }) {
+  return (
+    <section className="mb-8 break-inside-avoid">
+      {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 text-destaque font-semibold">{secao.titulo}</h3>}
+      <Rolagem>
+        <table className={tabela}>
+          <thead>
+            <tr className={cabecalho}>
+              <th scope="col" className={th}>Peça</th>
+              <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
+              <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
+              <th scope="col" className={`${th} w-[34%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {secao.linhas.map((l) => (
+              <tr key={l.chave} className={linha}>
+                <td className={td}>
+                  {l.nome}
+                  {l.nota && <span className="block text-rotulo text-ink-3">{l.nota}</span>}
+                </td>
+                <td className={`${num} font-semibold`}>{qtd(l.total, l.unidade)}</td>
+                <td className={sep}>☐</td>
+                <td className={obs} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Rolagem>
+    </section>
   );
 }
