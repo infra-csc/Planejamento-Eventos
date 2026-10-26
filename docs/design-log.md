@@ -15,7 +15,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 2. Conferência da ata — `/conferencia/[id]` (e o redirecionamento `/eventos/[id]/reuniao`)
 - [x] 3. OS do evento — `/eventos/[id]/os` + folha de separação `/impressao/os/[id]`
 - [x] 4. Lista de eventos — `/eventos`
-- [ ] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
+- [x] 5. Evento — `/eventos/[id]` (visão geral) e abas: ata `/eventos/[id]/ata`, solicitações `/eventos/[id]/solicitacoes`, histórico `/eventos/[id]/historico`, carga `/eventos/[id]/carga`, linha da ata `/eventos/[id]/itens/[linhaId]`, editar `/eventos/[id]/editar`
 - [ ] 6. Solicitações — `/solicitacoes` e `/solicitacoes/[id]`
 - [ ] 7. Biblioteca — `/biblioteca` (projetos e peças; `/catalogo` e `/projetos` só redirecionam)
 - [ ] 8. Painel — `/` (por perfil)
@@ -138,3 +138,35 @@ Vista: requisitante Produção e logística; desktop e celular; abas de fase, fi
 
 Arquivo: `src/app/(app)/eventos/page.tsx`.
 Validação: tsc, eslint; screenshots `antes-producao-*-eventos.png`, `depois-logistica-{desktop,celular}-eventos.png`.
+
+### 5. Evento — `/eventos/[id]` e abas (ata, solicitações, histórico, carga, linha da ata, editar)
+
+Vista: logística em EVT-0001 (aberto, ata fechada) e EVT-0002 (preparação); requisitante Produção em
+EVT-0002; abas Visão geral, Ata, Solicitações, OS (item 3), Carga (vazio), Histórico, Editar e a página da
+linha da ata (`/eventos/[id]/itens/[linhaId]`); desktop e celular. `/eventos/[id]/reuniao` redireciona para a
+conferência (item 2).
+
+- P2 — `Aviso` (componente compartilhado) com ação: no celular a ação ficava à direita e espremia o texto
+  numa coluna estreita ("5 itens mudaram depois da reunião" em 5 linhas, "Precisa mudar algo…" em 7).
+  **Resolvido no componente:** abaixo de `sm` as ações descem para baixo do texto, alinhadas a ele. Vale
+  para todos os avisos com ação (ata, OS, linha da ata, solicitação, banner da reunião, lista da área…).
+- P2 — "O que mudou depois da reunião" (visão geral): no celular o link "Ver a diferença na OS" ficava ao
+  lado do título e o espremia em 3 linhas. **Resolvido:** em cartão estreito o link desce para baixo do resumo.
+- P3 — Aba Solicitações no celular: respondidas mostravam um "—" solto ao lado do selo de status.
+  **Resolvido:** o traço só aparece no desktop (coluna Prazo); no cartão do celular some quando não há prazo.
+- P3 — Cartões de resumo: "1984 peças" e "20 un." sem separador de milhar. **Resolvido:** pt-BR (1.984).
+- Sem mudança: cabeçalho com fases, abas com contagem, aba Ata (somente leitura, exportações agrupadas),
+  linha da ata (quem pediu, peças, linha do tempo), editar (barra fixa de salvar, zona de exceção),
+  carga vazia (vazio com ação), histórico.
+- Pendente (P3): "Encerrar evento" bloqueado explica o motivo só no `title` (passar o mouse); no celular
+  não há como ver o porquê (a fase mostra "1 alteração em aberto", que é a pista). Melhorar
+  `motivoDesabilitado` para toque é mudança do componente `Button` em todo o app — fica para uma rodada
+  própria.
+- Pendente (P3): histórico do evento repete "Conferida na reunião (em lote)" uma vez por linha; agrupar
+  registros iguais em sequência deixaria a leitura mais curta.
+
+Arquivos: `src/components/ui/layout.tsx` (Aviso), `src/components/eventos/mudancas-pos-ata.tsx`,
+`src/app/(app)/eventos/[id]/page.tsx`, `src/app/(app)/eventos/[id]/solicitacoes/page.tsx`.
+Validação: tsc, eslint; screenshots `antes-logistica-*-eventos_evento*.png`,
+`antes-logistica-*-eventos_EVT_0002_itens_*.png`, `depois-logistica-*-eventos_evento{,_ata,_solicitacoes}.png`,
+`depois-logistica-celular-eventos_evento-recorte.png`, `depois-producao-*-eventos_EVT_0002.png`.

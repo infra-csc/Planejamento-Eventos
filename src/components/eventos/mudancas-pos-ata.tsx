@@ -109,7 +109,8 @@ export function MudancasPosAta({
   return (
     <section id="mudancas" aria-labelledby="mudancas-titulo" className="alvo-ancora overflow-hidden rounded-cartao border border-l-4 border-info-border border-l-info bg-surface">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-line-soft px-cartao py-3.5">
-        <div className="min-w-0 flex-1">
+        {/* basis-64: em cartão estreito (celular) o link desce para baixo do título em vez de espremê-lo em 3 linhas. */}
+        <div className="min-w-0 flex-1 basis-64">
           <h2 id="mudancas-titulo" className="m-0 flex items-center gap-2 text-secao font-semibold tracking-[-0.01em]">
             <Icone nome="camadas" className="text-info" />
             O que mudou depois da reunião

@@ -232,17 +232,20 @@ const AVISO: Record<TomAviso, { cls: string; icone: NomeIcone }> = {
   success: { cls: "border-success-border bg-success-bg text-success", icone: "check-circulo" },
 };
 
-/** Aviso em bloco, com ícone do tom (ou `semIcone`). `acoes` à direita (link ou botão pequeno). */
+/**
+ * Aviso em bloco, com ícone do tom (ou `semIcone`). `acoes` à direita (link ou botão pequeno); no celular
+ * descem para baixo do texto, alinhadas a ele (à direita espremiam o texto numa coluna estreita).
+ */
 export function Aviso({ tom = "neutro", titulo, children, acoes, semIcone, className }: { tom?: TomAviso; titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; semIcone?: boolean; className?: string }) {
   const { cls, icone } = AVISO[tom];
   return (
-    <div className={cn("flex items-start gap-2.5 rounded-controle border px-4 py-3", cls, className)}>
+    <div className={cn("flex flex-wrap items-start gap-x-2.5 gap-y-2 rounded-controle border px-4 py-3", cls, className)}>
       {!semIcone && <Icone nome={icone} className={titulo ? "mt-0.5" : "mt-px"} />}
       <div className="min-w-0 flex-1">
         {titulo && <p className="m-0 text-corpo font-medium">{titulo}</p>}
         {children && <div className={cn("text-pequeno", titulo ? "mt-0.5" : undefined)}>{children}</div>}
       </div>
-      {acoes && <div className="flex shrink-0 items-center gap-2 self-center">{acoes}</div>}
+      {acoes && <div className={cn("flex shrink-0 flex-wrap items-center gap-2 self-center max-sm:basis-full", !semIcone && "max-sm:pl-[26px]")}>{acoes}</div>}
     </div>
   );
 }

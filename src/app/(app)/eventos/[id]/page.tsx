@@ -175,13 +175,13 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         <Metric
           label="Itens"
           valor={<Numero valor={linhas.length} />}
-          hint={`${galeria.length} ${galeria.length === 1 ? "projeto" : "projetos"} · ${unidades} un. · ${areasEnvolvidas.length} ${areasEnvolvidas.length === 1 ? "área" : "áreas"}`}
+          hint={`${galeria.length} ${galeria.length === 1 ? "projeto" : "projetos"} · ${unidades.toLocaleString("pt-BR")} un. · ${areasEnvolvidas.length} ${areasEnvolvidas.length === 1 ? "área" : "áreas"}`}
           href="#itens"
         />
         <Metric
           label="Ordem de serviço"
           valor={versoes.length ? <Codigo>v{versoes[0].numero}</Codigo> : "—"}
-          hint={versoes.length ? `${veOs ? `${totalOs} peças · ` : ""}atualizada ${diaMes(versoes[0].geradaEm)}` : "gerada ao fechar a ata"}
+          hint={versoes.length ? `${veOs ? `${totalOs.toLocaleString("pt-BR")} peças · ` : ""}atualizada ${diaMes(versoes[0].geradaEm)}` : "gerada ao fechar a ata"}
           href={veOs ? `/eventos/${id}/os` : undefined}
         />
       </MetricStrip>

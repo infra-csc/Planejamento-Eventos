@@ -83,9 +83,12 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                       </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
                         <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
-                        <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                          {aguardaReuniao(s.tipo, s.evento.status) ? "confere na reunião" : pi.vencido ? "atrasada" : pi.label}
-                        </span>
+                        {/* Sem prazo a mostrar ("—" das respondidas): no cartão do celular o traço solto só fazia ruído. */}
+                        {(aguardaReuniao(s.tipo, s.evento.status) || pi.label !== "—") && (
+                          <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
+                            {aguardaReuniao(s.tipo, s.evento.status) ? "confere na reunião" : pi.vencido ? "atrasada" : pi.label}
+                          </span>
+                        )}
                       </span>
                     </th>
                     <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>
