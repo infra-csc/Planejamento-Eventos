@@ -94,11 +94,12 @@ export function PecaForm({
       )}
 
       <FormError message={!state.ok ? state.erro : null} />
-      <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center">
-        <SubmitButton size="lg" className="max-sm:w-full">
+      {/* Celular: salvar fixo no rodapé, como nos formulários de evento e de projeto. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4 max-md:sticky max-md:bottom-0 max-md:z-10 max-sm:-mx-4 sm:max-md:-mx-5 max-md:border-line max-md:bg-page/95 max-sm:px-4 sm:max-md:px-5 max-md:py-3 max-md:backdrop-blur-sm">
+        <SubmitButton size="lg" className="max-md:flex-1">
           {valores.id ? "Salvar" : "Cadastrar peça"}
         </SubmitButton>
-        <ButtonLink href={cancelarHref} variant="secondary" size="lg" className="no-underline max-sm:w-full">
+        <ButtonLink href={cancelarHref} variant="ghost" size="lg" className="no-underline">
           Cancelar
         </ButtonLink>
       </div>
