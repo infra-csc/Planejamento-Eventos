@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { iniciais } from "@/lib/format";
 import { PERFIL_LABEL } from "@/domain/permissions";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/layout";
 import { Icone, Spinner, type NomeIcone } from "@/components/ui/icons";
 import { useSinalizarNavegacao } from "@/components/ui/navegacao";
+import { toastErro } from "@/components/ui/toast";
 import { logoutAction } from "@/app/(auth)/actions";
 import { sairVerComoAction, verComoAction } from "@/app/(app)/ver-como/actions";
 import { SinoNotificacoes } from "./sino-notificacoes";
@@ -92,11 +93,27 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
   );
 }
 
-export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areaSolicitante: { id: string; nome: string } | null } | null }) {
+export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areasSolicitantes: Array<{ id: string; nome: string }>; areaCenografia: string | null } | null }) {
   const vendoComo = Boolean(usuario.verComo);
-  const escolherVerComo = (perfil: string, areaId: string | null) => {
-    void verComoAction(perfil, areaId).then(() => router.refresh());
-  };
+  // Trocar de perfil recarrega a tela no servidor: a barra de carregamento do topo acompanha a troca
+  // (antes o menu fechava e nada mudava por segundos) e uma falha de conexão vira aviso, não silêncio.
+  const [trocandoPerfil, iniciarTroca] = useTransition();
+  useSinalizarNavegacao(trocandoPerfil);
+  const trocarPerfil = (acao: () => Promise<{ ok: boolean; erro?: string }>) =>
+    iniciarTroca(async () => {
+      try {
+        const r = await acao();
+        if (!r.ok) {
+          toastErro(r.erro ?? "Não foi possível trocar de perfil.");
+          return;
+        }
+        router.refresh();
+      } catch {
+        toastErro("Não foi possível falar com o servidor. Tente de novo.");
+      }
+    });
+  const escolherVerComo = (perfil: string, areaId: string | null) => trocarPerfil(() => verComoAction(perfil, areaId));
+  const voltarAdministrador = () => trocarPerfil(() => sairVerComoAction());
   const pathname = usePathname();
   const router = useRouter();
   const estaAtivo = (item: NavItem) =>
@@ -287,10 +304,17 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
                 <>
                   <DropdownSeparator />
                   <DropdownLabel>Ver o app como…</DropdownLabel>
+                  {/* Todos os perfis e cada área solicitante: antes só Logística e a primeira área (não dava para
+                      conferir o que a Gestão, a Cenografia ou a Ativação veem). */}
                   <DropdownItem onSelect={() => escolherVerComo("LOGISTICA", null)}>Logística</DropdownItem>
-                  {/* Solicitante é um só: a área vem de um exemplo (a primeira área requisitante ativa). */}
-                  {verComo.areaSolicitante && <DropdownItem onSelect={() => escolherVerComo("REQUISITANTE", verComo.areaSolicitante!.id)}>Solicitante · {verComo.areaSolicitante.nome}</DropdownItem>}
-                  {vendoComo && <DropdownItem onSelect={() => void sairVerComoAction().then(() => router.refresh())}>Voltar a administrador</DropdownItem>}
+                  <DropdownItem onSelect={() => escolherVerComo("GESTAO", null)}>Gestão</DropdownItem>
+                  <DropdownItem onSelect={() => escolherVerComo("CENOGRAFIA", verComo.areaCenografia)}>Cenografia</DropdownItem>
+                  {verComo.areasSolicitantes.map((a) => (
+                    <DropdownItem key={a.id} onSelect={() => escolherVerComo("REQUISITANTE", a.id)}>
+                      Solicitante · {a.nome}
+                    </DropdownItem>
+                  ))}
+                  {vendoComo && <DropdownItem onSelect={voltarAdministrador}>Voltar a administrador</DropdownItem>}
                 </>
               )}
               <DropdownSeparator />
@@ -307,7 +331,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             <span>
               Você está vendo o app como <span className="font-semibold">{perfilTexto}</span>. O que fizer aqui vale como esse perfil e fica registrado no seu nome.
             </span>
-            <Button variant="parcial" size="xs" className="shrink-0" onClick={() => void sairVerComoAction().then(() => router.refresh())}>
+            <Button variant="parcial" size="xs" className="shrink-0" loading={trocandoPerfil} onClick={voltarAdministrador}>
               Voltar a administrador
             </Button>
           </div>

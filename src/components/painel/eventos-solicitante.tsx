@@ -120,8 +120,10 @@ export function EventosSolicitante({ eventos, mudancas }: { eventos: EventoCarta
         <div className="rounded-cartao border border-line bg-surface">
           <EmptyState
             compact
-            title="Sua área ainda não está em nenhum evento"
-            description="Envie as necessidades da área para um evento em preparação."
+            // Só entram eventos que ainda não terminaram: "ainda não está em nenhum evento" contradizia a
+            // lista de solicitações, que mostra os pedidos da área em eventos já passados.
+            title="Nenhum evento em andamento com pedidos da sua área"
+            description="Envie as necessidades da área para um evento em preparação. Eventos que já terminaram ficam em Eventos."
             action={
               <Link href="/eventos?fase=PREPARACAO" className="link text-corpo">
                 Ver eventos em preparação
