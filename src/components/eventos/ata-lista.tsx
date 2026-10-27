@@ -22,6 +22,7 @@ import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import type { EventoStatus } from "@/server/db/schema";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
+import { EditarTendaDialog, type TendaDoLocal } from "./acoes-linha-evento";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
 const avisarTodas = (r: Awaited<ReturnType<typeof conferirTodasAction>>, rotulo: string) => {
@@ -90,9 +91,9 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
 }
 
 /** Canetinha: ajustar a quantidade da linha (fica no histórico quem mudou, de quanto para quanto e a justificativa). */
-function BotaoAjustar({ nome, onClick }: { nome: string; onClick: () => void }) {
+function BotaoAjustar({ nome, onClick, tenda }: { nome: string; onClick: () => void; tenda?: boolean }) {
   return (
-    <IconButton label={`Ajustar ${nome}`} onClick={onClick}>
+    <IconButton label={tenda ? `Ajustar tendas de ${nome}` : `Ajustar ${nome}`} onClick={onClick}>
       <Icone nome="lapis" />
     </IconButton>
   );
@@ -140,6 +141,7 @@ export function AtaLista({
   conferivel = false,
   contexto = "ata",
   podeCadastrar = false,
+  tendas,
 }: {
   eventoId: string;
   status: EventoStatus;
@@ -155,6 +157,8 @@ export function AtaLista({
   contexto?: "ata" | "os";
   /** Pode cadastrar peça nova ao vincular um item fora do catálogo. */
   podeCadastrar?: boolean;
+  /** Linhas de tenda (por id): o lápis abre o quadro do local (tendas, fechamentos, calhas), como na visão geral. */
+  tendas?: Record<string, TendaDoLocal>;
 }) {
   const [incluir, setIncluir] = useState(false);
   const [conferindoTodas, iniciarTodas] = useTransition();
@@ -269,7 +273,7 @@ export function AtaLista({
                       <td className={cn("border-b border-line-row py-[7px] pl-1.5", compacta ? "pr-2.5" : "pr-[14px]")}>
                         <span className="flex items-center justify-end gap-1">
                           {conferivel && <CheckConferida l={l} eventoId={eventoId} />}
-                          {editavel && <BotaoAjustar nome={l.nome} onClick={() => setAjustar(l)} />}
+                          {editavel && <BotaoAjustar nome={`${l.nome}${l.destino ? ` · ${l.destino}` : ""}`} tenda={Boolean(tendas?.[l.id])} onClick={() => setAjustar(l)} />}
                         </span>
                       </td>
                     )}
@@ -330,7 +334,8 @@ export function AtaLista({
         )}
       </Dialog>
 
-      {ajustar && (
+      {ajustar && tendas?.[ajustar.id] && <EditarTendaDialog eventoId={eventoId} tenda={tendas[ajustar.id]} ataFechada={exigeJustificativa} onFechar={() => setAjustar(null)} />}
+      {ajustar && !tendas?.[ajustar.id] && (
         <ConfirmDialog
           open
           onOpenChange={(o) => !o && setAjustar(null)}

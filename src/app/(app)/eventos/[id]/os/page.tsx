@@ -22,6 +22,7 @@ import { VersoesOs, type VersaoOsView } from "@/components/eventos/versoes-os";
 import type { OsGatilho } from "@/server/db/schema";
 import { listarAreasCache } from "@/server/cache";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
+import { tendaDoLocal } from "@/components/eventos/tenda-do-local";
 
 const GATILHO_LABEL: Record<OsGatilho, string> = {
   ATA_FECHADA: "ata fechada",
@@ -121,12 +122,21 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   let composicao: { n: number; conteudo: React.ReactNode; ajustavel?: boolean } | undefined;
   if (visao === "composicao") {
     const [linhasOs, opcoes, areas] = await Promise.all([obterLinhasAta(id), podeAjustar ? opcoesReferenciasResumidas() : Promise.resolve({ projetos: [], pecas: [] }), podeAjustar ? listarAreasCache() : Promise.resolve([])]);
+    // Tenda: o lápis abre o quadro do local, como na visão geral (antes mudava só o número de tendas da linha).
+    const tendas = podeAjustar
+      ? Object.fromEntries(
+          linhasOs.flatMap((l) => {
+            const t = tendaDoLocal(l, linhasOs.filter((y) => y.tipo === "PROJETO" && y.projeto?.codigo === l.projeto?.codigo));
+            return t ? [[l.id, t] as const] : [];
+          }),
+        )
+      : undefined;
     composicao = {
       n: linhasOs.length,
       ajustavel: podeAjustar,
       conteudo: (
         <Section titulo="Itens que compõem a OS" sub={podeAjustar ? "Ata + alterações atendidas + ajustes. Ajustar ou incluir pede justificativa, avisa a área e gera nova versão. A ata não muda." : "Ata da reunião + alterações atendidas + ajustes da logística."}>
-          <AtaLista eventoId={id} status={ev.status} editavel={podeAjustar} contexto="os" podeCadastrar={pode(usuario, "catalogo.gerenciar")} opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhasOs.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
+          <AtaLista eventoId={id} status={ev.status} editavel={podeAjustar} contexto="os" tendas={tendas} podeCadastrar={pode(usuario, "catalogo.gerenciar")} opcoes={opcoes} areas={areas.map((a) => ({ id: a.id, nome: a.nome }))} linhas={linhasOs.map(paraView)} dataReuniao={diaMesHora(ev.dataReuniao)} />
         </Section>
       ),
     };
