@@ -18,6 +18,7 @@ import { ItensDaArea } from "./nova/itens-da-area";
 import { listasDaArea } from "@/domain/itens-por-area";
 import { comPontoFinal, confirmarLocal, irPara, sincronizarAcompanhantes, sugerirTitulo } from "./nova/utilidades";
 import type { EstoqueDoEvento } from "./nova/aviso-estoque";
+import type { EstoqueSolicitacao } from "@/server/services/estoque";
 import type { EventoOpcao, ItemNovo, LinhaAta, Modo, RascunhoSolicitacao, Referencia } from "./nova/tipos";
 
 export type { EventoOpcao, ItemNovo, LinhaBom } from "./nova/tipos";
@@ -61,7 +62,7 @@ export function NovaSolicitacaoForm({
   /** O que já foi pedido de cada projeto/peça, por evento (aviso informativo). */
   pedidosPorEvento?: PedidosPorEvento;
   /** Estoque da Ativação (peças ligadas) e o que outros eventos do período levam, por evento. */
-  estoque?: { porPeca: Record<string, { nome: string; quantidade: number }>; emOutros: Record<string, Record<string, number>> } | null;
+  estoque?: EstoqueSolicitacao | null;
   slaHoras: number;
 }) {
   const router = useRouter();
@@ -96,7 +97,7 @@ export function NovaSolicitacaoForm({
   const linhas = useMemo(() => (eventoId ? (linhasPorEvento[eventoId] ?? []) : []), [eventoId, linhasPorEvento]);
   const jaPedidos = useMemo(() => (eventoId ? (pedidosPorEvento[eventoId] ?? {}) : {}), [eventoId, pedidosPorEvento]);
   const estoqueDoEvento: EstoqueDoEvento | null = useMemo(
-    () => (estoque && eventoId ? Object.fromEntries(Object.entries(estoque.porPeca).map(([id, v]) => [id, { ...v, emOutros: estoque.emOutros[eventoId]?.[id] ?? 0 }])) : null),
+    () => (estoque && eventoId ? Object.fromEntries(Object.entries(estoque.porPeca).map(([id, v]) => [id, { ...v, emOutros: estoque.emOutros[eventoId]?.[id] ?? 0, outrosEventos: estoque.outrosEventos?.[eventoId]?.[id] ?? [] }])) : null),
     [estoque, eventoId],
   );
 

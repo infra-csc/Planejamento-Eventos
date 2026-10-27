@@ -48,8 +48,32 @@ function problema(f: File): string | null {
   return null;
 }
 
-/** Fotos e anexos (PDF) de uma peça do catálogo: ver, ampliar, incluir vários de uma vez e remover. */
-export function AnexosPeca({ pecaId, anexos, podeGerenciar }: { pecaId: string; anexos: readonly Anexo[]; podeGerenciar: boolean }) {
+type Resultado = { ok: true } | { ok: false; erro: string };
+
+/**
+ * Fotos e anexos (PDF) de uma peça do catálogo: ver, ampliar, incluir vários de uma vez e remover. O estoque da
+ * Ativação usa o mesmo componente com a sua rota e as suas ações (`urlBase`, `campos`, `adicionar`, `remover`).
+ */
+export function AnexosPeca({
+  pecaId,
+  anexos,
+  podeGerenciar,
+  urlBase = "/api/pecas/anexos",
+  campos,
+  adicionar = adicionarAnexoPecaAction,
+  remover: removerAcao = removerAnexoPecaAction,
+  vazio,
+}: {
+  pecaId: string;
+  anexos: readonly Anexo[];
+  podeGerenciar: boolean;
+  urlBase?: string;
+  /** Campos do formulário de envio (padrão: `pecaId`). */
+  campos?: Record<string, string>;
+  adicionar?: (form: FormData) => Promise<Resultado>;
+  remover?: (id: string) => Promise<Resultado>;
+  vazio?: string;
+}) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState<{ atual: number; total: number } | null>(null);
@@ -76,9 +100,9 @@ export function AnexosPeca({ pecaId, anexos, podeGerenciar }: { pecaId: string; 
         continue;
       }
       const form = new FormData();
-      form.set("pecaId", pecaId);
+      for (const [k, v] of Object.entries(campos ?? { pecaId })) form.set(k, v);
       form.set("arquivo", arquivo);
-      const r = await adicionarAnexoPecaAction(form).catch(() => ({ ok: false as const, erro: `Falha de conexão ao enviar “${f.name}”.` }));
+      const r = await adicionar(form).catch(() => ({ ok: false as const, erro: `Falha de conexão ao enviar “${f.name}”.` }));
       if (r.ok) ok++;
       else falhas.push(r.erro);
     }
@@ -90,7 +114,7 @@ export function AnexosPeca({ pecaId, anexos, podeGerenciar }: { pecaId: string; 
 
   const confirmarRemocao = (id: string) =>
     iniciarRemocao(async () => {
-      const r = await removerAnexoPecaAction(id);
+      const r = await removerAcao(id);
       if (!r.ok) setErros([r.erro]);
       else toastSucesso("Arquivo removido.");
       setRemover(null);
@@ -123,14 +147,14 @@ export function AnexosPeca({ pecaId, anexos, podeGerenciar }: { pecaId: string; 
       }}
     >
       {anexos.length === 0 ? (
-        <p className="m-0 px-cartao py-5 text-center text-pequeno text-muted">{podeGerenciar ? "Nenhuma foto ou anexo ainda. Inclua fotos da peça montada e, se tiver, o desenho técnico em PDF." : "Nenhuma foto ou anexo."}</p>
+        <p className="m-0 px-cartao py-5 text-center text-pequeno text-muted">{vazio ?? (podeGerenciar ? "Nenhuma foto ou anexo ainda. Inclua fotos da peça montada e, se tiver, o desenho técnico em PDF." : "Nenhuma foto ou anexo.")}</p>
       ) : (
         <>
           {fotos.length > 0 && (
             <ul className="m-0 grid list-none grid-cols-2 gap-3 p-cartao sm:grid-cols-3 md:grid-cols-4">
               {fotos.map((a, i) => (
                 <li key={a.id} className="group relative">
-                  <ImagemZoom src={`/api/pecas/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full overflow-hidden rounded-controle border border-line" />
+                  <ImagemZoom src={`${urlBase}/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full overflow-hidden rounded-controle border border-line" />
                   <p className="m-0 mt-1 flex items-center gap-1.5 text-rotulo text-muted">
                     {i === 0 && <span className="rounded-chip bg-accent-bg px-1.5 font-medium text-accent">capa</span>}
                     <span className="truncate">{a.nomeArquivo}</span>
@@ -144,7 +168,7 @@ export function AnexosPeca({ pecaId, anexos, podeGerenciar }: { pecaId: string; 
             <ul className={cn("m-0 list-none divide-y divide-line-row p-0", fotos.length > 0 && "border-t border-line-soft")}>
               {pdfs.map((a) => (
                 <li key={a.id} className="flex items-center justify-between gap-3 px-cartao py-2.5 text-corpo">
-                  <a href={`/api/pecas/anexos/${a.id}`} target="_blank" rel="noopener" className="link flex min-w-0 items-center gap-2">
+                  <a href={`${urlBase}/${a.id}`} target="_blank" rel="noopener" className="link flex min-w-0 items-center gap-2">
                     <Icone nome="link-externo" className="shrink-0 text-ink-3" />
                     <span className="truncate">{a.nomeArquivo}</span>
                     <span className="numero shrink-0 text-rotulo text-muted">PDF · {tamanho(a.tamanho)}</span>

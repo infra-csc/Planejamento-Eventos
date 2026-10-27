@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { CATEGORIAS_ESTOQUE } from "@/domain/estoque";
-import { ajustarQuantidadeEstoqueAction, salvarItemEstoqueAction } from "@/app/(app)/estoque/actions";
+import Link from "next/link";
+import { ajustarQuantidadeEstoqueAction, salvarItemEstoqueAction } from "@/app/(app)/ativacao/actions";
 import { Button } from "@/components/ui/button";
 import { Tag } from "@/components/ui/badge";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/field";
@@ -29,9 +30,15 @@ export type ItemEstoqueTela = {
   pecaNome: string | null;
   ativo: boolean;
   atualizadoEm: string;
+  /** Saiu com a OS de um evento (montagem já passou) e ainda não voltou. */
+  emEvento: number;
+  /** Vai sair com a OS de um evento que ainda não montou. */
+  reservado: number;
+  emReforma: number;
+  capaId: string | null;
 };
 
-type Filtro = "todos" | "sem" | "comprar" | "ligados" | "inativos";
+type Filtro = "todos" | "sem" | "comprar" | "ligados" | "evento" | "reforma" | "inativos";
 
 const semAcento = (s: string) =>
   s
@@ -60,16 +67,20 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
       if (filtro === "sem" && i.quantidade > 0) return false;
       if (filtro === "comprar" && !i.comprar) return false;
       if (filtro === "ligados" && !i.pecaId) return false;
+      if (filtro === "evento" && !(i.emEvento || i.reservado)) return false;
+      if (filtro === "reforma" && !i.emReforma) return false;
       return !t || semAcento(`${i.nome} ${i.observacao ?? ""} ${i.pecaCodigo ?? ""}`).includes(t);
     });
   }, [itens, busca, categoria, filtro]);
 
-  const contar = (f: Filtro) => (f === "inativos" ? itens.filter((i) => !i.ativo).length : ativos.filter((i) => (f === "sem" ? i.quantidade === 0 : f === "comprar" ? Boolean(i.comprar) : f === "ligados" ? Boolean(i.pecaId) : true)).length);
+  const contar = (f: Filtro) => (f === "inativos" ? itens.filter((i) => !i.ativo).length : ativos.filter((i) => (f === "sem" ? i.quantidade === 0 : f === "comprar" ? Boolean(i.comprar) : f === "ligados" ? Boolean(i.pecaId) : f === "evento" ? Boolean(i.emEvento || i.reservado) : f === "reforma" ? Boolean(i.emReforma) : true)).length);
   const FILTROS: Array<[Filtro, string]> = [
     ["todos", "Todos"],
     ["sem", "Sem estoque"],
     ["comprar", "A comprar"],
     ["ligados", "Ligados ao catálogo"],
+    ["evento", "Em evento"],
+    ["reforma", "Em reforma"],
     ["inativos", "Inativos"],
   ];
 
@@ -111,12 +122,15 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
           <div className="overflow-x-auto">
             {/* Celular: item, quantidade e editar cabem em 375 px (sem data-responsiva a tabela ganhava 640 px e o
                 stepper, que é a ação da tela, ficava fora da vista, só rolando a tabela de lado). */}
-            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px]">
+            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[760px]">
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
                   <th className="hidden px-3 py-2.5 md:table-cell">Categoria</th>
-                  <th className="px-3 py-2.5 text-center max-sm:px-1">Quantidade</th>
+                  <th className="px-3 py-2.5 text-center max-sm:px-1" title="Em bom estado, no galpão ou em evento">Em posse</th>
+                  <th className="hidden px-3 py-2.5 text-right lg:table-cell" title="Saiu com a OS e ainda não voltou (entre parênteses, reservado para eventos que ainda vão montar)">Em evento</th>
+                  <th className="hidden px-3 py-2.5 text-right lg:table-cell">Em reforma</th>
+                  <th className="hidden px-3 py-2.5 text-right sm:table-cell" title="Em posse menos o que está fora em evento">Disponível</th>
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell">Comprar</th>
                   {/* relative: o rótulo sr-only (absoluto) fica preso à célula; sem isso escapava da rolagem da
                       tabela e alargava a página no celular (559 px numa tela de 375). */}
@@ -134,7 +148,19 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
           </div>
         )}
         <p className="m-0 border-t border-line-soft px-cartao py-2.5 text-rotulo text-muted">
-          <Numero valor={visiveis.length} /> de <Numero valor={ativos.length} /> itens ativos · <Numero valor={ativos.reduce((t, i) => t + i.quantidade, 0)} /> unidades
+          <Numero valor={visiveis.length} /> de <Numero valor={ativos.length} /> itens ativos · <Numero valor={ativos.reduce((t, i) => t + i.quantidade, 0)} /> unidades em posse
+          {ativos.some((i) => i.emEvento) && (
+            <>
+              {" · "}
+              <Numero valor={ativos.reduce((t, i) => t + i.emEvento, 0)} /> em evento
+            </>
+          )}
+          {ativos.some((i) => i.emReforma) && (
+            <>
+              {" · "}
+              <Numero valor={ativos.reduce((t, i) => t + i.emReforma, 0)} /> em reforma
+            </>
+          )}
         </p>
       </div>
 
@@ -173,8 +199,20 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   return (
     <tr className={cn("border-b border-line-row last:border-b-0", !item.ativo && "text-meta")}>
       <td className="px-3 py-2.5 pl-cartao align-middle">
+        <span className="flex items-start gap-2.5">
+        {item.capaId ? (
+          // eslint-disable-next-line @next/next/no-img-element -- miniatura já reduzida pela rota de anexos
+          <img src={`/api/ativacao/anexos/${item.capaId}?w=160`} alt="" loading="lazy" decoding="async" className="size-10 shrink-0 rounded-controle border border-line bg-white object-cover max-sm:hidden" />
+        ) : (
+          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-controle bg-subtle text-meta max-sm:hidden">
+            <Icone nome="caixa" className="size-4" />
+          </span>
+        )}
+        <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="text-corpo font-medium text-ink">{item.nome}</span>
+          <Link href={`/ativacao/itens/${item.id}`} className="text-corpo font-medium text-ink no-underline hover:underline">
+            {item.nome}
+          </Link>
           {item.pecaCodigo && (
             <Tag tom="accent" className="text-rotulo max-sm:whitespace-normal">
               na solicitação: {item.pecaCodigo}
@@ -184,6 +222,8 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         </span>
         {item.observacao && <span className="mt-0.5 block text-pequeno text-muted">{item.observacao}</span>}
         <span className="block text-rotulo text-meta md:hidden">{item.categoria}</span>
+        </span>
+        </span>
       </td>
       <td className="hidden px-3 py-2.5 align-middle text-pequeno text-ink-2 md:table-cell">{item.categoria}</td>
       <td className="px-3 py-2.5 align-middle max-sm:px-1">
@@ -194,6 +234,12 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
           </span>
         </div>
       </td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno lg:table-cell">
+        {item.emEvento ? <span className="font-medium text-info">{item.emEvento}</span> : <span className="text-line-strong">—</span>}
+        {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} reservado</span>}
+      </td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno lg:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell">{Math.max(0, valor - item.emEvento)}</td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
       <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-1">
         <Button variant="ghost" size="xs" onClick={onEditar} className="max-sm:px-2.5">
@@ -241,7 +287,7 @@ function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { i
           <Field label="Categoria" htmlFor="estoque-categoria">
             <Select id="estoque-categoria" value={cat} onValueChange={setCat} ordenarAlfabetico={false} opcoes={categorias.map((c) => ({ value: c, label: c }))} />
           </Field>
-          <Field label="Quantidade" htmlFor="estoque-quantidade" error={erros.quantidade}>
+          <Field label="Em posse" htmlFor="estoque-quantidade" error={erros.quantidade}>
             <Stepper id="estoque-quantidade" valor={quantidade} min={0} onChange={setQuantidade} label="Quantidade" />
           </Field>
           <Field label="Comprar" htmlFor="estoque-comprar" optional>
@@ -251,7 +297,7 @@ function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { i
         <Field label="Observação" htmlFor="estoque-obs" optional hint="Ex.: 1 quebrada · 4 sem cabo de recarga">
           <Textarea id="estoque-obs" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} className="min-h-[64px]" />
         </Field>
-        <Field label="Peça do catálogo" htmlFor="estoque-peca" optional hint="A peça que a Ativação pede na solicitação (ex.: Puff Cubo → PUFF). Ao pedir, aparece quanto ainda tem.">
+        <Field label="Peça do catálogo" htmlFor="estoque-peca" optional error={erros.pecaId} hint="A peça que a Ativação pede na solicitação (ex.: Puff Cubo → PUFF). Ao pedir, aparece quanto ainda tem; a OS do evento leva o item e o retorno traz de volta.">
           <div className="flex items-center gap-2">
             <ComboBox id="estoque-peca" value={pecaId} onChange={(v) => setPecaId(v || null)} placeholder="Nenhuma — só no estoque" className="min-w-0 flex-1" opcoes={catalogo.map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo }))} />
             {pecaId && (

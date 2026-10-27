@@ -43,8 +43,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Carga e descarga do galpão: só logística e administrador.
     ...(pode(usuario, "carga.ver") ? [{ href: "/carga-descarga", label: "Carga e descarga", secao: "Operação" }] : []),
     ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
-    // Estoque da Ativação: a própria área Ativação e o administrador.
-    ...(podeGerenciarEstoque(usuario) ? [{ href: "/estoque", label: "Estoque", secao: "Operação" }] : []),
+    // Módulo Ativação (estoque, retornos e reformas): a própria área Ativação e o administrador.
+    ...(podeGerenciarEstoque(usuario) ? [{ href: "/ativacao", label: "Ativação", secao: "Operação", ativoEm: ["/estoque"] }] : []),
     ...(!TELAS_INATIVAS.consolidacao && pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),
     ...(!TELAS_INATIVAS.pendencias && pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
     ...(pode(usuario, "historico.ver_tudo") ? [{ href: "/historico", label: "Histórico", secao: "Operação" }] : []),

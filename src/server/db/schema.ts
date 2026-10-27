@@ -794,9 +794,112 @@ export const estoqueItens = pgTable(
   (t) => [index("estoque_itens_peca_idx").on(t.pecaId), check("estoque_itens_quantidade_chk", sql`${t.quantidade} >= 0`)],
 );
 
-export const estoqueItensRelations = relations(estoqueItens, ({ one }) => ({
+export const estoqueItensRelations = relations(estoqueItens, ({ one, many }) => ({
   peca: one(pecas, { fields: [estoqueItens.pecaId], references: [pecas.id] }),
   atualizadoPor: one(usuarios, { fields: [estoqueItens.atualizadoPorId], references: [usuarios.id] }),
+  anexos: many(estoqueAnexos),
+  retornos: many(estoqueRetornos),
+  reformas: many(estoqueReformas),
+}));
+
+/**
+ * Reforma de itens do estoque da Ativação (27/10): o que voltou danificado de um evento (ou foi separado à mão)
+ * sai do estoque em posse e fica aqui até concluir: os consertados voltam ao estoque, os outros são baixados.
+ */
+export const estoqueReformas = pgTable(
+  "estoque_reformas",
+  {
+    id: id(),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => estoqueItens.id, { onDelete: "cascade" }),
+    /** Evento de onde voltou danificado (null = separado à mão no estoque). */
+    eventoId: text("evento_id").references(() => eventos.id, { onDelete: "set null" }),
+    quantidade: integer("quantidade").notNull(),
+    motivo: text("motivo"),
+    /** Onde está (marcenaria, fornecedor, galpão…). */
+    local: text("local"),
+    /** Previsão de volta (AAAA-MM-DD). */
+    previsao: text("previsao"),
+    status: text("status").$type<"ABERTA" | "CONCLUIDA">().notNull().default("ABERTA"),
+    consertados: integer("consertados"),
+    baixados: integer("baixados"),
+    concluidaEm: ts("concluida_em"),
+    concluidaPorId: text("concluida_por_id").references(() => usuarios.id),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [index("estoque_reformas_item_idx").on(t.itemId), index("estoque_reformas_status_idx").on(t.status), check("estoque_reformas_quantidade_chk", sql`${t.quantidade} > 0`)],
+);
+
+/**
+ * Retorno de um evento (27/10): a OS leva os itens ligados a peças do catálogo; depois do evento a Ativação
+ * registra quantos voltaram bons, quantos foram para reforma e quantos se perderam. Um por item e evento.
+ */
+export const estoqueRetornos = pgTable(
+  "estoque_retornos",
+  {
+    id: id(),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => estoqueItens.id, { onDelete: "cascade" }),
+    eventoId: text("evento_id")
+      .notNull()
+      .references(() => eventos.id, { onDelete: "cascade" }),
+    /** Quanto a OS levava quando o retorno foi registrado. */
+    levou: integer("levou").notNull(),
+    voltaram: integer("voltaram").notNull(),
+    reforma: integer("reforma").notNull().default(0),
+    perdidos: integer("perdidos").notNull().default(0),
+    observacao: text("observacao"),
+    reformaId: text("reforma_id").references(() => estoqueReformas.id, { onDelete: "set null" }),
+    registradoPorId: text("registrado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [
+    uniqueIndex("estoque_retornos_item_evento_idx").on(t.itemId, t.eventoId),
+    index("estoque_retornos_evento_idx").on(t.eventoId),
+    check("estoque_retornos_quantidades_chk", sql`${t.levou} >= 0 and ${t.voltaram} >= 0 and ${t.reforma} >= 0 and ${t.perdidos} >= 0`),
+  ],
+);
+
+/** Fotos e PDFs de um item do estoque; com `reformaId`, da reforma (o estrago, o orçamento). */
+export const estoqueAnexos = pgTable(
+  "estoque_anexos",
+  {
+    id: id(),
+    itemId: text("item_id")
+      .notNull()
+      .references(() => estoqueItens.id, { onDelete: "cascade" }),
+    reformaId: text("reforma_id").references(() => estoqueReformas.id, { onDelete: "set null" }),
+    tipo: anexoTipoEnum("tipo").notNull(),
+    nomeArquivo: text("nome_arquivo").notNull(),
+    mime: text("mime").notNull(),
+    tamanho: integer("tamanho").notNull(),
+    conteudo: bytea("conteudo").notNull(),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("estoque_anexos_item_tipo_criado_idx").on(t.itemId, t.tipo, t.criadoEm), index("estoque_anexos_reforma_idx").on(t.reformaId)],
+);
+
+export const estoqueReformasRelations = relations(estoqueReformas, ({ one, many }) => ({
+  item: one(estoqueItens, { fields: [estoqueReformas.itemId], references: [estoqueItens.id] }),
+  evento: one(eventos, { fields: [estoqueReformas.eventoId], references: [eventos.id] }),
+  anexos: many(estoqueAnexos),
+}));
+
+export const estoqueRetornosRelations = relations(estoqueRetornos, ({ one }) => ({
+  item: one(estoqueItens, { fields: [estoqueRetornos.itemId], references: [estoqueItens.id] }),
+  evento: one(eventos, { fields: [estoqueRetornos.eventoId], references: [eventos.id] }),
+  registradoPor: one(usuarios, { fields: [estoqueRetornos.registradoPorId], references: [usuarios.id] }),
+}));
+
+export const estoqueAnexosRelations = relations(estoqueAnexos, ({ one }) => ({
+  item: one(estoqueItens, { fields: [estoqueAnexos.itemId], references: [estoqueItens.id] }),
+  reforma: one(estoqueReformas, { fields: [estoqueAnexos.reformaId], references: [estoqueReformas.id] }),
 }));
 
 export const eventosRelations = relations(eventos, ({ one, many }) => ({

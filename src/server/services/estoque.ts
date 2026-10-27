@@ -6,6 +6,7 @@ import { SemPermissaoError, ValidacaoError, NaoEncontradoError } from "@/domain/
 import { CATEGORIAS_ESTOQUE, periodosSeCruzam, podeGerenciarEstoque } from "@/domain/estoque";
 import inventario from "@/data/estoque-ativacao-2025.json";
 import { registrarHistorico } from "./support";
+import { capasDosItens, situacaoDoEstoque } from "./ativacao";
 
 function exigirEstoque(usuario: UsuarioAtual) {
   if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O estoque é da Ativação e do administrador.");
@@ -36,7 +37,11 @@ export async function listarEstoque(usuario: UsuarioAtual) {
     const i = (CATEGORIAS_ESTOQUE as readonly string[]).indexOf(c);
     return i < 0 ? 99 : i;
   };
-  return rows.sort((a, b) => ordem(a.categoria) - ordem(b.categoria) || a.nome.localeCompare(b.nome, "pt-BR"));
+  // Saída pela OS, reformas e foto de capa (módulo Ativação).
+  const [sit, capas] = await Promise.all([situacaoDoEstoque(db), capasDosItens(rows.map((r) => r.id))]);
+  return rows
+    .map((r) => ({ ...r, emEvento: sit.emEvento.get(r.id) ?? 0, reservado: sit.reservado.get(r.id) ?? 0, emReforma: sit.emReforma.get(r.id) ?? 0, capaId: capas.get(r.id) ?? null }))
+    .sort((a, b) => ordem(a.categoria) - ordem(b.categoria) || a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
 export type ItemEstoque = Awaited<ReturnType<typeof listarEstoque>>[number];
@@ -53,6 +58,11 @@ export async function salvarItemEstoque(usuario: UsuarioAtual, dados: DadosItemE
   return db.transaction(async (tx) => {
     const repetido = await tx.query.estoqueItens.findFirst({ where: and(eq(estoqueItens.nome, nome), dados.id ? ne(estoqueItens.id, dados.id) : undefined) });
     if (repetido) throw new ValidacaoError("Já existe um item com esse nome.", { nome: "Já existe um item com esse nome." });
+    // Uma peça do catálogo, um item: a OS que leva a peça tira do estoque daquele item (saída e retorno).
+    if (dados.pecaId) {
+      const outro = await tx.query.estoqueItens.findFirst({ where: and(eq(estoqueItens.pecaId, dados.pecaId), eq(estoqueItens.ativo, true), dados.id ? ne(estoqueItens.id, dados.id) : undefined), columns: { nome: true } });
+      if (outro) throw new ValidacaoError(`Essa peça já está ligada a “${outro.nome}”.`, { pecaId: `Já ligada a “${outro.nome}”.` });
+    }
     const valores = {
       nome,
       categoria: dados.categoria.trim() || "Ativação",
@@ -117,17 +127,27 @@ export async function ajustarQuantidadeEstoque(usuario: UsuarioAtual, id: string
 export async function estoqueParaSolicitacao(eventoIds: string[]) {
   const db = await getDb();
   const ligados = await db
-    .select({ pecaId: estoqueItens.pecaId, nome: estoqueItens.nome, quantidade: estoqueItens.quantidade })
+    .select({ id: estoqueItens.id, pecaId: estoqueItens.pecaId, nome: estoqueItens.nome, quantidade: estoqueItens.quantidade })
     .from(estoqueItens)
     .where(and(eq(estoqueItens.ativo, true)));
-  const porPeca: Record<string, { nome: string; quantidade: number }> = {};
-  for (const l of ligados) if (l.pecaId) porPeca[l.pecaId] = porPeca[l.pecaId] ? { nome: porPeca[l.pecaId].nome, quantidade: porPeca[l.pecaId].quantidade + l.quantidade } : { nome: l.nome, quantidade: l.quantidade };
+  // Detalhes do item para quem pede: em reforma (não conta como disponível) e a foto.
+  const [sit, capas] = await Promise.all([situacaoDoEstoque(db), capasDosItens(ligados.filter((l) => l.pecaId).map((l) => l.id))]);
+  const porPeca: Record<string, { nome: string; quantidade: number; emReforma: number; capaId: string | null; itemId: string }> = {};
+  for (const l of ligados) {
+    if (!l.pecaId) continue;
+    const ja = porPeca[l.pecaId];
+    porPeca[l.pecaId] = ja
+      ? { ...ja, quantidade: ja.quantidade + l.quantidade, emReforma: ja.emReforma + (sit.emReforma.get(l.id) ?? 0) }
+      : { nome: l.nome, quantidade: l.quantidade, emReforma: sit.emReforma.get(l.id) ?? 0, capaId: capas.get(l.id) ?? null, itemId: l.id };
+  }
   const pecaIds = Object.keys(porPeca);
   const emOutros: Record<string, Record<string, number>> = {};
-  if (!pecaIds.length || !eventoIds.length) return { porPeca, emOutros };
+  /** Por evento e peça: quais outros eventos do período levam a peça e quanto (o "40 em outro evento" com nome). */
+  const outrosEventos: Record<string, Record<string, Array<{ codigo: string; nome: string; quantidade: number }>>> = {};
+  if (!pecaIds.length || !eventoIds.length) return { porPeca, emOutros, outrosEventos };
 
   const todos = await db
-    .select({ id: eventos.id, inicio: eventos.dataMontagem, fim: eventos.dataDesmontagem, status: eventos.status })
+    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, inicio: eventos.dataMontagem, fim: eventos.dataDesmontagem, status: eventos.status })
     .from(eventos)
     .where(ne(eventos.status, "CANCELADO"));
   const linhas = await db
@@ -146,20 +166,25 @@ export async function estoqueParaSolicitacao(eventoIds: string[]) {
     if (l.tipo === "PECA" && l.pecaId) somar(l.pecaId, l.quantidade);
     if (l.tipo === "PROJETO") for (const b of (l.bom as BomSnapshotLinha[] | null) ?? []) somar(b.pecaId, b.quantidade * l.quantidade);
   }
-  const periodo = new Map(todos.map((e) => [e.id, { inicio: e.inicio, fim: e.fim }]));
+  const periodo = new Map(todos.map((e) => [e.id, { inicio: e.inicio, fim: e.fim, codigo: e.codigo, nome: e.nome }]));
   for (const id of eventoIds) {
     const p = periodo.get(id);
     if (!p) continue;
     const soma: Record<string, number> = {};
+    const quais: Record<string, Array<{ codigo: string; nome: string; quantidade: number }>> = {};
     for (const [outro, m] of leva) {
       if (outro === id) continue;
       const q = periodo.get(outro);
       if (!q || !periodosSeCruzam(p, q)) continue;
-      for (const [pecaId, n] of Object.entries(m)) soma[pecaId] = (soma[pecaId] ?? 0) + n;
+      for (const [pecaId, n] of Object.entries(m)) {
+        soma[pecaId] = (soma[pecaId] ?? 0) + n;
+        (quais[pecaId] ??= []).push({ codigo: q.codigo, nome: q.nome, quantidade: n });
+      }
     }
     emOutros[id] = soma;
+    outrosEventos[id] = quais;
   }
-  return { porPeca, emOutros };
+  return { porPeca, emOutros, outrosEventos };
 }
 
 export type EstoqueSolicitacao = Awaited<ReturnType<typeof estoqueParaSolicitacao>>;
