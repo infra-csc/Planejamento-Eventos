@@ -38,6 +38,9 @@ describe("regras do kit", () => {
     expect(presentes([tenda5, tenda3])).toEqual(["testeira-tenda-5x5", "testeira-tenda-3x3"]);
     expect(presentes([tenda5, { tipo: "PECA", quantidade: 2, pecaCodigo: "TND5-TESTEIRA" }])).toEqual([]);
     expect(presentes([{ tipo: "PECA", quantidade: 5, pecaCodigo: "CONE-G" }])).toEqual([]);
+    // Tenda 3×3 cadastrada sem pé (só travessa e mastro) também conta; cantoneira universal ou fechamento sozinhos, não.
+    expect(presentes([{ tipo: "PROJETO", quantidade: 1, projeto: { nome: "Tenda 3×3" }, bom: [{ codigo: "TND5-CANT", quantidade: 4 }, { codigo: "TND3-TRAV", quantidade: 4 }, { codigo: "TND3-MASTRO", quantidade: 1 }] }])).toEqual(["testeira-tenda-3x3"]);
+    expect(presentes([{ tipo: "PECA", quantidade: 8, pecaCodigo: "TND5-CANT" }, { tipo: "PECA", quantidade: 3, pecaCodigo: "TND3-FECH" }])).toEqual([]);
     // Já tem o projeto de testeira da tenda: não entra outra.
     expect(presentes([tenda5, { tipo: "PROJETO", quantidade: 6, projeto: { nome: "Testeira Madeira Tenda 5×5" }, bom: [{ codigo: "MRC-TESTEIRADE5M", quantidade: 1 }] }])).toEqual([]);
     expect(presentes([tenda5, tenda3, { tipo: "PROJETO", quantidade: 1, projeto: { nome: "Testeira Tenda 3×3" } }])).toEqual(["testeira-tenda-5x5"]);

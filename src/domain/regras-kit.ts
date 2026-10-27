@@ -10,6 +10,8 @@
  * O que a área já pediu da mesma peça à parte é descontado. A linha da regra acompanha a ata sozinha
  * até a ata fechar; se a logística ajustar à mão, fica como ela deixou.
  */
+import { KITS_TENDA } from "@/domain/tendas";
+
 /** `aDefinir`: a regra só põe a linha na ata com quantidade 0; quem define o número é a conferência. */
 export type RegraKit = { regra: string; codigoPeca: string; descricao: string; aDefinir?: boolean };
 
@@ -24,12 +26,17 @@ export const REGRAS_KIT: readonly RegraKit[] = [
 ];
 
 /**
- * Pé de cada tamanho de tenda: com ele na ata, a testeira daquele tamanho entra a definir. (Era a cantoneira, que
- * desde 26/10 é a mesma nos dois tamanhos.)
+ * Peças da estrutura de cada tamanho de tenda (travessa, pé, mastro, cabo): com elas na ata, a testeira daquele
+ * tamanho entra a definir. (Era a cantoneira, que desde 26/10 é a mesma nos dois tamanhos; fechamento e calha não
+ * contam, porque podem ser pedidos sem tenda nova.)
  */
-const TESTEIRA_POR_TENDA: Record<string, { pe: string; tamanho: string }> = {
-  "testeira-tenda-5x5": { pe: "TND5-PE", tamanho: "5" },
-  "testeira-tenda-3x3": { pe: "TND3-PE", tamanho: "3" },
+const pecasDaTenda = (tamanho: string) => {
+  const kit = KITS_TENDA.find((k) => k.tamanho === tamanho)!;
+  return [kit.pecas.travessa, kit.pecas.pe, kit.pecas.mastro, kit.pecas.cabo].filter((c): c is string => Boolean(c));
+};
+const TESTEIRA_POR_TENDA: Record<string, { pecas: string[]; tamanho: string }> = {
+  "testeira-tenda-5x5": { pecas: pecasDaTenda("5×5"), tamanho: "5" },
+  "testeira-tenda-3x3": { pecas: pecasDaTenda("3×3"), tamanho: "3" },
 };
 
 /** Peça que sempre vai junto de outra (base → acompanhante × fator). Também usada na tela da solicitação. */
@@ -72,7 +79,7 @@ export function calcularRegrasKit(linhas: readonly LinhaParaRegra[]): Array<Regr
   return REGRAS_KIT.map((r) =>
     r.aDefinir
       ? // Testeira: só a presença (tem tenda e a área não pediu a testeira à parte); o número fica para a conferência.
-        { ...r, quantidade: 0, presente: total(TESTEIRA_POR_TENDA[r.regra].pe) > 0 && total(r.codigoPeca) === 0 && !temProjetoTesteira(TESTEIRA_POR_TENDA[r.regra].tamanho) }
+        { ...r, quantidade: 0, presente: TESTEIRA_POR_TENDA[r.regra].pecas.some((c) => total(c) > 0) && total(r.codigoPeca) === 0 && !temProjetoTesteira(TESTEIRA_POR_TENDA[r.regra].tamanho) }
       : { ...r, quantidade: r.regra === "grade-prisma" ? gradesPrisma : Math.max(0, (precisa[r.regra] ?? 0) - total(r.codigoPeca)) },
   );
 }

@@ -146,6 +146,11 @@ describe("regras da logística na ata", () => {
     expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([9]);
     await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 0, "");
     expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra)).toEqual([]);
+    // Duas linhas a mais (uma incluída à mão): o número vale para as duas juntas, como a tela mostra a soma.
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 4, "");
+    await incluirPeca(E.logistica, ev.id, grade.id, 3, null);
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 5, "");
+    expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([5]);
   });
 
   it("ata fechada antes da regra do prisma: as grades do prisma entram uma vez, com nova OS", async () => {

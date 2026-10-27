@@ -362,11 +362,19 @@ export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: strin
   const db = await getDb();
   const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)) });
   if (!regra?.regra || !regra.pecaId) throw new NaoEncontradoError("Linha da regra");
-  const aMais = await db.query.eventoItens.findFirst({
+  const linhasAMais = await db.query.eventoItens.findMany({
     where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, regra.pecaId), eq(eventoItens.ativo, true), isNull(eventoItens.regra), isNull(eventoItens.solicitacaoItemId)),
+    orderBy: (t, { asc }) => [asc(t.criadoEm)],
   });
   const razao = motivo.trim() || "Decidido na reunião (além das do prisma)";
-  if (aMais) return ajustarQuantidadeLinha(usuario, eventoId, aMais.id, extra, razao, { contexto: "conferencia", quantidadeEsperada: aMais.quantidade });
+  const [aMais, ...sobra] = linhasAMais;
+  if (aMais) {
+    // A tela mostra a soma das linhas a mais; com mais de uma (incluídas à mão), o número vale para todas juntas:
+    // a primeira fica com ele e as outras saem (antes só a primeira mudava e o total não batia).
+    for (const l of sobra) await ajustarQuantidadeLinha(usuario, eventoId, l.id, 0, razao, { contexto: "conferencia", quantidadeEsperada: l.quantidade });
+    if (aMais.quantidade === extra) return null;
+    return ajustarQuantidadeLinha(usuario, eventoId, aMais.id, extra, razao, { contexto: "conferencia", quantidadeEsperada: aMais.quantidade });
+  }
   if (extra === 0) return null;
   return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: regra.pecaId, descricaoLivre: null, quantidade: extra, destino: null, areaId: null, justificativa: razao });
 }
