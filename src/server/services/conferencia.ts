@@ -180,7 +180,11 @@ export async function acompanhantesDaAta(eventoId: string) {
   });
   const nec = necessidadesAcompanhantes(linhas.map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot, regra: l.regra })));
   const nomes = nec.length ? await db.select({ codigo: pecas.codigo, nome: pecas.nome }).from(pecas).where(inArray(pecas.codigo, nec.map((n) => n.codigo))) : [];
-  return nec.map((n) => ({ ...n, nome: nomes.find((p) => p.codigo === n.codigo)?.nome ?? n.codigo }));
+  // Peça que o catálogo não tem: a regra não consegue incluir; a tela avisa em vez de oferecer "Incluir".
+  return nec.map((n) => {
+    const p = nomes.find((x) => x.codigo === n.codigo);
+    return { ...n, nome: p?.nome ?? n.codigo, cadastrada: Boolean(p) };
+  });
 }
 
 export type AcompanhanteDaAta = Awaited<ReturnType<typeof acompanhantesDaAta>>[number];
@@ -362,8 +366,10 @@ export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: strin
   const db = await getDb();
   const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)) });
   if (!regra?.regra || !regra.pecaId) throw new NaoEncontradoError("Linha da regra");
+  // "A mais" = linha da logística sem pedido e sem local (é assim que este ajuste cria). Grade incluída à mão com
+  // local (ex.: "Chegada 6") é outra coisa e não é mexida aqui.
   const linhasAMais = await db.query.eventoItens.findMany({
-    where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, regra.pecaId), eq(eventoItens.ativo, true), isNull(eventoItens.regra), isNull(eventoItens.solicitacaoItemId)),
+    where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, regra.pecaId), eq(eventoItens.ativo, true), isNull(eventoItens.regra), isNull(eventoItens.solicitacaoItemId), isNull(eventoItens.destino)),
     orderBy: (t, { asc }) => [asc(t.criadoEm)],
   });
   const razao = motivo.trim() || "Decidido na reunião (além das do prisma)";

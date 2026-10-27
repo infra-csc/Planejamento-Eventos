@@ -1239,8 +1239,9 @@ export function ConferenciaAta({
                         </span>
                         <span className="min-w-0 flex-1">
                           <b className="font-medium">{n.nome}</b>: nenhum na ata · {n.texto} · a regra pede <b className="numero font-semibold">{n.precisa}</b>
+                          {!n.cadastrada && <> · a peça <span className="font-mono">{n.codigo}</span> não está no catálogo: cadastre-a na Biblioteca com esse código para a regra funcionar</>}
                         </span>
-                        {editavel && <BotaoCompletar eventoId={eventoId} n={n} />}
+                        {editavel && n.cadastrada && <BotaoCompletar eventoId={eventoId} n={n} />}
                       </p>
                     )),
                   ];
@@ -1315,7 +1316,7 @@ export function ConferenciaAta({
           <ExtraPrismaModal
             l={ajustando}
             // A mais: a linha da logística da mesma peça, sem pedido e sem regra (a que este quadro cria).
-            extraAtual={linhas.filter((o) => o.codigo === ajustando.codigo && !o.regraChave && !o.origem).reduce((a, o) => a + o.quantidade, 0)}
+            extraAtual={linhas.filter((o) => o.codigo === ajustando.codigo && !o.regraChave && !o.origem && !o.destino).reduce((a, o) => a + o.quantidade, 0)}
             eventoId={eventoId}
             onFechar={() => setAjustando(null)}
           />

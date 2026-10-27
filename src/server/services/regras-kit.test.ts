@@ -151,6 +151,11 @@ describe("regras da logística na ata", () => {
     await incluirPeca(E.logistica, ev.id, grade.id, 3, null);
     await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 5, "");
     expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra).map((l) => l.quantidade)).toEqual([5]);
+    // Grade incluída à mão com local (ex.: chegada) não é "a mais" do prisma: o ajuste não mexe nela.
+    const [chegada] = await db.insert(eventoItens).values({ eventoId: ev.id, tipo: "PECA", pecaId: grade.id, quantidade: 6, destino: "Chegada", origem: "AJUSTE_LOGISTICA" }).returning();
+    await definirExtraDaRegra(E.logistica, ev.id, regraGrade.id, 2, "");
+    expect((await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, chegada.id) }))?.quantidade).toBe(6);
+    expect((await linhasGrade()).filter((l) => l.pecaId === grade.id && !l.regra && !l.destino).map((l) => l.quantidade)).toEqual([2]);
   });
 
   it("ata fechada antes da regra do prisma: as grades do prisma entram uma vez, com nova OS", async () => {
