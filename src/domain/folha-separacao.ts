@@ -126,6 +126,9 @@ function secaoDoResto(p: PecaDaFolha): string {
  */
 export function montarFolhaSeparacao(pecas: readonly PecaDaFolha[], opcoes: { stands: number | null }): SecaoFolha[] {
   const usadas = new Set<string>();
+  // Cinta catraca pedida no catálogo (qualquer peça com "catraca" no nome): soma com as dos stands numa linha só.
+  const cintas = pecas.filter((p) => p.codigo === "CINTA-CATRACA" || /\bcatraca\b/.test(semAcento(p.nome)));
+  cintas.forEach((p) => usadas.add(p.pecaId));
   const linhas = new Map<string, LinhaFolha[]>(SECOES.map((s) => [s.id, []]));
   const linha = (p: PecaDaFolha): LinhaFolha => ({ chave: p.pecaId, nome: p.nome, unidade: p.unidade, total: p.total });
   const porNome = (a: LinhaFolha, b: LinhaFolha) => a.nome.localeCompare(b.nome, "pt-BR");
@@ -152,11 +155,16 @@ export function montarFolhaSeparacao(pecas: readonly PecaDaFolha[], opcoes: { st
   for (const p of pecas) if (!usadas.has(p.pecaId)) resto.set(secaoDoResto(p), [...(resto.get(secaoDoResto(p)) ?? []), { ...linha(p), chave: `r|${p.pecaId}` }]);
   for (const [id, ls] of resto) linhas.get(id)!.push(...ls.sort(porNome));
 
-  // Regras da lista: cinta catraca (4 por stand) depois do pallet de ferro; corda = malotes.
+  // Regras da lista: cinta catraca (4 por stand + as pedidas à parte, numa linha só) depois do pallet de ferro;
+  // corda = malotes.
   const estaio = linhas.get("estaio")!;
-  if (opcoes.stands && !pecas.some((p) => p.codigo === "CINTA-CATRACA")) {
+  const dosStands = (opcoes.stands ?? 0) * 4;
+  const pedidas = cintas.reduce((a, p) => a + p.total, 0);
+  if (dosStands + pedidas > 0) {
+    const doStand = dosStands ? `${dosStands} dos ${opcoes.stands} stand${opcoes.stands! > 1 ? "s" : ""} (4 por stand)` : null;
+    const nota = [doStand, pedidas && dosStands ? `${pedidas} pedida${pedidas > 1 ? "s" : ""}` : null].filter(Boolean).join(" + ") || undefined;
     const depois = estaio.findIndex((l) => /pallet/i.test(l.nome));
-    estaio.splice(depois >= 0 ? depois + 1 : Math.min(2, estaio.length), 0, { chave: "cinta-catraca", nome: "Cinta catraca", unidade: "un", total: opcoes.stands * 4, nota: `4 por stand (${opcoes.stands} stand${opcoes.stands > 1 ? "s" : ""})` });
+    estaio.splice(depois >= 0 ? depois + 1 : Math.min(2, estaio.length), 0, { chave: "cinta-catraca", nome: cintas[0]?.nome ?? "Cinta catraca", unidade: cintas[0]?.unidade ?? "un", total: dosStands + pedidas, nota });
   }
   const malotes = pecas.find((p) => p.codigo === "MALOTE")?.total ?? 0;
   if (malotes > 0) {
