@@ -13,7 +13,7 @@ function deveIgnorar(alvo: EventTarget | null) {
 const novaAba = (href: string) => window.open(href, "_blank", "noopener,noreferrer");
 
 /** Célula escondida em alguma largura (`hidden sm:table-cell`, `max-md:hidden`): o link sumiria junto com ela. */
-const someEmAlgumaLargura = (className: unknown) => typeof className === "string" && className.split(/s+/).some((c) => c === "hidden" || /^max-[a-z0-9]+:hidden$/.test(c));
+const someEmAlgumaLargura = (className: unknown) => typeof className === "string" && className.split(/\s+/).some((c) => c === "hidden" || /^max-[a-z0-9]+:hidden$/.test(c));
 
 /**
  * Coloca `link` no começo da primeira célula (<td>/<th>) de `filhos` que aparece em todas as larguras,

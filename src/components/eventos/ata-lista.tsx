@@ -100,7 +100,8 @@ function BotaoAjustar({ nome, onClick }: { nome: string; onClick: () => void }) 
 
 const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
 
-function BadgeVersao({ l, eventoId, podeAtualizar }: { l: LinhaAtaView; eventoId: string; podeAtualizar: boolean }) {
+/** Projeto com versão nova na Biblioteca: quem ajusta atualiza a linha com um clique (fica no histórico). */
+export function BadgeVersao({ l, eventoId, podeAtualizar }: { l: Pick<LinhaAtaView, "id" | "nome" | "versao" | "versaoAtual">; eventoId: string; podeAtualizar: boolean }) {
   const [pendente, iniciar] = useTransition();
   const texto = `v${l.versao} · atualizar para v${l.versaoAtual}`;
   const cls = "ml-2 inline-flex h-[22px] items-center whitespace-nowrap rounded-chip border border-warning-border bg-warning-bg px-[7px] text-rotulo font-medium text-warning";
@@ -320,11 +321,11 @@ export function AtaLista({
       <Dialog open={incluir} onOpenChange={setIncluir}>
         {incluir && (
           <DialogContent
-            title={exigeJustificativa ? "Ajuste da logística" : "Incluir linha na ata"}
+            title={exigeJustificativa ? "Incluir item na OS" : "Incluir linha na ata"}
             description={exigeJustificativa ? "A ata já foi fechada: a inclusão exige justificativa e gera nova versão da OS." : "Projeto padrão, peça do catálogo ou item fora do catálogo decidido na reunião."}
             width={520}
           >
-            <LinhaAtaForm eventoId={eventoId} opcoes={opcoes} areas={areas} exigeJustificativa={exigeJustificativa} onDone={() => setIncluir(false)} />
+            <LinhaAtaForm eventoId={eventoId} opcoes={opcoes} areas={areas} exigeJustificativa={exigeJustificativa} rotuloEnviar={exigeJustificativa ? "Incluir na OS" : undefined} onDone={() => setIncluir(false)} />
           </DialogContent>
         )}
       </Dialog>

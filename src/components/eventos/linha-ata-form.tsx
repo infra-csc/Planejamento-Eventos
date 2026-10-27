@@ -27,7 +27,9 @@ const TIPOS: Array<[Tipo, string]> = [
   ["AVULSO", "Item avulso"],
 ];
 
-export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDone }: { eventoId: string; opcoes: OpcoesReferencia; areas: Array<{ id: string; nome: string }>; exigeJustificativa: boolean; onDone: () => void }) {
+/** `rotuloEnviar`: depois da ata o item entra na OS (a ata não muda) e o botão diz isso. */
+export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDone, rotuloEnviar = "Incluir na ata" }: { eventoId: string; opcoes: OpcoesReferencia; areas: Array<{ id: string; nome: string }>; exigeJustificativa: boolean; onDone: () => void; rotuloEnviar?: string }) {
+  const rotuloTipo = exigeJustificativa ? "O que entra na OS" : "O que entra na ata";
   const [state, action] = useActionState(incluirLinhaAtaAction, ESTADO_INICIAL);
   const [tipo, setTipo] = useState<Tipo>("PROJETO");
   const [projetoId, setProjetoId] = useState("");
@@ -40,8 +42,8 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       <input type="hidden" name="eventoId" value={eventoId} />
       <input type="hidden" name="referenciaTipo" value={tipo} />
       <div>
-        <Label>O que entra na ata</Label>
-        <Pills rotulo="O que entra na ata" itens={TIPOS.map(([t, label]) => ({ label, ativo: tipo === t, onSelect: () => setTipo(t) }))} />
+        <Label>{rotuloTipo}</Label>
+        <Pills rotulo={rotuloTipo} itens={TIPOS.map(([t, label]) => ({ label, ativo: tipo === t, onSelect: () => setTipo(t) }))} />
       </div>
 
       {tipo === "PROJETO" && (
@@ -82,7 +84,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       )}
       <FormError message={!state.ok ? state.erro : null} />
       <DialogFooter>
-        <SubmitButton size="lg">Incluir na ata</SubmitButton>
+        <SubmitButton size="lg">{rotuloEnviar}</SubmitButton>
         <Button variant="secondary" size="lg" onClick={onDone}>
           Cancelar
         </Button>
