@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { Button } from "@/components/ui/button";
-import { listasDaArea } from "@/domain/itens-por-area";
+import { listasDaArea, projetosDaLista } from "@/domain/itens-por-area";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { Passo } from "./passo";
 import { ehAcompanhante, kitDe, novaChave } from "./utilidades";
@@ -63,9 +63,7 @@ export function ItensDaArea({
     .map((l) => ({
       ...l,
       pecas: juntarAcompanhantes(l.codigos.map((c) => pecas.find((p) => p.codigo === c)).filter((p): p is Referencia => Boolean(p))),
-      projetosDaLista: (l.projetos ?? [])
-        .map((c) => projetos.find((p) => p.codigo === c))
-        .filter((p): p is Referencia => Boolean(p) && (!l.nomeProjeto || l.nomeProjeto.test(p!.nome)) && (!kitDe(p!) || Boolean(abrirTenda))),
+      projetosDaLista: projetosDaLista(l, projetos).filter((p) => !kitDe(p) || Boolean(abrirTenda)),
     }))
     .filter((l) => l.pecas.length > 0 || l.projetosDaLista.length > 0);
   if (!listas.length) return null;

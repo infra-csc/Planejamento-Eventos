@@ -1,14 +1,27 @@
 /**
  * Itens que já aparecem na solicitação de cada área, com quantidade 0, conforme a lista de materiais da
  * ata (planilhas de OS): a área só preenche o número; outros itens ela pede à parte, pela busca.
- * Chave: nome da área (sem acento, minúsculo). Peças pelo código do catálogo; projetos pelo código do projeto
+ * Chave: nome da área (sem acento, minúsculo). Peças pelo código do catálogo; projetos padrão pelo nome ou código
  * (tenda pedida por local, no mesmo quadro de tendas do catálogo; os outros, pela quantidade).
  */
-/** `nomeProjeto`: o projeto achado pelo código só entra se o nome bater (num banco em que o código seja de outro projeto, não aparece). */
-export type ListaDaArea = { titulo: string; codigos: string[]; projetos?: string[]; nomeProjeto?: RegExp };
+
+/**
+ * Projeto padrão da lista: achado pelo nome (o de nome mais curto, que é o modelo base: "Stand 9×6 m" e não
+ * "Stand 9×6 m — LED") e, se nenhum nome bater, pelo código. Só pelo código falhava num banco em que o código é de
+ * outro projeto; só pelo nome que começa com Stand/Tenda (QA, 26/10) tirou stands e tendas da lista em produção.
+ */
+export type ProjetoDaLista = { codigo: string; nome: RegExp };
+export type ListaDaArea = { titulo: string; codigos: string[]; projetos?: ProjetoDaLista[] };
 
 /** Tenda 3×3 m e Tenda 5×5 m (projetos padrão). */
-const TENDAS: ListaDaArea = { titulo: "Tendas", codigos: [], projetos: ["PRJ-0033", "PRJ-0006"], nomeProjeto: /^tenda/i };
+const TENDAS: ListaDaArea = {
+  titulo: "Tendas",
+  codigos: [],
+  projetos: [
+    { codigo: "PRJ-0033", nome: /\btenda\b.*\b3\s*[x×]\s*3\b/i },
+    { codigo: "PRJ-0006", nome: /\btenda\b.*\b5\s*[x×]\s*5\b/i },
+  ],
+};
 
 const LISTAS: Record<string, ListaDaArea[]> = {
   producao: [
@@ -19,9 +32,10 @@ const LISTAS: Record<string, ListaDaArea[]> = {
   // As escadas são da cenografia (montagem de cenário), não da produção.
   cenografia: [{ titulo: "Cenografia", codigos: ["ESCADA-ALU", "ESCADA-MAD"] }],
   ativacao: [
-    { titulo: "Ativação", codigos: ["BALCAO-120", "PRANCHÃO-220", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF"] },
-    // Stand 9×6 m e Stand 11×6 m (projetos padrão): pedidos pela quantidade, com a descrição de cada unidade.
-    { titulo: "Stands", codigos: [], projetos: ["PRJ-0018", "PRJ-0019"], nomeProjeto: /^stand/i },
+    // Lixeiras e rampa de acessibilidade também são pedidas pela Ativação (27/10).
+    { titulo: "Ativação", codigos: ["BALCAO-120", "PRANCHÃO-220", "CAV-RETO", "OMBRELONE", "TINA-300", "PUFF", "LIXEIRA-ARAM", "LIXEIRA-BAG", "RAMPA-ACESS"] },
+    // Só o Stand 9×6 m (27/10; o 11×6 saiu da lista): pedido pela quantidade, com a descrição de cada unidade.
+    { titulo: "Stands", codigos: [], projetos: [{ codigo: "PRJ-0018", nome: /\b(stand|estande)\b.*\b9\s*[x×]\s*6\b/i }] },
     TENDAS,
   ],
 };
@@ -29,3 +43,14 @@ const LISTAS: Record<string, ListaDaArea[]> = {
 const chave = (nome: string) => nome.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 
 export const listasDaArea = (areaNome: string | null | undefined): ListaDaArea[] => (areaNome ? (LISTAS[chave(areaNome)] ?? []) : []);
+
+/** Os projetos de uma lista que existem no catálogo, na ordem da lista (sem repetir). */
+export function projetosDaLista<P extends { codigo: string; nome: string }>(lista: ListaDaArea, projetos: readonly P[]): P[] {
+  const achados: P[] = [];
+  for (const ref of lista.projetos ?? []) {
+    const porNome = projetos.filter((p) => ref.nome.test(p.nome)).sort((a, b) => a.nome.length - b.nome.length)[0];
+    const p = porNome ?? projetos.find((x) => x.codigo === ref.codigo);
+    if (p && !achados.includes(p)) achados.push(p);
+  }
+  return achados;
+}
