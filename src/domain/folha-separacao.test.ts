@@ -63,12 +63,12 @@ describe("folha de separação na ordem da lista de carregamento", () => {
   });
 
   it("cinta pedida no catálogo soma com a dos stands numa linha só, no estaio", () => {
-    const f = montarFolhaSeparacao([peca("PALLET-FE", "Pallet de ferro", 4, "ESTRUTURA"), peca("CINTA-X", "Cinta Catraca 5 m", 6, "ARENA")], { stands: 2 });
+    const f = montarFolhaSeparacao([peca("PALLET-FE", "Pallet de ferro", 4, "ESTRUTURA"), peca("CINTACATRACA", "Cinta + Catraca", 6, "MARCENARIA")], { stands: 2 });
     const cintas = f.flatMap((s) => s.linhas).filter((l) => /cinta/i.test(l.nome));
-    expect(cintas).toEqual([expect.objectContaining({ nome: "Cinta Catraca 5 m", total: 14, nota: "8 dos 2 stands (4 por stand) + 6 pedidas" })]);
-    expect(f.find((s) => s.id === "estaio")!.linhas.map((l) => l.nome)).toEqual(["Pallet de ferro", "Cinta Catraca 5 m"]);
+    expect(cintas).toEqual([expect.objectContaining({ nome: "Cinta + Catraca", total: 14, nota: "8 dos 2 stands (4 por stand) + 6 pedidas" })]);
+    expect(f.find((s) => s.id === "estaio")!.linhas.map((l) => l.nome)).toEqual(["Pallet de ferro", "Cinta + Catraca"]);
     // Sem stand: só as pedidas, sem nota.
-    const g = montarFolhaSeparacao([peca("CINTA-X", "Cinta Catraca 5 m", 6, "ARENA")], { stands: 0 });
+    const g = montarFolhaSeparacao([peca("CINTACATRACA", "Cinta + Catraca", 6, "MARCENARIA")], { stands: 0 });
     expect(g.find((s) => s.id === "estaio")!.linhas).toEqual([expect.objectContaining({ total: 6, nota: undefined })]);
   });
 
