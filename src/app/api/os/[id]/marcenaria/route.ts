@@ -12,6 +12,10 @@ import { formatarDataHora } from "@/lib/format";
 import { impressao } from "@/server/export/excel";
 import { montarOsMarcenaria } from "@/server/export/os-marcenaria";
 import { abaOsMarcenaria } from "@/server/export/os-marcenaria-xlsx";
+import { imagensDoCatalogo } from "@/server/export/imagens-os";
+
+/** Miniatura gravada na planilha (a coluna mostra ~104 px; 240 px fica nítida no zoom e na impressão). */
+const LARGURA_FOTO = 240;
 
 /*
  * OS de marcenaria no modelo da planilha da cenografia (OS CENO MARCENARIA_<evento>.xlsx): aba O.S
@@ -50,11 +54,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     codigosPecas.length ? db.select({ codigo: pecas.codigo, familia: pecas.familia }).from(pecas).where(inArray(pecas.codigo, codigosPecas)) : [],
   ]);
   const d = montarOsMarcenaria(os, new Map(cats.map((c) => [c.codigo, c.categoria])), new Map(fams.map((f) => [f.codigo, f.familia])));
+  // Foto de cada peça (e do projeto, para a peça sem foto): mesma regra de quem vê projetos e catálogo.
+  const refs = [...new Set(d.secoes.flatMap((s) => s.itens.flatMap((it) => it.pecas.map((p) => p.referencia))).filter((c): c is string => Boolean(c)))];
+  const projs = [...new Set(d.secoes.flatMap((s) => s.itens.map((it) => it.projetoCodigo)).filter((c): c is string => Boolean(c)))];
+  const [fotosPecas, fotosProjetos] = await Promise.all([
+    pode(usuario, "catalogo.ver") ? imagensDoCatalogo("peca", refs, LARGURA_FOTO) : new Map(),
+    pode(usuario, "projeto.ver") ? imagensDoCatalogo("projeto", projs, LARGURA_FOTO) : new Map(),
+  ]);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";
   wb.created = new Date();
-  const ws = abaOsMarcenaria(wb, { nome: ev.nome, dataCarga: ev.dataCarga, responsavelEvento: ev.responsavel.nome }, d);
+  const ws = abaOsMarcenaria(wb, { nome: ev.nome, dataCarga: ev.dataCarga, responsavelEvento: ev.responsavel.nome }, d, { pecas: fotosPecas, projetos: fotosProjetos });
 
   const hf = (t: string) => t.replace(/&/g, "&&");
   impressao(ws, hf(`OS de marcenaria · ${ev.codigo} · ${ev.nome} · ${rotulo}`), hf(`Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`), undefined, false);

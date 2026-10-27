@@ -14,6 +14,8 @@ export type SecaoMarcenaria = (typeof SECOES_MARCENARIA)[number];
 export type ItemMarcenaria = {
   /** Como a cenografia escreve: "STAND 9X6 (4 UNID)". */
   item: string;
+  /** Código do projeto padrão (para a foto do projeto quando a peça não tem a sua); null em peça solta ou avulso. */
+  projetoCodigo: string | null;
   /** `referencia`: código da peça no catálogo (vazio no item descrito à mão). */
   pecas: Array<{ nome: string; quantidade: number; referencia: string | null; observacao: string | null }>;
 };
@@ -67,6 +69,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
     if (p.pecas.size === 0) continue;
     const item: ItemMarcenaria = {
       item: `${maiusculas(p.nome)} (${p.quantidade} UNID)`,
+      projetoCodigo: codigo,
       pecas: [...p.pecas.values()].map((pc, i) => ({ nome: maiusculas(pc.nome), quantidade: pc.total, referencia: pc.codigo, observacao: i === 0 && p.locais.size ? [...p.locais].join(" / ") : null })),
     };
     totalPecas += item.pecas.reduce((a, x) => a + x.quantidade, 0);
@@ -84,7 +87,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
     soltas.set(chave, s);
   }
   for (const s of soltas.values()) {
-    const item: ItemMarcenaria = { item: maiusculas(s.nome), pecas: [{ nome: maiusculas(s.nome), quantidade: s.quantidade, referencia: s.codigo, observacao: s.destino }] };
+    const item: ItemMarcenaria = { item: maiusculas(s.nome), projetoCodigo: null, pecas: [{ nome: maiusculas(s.nome), quantidade: s.quantidade, referencia: s.codigo, observacao: s.destino }] };
     totalPecas += s.quantidade;
     secoes.get(secaoDaPeca(familias.get(s.codigo)))!.push(item);
   }
@@ -92,7 +95,7 @@ export function montarOsMarcenaria(os: OsConteudo, categorias: ReadonlyMap<strin
   // Itens fora do catálogo do setor marcenaria (descritos à mão).
   const marc = os.setores.find((s) => s.setor === "MARCENARIA");
   for (const a of marc?.avulsos ?? []) {
-    secoes.get("GERAL")!.push({ item: maiusculas(a.descricao), pecas: [{ nome: maiusculas(a.descricao), quantidade: a.quantidade, referencia: null, observacao: a.destino?.trim() || null }] });
+    secoes.get("GERAL")!.push({ item: maiusculas(a.descricao), projetoCodigo: null, pecas: [{ nome: maiusculas(a.descricao), quantidade: a.quantidade, referencia: null, observacao: a.destino?.trim() || null }] });
     totalPecas += a.quantidade;
   }
 

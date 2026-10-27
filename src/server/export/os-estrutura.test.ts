@@ -231,7 +231,7 @@ describe("montarOsMarcenaria", () => {
   it("seção pela categoria do projeto, item '(N UNID)' e uma linha por peça de marcenaria", () => {
     const m = montarOsMarcenaria(os, new Map([["PRJ-E", "Estande"]]), new Map());
     const estandes = m.secoes.find((s) => s.nome === "STANDS")!;
-    expect(estandes.itens).toEqual([{ item: "ESTANDE 9×6 M (2 UNID)", pecas: [{ nome: "COLUNA FRONTAL", quantidade: 4, referencia: "COL-FRONTAL", observacao: "Credenciamento" }, { nome: "TESTEIRA DE 9 M", quantidade: 2, referencia: "TESTEIRA-9M", observacao: null }] }]);
+    expect(estandes.itens).toEqual([{ item: "ESTANDE 9×6 M (2 UNID)", projetoCodigo: "PRJ-E", pecas: [{ nome: "COLUNA FRONTAL", quantidade: 4, referencia: "COL-FRONTAL", observacao: "Credenciamento" }, { nome: "TESTEIRA DE 9 M", quantidade: 2, referencia: "TESTEIRA-9M", observacao: null }] }]);
     expect(m.secoes.map((s) => s.nome)).toEqual(["STANDS", "PALCO", "TENDAS", "MESAS", "ATIVAÇÃO", "ITENS ESPECÍFICOS DA PROVA", "GERAL"]);
     expect(m.totalPecas).toBe(6);
   });
