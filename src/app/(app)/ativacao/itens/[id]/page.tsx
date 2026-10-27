@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { podeGerenciarEstoque } from "@/domain/estoque";
 import { requireUsuario } from "@/server/auth/session";
 import { NaoEncontradoError } from "@/domain/errors";
 import { obterItemAtivacao } from "@/server/services/ativacao";
@@ -11,9 +12,14 @@ import { Tag } from "@/components/ui/badge";
 import { Codigo } from "@/components/ui/numero";
 import { AnexosPeca } from "@/components/catalogo/anexos-peca";
 import { BotaoReformaItem } from "@/components/estoque/botao-reforma-item";
+import { BotaoEditarItemEstoque } from "@/components/estoque/estoque-tela";
+import { asc, eq } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { pecas } from "@/server/db/schema";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const usuario = await requireUsuario();
+  if (!podeGerenciarEstoque(usuario)) redirect("/sem-permissao");
   const { id } = await params;
   const d = await obterItemAtivacao(usuario, id).catch(() => null);
   return { title: d ? `Ativação · ${d.item.nome}` : "Ativação" };
@@ -22,11 +28,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 /** Um item do estoque da Ativação: quanto tem e onde está, fotos, eventos que levam, retornos, reformas e histórico. */
 export default async function ItemAtivacaoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requireUsuario();
+  if (!podeGerenciarEstoque(usuario)) redirect("/sem-permissao");
   const { id } = await params;
-  const d = await obterItemAtivacao(usuario, id).catch((e) => {
-    if (e instanceof NaoEncontradoError) notFound();
-    throw e;
-  });
+  // Catálogo para o "Editar item" (mesma consulta da lista do estoque), em paralelo com o item.
+  const [d, catalogo] = await Promise.all([
+    obterItemAtivacao(usuario, id).catch((e) => {
+      if (e instanceof NaoEncontradoError) notFound();
+      throw e;
+    }),
+    getDb().then((db) => db.select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome }).from(pecas).where(eq(pecas.ativo, true)).orderBy(asc(pecas.nome))),
+  ]);
   const { item, situacao } = d;
   const reformasAbertas = d.reformas.filter((r) => r.status === "ABERTA");
   const anexosItem = d.anexos.filter((a) => !a.reformaId);
@@ -52,7 +63,12 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
           </>
         }
         description={item.observacao ?? undefined}
-        actions={<BotaoReformaItem item={{ id: item.id, nome: item.nome, quantidade: item.quantidade }} />}
+        actions={
+          <>
+            <BotaoReformaItem item={{ id: item.id, nome: item.nome, quantidade: item.quantidade }} />
+            <BotaoEditarItemEstoque item={item} catalogo={catalogo} />
+          </>
+        }
       />
 
       <MetricStrip>
@@ -77,7 +93,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       <Section titulo="Eventos" sub="Eventos com OS que levam o item e ainda não registraram o retorno.">
         {d.eventos.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento com OS leva este item agora." : "Ligue o item a uma peça do catálogo (Estoque › Editar) para ele sair com a OS."}</p>
+          <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento com OS leva este item agora." : "Ligue o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."}</p>
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
             {d.eventos.map((e) => (

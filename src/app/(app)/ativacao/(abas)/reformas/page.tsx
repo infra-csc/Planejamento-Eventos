@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
+import { redirect } from "next/navigation";
+import { podeGerenciarEstoque } from "@/domain/estoque";
+
 import { listarEstoque } from "@/server/services/estoque";
 import { listarReformas } from "@/server/services/ativacao";
 import { ReformasTela } from "@/components/estoque/reformas-tela";
@@ -9,6 +12,7 @@ export const metadata: Metadata = { title: "Ativação · Reformas" };
 /** Itens em reforma: os que voltaram danificados de um evento e os separados à mão. */
 export default async function AtivacaoReformasPage() {
   const usuario = await requireUsuario();
+  if (!podeGerenciarEstoque(usuario)) redirect("/sem-permissao");
   const [reformas, itens] = await Promise.all([listarReformas(usuario), listarEstoque(usuario)]);
   return (
     <>

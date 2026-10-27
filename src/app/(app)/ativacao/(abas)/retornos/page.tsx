@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
+import { redirect } from "next/navigation";
+import { podeGerenciarEstoque } from "@/domain/estoque";
+
 import { listarRetornos } from "@/server/services/ativacao";
 import { RetornosTela } from "@/components/estoque/retornos-tela";
 
@@ -8,6 +11,7 @@ export const metadata: Metadata = { title: "Ativação · Retornos" };
 /** Eventos cuja OS leva itens do estoque: depois do evento, a Ativação registra o que voltou. */
 export default async function AtivacaoRetornosPage() {
   const usuario = await requireUsuario();
+  if (!podeGerenciarEstoque(usuario)) redirect("/sem-permissao");
   const eventos = await listarRetornos(usuario);
   return (
     <>
