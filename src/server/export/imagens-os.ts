@@ -26,7 +26,16 @@ function guardar(chave: string, imagem: Imagem | null) {
 
 /** Capa de cada projeto ou peça (pelo código), na largura pedida. Sem foto legível, o código fica de fora. */
 export async function imagensDoCatalogo(origem: "projeto" | "peca", codigos: string[], largura: number): Promise<Map<string, Imagem>> {
-  const out = new Map<string, Imagem>();
+  const todas = await todasAsImagensDoCatalogo(origem, codigos, largura, 1);
+  return new Map([...todas].map(([codigo, imgs]) => [codigo, imgs[0]]));
+}
+
+/**
+ * Todas as fotos de cada projeto ou peça (até `max`, na ordem em que foram incluídas): a OS de estrutura põe na aba
+ * do projeto a modulação, o detalhamento e o que mais o projeto tiver, não só a capa.
+ */
+export async function todasAsImagensDoCatalogo(origem: "projeto" | "peca", codigos: string[], largura: number, max: number): Promise<Map<string, Imagem[]>> {
+  const out = new Map<string, Imagem[]>();
   if (codigos.length === 0) return out;
   const db = await getDb();
   const donos =
@@ -39,9 +48,16 @@ export async function imagensDoCatalogo(origem: "projeto" | "peca", codigos: str
     origem === "projeto"
       ? await db.select({ id: anexos.id, dono: anexos.projetoId, mime: anexos.mime }).from(anexos).where(and(inArray(anexos.projetoId, ids), eq(anexos.tipo, "IMAGEM"))).orderBy(asc(anexos.criadoEm))
       : await db.select({ id: pecaAnexos.id, dono: pecaAnexos.pecaId, mime: pecaAnexos.mime }).from(pecaAnexos).where(and(inArray(pecaAnexos.pecaId, ids), eq(pecaAnexos.tipo, "IMAGEM"))).orderBy(asc(pecaAnexos.criadoEm));
-  const capa = new Map<string, { id: string; mime: string }>();
-  for (const m of metas) if (!capa.has(m.dono)) capa.set(m.dono, m);
-  const escolhidas = [...capa.entries()].filter(([, m]) => m.mime === "image/png" || m.mime === "image/jpeg");
+  // Por dono, as primeiras `max` fotos legíveis pelo tipo (PNG/JPEG), na ordem de inclusão.
+  const porDono = new Map<string, number>();
+  const escolhidas: Array<[string, { id: string; mime: string }]> = [];
+  for (const m of metas) {
+    if (m.mime !== "image/png" && m.mime !== "image/jpeg") continue;
+    const n = porDono.get(m.dono) ?? 0;
+    if (n >= max) continue;
+    porDono.set(m.dono, n + 1);
+    escolhidas.push([m.dono, m]);
+  }
   if (escolhidas.length === 0) return out;
   const chave = (id: string) => `${origem}-${id}-${largura}`;
   // Só os originais que ainda não foram reduzidos nesta instância vêm do banco.
@@ -55,9 +71,10 @@ export async function imagensDoCatalogo(origem: "projeto" | "peca", codigos: str
   for (const [donoId, m] of escolhidas) {
     const codigo = donos.find((d) => d.id === donoId)?.codigo;
     if (!codigo) continue;
+    const juntar = (img: Imagem) => out.set(codigo, [...(out.get(codigo) ?? []), img]);
     if (prontas.has(chave(m.id))) {
       const pronta = prontas.get(chave(m.id));
-      if (pronta) out.set(codigo, pronta);
+      if (pronta) juntar(pronta);
       continue;
     }
     const valor = conteudoDe.get(m.id);
@@ -70,7 +87,7 @@ export async function imagensDoCatalogo(origem: "projeto" | "peca", codigos: str
       const { data, info } = await (extension === "png" ? base.png() : base.jpeg({ quality: 82 })).toBuffer({ resolveWithObject: true });
       const imagem: Imagem = { buffer: data, extension, largura: info.width, altura: info.height };
       guardar(chave(m.id), imagem);
-      out.set(codigo, imagem);
+      juntar(imagem);
     } catch {
       // Imagem ilegível: a planilha sai sem ela (e não se tenta de novo a cada exportação).
       guardar(chave(m.id), null);

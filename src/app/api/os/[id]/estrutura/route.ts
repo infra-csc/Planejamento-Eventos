@@ -10,7 +10,7 @@ import { formatarDataHora } from "@/lib/format";
 import { impressao } from "@/server/export/excel";
 import { montarOsEstrutura } from "@/server/export/os-estrutura";
 import { abaProjeto, abaSomatoria, abaTotal, type Imagem } from "@/server/export/os-estrutura-xlsx";
-import { imagensDoCatalogo } from "@/server/export/imagens-os";
+import { todasAsImagensDoCatalogo } from "@/server/export/imagens-os";
 
 /*
  * OS de estrutura no modelo exato da planilha da cenografia (OS ESTRUTURA_<evento>.xlsx):
@@ -50,7 +50,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const dados = montarOsEstrutura(os);
   // Desenho do projeto só para quem pode ver projetos (mesma regra do /api/anexos).
-  const imagens = pode(usuario, "projeto.ver") ? await imagensDoCatalogo("projeto", dados.abas.map((a) => a.codigo), LARGURA_IMAGEM) : new Map<string, Imagem>();
+  // Todas as imagens do projeto (até 6: modulação, detalhamento…), não só a capa.
+  const imagens = pode(usuario, "projeto.ver") ? await todasAsImagensDoCatalogo("projeto", dados.abas.map((a) => a.codigo), LARGURA_IMAGEM, 6) : new Map<string, Imagem[]>();
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";

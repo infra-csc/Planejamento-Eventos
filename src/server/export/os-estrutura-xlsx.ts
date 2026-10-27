@@ -104,7 +104,7 @@ export function abaSomatoria(wb: ExcelJS.Workbook, d: OsEstrutura) {
   return ws;
 }
 
-export function abaProjeto(wb: ExcelJS.Workbook, a: OsEstrutura["abas"][number], imagem: Imagem | undefined) {
+export function abaProjeto(wb: ExcelJS.Workbook, a: OsEstrutura["abas"][number], imagens: readonly Imagem[] = []) {
   const ws = wb.addWorksheet(a.nomeAba, { views: [{ showGridLines: false }] });
   [2, 34, 10, 2].forEach((w, i) => (ws.getColumn(i + 1).width = w));
   cabecalho(ws, 2, 2, ["ESTRUTURA", "QTDE"]);
@@ -122,10 +122,14 @@ export function abaProjeto(wb: ExcelJS.Workbook, a: OsEstrutura["abas"][number],
     ws.getCell(fim + 3, 2).value = `Locais: ${a.locais.map((l) => `${l.local} (${l.quantidade})`).join(" · ")}`;
     ws.getCell(fim + 3, 2).font = { italic: true, size: 9 };
   }
-  if (imagem) {
+  // Todas as imagens do projeto ao lado da lista, uma embaixo da outra (linha padrão = 20 px; uma linha de folga).
+  let linha = 1;
+  for (const imagem of imagens) {
     const id = wb.addImage({ buffer: imagem.buffer as unknown as ExcelJS.Buffer, extension: imagem.extension });
     const largura = Math.min(560, imagem.largura);
-    ws.addImage(id, { tl: { col: 4, row: 1 }, ext: { width: largura, height: Math.round((largura * imagem.altura) / imagem.largura) } });
+    const altura = Math.round((largura * imagem.altura) / imagem.largura);
+    ws.addImage(id, { tl: { col: 4, row: linha }, ext: { width: largura, height: altura } });
+    linha += Math.ceil(altura / 20) + 1;
   }
   return ws;
 }
