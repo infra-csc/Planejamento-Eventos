@@ -83,6 +83,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
         status={ev.status}
         conferidas={conferidas}
         total={obrigatorias.length}
+        vazia={linhas.length === 0}
         presentesOk={Boolean(ev.reuniaoPresentes?.trim())}
         iniciadaEm={ev.status === "EM_REUNIAO" && ev.reuniaoIniciadaEm ? diaMesHora(ev.reuniaoIniciadaEm) : null}
       />

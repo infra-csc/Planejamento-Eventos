@@ -70,8 +70,9 @@ function BotaoCompletar({ eventoId, n }: { eventoId: string; n: AcompanhanteDaAt
     <Button
       variant="secondary"
       size="xs"
-      className="ml-auto"
+      className="ml-auto shrink-0"
       loading={pendente}
+      aria-label={`Incluir ${falta} ${n.nome}`}
       onClick={() =>
         iniciar(async () => {
           const r = await completarAcompanhanteAction(eventoId, n.codigo);
@@ -164,7 +165,6 @@ function Check({ l, onAlternar }: { l: LinhaConferencia; onAlternar: (id: string
   );
 }
 
-/** Modal da canetinha: nova quantidade + motivo (opcional); mostra o que a área vai ver. */
 /**
  * Grades 2×1: as do prisma vêm sozinhas (acompanham os prismas); a reunião só diz quantas a mais. As duas
  * ficam em linhas separadas do mesmo bloco, que mostra a soma.
@@ -199,7 +199,8 @@ function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConfe
             </div>
             <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
               <dt className="text-pequeno text-muted">Total</dt>
-              <dd className="numero m-0 text-destaque font-semibold text-accent">{l.quantidade + extra}</dd>
+              {/* Resultado, não ação: tinta normal (o vinho fica para "aja aqui"). */}
+              <dd className="numero m-0 text-destaque font-semibold text-ink">{l.quantidade + extra}</dd>
             </div>
           </dl>
           <Field label="Grades a mais, decididas na reunião" htmlFor="extra-prisma" hint="As dos prismas continuam automáticas: se mudar o número de prismas, elas acompanham. 0 tira as a mais.">
@@ -212,7 +213,7 @@ function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConfe
         </div>
         <DialogFooter>
           <Button variant="primary" size="lg" onClick={salvar} loading={pendente} disabled={extra === extraAtual} motivoDesabilitado="Altere a quantidade para salvar">
-            Salvar
+            Salvar ajuste
           </Button>
           <DialogClose asChild>
             <Button variant="secondary" size="lg" disabled={pendente}>
@@ -225,6 +226,7 @@ function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConfe
   );
 }
 
+/** Modal da canetinha: nova quantidade + motivo (opcional); mostra o que a área vai ver. */
 function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId: string; onFechar: () => void }) {
   const [qtd, setQtd] = useState(l.quantidade);
   const [motivo, setMotivo] = useState("");
@@ -371,6 +373,9 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
 
 /**
  * Grade da linha. Celular (cartão): check · item · qtd, e as ações numa faixa abaixo, alinhadas ao texto.
+ * Lista entre 576 e 768 px (`@xl`, o caso da tela de 1280 com o painel da reunião ao lado): o item ocupa
+ * duas linhas da grade e as ações ficam logo abaixo da quantidade, à direita — "Ajustar" colado no número
+ * que ele muda, sem uma faixa só para os botões em cada linha.
  * Lista com 768 px ou mais (consulta de contêiner `@3xl`, não da tela): check · item · local · qtd · ações,
  * numa linha só. Larguras fixas: alinham em todas as linhas (também nas recuadas dos blocos por item).
  * Pelo contêiner porque, a 1280 px, o painel da reunião ao lado deixa a lista com ~600 px e a coluna do
@@ -405,10 +410,10 @@ function Descricoes({ grupos }: { grupos: ReadonlyArray<{ texto: string; unidade
   );
 }
 
-/** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
 /** "Quem pediu" só em texto (vai dentro de um link): título da linha sem local num grupo do mesmo item. */
 const textoPedidoPor = (l: LinhaConferencia) => (l.origem ? `${quemDe(l)} · ${l.origem.codigo}` : l.regra ? "Regra da logística" : `Incluída pela logística${l.incluidaPor ? ` · ${l.incluidaPor}` : ""}`);
 
+/** Quem pediu (ou quem incluiu na reunião), com o link para a solicitação de origem. */
 function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: boolean }) {
   if (l.origem)
     return (
@@ -424,25 +429,30 @@ function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: 
   return <>Incluída pela logística{l.incluidaPor ? ` · ${l.incluidaPor}` : ""}</>;
 }
 
-/** Ações de uma linha, sempre na mesma ordem e com o mesmo peso: ajustar a quantidade e abrir as peças. */
+/**
+ * Ações de uma linha, sempre na mesma ordem e com o mesmo peso: abrir as peças e ajustar a quantidade.
+ * "Ajustar" vem por último: com as ações alinhadas à direita (desktop), ele fica sempre no mesmo lugar,
+ * tenha a linha "Peças" ou não. O nome acessível começa pelo texto visível (WCAG 2.5.3).
+ */
 function AcoesLinha({ l, eventoId, editavel, onAjustar }: { l: LinhaConferencia; eventoId: string; editavel: boolean; onAjustar: (l: LinhaConferencia) => void }) {
   return (
     <>
-      {editavel && (
-        <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar a quantidade de ${rotuloLinha(l)}`} title="Ajustar a quantidade">
-          <Icone nome="lapis" />
-          Ajustar
-        </Button>
-      )}
       {l.tipo === "PROJETO" && (
         <Link
           href={`/eventos/${eventoId}/itens/${l.id}`}
           className="inline-flex h-[27px] items-center gap-1.5 rounded-controle px-2 text-pequeno font-medium text-ink-2 no-underline transition-colors hover:bg-black/[0.04] hover:text-ink max-md:min-h-10"
+          aria-label={`Peças de ${rotuloLinha(l)}`}
           title={`Peças de ${l.nome} nesta linha: ajuste peça a peça e histórico`}
         >
           <Icone nome="camadas" />
           Peças
         </Link>
+      )}
+      {editavel && (
+        <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar a quantidade de ${rotuloLinha(l)}`} title="Ajustar a quantidade">
+          <Icone nome="lapis" />
+          Ajustar
+        </Button>
       )}
     </>
   );
@@ -485,8 +495,9 @@ function Linha({
   const dicas = [l.origem?.ajustes && !ajustesNoBloco ? `Peças ajustadas: ${l.origem.ajustes}` : null, l.ultimoAjuste ? `Ajustado por ${l.ultimoAjuste.por}: ${l.ultimoAjuste.descricao}` : null].filter(Boolean).join(" · ");
   const opcional = conferenciaOpcional(l);
   const marcaOpcional = opcional && !conferida && (
-    <span className="text-rotulo text-muted" title="Não precisa estar conferida para fechar a ata.">
-      {l.quantidade === 0 ? "a definir · opcional" : "opcional"}
+    // Só "opcional": o "a definir" já está na coluna da quantidade (repetido, empurrava o nome para duas linhas).
+    <span className="text-rotulo text-muted" title={l.quantidade === 0 ? "Quantidade a definir: não precisa estar conferida para fechar a ata." : "Não precisa estar conferida para fechar a ata."}>
+      opcional
     </span>
   );
   return (
@@ -499,7 +510,7 @@ function Linha({
         </span>
       )}
 
-      <div className="min-w-0">
+      <div className="min-w-0 @xl:row-span-2 @3xl:row-span-1">
         {emGrupo ? (
           <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
@@ -536,7 +547,7 @@ function Linha({
           </p>
         )}
         {onEditarDescricao && l.origem && (
-          <button type="button" onClick={() => onEditarDescricao(l)} className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-chip border-0 bg-transparent p-0 text-rotulo text-ink-3 transition-colors hover:text-accent">
+          <button type="button" onClick={() => onEditarDescricao(l)} aria-label={`${l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"} de ${rotuloLinha(l)}`} className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-chip border-0 bg-transparent p-0 text-rotulo text-ink-3 transition-colors hover:text-accent">
             <Icone nome="lapis" className="size-3" />
             {l.origem.descricoes.length ? "Editar descrição" : "Adicionar descrição"}
           </button>
@@ -554,7 +565,8 @@ function Linha({
         {pedidoDiferente && <span className="numero block text-rotulo text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 
-      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden @3xl:col-span-1 @3xl:flex-nowrap @3xl:justify-end @3xl:pl-0">
+      {/* Celular: faixa abaixo do item. `@xl`: abaixo da quantidade (coluna 3). `@3xl`: coluna própria. */}
+      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden @xl:col-span-1 @xl:col-start-3 @xl:flex-nowrap @xl:-mr-2 @xl:justify-end @xl:self-start @xl:pl-0 @3xl:col-start-auto @3xl:mr-0 @3xl:self-center">
         {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
         <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
       </span>
@@ -705,7 +717,7 @@ function LinhaJunta({
               </span>
               <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
               {onEditarDescricao && l.origem && (
-                <Button variant="ghost" size="xs" onClick={() => onEditarDescricao(l)}>
+                <Button variant="ghost" size="xs" onClick={() => onEditarDescricao(l)} aria-label={`Descrição da linha ${i + 1} de ${rotuloLinha(l)}`}>
                   Descrição
                 </Button>
               )}
@@ -986,9 +998,9 @@ export function ConferenciaAta({
                             {ok}/{ls.length}
                           </span>
                           {editavel && !blocoOk && (
-                            <Button variant="ghost" size="xs" onClick={() => conferirGrupo(ls)} title={`Marcar as ${ls.length - ok} linhas de ${p0.nome} como conferidas`}>
+                            <Button variant="ghost" size="xs" onClick={() => conferirGrupo(ls)} aria-label={`${ls.length - ok === 1 ? "Conferir a restante" : `Conferir as ${ls.length - ok}`} de ${p0.nome}`} title={ls.length - ok === 1 ? `Marcar a linha que falta de ${p0.nome} como conferida` : `Marcar as ${ls.length - ok} linhas de ${p0.nome} como conferidas`}>
                               <Icone nome="check" />
-                              Conferir as {ls.length - ok}
+                              {ls.length - ok === 1 ? "Conferir a restante" : <>Conferir as <span className="numero">{ls.length - ok}</span></>}
                             </Button>
                           )}
                         </span>
@@ -1042,118 +1054,124 @@ export function ConferenciaAta({
 
   return (
     <section className="min-w-0 rounded-cartao border border-line bg-surface" aria-label="Conferência da ata">
-      {/* Barra fixa: progresso e a próxima ação continuam à vista enquanto a lista rola (a reunião acompanha por ela). */}
-      <div className="sticky top-14 z-10 rounded-t-cartao border-b border-line-soft bg-surface/95 px-cartao pb-3 pt-3.5 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
-          <div className="min-w-0" aria-live="polite">
-            {completo ? (
-              <p className="m-0 flex items-center gap-2 text-corpo font-semibold text-success">
-                <span aria-hidden className="grid size-6 place-items-center rounded-full bg-success text-white motion-safe:animate-marcar">
-                  <Icone nome="check" className="size-3.5" />
-                </span>
-                Tudo conferido
-                <span className="numero font-normal text-ink-3">· {obrigatorias.length} linhas</span>
-              </p>
-            ) : (
-              <p className="m-0 flex items-baseline gap-1.5">
-                <span className="numero text-titulo font-semibold tracking-[-0.01em] text-ink">{conferidas}</span>
-                <span className="text-corpo text-ink-2">
-                  de <span className="numero">{obrigatorias.length}</span> conferidas
-                </span>
-                <span className="numero text-pequeno text-muted">· faltam {pendentes}</span>
-              </p>
-            )}
-            {(opcionais > 0 || (completo && !presentesOk)) && (
-              <p className="m-0 mt-0.5 text-rotulo text-muted">
-                {completo && !presentesOk ? (
-                  <button type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 font-medium text-warning hover:underline">
-                    Falta registrar os presentes para fechar a ata →
-                  </button>
+      {/* Barra fixa: progresso e a próxima ação continuam à vista enquanto a lista rola (a reunião acompanha por ela).
+          Ata vazia: sem barra nem filtros ("0 de 0 conferidas" e filtros sem nada para filtrar só faziam ruído);
+          o estado vazio abaixo diz o que fazer e traz o "Incluir linha". */}
+      {linhas.length > 0 && (
+        <>
+          <div className="sticky top-14 z-10 rounded-t-cartao border-b border-line-soft bg-surface/95 px-cartao pb-3 pt-3.5 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+              <div className="min-w-0" aria-live="polite">
+                {completo ? (
+                  <p className="m-0 flex items-center gap-2 text-corpo font-semibold text-success">
+                    <span aria-hidden className="grid size-6 place-items-center rounded-full bg-success text-white motion-safe:animate-marcar">
+                      <Icone nome="check" className="size-3.5" />
+                    </span>
+                    Tudo conferido
+                    <span className="numero font-normal text-ink-3">· {obrigatorias.length} linhas</span>
+                  </p>
                 ) : (
-                  <span title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
-                    + {opcionais} {opcionais === 1 ? "linha opcional" : "linhas opcionais"} (a definir e estaiamento), fora da contagem
-                  </span>
+                  <p className="m-0 flex items-baseline gap-1.5">
+                    <span className="numero text-titulo font-semibold tracking-[-0.01em] text-ink">{conferidas}</span>
+                    <span className="text-corpo text-ink-2">
+                      de <span className="numero">{obrigatorias.length}</span> conferidas
+                    </span>
+                    <span className="numero text-pequeno text-muted">· faltam {pendentes}</span>
+                  </p>
                 )}
-              </p>
-            )}
+                {(opcionais > 0 || (completo && !presentesOk)) && (
+                  <p className="m-0 mt-0.5 text-rotulo text-muted">
+                    {completo && !presentesOk ? (
+                      <button type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 font-medium text-warning hover:underline">
+                        Falta registrar os presentes para fechar a ata →
+                      </button>
+                    ) : (
+                      <span title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
+                        + {opcionais} {opcionais === 1 ? "linha opcional" : "linhas opcionais"} (a definir e estaiamento), fora da contagem
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              {editavel && (
+                // Celular: "Próxima" e "Incluir" lado a lado; "Conferir as restantes" (ação de lote, menos usada) logo abaixo.
+                <span className="ml-auto flex flex-wrap items-center gap-1.5 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
+                  {pendentes > 0 && (
+                    <Button variant="ghost" size="sm" onClick={irParaProxima} title="Leva à próxima linha sem conferir (↑ ↓ andam entre as linhas)" className="max-sm:border-line-strong max-sm:bg-surface">
+                      <Icone nome="seta-baixo" />
+                      Próxima a conferir
+                    </Button>
+                  )}
+                  {pendentes > 1 && (
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmarTodas(true)} className="max-sm:order-last max-sm:col-span-2">
+                      <Icone nome="check" />
+                      Conferir as <span className="numero">{pendentes}</span> restantes
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => setIncluir(true)} className={pendentes > 0 ? undefined : "max-sm:col-span-2"}>
+                    <Icone nome="mais" />
+                    Incluir linha
+                  </Button>
+                </span>
+              )}
+            </div>
+            <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={obrigatorias.length} aria-valuenow={conferidas} className="mt-3">
+              <BarraProgresso pct={pct} tom={completo ? "success" : "neutro"} altura={6} />
+            </div>
           </div>
-          {editavel && (
-            // Celular: "Próxima" e "Incluir" lado a lado; "Conferir as restantes" (ação de lote, menos usada) logo abaixo.
-            <span className="ml-auto flex flex-wrap items-center gap-1.5 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
-              {pendentes > 0 && (
-                <Button variant="ghost" size="sm" onClick={irParaProxima} title="Leva à próxima linha sem conferir (↑ ↓ andam entre as linhas)" className="max-sm:border-line-strong max-sm:bg-surface">
-                  <Icone nome="seta-baixo" />
-                  Próxima a conferir
-                </Button>
-              )}
-              {pendentes > 1 && (
-                <Button variant="ghost" size="sm" onClick={() => setConfirmarTodas(true)} className="max-sm:order-last max-sm:col-span-2">
-                  <Icone nome="check" />
-                  Conferir as <span className="numero">{pendentes}</span> restantes
-                </Button>
-              )}
-              <Button variant="secondary" size="sm" onClick={() => setIncluir(true)} className={pendentes > 0 ? undefined : "max-sm:col-span-2"}>
-                <Icone nome="mais" />
-                Incluir linha
-              </Button>
-            </span>
-          )}
-        </div>
-        <div role="progressbar" aria-label="Linhas conferidas" aria-valuemin={0} aria-valuemax={obrigatorias.length} aria-valuenow={conferidas} className="mt-3">
-          <BarraProgresso pct={pct} tom={completo ? "success" : "neutro"} altura={6} />
-        </div>
-      </div>
 
-      {/* Filtros numa faixa só: situação, busca e os recortes (material, área, pessoa) como listas compactas. */}
-      <div className="grid grid-cols-1 gap-2 border-b border-line-soft px-cartao py-2.5 md:flex md:flex-wrap md:items-center">
-        <div className="-mx-1 overflow-x-auto px-1">
-          <Pills
-            rotulo="Filtrar por situação"
-            className="!flex-nowrap"
-            itens={[
-              { label: "Todas", n: linhas.length, ativo: filtro === "todas", onSelect: () => setFiltro("todas") },
-              { label: "A conferir", n: nPendentesLista, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
-              { label: "Conferidas", n: nConferidasLista, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
-            ]}
-          />
-        </div>
-        <div className="relative min-w-0 md:min-w-[200px] md:flex-1">
-          <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
-          <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar item, local, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
-        </div>
-        {(gruposNaAta.length > 1 || areasNaAta.length > 1 || pessoasNaAta.length > 1) && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-none">
-            {gruposNaAta.length > 1 && (
-              // Três filtros no celular: o primeiro ocupa a linha toda (nenhum fica sozinho e estreito).
-              <div className={cn("min-w-0 md:w-40", areasNaAta.length > 1 && pessoasNaAta.length > 1 && "max-sm:col-span-2")}>
-                <Select
-                  tamanho="sm"
-                  aria-label="Filtrar por material"
-                  value={grupoAtivo}
-                  onValueChange={(v) => setGrupo(v as GrupoMaterial | "")}
-                  ordenarAlfabetico={false}
-                  opcoes={[{ value: "", label: "Todos os materiais" }, ...gruposNaAta.map((g) => ({ value: g, label: `${GRUPO_LABEL[g]} · ${linhas.filter((l) => l.grupo === g).length}` }))]}
-                />
+          {/* Filtros numa faixa só: situação, busca e os recortes (material, área, pessoa) como listas compactas. */}
+          <div className="grid grid-cols-1 gap-2 border-b border-line-soft px-cartao py-2.5 md:flex md:flex-wrap md:items-center">
+            <div className="-mx-1 overflow-x-auto px-1">
+              <Pills
+                rotulo="Filtrar por situação"
+                className="!flex-nowrap"
+                itens={[
+                  { label: "Todas", n: linhas.length, ativo: filtro === "todas", onSelect: () => setFiltro("todas") },
+                  { label: "A conferir", n: nPendentesLista, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
+                  { label: "Conferidas", n: nConferidasLista, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
+                ]}
+              />
+            </div>
+            <div className="relative min-w-0 md:min-w-[200px] md:flex-1">
+              <Icone nome="busca" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+              <Input type="search" aria-label="Buscar na ata" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Item, local, pessoa ou SOL-…" className="!h-[30px] !pl-8 max-md:!h-10" />
+            </div>
+            {(gruposNaAta.length > 1 || areasNaAta.length > 1 || pessoasNaAta.length > 1) && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-none">
+                {gruposNaAta.length > 1 && (
+                  // Três filtros no celular: o primeiro ocupa a linha toda (nenhum fica sozinho e estreito).
+                  <div className={cn("min-w-0 md:w-40", areasNaAta.length > 1 && pessoasNaAta.length > 1 && "max-sm:col-span-2")}>
+                    <Select
+                      tamanho="sm"
+                      aria-label="Filtrar por material"
+                      value={grupoAtivo}
+                      onValueChange={(v) => setGrupo(v as GrupoMaterial | "")}
+                      ordenarAlfabetico={false}
+                      opcoes={[{ value: "", label: "Todos os materiais" }, ...gruposNaAta.map((g) => ({ value: g, label: `${GRUPO_LABEL[g]} · ${linhas.filter((l) => l.grupo === g).length}` }))]}
+                    />
+                  </div>
+                )}
+                {areasNaAta.length > 1 && (
+                  <div className="min-w-0 md:w-36">
+                    <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
+                  </div>
+                )}
+                {pessoasNaAta.length > 1 && (
+                  <div className="min-w-0 md:w-40">
+                    <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
+                  </div>
+                )}
               </div>
             )}
-            {areasNaAta.length > 1 && (
-              <div className="min-w-0 md:w-36">
-                <Select tamanho="sm" aria-label="Filtrar por área" value={areaAtiva} onValueChange={setArea} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as áreas" }, ...areasNaAta.map((a) => ({ value: a, label: a }))]} />
-              </div>
-            )}
-            {pessoasNaAta.length > 1 && (
-              <div className="min-w-0 md:w-40">
-                <Select tamanho="sm" aria-label="Filtrar por quem pediu" value={pessoaAtiva} onValueChange={setPessoa} ordenarAlfabetico={false} opcoes={[{ value: "", label: "Todas as pessoas" }, ...pessoasNaAta.map((a) => ({ value: a, label: a }))]} />
-              </div>
+            {filtrando && (
+              <Button variant="link" size="sm" onClick={limparFiltros} className="justify-self-start">
+                Limpar filtros
+              </Button>
             )}
           </div>
-        )}
-        {filtrando && (
-          <Button variant="link" size="sm" onClick={limparFiltros} className="justify-self-start">
-            Limpar filtros
-          </Button>
-        )}
-      </div>
+        </>
+      )}
 
       {linhas.length === 0 ? (
         <EmptyState
@@ -1204,21 +1222,22 @@ export function ConferenciaAta({
                   return [
                     // Item que vem junto de outro: o aviso fica entre a origem e ele, com quanto a regra pede e quanto a ata tem.
                     dep ? (
-                      <p key={`${chave}:junto`} className="m-0 flex flex-wrap items-center gap-x-1.5 border-t border-dashed border-accent-border bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
-                        <span aria-hidden className="text-accent">
+                      // Ligação neutra (borda e seta cinza): o vinho fica para "aja aqui"; quando a ata não bate com a regra, a conta fica amarela.
+                      // Texto corrido (não flex): numa lista estreita a conta quebra no meio da frase, não numa linha começando por "·".
+                      <p key={`${chave}:junto`} className="m-0 border-t border-dashed border-line-strong bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
+                        <span aria-hidden className="mr-1.5">
                           ↳
                         </span>
-                        <span>
-                          Vem junto de <b className="font-medium text-ink-2">{dep.nome}</b> · {dep.texto}
-                        </span>
-                        {nec && <ContaAcompanhante n={nec} />}
+                        Vem junto de <b className="font-medium text-ink-2">{dep.nome}</b> · {dep.texto} {nec && <ContaAcompanhante n={nec} />}
                       </p>
                     ) : null,
                     renderizarItem(chave, ls),
                     ...semNenhum.map((n) => (
-                      <p key={`${chave}:falta:${n.codigo}`} className="m-0 flex flex-wrap items-center gap-x-1.5 border-t border-dashed border-warning-border bg-warning-bg/50 px-cartao py-1.5 text-rotulo text-warning">
-                        <span aria-hidden>↳</span>
-                        <span>
+                      <p key={`${chave}:falta:${n.codigo}`} className="m-0 flex items-center gap-x-1.5 border-t border-dashed border-warning-border bg-warning-bg/50 px-cartao py-1.5 text-rotulo text-warning">
+                        <span aria-hidden className="self-start">
+                          ↳
+                        </span>
+                        <span className="min-w-0 flex-1">
                           <b className="font-medium">{n.nome}</b>: nenhum na ata · {n.texto} · a regra pede <b className="numero font-semibold">{n.precisa}</b>
                         </span>
                         {editavel && <BotaoCompletar eventoId={eventoId} n={n} />}
@@ -1232,29 +1251,32 @@ export function ConferenciaAta({
         </div>
       )}
 
-      <RodapeTabela
-        className="rounded-b-cartao"
-        direita={
-          editavel && linhas.length > 0 ? (
-            <span className="hidden text-rotulo text-meta lg:inline">
+      {linhas.length > 0 && (
+        <RodapeTabela
+          className="rounded-b-cartao"
+          direita={
+            editavel ? (
+              <span className="hidden text-rotulo text-meta lg:inline">
+                {/* Sem o <Kbd> (mono): as setas não existem na Roboto Mono e caíam na fonte de emoji, coloridas. */}
               <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">↑</kbd> <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">↓</kbd> andam entre as linhas · <kbd className="rounded-chip border border-line bg-surface px-1 font-sans">espaço</kbd> marca
-            </span>
-          ) : undefined
-        }
-      >
-        <span>
-          {filtrando ? (
-            <>
-              <span className="numero">{visiveis.length}</span> de <span className="numero">{linhas.length}</span> linhas
-            </>
-          ) : (
-            <>
-              <span className="numero">{linhas.length}</span> {linhas.length === 1 ? "linha" : "linhas"}
-            </>
-          )}{" "}
-          · <span className="numero">{linhas.reduce((a, l) => a + l.quantidade, 0).toLocaleString("pt-BR")}</span> unidades
-        </span>
-      </RodapeTabela>
+              </span>
+            ) : undefined
+          }
+        >
+          <span>
+            {filtrando ? (
+              <>
+                <span className="numero">{visiveis.length}</span> de <span className="numero">{linhas.length}</span> linhas
+              </>
+            ) : (
+              <>
+                <span className="numero">{linhas.length}</span> {linhas.length === 1 ? "linha" : "linhas"}
+              </>
+            )}{" "}
+            · <span className="numero">{linhas.reduce((a, l) => a + l.quantidade, 0).toLocaleString("pt-BR")}</span> unidades
+          </span>
+        </RodapeTabela>
+      )}
 
       {/* Conferir em lote marca tudo em nome de quem clicou e destrava o fechamento da ata: confirma antes. */}
       <Dialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>

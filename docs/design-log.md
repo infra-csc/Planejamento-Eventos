@@ -417,3 +417,65 @@ Arquivo: `e2e/varredura.spec.ts`.
 - Decisão — Folha de separação sem o código da peça (decisão anterior registrada no código); incluir se a
   separação no galpão procura pelo código.
 - Decisão — Coluna "Pendências" da lista de eventos mostra "em dia" na maioria das linhas.
+
+## 27/10/2026 — Conferência da ata, revisão para o desktop
+
+Escopo pedido: só desktop (1280 e acima; 768 só para não quebrar). Celular não foi revisado nesta rodada.
+Vista: logística (Marina) e admin, servidor de dev local (dados de demonstração); EVT-0002 (preparação, com
+tenda 3×3, testeira a definir, avulso) e EVT-0009 (montado para o teste pelo "Incluir linha": cocho + cavalete
+de ferro, prisma + grades 2×1, mesa de medalha + cavalete reto, tenda 5×5 em dois locais, testeira a definir),
+em preparação, em reunião, tudo conferido e sem presentes; EVT-0202 (ata vazia). 1280, 1680 e 768 px.
+Modais abertos de verdade: Ajustar, Grades do prisma, Conferir as restantes, Incluir linha, Vincular; teclado
+(↑/↓ entre os checks, Esc) e axe em cada um.
+
+- P1 — Foco: ao fechar qualquer modal aberto por estado (Ajustar, Grades do prisma, Conferir as restantes,
+  Incluir linha) o foco ia para o `<body>`; quem confere pelo teclado voltava ao topo da página a cada ajuste.
+  **Resolvido no `DialogContent`** (vale para o app todo): guarda quem abriu e devolve o foco a ele (também quando
+  o modal põe o foco num campo com `autoFocus`). Conferido: o foco volta para "Ajustar a quantidade de …",
+  "Conferir as 9 restantes", "Incluir linha", "Vincular".
+- P2 — Em 1280 px (lista com ~630 px ao lado do painel), cada linha tinha uma faixa só para "Ajustar/Peças"
+  abaixo do item. **Resolvido:** com a lista entre 576 e 768 px (`@xl`), as ações ficam logo abaixo da
+  quantidade, à direita, na altura do próprio item — "Ajustar" colado ao número que ele muda. ~25 px a menos por
+  linha (a ata do EVT-0002 caiu de ~1.800 para ~1.600 px).
+- P2 — "Ajustar" mudava de lugar entre linhas (com e sem "Peças"). **Resolvido:** "Ajustar" vem por último e as
+  ações alinham à direita: fica sempre na mesma coluna (1280 e 1680). No celular a ordem passa a ser
+  Peças · Ajustar (consequência; o leiaute do celular não mudou).
+- P2 — Quadro da tenda a 1280: a coluna do local tinha ~110 px e "Incluída pela logísti…" era cortado sem dica.
+  **Resolvido:** colunas dos números na largura do stepper (110 px) e espaço menor; origem e nome do local quebram
+  em vez de cortar. Check do local com 40 px como os das outras linhas.
+- P2 — Quadro da tenda: a linha do local era recriada a cada gravação automática — o foco de quem usava − e +
+  pelo teclado se perdia e o "Salvo" sumia na hora. **Resolvido:** os números do servidor entram sem remontar a
+  linha (enquanto a pessoa mexe, vale o que ela está mudando).
+- P2 — Ata vazia mostrava "0 de 0 conferidas · faltam 0", filtros com 0/0/0 e rodapé "0 linhas"; o banner dizia
+  "As necessidades das áreas já estão na ata". **Resolvido:** só o estado vazio (com "Incluir linha"); banner
+  "A ata ainda está vazia: os pedidos das áreas entram aqui sozinhos…".
+- P3 — "a definir · opcional" ao lado do nome repetia o "a definir" da coluna da quantidade e jogava o nome para
+  duas linhas. Agora só "opcional" (a dica explica).
+- P3 — Tenda com um local só mostrava "Conferir todos" além do check (mesma ação duas vezes). Some com um local;
+  com vários, "Conferir os 2 locais" / "Conferir o local restante". Bloco por item: "Conferir as 3" /
+  "Conferir a restante" (antes "Conferir as 1"), com nome acessível que diz de qual item.
+- P3 — "Vem junto de …" usava borda e seta vinho (estado não usa a marca). Agora neutro; a conta continua
+  amarela quando a ata não bate com a regra. O texto quebra no meio da frase, não numa linha começando por "·".
+- P3 — Modal das grades do prisma: total em vinho → tinta normal; botão "Salvar" → "Salvar ajuste".
+- P3 — Nomes acessíveis repetidos ("Peças", "Editar descrição", "Incluir 12") passam a dizer de qual linha/peça.
+- P3 — Busca: placeholder cortado a 1680 ("Buscar item, local, pesso"); agora "Item, local, pessoa ou SOL-…"
+  (o campo continua "Buscar na ata").
+- Sem mudança: barra fixa de progresso, "Próxima a conferir", ↑/↓, confirmação de "Conferir as restantes",
+  fluxo "Falta registrar os presentes →" (leva ao campo e foca), banner com o motivo do bloqueio, toasts.
+
+Arquivos: `src/components/eventos/conferencia-ata.tsx`, `src/components/eventos/tenda-conferencia.tsx`,
+`src/components/eventos/banner-reuniao.tsx`, `src/app/(app)/conferencia/[id]/page.tsx`, `src/components/ui/dialog.tsx`.
+
+Validação: `npx tsc --noEmit -p .` ok; eslint dos 5 arquivos ok; `npx vitest run` 716 passaram, 3 pulados (numa
+primeira rodada, 1 falha no teste de carga, que passou ao repetir — fora desta tela); `npx playwright test
+e2e/conferencia.spec.ts e2e/acessibilidade.spec.ts` (desktop e celular, banco novo, num worktree só com estas
+mudanças) 18 de 18 passaram, sem nenhuma violação do axe. axe também rodado à mão na página e em cada modal
+(Ajustar, Grades do prisma, Conferir as restantes, Incluir linha, Vincular), estado conferido e "tudo conferido".
+Screenshots antes/depois em 1280, 1680 e 768 (logística e admin).
+
+Pendente / para decidir:
+- Comportamento (repassado ao agente da parte funcional): o aviso "nenhum na ata" do pé de grade mostra o
+  código (PE-GRADE-2X1) quando a peça não existe no catálogo, e o "Incluir 12" então falha; "Em reunião" usa o
+  selo amarelo (o design system pede `info` para "em andamento" — selo compartilhado).
+- Não visto no navegador: "linha junta" (várias linhas do mesmo pedido e local), modal de descrição do admin
+  (só o botão), erro de gravação (sem rede).

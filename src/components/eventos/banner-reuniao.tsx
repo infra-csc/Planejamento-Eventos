@@ -23,6 +23,7 @@ export function BannerReuniao({
   total,
   presentesOk,
   iniciadaEm,
+  vazia = total === 0,
 }: {
   eventoId: string;
   codigo: string;
@@ -33,6 +34,8 @@ export function BannerReuniao({
   /** "Pessoas presentes" preenchido: exigido para fechar. */
   presentesOk: boolean;
   iniciadaEm: string | null;
+  /** Nenhuma linha na ata (nem opcional): muda o texto do banner. */
+  vazia?: boolean;
 }) {
   const router = useRouter();
   const [confirmar, setConfirmar] = useState<"INICIAR_REUNIAO" | "FECHAR_ATA" | null>(null);
@@ -42,8 +45,10 @@ export function BannerReuniao({
 
   const titulo = emReuniao ? "Reunião de OS em andamento" : "Preparação da reunião de OS";
   const sub = !emReuniao
-    ? `As necessidades das áreas já estão na ata e dá para ir conferindo${conferidas > 0 ? ` (${conferidas} de ${total} já conferidas)` : ""}. Ao iniciar a reunião, as áreas não enviam mais pedidos.`
-    : total === 0
+    ? vazia
+      ? "A ata ainda está vazia: os pedidos das áreas entram aqui sozinhos. Ao iniciar a reunião, as áreas não enviam mais pedidos."
+      : `As necessidades das áreas já estão na ata e dá para ir conferindo${conferidas > 0 ? ` (${conferidas} de ${total} já conferidas)` : ""}. Ao iniciar a reunião, as áreas não enviam mais pedidos.`
+    : vazia
       ? "A ata está vazia. Inclua linhas decididas na reunião antes de fechar."
       : faltam > 0
         ? `${faltam === 1 ? "Falta conferir 1 linha" : `Faltam conferir ${faltam} linhas`} da ata. Marque cada uma no check à esquerda da linha.`

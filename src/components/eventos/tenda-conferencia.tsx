@@ -42,7 +42,9 @@ function Origem({ ls }: { ls: readonly LinhaConferencia[] }) {
   const pedidos = [...new Map(ls.filter((l) => l.origem).map((l) => [l.origem!.solicitacaoId, l])).values()];
   const semPedido = ls.some((l) => !l.origem);
   return (
-    <span className="block truncate text-rotulo text-ink-3">
+    // Quebra em vez de cortar: na tela de 1280 (painel da reunião ao lado) a coluna do local tem ~120 px e
+    // "Incluída pela logísti…" escondia quem pediu, sem dica.
+    <span className="block break-words text-rotulo text-ink-3">
       {pedidos.map((l, i) => (
         <span key={l.origem!.solicitacaoId}>
           {i > 0 && " · "}
@@ -86,8 +88,9 @@ export function BlocoTenda({
   const tudoOk = ok === ls.length;
   const totalTendas = locais.reduce((a, l) => a + l.tendas, 0);
   const locaisOk = locais.filter((l) => l.ok === l.ls.length).length;
-  // Check | Local | Tendas | (Fechamentos) | (Calhas) | situação do salvamento.
-  const grade = cn("md:grid md:items-center md:gap-x-3", colunas.length === 2 ? "md:grid-cols-[40px_minmax(0,1fr)_112px_112px_112px_20px]" : colunas.length === 1 ? "md:grid-cols-[40px_minmax(0,1fr)_112px_112px_20px]" : "md:grid-cols-[40px_minmax(0,1fr)_112px_20px]");
+  // Check | Local | Tendas | (Fechamentos) | (Calhas) | situação do salvamento. Colunas do número na largura
+  // exata do stepper pequeno (110 px) e espaço de 8 px: a 1280 px (painel ao lado) sobra mais para o local.
+  const grade = cn("md:grid md:items-center md:gap-x-2", colunas.length === 2 ? "md:grid-cols-[40px_minmax(0,1fr)_110px_110px_110px_20px]" : colunas.length === 1 ? "md:grid-cols-[40px_minmax(0,1fr)_110px_110px_20px]" : "md:grid-cols-[40px_minmax(0,1fr)_110px_20px]");
 
   return (
     <section aria-label={`${p0.nome}: ${locaisOk} de ${locais.length} locais conferidos`} className="border-b border-line-row last:border-b-0">
@@ -113,10 +116,18 @@ export function BlocoTenda({
             {tudoOk && <Icone nome="check" className="size-3.5" />}
             {locaisOk}/{locais.length} {locais.length === 1 ? "local conferido" : "locais conferidos"}
           </span>
-          {editavel && !tudoOk && (
-            <Button variant="ghost" size="xs" onClick={() => onConferir(ls, true)}>
+          {/* Com um local só, o check da linha já faz isso: o botão seria a mesma ação duas vezes. */}
+          {editavel && !tudoOk && locais.length > 1 && (
+            <Button variant="ghost" size="xs" onClick={() => onConferir(ls, true)} aria-label={`${locais.length - locaisOk === 1 ? "Conferir o local restante" : `Conferir os ${locais.length - locaisOk} locais`} de ${p0.nome}`}>
               <Icone nome="check" />
-              Conferir todos
+              {/* Mesmo padrão do bloco por item ("Conferir as 3"): diz quantos vão ser marcados. */}
+              {locais.length - locaisOk === 1 ? (
+                "Conferir o local restante"
+              ) : (
+                <>
+                  Conferir os <span className="numero">{locais.length - locaisOk}</span> locais
+                </>
+              )}
             </Button>
           )}
         </span>
@@ -137,7 +148,7 @@ export function BlocoTenda({
         </div>
         <ul className="m-0 list-none p-0">
           {locais.map((loc) => (
-            <LocalTenda key={`${loc.chave}:${loc.tendas}:${colunas.map((c) => loc.totais[c.papel]).join(",")}`} loc={loc} nome={p0.nome} eventoId={eventoId} colunas={colunas} grade={grade} editavel={editavel} onConferir={onConferir} />
+            <LocalTenda key={loc.chave} loc={loc} nome={p0.nome} eventoId={eventoId} colunas={colunas} grade={grade} editavel={editavel} onConferir={onConferir} />
           ))}
         </ul>
       </div>
@@ -145,7 +156,8 @@ export function BlocoTenda({
   );
 }
 
-type Situacao = "parado" | "salvando" | "salvo" | "confirmar-zero";
+/** "editando": número mudado, esperando o instante antes de gravar. */
+type Situacao = "parado" | "editando" | "salvando" | "salvo" | "confirmar-zero";
 
 /** Um local do quadro: check, quem pediu e os números com − e +, salvos sozinhos. */
 function LocalTenda({
@@ -168,6 +180,20 @@ function LocalTenda({
   const [tendas, setTendas] = useState(loc.tendas);
   const [totais, setTotais] = useState<Record<Papel, number>>({ ...loc.totais });
   const [situacao, setSituacao] = useState<Situacao>("parado");
+  /*
+   * Números novos do servidor (gravação feita aqui ou por outra pessoa) entram na tela sem remontar a linha:
+   * antes a linha era recriada a cada gravação, o foco de quem usava − e + pelo teclado se perdia e o
+   * "Salvo" sumia na hora. Enquanto a pessoa mexe (ou confirma o zero), vale o que ela está digitando.
+   */
+  const assinatura = `${loc.tendas}:${colunas.map((c) => loc.totais[c.papel]).join(",")}`;
+  const [assinaturaVista, setAssinaturaVista] = useState(assinatura);
+  if (assinaturaVista !== assinatura) {
+    setAssinaturaVista(assinatura);
+    if (situacao !== "editando" && situacao !== "confirmar-zero") {
+      setTendas(loc.tendas);
+      setTotais({ ...loc.totais });
+    }
+  }
   const timer = useRef<number | null>(null);
   const conferido = loc.ok === loc.ls.length;
   const descricoes = [...new Set(loc.ls.flatMap((l) => (l.origem?.descricoes ?? []).map((d) => (d.unidades > 1 ? `${d.unidades}× ${d.texto}` : d.texto))))];
@@ -201,7 +227,7 @@ function LocalTenda({
     setTotais(tot);
     if (timer.current) window.clearTimeout(timer.current);
     if (t === 0) return setSituacao("confirmar-zero");
-    setSituacao("parado");
+    setSituacao("editando");
     timer.current = window.setTimeout(() => gravar(t, tot), 700);
   };
 
@@ -225,19 +251,19 @@ function LocalTenda({
               aria-label={`${nome}, ${local}: ${conferido ? "conferido, clique para desfazer" : "marcar como conferido"}`}
               onClick={() => onConferir(loc.ls, !conferido)}
               className={cn(
-                "grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                 conferido ? "border-success bg-success text-white" : loc.ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
               )}
             >
-              <Icone nome="check" tamanho={16} />
+              <Icone nome="check" tamanho={20} />
             </button>
           ) : (
-            <span role="img" aria-label={conferido ? "Conferido" : "Não conferido"} className={cn("grid size-9 shrink-0 place-items-center rounded-full border-2", conferido ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
-              <Icone nome="check" tamanho={16} />
+            <span role="img" aria-label={conferido ? "Conferido" : "Não conferido"} className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2", conferido ? "border-success bg-success text-white" : "border-line-strong text-transparent")}>
+              <Icone nome="check" tamanho={20} />
             </span>
           )}
-          <span className="min-w-0 flex-1">
-            <Link href={`/eventos/${eventoId}/itens/${loc.ls[0].id}`} className="block truncate text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title="Tendas deste local: descrição, peças e histórico">
+          <span className="min-w-0 flex-1 md:pl-1">
+            <Link href={`/eventos/${eventoId}/itens/${loc.ls[0].id}`} className="block break-words text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title="Tendas deste local: descrição, peças e histórico">
               {loc.nome ?? "Sem local informado"}
             </Link>
             <Origem ls={loc.ls} />
@@ -259,7 +285,7 @@ function LocalTenda({
             )}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-2 pl-12 sm:grid-cols-2 md:contents">
+        <div className="grid grid-cols-1 gap-2 pl-[52px] sm:grid-cols-2 md:contents">
           <CampoNumero rotulo="Tendas" local={local} valor={tendas} editavel={editavel} destaque onChange={(v) => mudar(v, totais)} />
           {colunas.map((c) => (
             <CampoNumero key={c.papel} rotulo={c.rotulo} local={local} valor={totais[c.papel]} editavel={editavel} onChange={(v) => mudar(tendas, { ...totais, [c.papel]: v })} />
@@ -276,7 +302,7 @@ function LocalTenda({
         </span>
       </div>
       {situacao === "confirmar-zero" && (
-        <div role="alertdialog" aria-label="Tirar o local da ata" className="mt-2 flex flex-wrap items-center gap-2 rounded-controle border border-danger-border bg-danger-bg px-3 py-2 md:ml-12">
+        <div role="alertdialog" aria-label="Tirar o local da ata" className="mt-2 flex flex-wrap items-center gap-2 rounded-controle border border-danger-border bg-danger-bg px-3 py-2 md:ml-[52px]">
           <span className="min-w-0 flex-1 text-pequeno text-danger">Com 0 tendas, {local} sai da ata.</span>
           <Button variant="secondary" size="xs" onClick={desfazerZero}>
             Desfazer
