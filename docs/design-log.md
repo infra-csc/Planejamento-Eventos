@@ -479,3 +479,71 @@ Pendente / para decidir:
   selo amarelo (o design system pede `info` para "em andamento" — selo compartilhado).
 - Não visto no navegador: "linha junta" (várias linhas do mesmo pedido e local), modal de descrição do admin
   (só o botão), erro de gravação (sem rede).
+
+## 27/10/2026 — Auditoria de usabilidade por perfil (fluxos de ponta a ponta)
+
+Pedido: percorrer o app como quem nunca usou, em todos os perfis, e corrigir o que trava ou confunde
+(P0 impede a tarefa ou perde dados · P1 confusão frequente ou passo a mais · P2 refinamento).
+
+Ambiente: dev server da porta 5000 (banco PGlite local de demonstração). Navegação real com Playwright
+(Chromium, contextos separados por usuário do seed: Paulo/Produção, Júlia/Ativação, Marina/Logística,
+Helena/Gestão, Bruno/Cenografia, admin) a 1280 e 375 px, e o navegador embutido como admin ("ver como",
+busca Ctrl K). Telas varridas (texto, botões, links, rolagem lateral): painel de cada perfil, eventos,
+solicitações, nova solicitação (pré-reunião e alteração), detalhe da solicitação (rascunho, na ata,
+respondida, aguardando resposta), fila "Responder em sequência", evento (visão geral e OS), conferência
+(375), Ativação (estoque, retornos, reformas, página do item), biblioteca, administração, perfil,
+notificações, calendário, 404 e "sem acesso". Nenhuma tela teve rolagem lateral a 1280 nem a 375 px.
+
+### Corrigido
+
+| Prior. | Tela / fluxo | Problema observado | Mudança | Commit |
+|---|---|---|---|---|
+| P1 | Editar pedido já enviado (`/solicitacoes/nova?rascunho=`) | Não havia saída sem salvar (só o menu); a cópia guardada no navegador voltava na próxima edição sem como desistir; a tela dizia "exclua este rascunho", "Pronto para enviar" e "Escolha o evento… e envie" | "Descartar alterações" (confirma só se algo mudou; limpa a cópia e volta ao pedido), trilha Solicitações › SOL-… › Editar com link, textos de salvar | 34bac86 |
+| P1 | Botões desabilitados com motivo (ex.: "Encerrar evento") | O motivo só existia no `title` (hover) e no leitor de tela; no toque e para quem não passa o mouse, o botão era mudo | O clique mostra o motivo num toast (vale para todos os `motivoDesabilitado`) | 34bac86 |
+| P1 | Ativação › item | A página mandava ligar o item ao catálogo em "Estoque › Editar", sem botão ali | "Editar item" na própria página (mesmo diálogo da lista) | 32188f0 + a490add (página do item, commit do coordenador) |
+| P1 | Admin › "Ver o app como…" | Só Logística e a primeira área: não dava para ver Gestão, Cenografia, Ativação; a troca não dava sinal e falhava em silêncio sem conexão | Todos os perfis e cada área; barra de carregamento e spinner em "Voltar a administrador"; falha vira aviso | 1a8d305 |
+| P2 | Resposta da logística (item) | "Confirmar resposta" para parcial e para não atender | "Atender parcialmente" / "Não atender o item" | 34bac86 |
+| P2 | Nova solicitação › evento | Selo "até a reunião"/"alterações" na lista e "pré-reunião"/"alteração pós-ata" depois de escolher | Mesmos nomes nos dois lugares | 34bac86 |
+| P2 | Painel do solicitante | "Sua área ainda não está em nenhum evento" para quem tinha pedidos em eventos já passados | "Nenhum evento em andamento com pedidos da sua área" | 1a8d305 |
+| P2 | Stepper (todas as quantidades) | "Aumentar"/"Diminuir" iguais em todas as linhas para o leitor de tela | Levam o rótulo ("Aumentar quantidade de Cone grande") | 34bac86 |
+| P2 | Painel da Cenografia | O painel era o de solicitante, sem caminho para a Biblioteca (o trabalho principal da Cenografia) além do menu | Botão secundário "Biblioteca" no cabeçalho (1280 e 375 conferidos) | d7c5a1e |
+| P2 | Ativação › Enviar para reforma | Desabilitado sem motivo; lápis igual ao de editar | Motivo ("Não há unidades em posse…"), sem o lápis | 32188f0 |
+
+Arquivos: `src/app/(app)/solicitacoes/nova/page.tsx`, `src/components/solicitacoes/nova-solicitacao-form.tsx`,
+`src/components/solicitacoes/nova/{escolha-evento,resumo-envio}.tsx`, `src/components/solicitacoes/item-resposta.tsx`,
+`src/components/ui/{button,stepper}.tsx`, `src/components/estoque/{estoque-tela,botao-reforma-item}.tsx`,
+`src/components/shell/app-shell.tsx`, `src/app/(app)/layout.tsx`, `src/components/painel/eventos-solicitante.tsx`,
+`docs/design-system.md` (§3: clique no botão desabilitado mostra o motivo).
+
+Validado no navegador (Playwright, 1280): editar SOL-0025 → descartar sem mudança volta direto; com mudança
+pede confirmação, "Continuar editando" mantém o título digitado e devolve o foco, "Descartar" volta ao pedido
+e a próxima edição abre com o pedido original (sem "alterações recuperadas"). 375 px: barra fixa com
+"Descartar" e "Salvar alterações", sem rolagem lateral. Logística em SOL-0017: "Não atender o item" sem motivo
+mostra o erro; em EVT-0001 o clique em "Encerrar evento" mostra "SOL-0005 está sem resposta…". Júlia
+(Ativação): "Editar item" abre o diálogo, Esc devolve o foco ao botão. Navegador embutido (admin): o menu
+lista Logística, Gestão, Cenografia e as quatro áreas; "Cenografia" troca a tela, "Voltar a administrador"
+mostra o spinner e volta.
+
+Testes (num worktree só com os commits, em d7c5a1e, para não misturar o trabalho em andamento de outro agente):
+`npx tsc --noEmit -p .` ok; eslint dos arquivos alterados ok; `npx vitest run` 726 passaram, 3 pulados; `npx playwright
+test e2e/varredura.spec.ts e2e/acessibilidade.spec.ts e2e/solicitante.spec.ts e2e/logistica.spec.ts` (build de
+produção, banco novo, desktop e celular) 32 de 32 passaram, sem violação do axe.
+
+### Proposto (muda regra ou comportamento — não implementado)
+
+- P1 — Solicitante não consegue **retirar** um pedido pré-reunião já enviado: o status vira "Na ata" e
+  "Cancelar" só existe enquanto nada foi respondido; a edição exige ao menos 1 item. Recomendo "Retirar
+  pedido" antes da reunião com a mesma trava da edição (só se a logística ainda não mexeu nas linhas).
+- P1 — Rascunho preso ao evento: trocar de evento exige excluir o rascunho e refazer os itens. Recomendo
+  permitir trocar o evento de um rascunho (o servidor hoje recusa).
+- P2 — Logística pode "Atender" item fora do catálogo sem vincular; o aviso amarelo diz que ele não soma
+  peças na OS, mas o botão não lembra. Decidir se o atender pede o vínculo antes.
+- P2 — Estoque da Ativação mostra as 244 linhas de uma vez (sem paginação); o painel da Gestão chama de
+  "Fila de resposta" uma lista que ela não responde.
+- Dados: Biblioteca mostra 436 projetos e a nova solicitação 249 (conferir se é versão/inativo ou erro).
+
+### Não visto no navegador nesta rodada
+
+Fechamento da ata e geração da OS (revisados ontem), downloads da OS (Excel, estrutura, marcenaria, folha),
+carga e descarga além da leitura da tela, Biblioteca (lote, duplicar, fotos), reabrir evento encerrado (não
+há evento encerrado no banco de demonstração), estados de erro de rede além do "ver como".
