@@ -65,7 +65,11 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
   const linhasPorEvento = Object.fromEntries(Object.entries(linhasTodas).map(([id, ls]) => [id, ls.filter((l) => mexeEmTodas || l.areaId == null || daMinhaArea(usuario, l.areaId))]));
 
   // Estoque da Ativação (só para ela e o admin): peças ligadas e quanto outros eventos do período levam.
-  const estoque = podeGerenciarEstoque(usuario) ? await estoqueParaSolicitacao(aceitando.map((e) => e.id)).catch(() => null) : null;
+  const estoque = podeGerenciarEstoque(usuario) ? await estoqueParaSolicitacao(aceitando.map((e) => e.id)).catch((err) => {
+        // Só informa (a solicitação segue sem o aviso), mas fica no log para não sumir em silêncio.
+        console.error(JSON.stringify({ nivel: "erro", evento: "estoque_solicitacao", mensagem: err instanceof Error ? err.message : String(err) }));
+        return null;
+      }) : null;
 
   const eventos: EventoOpcao[] = aceitando.map((e) => ({
     id: e.id,

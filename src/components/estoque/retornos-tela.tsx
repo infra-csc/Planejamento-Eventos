@@ -98,14 +98,15 @@ function CartaoEvento({ e, onRegistrar }: { e: EventoRetorno; onRegistrar: () =>
         )}
       </header>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse">
+        {/* Larguras fixas: as colunas de números ficam alinhadas de um evento para o outro. */}
+        <table className="w-full min-w-[560px] table-fixed border-collapse">
           <thead>
             <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
               <th className="px-3 py-2 pl-cartao">Item</th>
-              <th className="px-3 py-2 text-right">Levou</th>
-              <th className="px-3 py-2 text-right">Voltaram</th>
-              <th className="px-3 py-2 text-right">Reforma</th>
-              <th className="px-3 py-2 pr-cartao text-right">Perdidos</th>
+              <th className="w-24 px-3 py-2 text-right">Levou</th>
+              <th className="w-24 px-3 py-2 text-right">Voltaram</th>
+              <th className="w-24 px-3 py-2 text-right">Reforma</th>
+              <th className="w-28 px-3 py-2 pr-cartao text-right">Perdidos</th>
             </tr>
           </thead>
           <tbody>
@@ -157,7 +158,11 @@ function FormRetorno({ e, onFechar }: { e: EventoRetorno; onFechar: () => void }
     })),
   );
   const [erro, setErro] = useState<string | null>(null);
-  const mudar = (k: number, campo: keyof Linha, v: number | string) => setLinhas((ls) => ls.map((l, i) => (i === k ? { ...l, [campo]: v } : l)));
+  // Mexeu num número ou na observação: o aviso de erro de antes já não vale.
+  const mudar = (k: number, campo: keyof Linha, v: number | string) => {
+    setErro(null);
+    setLinhas((ls) => ls.map((l, i) => (i === k ? { ...l, [campo]: v } : l)));
+  };
   const problemas = useMemo(() => linhas.map((l) => problemaRetorno(l)), [linhas]);
 
   const salvar = () =>
@@ -201,7 +206,7 @@ function FormRetorno({ e, onFechar }: { e: EventoRetorno; onFechar: () => void }
               </div>
               <div className="mt-2.5">
                 <Field label="Observação" htmlFor={`ret-o-${k}`} optional={soma === l.levou} obrigatorio={soma !== l.levou} hint={soma !== l.levou ? `Soma ${soma}, a OS levou ${l.levou}: diga o que aconteceu.` : "Ex.: 2 com o tecido rasgado."}>
-                  <Input id={`ret-o-${k}`} value={l.observacao} maxLength={500} onChange={(ev) => mudar(k, "observacao", ev.target.value)} />
+                  <Input id={`ret-o-${k}`} aria-label={`Observação de ${l.nome}`} value={l.observacao} maxLength={500} onChange={(ev) => mudar(k, "observacao", ev.target.value)} />
                 </Field>
               </div>
             </fieldset>

@@ -51,12 +51,13 @@ export function AvisoEstoque({ info, pedido = 0, className }: { info: EstoquePec
             <span className="group-open/detalhe:hidden">Ver detalhes do item</span>
             <span className="hidden group-open/detalhe:inline">Esconder detalhes</span>
           </summary>
-          <span className="mt-1.5 flex gap-3 rounded-controle border border-line-soft bg-subtle p-2">
+          {/* Empilhado (foto em cima, texto embaixo): na busca a coluna do nome é estreita e lado a lado o texto quebrava palavra a palavra. */}
+          <span className="mt-1.5 flex min-w-[12rem] flex-col gap-2 rounded-controle border border-line-soft bg-subtle p-2">
             {info.capaId && (
               // eslint-disable-next-line @next/next/no-img-element -- miniatura servida pela rota de anexos (WEBP já reduzido)
-              <img src={`/api/ativacao/anexos/${info.capaId}?w=160`} alt={info.nome} loading="lazy" decoding="async" className="size-16 shrink-0 rounded-controle border border-line bg-white object-cover" />
+              <img src={`/api/ativacao/anexos/${info.capaId}?w=160`} alt={info.nome} loading="lazy" decoding="async" className="h-20 w-28 rounded-controle border border-line bg-white object-cover" />
             )}
-            <span className="flex min-w-0 flex-col gap-1">
+            <span className="flex flex-col gap-1">
               <span className="font-medium text-ink-2">{info.nome}</span>
               {outros.length > 0 ? (
                 <span className="flex flex-col">

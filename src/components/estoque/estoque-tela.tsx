@@ -122,14 +122,14 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
           <div className="overflow-x-auto">
             {/* Celular: item, quantidade e editar cabem em 375 px (sem data-responsiva a tabela ganhava 640 px e o
                 stepper, que é a ação da tela, ficava fora da vista, só rolando a tabela de lado). */}
-            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[760px]">
+            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px] xl:min-w-[820px]">
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
                   <th className="hidden px-3 py-2.5 md:table-cell">Categoria</th>
                   <th className="px-3 py-2.5 text-center max-sm:px-1" title="Em bom estado, no galpão ou em evento">Em posse</th>
-                  <th className="hidden px-3 py-2.5 text-right lg:table-cell" title="Saiu com a OS e ainda não voltou (entre parênteses, reservado para eventos que ainda vão montar)">Em evento</th>
-                  <th className="hidden px-3 py-2.5 text-right lg:table-cell">Em reforma</th>
+                  <th className="hidden px-3 py-2.5 text-right xl:table-cell" title="Saiu com a OS e ainda não voltou (entre parênteses, reservado para eventos que ainda vão montar)">Em evento</th>
+                  <th className="hidden px-3 py-2.5 text-right xl:table-cell">Em reforma</th>
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell" title="Em posse menos o que está fora em evento">Disponível</th>
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell">Comprar</th>
                   {/* relative: o rótulo sr-only (absoluto) fica preso à célula; sem isso escapava da rolagem da
@@ -214,7 +214,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
             {item.nome}
           </Link>
           {item.pecaCodigo && (
-            <Tag tom="accent" className="text-rotulo max-sm:whitespace-normal">
+            <Tag tom="neutral" className="text-rotulo max-sm:whitespace-normal">
               na solicitação: {item.pecaCodigo}
             </Tag>
           )}
@@ -222,6 +222,12 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         </span>
         {item.observacao && <span className="mt-0.5 block text-pequeno text-muted">{item.observacao}</span>}
         <span className="block text-rotulo text-meta md:hidden">{item.categoria}</span>
+        {/* Abaixo de 1280 px as colunas "em evento" e "em reforma" somem: o número vai para baixo do nome. */}
+        {(item.emEvento > 0 || item.reservado > 0 || item.emReforma > 0) && (
+          <span className="block text-rotulo text-ink-3 xl:hidden">
+            {[item.emEvento ? `${item.emEvento} em evento` : null, item.reservado ? `${item.reservado} reservado` : null, item.emReforma ? `${item.emReforma} em reforma` : null].filter(Boolean).join(" · ")}
+          </span>
+        )}
         </span>
         </span>
       </td>
@@ -234,11 +240,11 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
           </span>
         </div>
       </td>
-      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno lg:table-cell">
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">
         {item.emEvento ? <span className="font-medium text-info">{item.emEvento}</span> : <span className="text-line-strong">—</span>}
         {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} reservado</span>}
       </td>
-      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno lg:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell">{Math.max(0, valor - item.emEvento)}</td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
       <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-1">

@@ -40,12 +40,13 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         eyebrow={
           <>
             <span>{item.categoria}</span>
+            <span aria-hidden>·</span>
             {item.peca ? (
               <span>
-                na solicitação e na OS como <Codigo>{item.peca.codigo}</Codigo> {item.peca.nome}
+                sai com a OS como <Codigo>{item.peca.codigo}</Codigo> ({item.peca.nome})
               </span>
             ) : (
-              <span>sem peça do catálogo: não sai pela OS</span>
+              <span>sem peça do catálogo: não sai com a OS</span>
             )}
             {!item.ativo && <Tag tom="neutral">inativo</Tag>}
           </>

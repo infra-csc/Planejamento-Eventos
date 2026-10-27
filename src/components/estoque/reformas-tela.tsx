@@ -27,13 +27,14 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
   const [verConcluidas, setVerConcluidas] = useState(false);
   const abertas = reformas.filter((r) => r.status === "ABERTA");
   const concluidas = reformas.filter((r) => r.status === "CONCLUIDA");
+  const emReforma = abertas.reduce((a, r) => a + r.quantidade, 0);
   const hoje = hojeISO();
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="m-0 text-corpo text-ink-2">
-          <Numero valor={abertas.reduce((a, r) => a + r.quantidade, 0)} /> {abertas.length === 1 ? "unidade" : "unidades"} em reforma
+          <Numero valor={emReforma} /> {emReforma === 1 ? "unidade" : "unidades"} em reforma
         </p>
         <Button variant="primary" className="ml-auto" onClick={() => setModal({ tipo: "nova" })} disabled={!itens.length}>
           <Icone nome="mais" />
