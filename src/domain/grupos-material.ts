@@ -3,11 +3,12 @@
  * Estrutura (box truss, estandes, palcos, pórticos), Tendas, Ativação, Percurso e Arena. Item fora do
  * catálogo fica em "Outros" até a logística vincular. Usada na conferência, na ata e na OS.
  */
-export const GRUPOS_MATERIAL = ["ESTRUTURA", "TENDAS", "ATIVACAO", "PERCURSO", "ARENA", "OUTROS"] as const;
+export const GRUPOS_MATERIAL = ["ESTRUTURA", "MARCENARIA", "TENDAS", "ATIVACAO", "PERCURSO", "ARENA", "OUTROS"] as const;
 export type GrupoMaterial = (typeof GRUPOS_MATERIAL)[number];
 
 export const GRUPO_LABEL: Record<GrupoMaterial, string> = {
   ESTRUTURA: "Estrutura",
+  MARCENARIA: "Marcenaria",
   TENDAS: "Tendas",
   ATIVACAO: "Ativação",
   PERCURSO: "Percurso",
@@ -29,9 +30,19 @@ const POR_CODIGO: Record<string, GrupoMaterial> = {
   "SACO-RAFIA": "ARENA",
 };
 
-export function grupoDaPeca(p: { codigo: string; setor: string; familia?: string | null }): GrupoMaterial {
+/**
+ * Material de montagem e apoio da marcenaria pedido solto (escadas, sarrafo, cases, calços): é da cenografia e vai no
+ * grupo Marcenaria, não em Estrutura (27/10: a logística via esses pedidos como estrutura na conferência). Pelo
+ * código do catálogo e, se o código for outro, pelo nome.
+ */
+const MARCENARIA_POR_CODIGO = new Set(["ESCADA-ALU", "ESCADA-MAD", "MACO-SARRAFO", "SARRAFO-70", "CASE-MARC", "CALCO"]);
+const MARCENARIA_POR_NOME = /\b(escada|sarrafo|calcos?|case (de )?(marcenaria|montagem))\b/;
+const semAcento = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
+
+export function grupoDaPeca(p: { codigo: string; setor: string; familia?: string | null; nome?: string | null }): GrupoMaterial {
   const fixo = POR_CODIGO[p.codigo];
   if (fixo) return fixo;
+  if (MARCENARIA_POR_CODIGO.has(p.codigo) || MARCENARIA_POR_NOME.test(semAcento(p.nome ?? ""))) return "MARCENARIA";
   // Lonas de teto (estandes e palco show) vão com a estrutura.
   if (p.codigo.startsWith("LONA-")) return "ESTRUTURA";
   const familia = (p.familia ?? "").toLocaleLowerCase("pt-BR");
@@ -40,7 +51,9 @@ export function grupoDaPeca(p: { codigo: string; setor: string; familia?: string
   if (familia.includes("percurso")) return "PERCURSO";
   if (familia.includes("ativa") || familia.includes("mobili")) return "ATIVACAO";
   if (p.setor === "ARENA") return "ARENA";
-  // Marcenaria de estande, palco e cenário vai junto com a estrutura que ela completa.
+  // Peça de marcenaria pedida solta: grupo Marcenaria, menos a de estande e palco (coluna, testeira, saia), que vai com
+  // a estrutura que ela completa. Mobiliário (balcão, pranchão) já ficou em Ativação acima.
+  if (p.setor === "MARCENARIA" && !/stand|estande|palco/.test(familia)) return "MARCENARIA";
   return "ESTRUTURA";
 }
 

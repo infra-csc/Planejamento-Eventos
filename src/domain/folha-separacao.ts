@@ -104,7 +104,7 @@ const SECOES: readonly Secao[] = [
   },
   { id: "mrc-pisos", bloco: "Marcenaria", titulo: "Pisos e placas", entradas: [n(/^\d* ?pisos? (de madeira )?2 ?(m )?x ?1/), n(/trimandala|tapadeira/)] },
   { id: "mrc-prova", bloco: "Marcenaria", titulo: "Itens específicos da prova", entradas: [] },
-  { id: "mrc-geral", bloco: "Marcenaria", titulo: "Geral", entradas: [n(/sarrafo/, "MACO-SARRAFO"), n(/calco/), n(/case.*marcenaria/, "CASE-MARC", "MRC-CASEMARCENARIA")] },
+  { id: "mrc-geral", bloco: "Marcenaria", titulo: "Geral", entradas: [n(/sarrafo/, "MACO-SARRAFO"), n(/calco/, "CALCO"), n(/case.*marcenaria/, "CASE-MARC", "MRC-CASEMARCENARIA")] },
 ];
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
@@ -112,11 +112,11 @@ const ehStand = (nome: string) => /^(stand|estande)\b/.test(semAcento(nome));
 
 /** Onde fica a peça que a lista não cita: o fim do bloco do grupo dela. */
 function secaoDoResto(p: PecaDaFolha): string {
-  if (p.setor === "MARCENARIA" && p.grupo === "ESTRUTURA") return "mrc-prova";
+  if (p.setor === "MARCENARIA" && (p.grupo === "ESTRUTURA" || p.grupo === "MARCENARIA")) return "mrc-prova";
   if (p.codigo.startsWith("Q15-")) return "q15";
   if (p.codigo.startsWith("LONA-")) return "outros";
   if (["MALOTE", "ESTACA", "CORDA", "GANCHO-MALOTE"].includes(p.codigo)) return "estaio";
-  const porGrupo: Record<GrupoMaterial, string> = { PERCURSO: "percurso", TENDAS: p.codigo.startsWith("TND3") ? "tendas-3x3" : "tendas-5x5", ESTRUTURA: p.setor === "MARCENARIA" ? "mrc-prova" : "q30", ATIVACAO: "ativacao", ARENA: "arena", OUTROS: "outros" };
+  const porGrupo: Record<GrupoMaterial, string> = { PERCURSO: "percurso", TENDAS: p.codigo.startsWith("TND3") ? "tendas-3x3" : "tendas-5x5", ESTRUTURA: p.setor === "MARCENARIA" ? "mrc-prova" : "q30", MARCENARIA: "mrc-prova", ATIVACAO: "ativacao", ARENA: "arena", OUTROS: "outros" };
   return porGrupo[p.grupo];
 }
 

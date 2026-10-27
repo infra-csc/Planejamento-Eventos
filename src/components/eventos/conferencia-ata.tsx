@@ -117,7 +117,7 @@ const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
  */
 const secaoDe = (l: LinhaConferencia) => GRUPO_LABEL[l.grupo];
 /** Ordem em que a reunião passa pelos materiais (pedido da logística): seções e filtro seguem esta ordem. */
-const ORDEM_CONFERENCIA: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "ATIVACAO", "ARENA", "OUTROS"];
+const ORDEM_CONFERENCIA: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "MARCENARIA", "ATIVACAO", "ARENA", "OUTROS"];
 const ordemSecao = (s: string) => ORDEM_CONFERENCIA.findIndex((g) => GRUPO_LABEL[g] === s);
 /** Quem pediu a linha (ou quem incluiu na reunião). */
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));

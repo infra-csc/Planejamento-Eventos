@@ -84,6 +84,12 @@ describe("grupos de material (lista de materiais da ata)", () => {
     expect(grupoDaPeca({ codigo: "BALCAO-120", setor: "MARCENARIA", familia: "Mobiliário" })).toBe("ATIVACAO");
     expect(grupoDaPeca({ codigo: "GERADOR", setor: "ARENA", familia: "Arena" })).toBe("ARENA");
     expect(grupoDaPeca({ codigo: "PALLET-FE", setor: "ESTRUTURA", familia: "Base" })).toBe("ESTRUTURA");
+    // Marcenaria pedida solta (escadas, sarrafo, cases, calço): grupo Marcenaria, pelo código ou pelo nome.
+    for (const [codigo, setor, nome] of [["ESCADA-ALU", "ARENA", "Escada de alumínio"], ["CALCO", "ESTRUTURA", "Caixa de calços"], ["MACO-SARRAFO", "MARCENARIA", "Maço de sarrafo"], ["MRC-CASEMONTAGEM", "MARCENARIA", "Case Montagem"], ["X1", "ARENA", "Escada de Madeira (montagem)"], ["X2", "ESTRUTURA", "Caixa com Calço"], ["MRC-PODIO", "MARCENARIA", "Pódio nível 1"]])
+      expect(grupoDaPeca({ codigo, setor, familia: null, nome })).toBe("MARCENARIA");
+    // Mobiliário de marcenaria continua na Ativação; testeira, nas tendas.
+    expect(grupoDaPeca({ codigo: "PRANCHAO-210", setor: "MARCENARIA", familia: "Mobiliário", nome: "Pranchão" })).toBe("ATIVACAO");
+    expect(grupoDaPeca({ codigo: "TND5-TESTEIRA", setor: "MARCENARIA", familia: "Tenda 5×5", nome: "Testeira" })).toBe("TENDAS");
     expect(grupoDaPeca({ codigo: "TINA-1000", setor: "ARENA", familia: "Percurso" })).toBe("ESTRUTURA");
     expect(grupoDaPeca({ codigo: "COL-TRAS", setor: "MARCENARIA", familia: "Stand" })).toBe("ESTRUTURA");
   });

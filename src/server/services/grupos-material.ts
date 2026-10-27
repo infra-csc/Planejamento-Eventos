@@ -5,7 +5,7 @@ import { grupoDaPeca, grupoDoProjeto, type MapaGrupos } from "@/domain/grupos-ma
 /** Grupo de material de cada peça do catálogo (código → grupo), para separar a OS como a lista da ata. */
 export async function mapaGruposPecas(): Promise<MapaGrupos> {
   const db = await getDb();
-  const rows = await db.select({ codigo: pecas.codigo, setor: pecas.setor, familia: pecas.familia }).from(pecas);
+  const rows = await db.select({ codigo: pecas.codigo, setor: pecas.setor, familia: pecas.familia, nome: pecas.nome }).from(pecas);
   return Object.fromEntries(rows.map((p) => [p.codigo, grupoDaPeca(p)]));
 }
 
