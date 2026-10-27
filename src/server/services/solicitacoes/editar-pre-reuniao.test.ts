@@ -7,6 +7,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 process.env.PGLITE_DATA_DIR = "memory://";
 delete process.env.DATABASE_URL;
 
+import { and, eq } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { historico } from "@/server/db/schema";
 import { DomainError, ValidacaoError } from "@/domain/errors";
 import { descricoesIguais } from "@/domain/descricoes-itens";
 import { criarPeca, enviarSolicitacao, fecharAta, migrarBanco, montarElenco, novoEvento, rascunho, type Elenco } from "@/test/apoio";
@@ -41,6 +44,14 @@ describe("editar pedido pré-reunião já enviado", () => {
     const depois = await obterSolicitacao(E.admin, s.id);
     expect(depois.itens.map((i) => i.quantidadeSolicitada).sort()).toEqual([2, 6]);
     expect(depois.titulo).toBe("Pedido editado");
+    // O histórico guarda o que mudou, item a item, e o pedido antes e depois.
+    const db = await getDb();
+    const [h] = await db.select().from(historico).where(and(eq(historico.entidadeId, s.id), eq(historico.acao, "EDITADA")));
+    expect(h.descricao).toMatch(/Título: “.*” → “Pedido editado”/);
+    expect(h.descricao).toMatch(/: 4 → 6/);
+    expect(h.descricao).toContain("+ 2 Peça de teste");
+    expect((h.dadosAntes as { itens: unknown[] }).itens).toHaveLength(1);
+    expect((h.dadosDepois as { itens: unknown[]; mudancas: string[] }).mudancas).toHaveLength(3);
   });
 
   it("se a edição não passa na validação, o pedido e a ata ficam como estavam", async () => {

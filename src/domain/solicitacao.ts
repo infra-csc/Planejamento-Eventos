@@ -296,3 +296,39 @@ export function validarItem(item: ItemRascunho) {
     throw new ValidacaoError("Quantidade acima do limite.", { quantidadeSolicitada: "Máximo de 1.000.000." });
   }
 }
+
+/** Item do pedido como o histórico guarda: o que é (peça, projeto ou texto), onde fica e quanto. */
+export type ItemHistorico = { operacao: ItemOperacao; nome: string; destino: string | null; quantidade: number; chave: string };
+
+/**
+ * O que mudou numa edição do pedido já enviado, item a item, para o histórico: "+ 4 Puff (Arena)",
+ * "Ombrelone: 2 → 6", "− Tina 300 l". Itens iguais (mesma referência, operação e local) são comparados
+ * pela quantidade; título e observação entram quando mudam.
+ */
+export function mudancasDaEdicao(
+  antes: { titulo: string | null; observacao: string | null; itens: readonly ItemHistorico[] },
+  depois: { titulo: string | null; observacao: string | null; itens: readonly ItemHistorico[] },
+): string[] {
+  const rotulo = (i: ItemHistorico) => `${i.operacao === "REMOVER" ? "retirar " : i.operacao === "ALTERAR_QUANTIDADE" ? "mudar " : ""}${i.nome}${i.destino ? ` (${i.destino})` : ""}`;
+  const somar = (itens: readonly ItemHistorico[]) => {
+    const m = new Map<string, ItemHistorico>();
+    for (const i of itens) {
+      const k = `${i.operacao}|${i.chave}|${(i.destino ?? "").trim().toLowerCase()}`;
+      const ja = m.get(k);
+      m.set(k, ja ? { ...ja, quantidade: ja.quantidade + i.quantidade } : { ...i });
+    }
+    return m;
+  };
+  const a = somar(antes.itens);
+  const d = somar(depois.itens);
+  const saida: string[] = [];
+  if ((antes.titulo ?? "") !== (depois.titulo ?? "")) saida.push(`Título: “${antes.titulo ?? ""}” → “${depois.titulo ?? ""}”`);
+  if ((antes.observacao ?? "").trim() !== (depois.observacao ?? "").trim()) saida.push(depois.observacao?.trim() ? `Observação: “${depois.observacao.trim()}”` : "Observação apagada");
+  for (const [k, i] of d) {
+    const velho = a.get(k);
+    if (!velho) saida.push(`+ ${i.quantidade} ${rotulo(i)}`);
+    else if (velho.quantidade !== i.quantidade) saida.push(`${rotulo(i)}: ${velho.quantidade} → ${i.quantidade}`);
+  }
+  for (const [k, i] of a) if (!d.has(k)) saida.push(`− ${i.quantidade} ${rotulo(i)}`);
+  return saida;
+}

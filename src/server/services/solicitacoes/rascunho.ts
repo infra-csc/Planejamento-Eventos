@@ -5,7 +5,7 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { tipoSolicitacaoParaStatus } from "@/domain/evento";
 import { pode } from "@/domain/permissions";
-import { podeEditarAlteracaoEnviada, podeEditarPreReuniaoEnviada, validarItem, type ItemRascunho } from "@/domain/solicitacao";
+import { mudancasDaEdicao, podeEditarAlteracaoEnviada, podeEditarPreReuniaoEnviada, validarItem, type ItemHistorico, type ItemRascunho } from "@/domain/solicitacao";
 import { hojeISO } from "@/lib/format";
 import { podeEditarSolicitacao } from "@/domain/permissions";
 import { snapshotBom } from "../eventos";
@@ -180,6 +180,32 @@ function validarParaEnvio(dados: Pick<DadosSolicitacaoCompleta, "titulo" | "iten
 }
 
 /**
+ * Itens do pedido como o histórico guarda (nome da peça/projeto, ou o texto do item avulso; para mudar ou retirar
+ * uma linha da ata, o nome da linha). Lido antes de apagar e depois de gravar, para registrar o que mudou.
+ */
+async function itensParaHistorico(tx: Executor, solicitacaoId: string): Promise<ItemHistorico[]> {
+  const itens = await tx.query.solicitacaoItens.findMany({
+    where: eq(solicitacaoItens.solicitacaoId, solicitacaoId),
+    with: { projeto: { columns: { nome: true } }, peca: { columns: { nome: true } }, eventoItem: { columns: { id: true, descricaoLivre: true }, with: { projeto: { columns: { nome: true } }, peca: { columns: { nome: true } } } } },
+    orderBy: (t, { asc }) => [asc(t.ordem)],
+  });
+  return itens.map((i) => ({
+    operacao: i.operacao,
+    nome: i.projeto?.nome ?? i.peca?.nome ?? i.eventoItem?.projeto?.nome ?? i.eventoItem?.peca?.nome ?? i.eventoItem?.descricaoLivre ?? i.descricaoLivre ?? "Item",
+    destino: i.destino,
+    quantidade: i.quantidadeSolicitada,
+    chave: i.projetoId ?? i.pecaId ?? i.eventoItemId ?? `texto:${(i.descricaoLivre ?? "").trim().toLowerCase()}`,
+  }));
+}
+
+/** Histórico da edição: a descrição diz o que mudou (até 6 mudanças) e os dados guardam o pedido antes e depois. */
+function historicoDaEdicao(antes: { titulo: string | null; observacao: string | null; itens: ItemHistorico[] }, depois: { titulo: string | null; observacao: string | null; itens: ItemHistorico[] }) {
+  const mudancas = mudancasDaEdicao(antes, depois);
+  const texto = mudancas.length ? `: ${mudancas.slice(0, 6).join("; ")}${mudancas.length > 6 ? `; e mais ${mudancas.length - 6}` : ""}` : " (sem mudança nos itens)";
+  return { texto, dadosAntes: antes, dadosDepois: { ...depois, mudancas } };
+}
+
+/**
  * Pedido já enviado, editado por quem pediu. Tudo numa transação só; se qualquer passo falhar, nada muda.
  * - Pré-reunião (evento em preparação): as linhas que ela gerou na ata saem (inativas, para consulta),
  *   os itens são trocados e o pedido é registrado de novo na ata.
@@ -222,6 +248,8 @@ export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: Dado
     }
 
     const antes = s.itens.length;
+    const cabAntes = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, s.id), columns: { titulo: true, observacao: true } });
+    const itensAntes = await itensParaHistorico(tx, s.id);
     await tx.delete(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, s.id));
     let ordem = 0;
     for (const item of dados.itens) {
@@ -230,13 +258,17 @@ export async function editarPreReuniaoEnviada(usuario: UsuarioAtual, dados: Dado
     }
     await tx.update(solicitacoes).set({ titulo: dados.titulo, observacao: dados.observacao, status: "ENVIADA", atualizadoPorId: usuario.id, atualizadoEm: new Date() }).where(eq(solicitacoes.id, s.id));
     await registrarPreReuniaoNaAta(tx, usuario, s.id);
+    // O que mudou fica no histórico (os itens antigos do pedido são trocados; as linhas antigas da ata ficam inativas).
+    const h = historicoDaEdicao({ titulo: cabAntes?.titulo ?? null, observacao: cabAntes?.observacao ?? null, itens: itensAntes }, { titulo: dados.titulo, observacao: dados.observacao, itens: await itensParaHistorico(tx, s.id) });
     await registrarHistorico(tx, {
       eventoId: s.eventoId,
       entidade: "solicitacao",
       entidadeId: s.id,
       acao: "EDITADA",
-      descricao: `${s.codigo} editada antes da reunião pela ${s.area.nome} — ${dados.itens.length} ${dados.itens.length === 1 ? "item" : "itens"} (antes ${antes}); a ata foi atualizada`,
+      descricao: `${s.codigo} editada antes da reunião pela ${s.area.nome} (${dados.itens.length} ${dados.itens.length === 1 ? "item" : "itens"}, antes ${antes})${h.texto}; a ata foi atualizada`,
       usuarioId: usuario.id,
+      dadosAntes: h.dadosAntes,
+      dadosDepois: h.dadosDepois,
     });
     await notificar(tx, {
       usuarioIds: await usuariosLogistica(tx),
@@ -280,6 +312,8 @@ async function editarAlteracaoNaTransacao(
     await aplicarEfeito(tx, usuario, cab, item, { status: "EM_ANALISE", quantidadeAtendida: null });
   }
   const antes = itens.length;
+  const cabAntes = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, cab.id), columns: { titulo: true, observacao: true } });
+  const itensAntes = await itensParaHistorico(tx, cab.id);
   await tx.delete(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, cab.id));
   let ordem = 0;
   for (const item of dados.itens) {
@@ -289,13 +323,16 @@ async function editarAlteracaoNaTransacao(
   await tx.update(solicitacoes).set({ titulo: dados.titulo, observacao: dados.observacao, status: "ENVIADA", respondidaEm: null, atualizadoPorId: usuario.id, atualizadoEm: new Date() }).where(eq(solicitacoes.id, cab.id));
   const n = dados.itens.length;
   await aplicarAlteracaoNaJanela(tx, usuario, cab.id, `editada pela ${cab.area.nome} dentro da janela (${n} ${n === 1 ? "item" : "itens"}, antes ${antes})`);
+  const h = historicoDaEdicao({ titulo: cabAntes?.titulo ?? null, observacao: cabAntes?.observacao ?? null, itens: itensAntes }, { titulo: dados.titulo, observacao: dados.observacao, itens: await itensParaHistorico(tx, cab.id) });
   await registrarHistorico(tx, {
     eventoId: cab.eventoId,
     entidade: "solicitacao",
     entidadeId: cab.id,
     acao: "EDITADA",
-    descricao: `${cab.codigo} editada dentro da janela pela ${cab.area.nome} — ${n} ${n === 1 ? "item" : "itens"} (antes ${antes}); a OS foi atualizada`,
+    descricao: `${cab.codigo} editada dentro da janela pela ${cab.area.nome} (${n} ${n === 1 ? "item" : "itens"}, antes ${antes})${h.texto}; a OS foi atualizada`,
     usuarioId: usuario.id,
+    dadosAntes: h.dadosAntes,
+    dadosDepois: h.dadosDepois,
   });
   await notificar(tx, {
     usuarioIds: await usuariosLogistica(tx),
