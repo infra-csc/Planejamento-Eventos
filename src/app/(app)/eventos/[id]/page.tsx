@@ -25,7 +25,7 @@ import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
 import { tendaDoLocal } from "@/components/eventos/tenda-do-local";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
-import { MudancasPosAta } from "@/components/eventos/mudancas-pos-ata";
+import { MudancasPosAta, separarAjustes } from "@/components/eventos/mudancas-pos-ata";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
 
 const diasAte = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hojeISO()}T00:00:00Z`)) / 86_400_000);
@@ -104,11 +104,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const origemVisivel = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemLabel : "Pedido de área");
   // Nome de quem pediu (ou de quem incluiu), com a mesma regra do código da solicitação.
   const quemPediu = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? l.origemPor : null);
-  const AJUSTES = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
-  const ajustesTodos = historico.filter((h) => h.entidade === "evento_item" && AJUSTES.has(h.acao));
-  const depoisDaAta = (h: { criadoEm: Date }) => Boolean(ev.ataFechadaEm) && h.criadoEm > ev.ataFechadaEm!;
-  const ajustesPosAta = ajustesTodos.filter((h) => depoisDaAta(h) && h.acao !== "CONFERENCIA_AJUSTE");
-  const ajustes = ajustesTodos.filter((h) => !depoisDaAta(h));
+  const { posAta: ajustesPosAta, naReuniao: ajustes } = separarAjustes(historico, ev.ataFechadaEm);
 
   // Projetos agrupados (o mesmo projeto pode aparecer em várias linhas/destinos).
   const grupos = new Map<string, Grupo>();
@@ -468,7 +464,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
           </Section>
 
           {ajustes.length > 0 && (
-            <Section titulo="Ajustes recentes" sub="Quantidades, peças de projeto, retiradas e vínculos">
+            <Section titulo={ev.ataFechadaEm ? "Ajustes na reunião" : "Ajustes recentes"} sub="Quantidades, peças de projeto, retiradas e vínculos">
               <ul className="m-0 list-none p-0">
                 {ajustes.slice(0, 5).map((h) => (
                   <li key={h.id}>

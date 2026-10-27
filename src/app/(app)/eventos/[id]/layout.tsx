@@ -93,7 +93,9 @@ export default async function EventoLayout({ children, params }: { children: Rea
 
   const abas: Aba[] = [
     { href: base, label: "Visão geral", exact: true },
-    { href: `${base}/ata`, label: "Ata", n: nLinhas },
+    // Fechada, a ata é o registro da reunião (ex.: 7 linhas) e o número das linhas de agora (11) a contradizia:
+    // o contador só vale enquanto ela está sendo montada.
+    { href: `${base}/ata`, label: "Ata", n: ev.ataFechadaEm ? null : nLinhas },
     ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `/conferencia/${ev.id}`, label: "Conferência" }] : []),
     { href: `${base}/solicitacoes`, label: "Solicitações", n: resumo.solicitacoes },
     ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),

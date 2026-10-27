@@ -8,6 +8,19 @@ import { Codigo, Numero } from "@/components/ui/numero";
 /** Ajuste feito direto pela logística depois da ata (vem do histórico do evento). */
 export type AjustePosAta = { id: string; titulo: string; autor: string | null; quando: Date; href: string };
 
+/** Registros do histórico que são ajuste direto num item (quantidade, retirada, inclusão, peça, vínculo, versão). */
+const ACOES_AJUSTE = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
+
+/**
+ * Ajustes da logística separados pelo fechamento da ata: os da reunião e os de depois (que mudam a OS). A visão geral
+ * e a aba Ata contam do mesmo jeito — antes, a Ata dizia "1 item mudou" e a visão geral "11 mudanças".
+ */
+export function separarAjustes<H extends { entidade: string; acao: string; criadoEm: Date }>(historico: readonly H[], ataFechadaEm: Date | null) {
+  const todos = historico.filter((h) => h.entidade === "evento_item" && ACOES_AJUSTE.has(h.acao));
+  const depois = (h: H) => Boolean(ataFechadaEm) && h.criadoEm > ataFechadaEm!;
+  return { posAta: todos.filter((h) => depois(h) && h.acao !== "CONFERENCIA_AJUSTE"), naReuniao: todos.filter((h) => !depois(h)) };
+}
+
 type Linha =
   | { tipo: "pedido"; quando: number; m: MudancaPosAta & { codigoVisivel: boolean } }
   | { tipo: "ajuste"; quando: number; a: AjustePosAta };

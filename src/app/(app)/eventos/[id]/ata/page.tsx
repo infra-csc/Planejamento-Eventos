@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { listarAtaVersoes, obterLinhasAta } from "@/server/services/eventos";
+import { listarAtaVersoes, obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { daMinhaArea, pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
@@ -16,6 +16,7 @@ import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 import { Exportacoes } from "@/components/eventos/exportacoes";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
+import { separarAjustes } from "@/components/eventos/mudancas-pos-ata";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída pela logística" } as const;
@@ -34,7 +35,10 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const usuario = await requireUsuario();
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes, mudancas] = await Promise.all([obterEventoCache(usuario, id), listarAtaVersoes(id), mudancasPosAta(id)]);
+  const [ev, versoes, mudancas, historico] = await Promise.all([obterEventoCache(usuario, id), listarAtaVersoes(id), mudancasPosAta(id), obterHistoricoEvento(usuario, id)]);
+  // Mesma conta da visão geral: pedidos das áreas que entraram, mudaram ou saíram + ajustes diretos da logística.
+  const ajustesPosAta = separarAjustes(historico, ev.ataFechadaEm).posAta.length;
+  const totalMudancas = mudancas.length + ajustesPosAta;
   const fechada = versoes.length > 0;
   const emConstrucao = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
   // A ata da reunião é uma só: o que muda depois vai para a OS. Versões antigas (reunião refeita) ficam no histórico.
@@ -80,10 +84,10 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <div className="flex min-w-0 flex-col gap-4">
         {/* A ata fechada não muda: o que mudou depois fica à vista aqui, com o caminho para o detalhe. */}
-        {!emConstrucao && fechada && mudancas.length > 0 && (
+        {!emConstrucao && fechada && totalMudancas > 0 && (
           <Aviso
             tom="info"
-            titulo={`${mudancas.length} ${mudancas.length === 1 ? "item mudou" : "itens mudaram"} depois da reunião`}
+            titulo={`${totalMudancas} ${totalMudancas === 1 ? "mudança" : "mudanças"} depois da reunião`}
             acoes={
               <Link href={`/eventos/${id}#mudancas`} className="link whitespace-nowrap text-pequeno">
                 Ver o que mudou
@@ -96,6 +100,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
               ["saiu", "item saiu", "itens saíram"],
             ]
               .map(([t, um, varios]) => [mudancas.filter((m) => m.tipo === t).length, um, varios] as const)
+              .concat([[ajustesPosAta, "ajuste da logística", "ajustes da logística"] as const])
               .filter(([n]) => n > 0)
               .map(([n, um, varios]) => `${n} ${n === 1 ? um : varios}`)
               .join(" · ")}
@@ -103,7 +108,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
           </Aviso>
         )}
         {emConstrucao || !fechada ? (
-          <Section titulo="Ata em construção" sub="As necessidades das áreas entram aqui sozinhas. Conferência e ajustes acontecem na reunião.">
+          <Section titulo="Ata em construção" sub={podeConferir ? "As necessidades das áreas entram aqui sozinhas. Para corrigir, incluir ou conferir, use a conferência ou os itens da visão geral." : "As necessidades das áreas entram aqui sozinhas. Conferência e ajustes acontecem na reunião."}>
             <AtaLista eventoId={id} status={ev.status} editavel={false} opcoes={SEM_OPCOES} areas={[]} linhas={linhas.map((l) => esconderOrigemAlheia(paraView(l), l.registro.areaId))} dataReuniao={diaMesHora(ev.dataReuniao)} />
           </Section>
         ) : (
@@ -231,13 +236,13 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             titulo="Precisa mudar algo depois da reunião?"
             acoes={
               podeAjustarOs ? (
-                <Link href={`/eventos/${id}/os?visao=composicao`} className="link whitespace-nowrap text-pequeno">
-                  Ajustar na OS
+                <Link href={`/eventos/${id}#itens`} className="link whitespace-nowrap text-pequeno">
+                  Corrigir os itens
                 </Link>
               ) : undefined
             }
           >
-            A ata não é editada. Alterações das áreas entram como solicitação{podeAjustarOs ? " e a logística ajusta direto na OS, com justificativa" : ""}. Cada mudança gera uma nova versão da OS.
+            A ata não é editada. Alterações das áreas entram como solicitação{podeAjustarOs ? "; a logística corrige direto nos itens do evento (visão geral), com justificativa" : ""}. Cada mudança gera uma nova versão da OS.
           </Aviso>
         )}
       </div>
