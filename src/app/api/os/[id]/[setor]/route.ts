@@ -27,7 +27,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const { id, setor } = await params;
   // Seção dos totais: grupo de material (como a lista da ata) ou, em links antigos, o setor.
-  const grupo = GRUPOS_MATERIAL.find((g) => g.toLowerCase() === setor.toLowerCase()) as GrupoMaterial | undefined;
+  // "MARCENARIA" é setor e também grupo (27/10): o nome exato do setor continua valendo como setor.
+  const ehSetor = (SETORES as readonly string[]).includes(setor);
+  const grupo = ehSetor ? undefined : (GRUPOS_MATERIAL.find((g) => g.toLowerCase() === setor.toLowerCase()) as GrupoMaterial | undefined);
   if (!grupo && !(SETORES as readonly string[]).includes(setor)) return NextResponse.json({ erro: "Setor inválido" }, { status: 400 });
   // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
   const ev = await obterEvento(usuario, id).catch((e: unknown) => {
