@@ -23,6 +23,7 @@ export function AcoesEvento({
   podeSolicitar,
   solicitacoesAbertas,
   bloquearEncerramentoComPendentes = true,
+  corrigeDireto = false,
 }: {
   evento: { id: string; codigo: string; nome: string; status: EventoStatus };
   perfil: Perfil;
@@ -32,6 +33,8 @@ export function AcoesEvento({
   solicitacoesAbertas: string[];
   /** Configuração `bloquear_encerramento_com_pendentes`. Sem o valor, assume o padrão (bloqueia). */
   bloquearEncerramentoComPendentes?: boolean;
+  /** Admin e logística corrigem os itens direto (visão geral): pedir alteração é caminho de apoio, não a ação da tela. */
+  corrigeDireto?: boolean;
 }) {
   const [acao, setAcao] = useState<AcaoEvento | null>(null);
   const t = acao ? TRANSICOES_EVENTO[acao] : null;
@@ -78,7 +81,7 @@ export function AcoesEvento({
   if (podeSolicitar && (evento.status === "PREPARACAO" || evento.status === "ABERTO")) {
     botoes.push({
       chave: "solicitar",
-      principal: true,
+      principal: !corrigeDireto,
       render: (v) => (
         <ButtonLink key="solicitar" href={`/solicitacoes/nova?evento=${evento.id}`} variant={v} size="lg" className="no-underline">
           {evento.status === "PREPARACAO" ? "Enviar necessidades" : "Solicitar alteração"}

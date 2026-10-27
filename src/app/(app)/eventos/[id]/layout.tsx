@@ -145,6 +145,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
             pendentesPreReuniao={pendentesPre}
             solicitacoesAbertas={abertas.map((s) => s.codigo)}
             bloquearEncerramentoComPendentes={cfg.bloquear_encerramento_com_pendentes === "true"}
+            corrigeDireto={pode(usuario, "ata.ajustar")}
           />
         }
       />
