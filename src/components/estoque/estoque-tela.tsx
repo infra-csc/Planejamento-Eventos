@@ -17,6 +17,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { BotaoPedidosItem } from "./pedidos-item";
 
 export type ItemEstoqueTela = {
   id: string;
@@ -36,6 +37,8 @@ export type ItemEstoqueTela = {
   reservado: number;
   emReforma: number;
   capaId: string | null;
+  /** Eventos que levam o item e ainda não devolveram: pedido (ata aberta), na OS (vai sair) ou fora (saiu, falta o retorno). */
+  eventos: Array<{ eventoId: string; codigo: string; nome: string; quantidade: number; situacao: "pedido" | "na OS" | "fora" }>;
 };
 
 type Filtro = "todos" | "sem" | "comprar" | "ligados" | "evento" | "reforma" | "inativos";
@@ -67,19 +70,19 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
       if (filtro === "sem" && i.quantidade > 0) return false;
       if (filtro === "comprar" && !i.comprar) return false;
       if (filtro === "ligados" && !i.pecaId) return false;
-      if (filtro === "evento" && !(i.emEvento || i.reservado)) return false;
+      if (filtro === "evento" && !i.eventos.length) return false;
       if (filtro === "reforma" && !i.emReforma) return false;
       return !t || semAcento(`${i.nome} ${i.observacao ?? ""} ${i.pecaCodigo ?? ""}`).includes(t);
     });
   }, [itens, busca, categoria, filtro]);
 
-  const contar = (f: Filtro) => (f === "inativos" ? itens.filter((i) => !i.ativo).length : ativos.filter((i) => (f === "sem" ? i.quantidade === 0 : f === "comprar" ? Boolean(i.comprar) : f === "ligados" ? Boolean(i.pecaId) : f === "evento" ? Boolean(i.emEvento || i.reservado) : f === "reforma" ? Boolean(i.emReforma) : true)).length);
+  const contar = (f: Filtro) => (f === "inativos" ? itens.filter((i) => !i.ativo).length : ativos.filter((i) => (f === "sem" ? i.quantidade === 0 : f === "comprar" ? Boolean(i.comprar) : f === "ligados" ? Boolean(i.pecaId) : f === "evento" ? i.eventos.length > 0 : f === "reforma" ? Boolean(i.emReforma) : true)).length);
   const FILTROS: Array<[Filtro, string]> = [
     ["todos", "Todos"],
     ["sem", "Sem estoque"],
     ["comprar", "A comprar"],
     ["ligados", "Ligados ao catálogo"],
-    ["evento", "Em evento"],
+    ["evento", "Em eventos"],
     ["reforma", "Em reforma"],
     ["inativos", "Inativos"],
   ];
@@ -221,6 +224,8 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
           {valor === 0 && <Tag tom="warning">sem estoque</Tag>}
         </span>
         {item.observacao && <span className="mt-0.5 block text-pequeno text-muted">{item.observacao}</span>}
+        {/* Item ligado ao catálogo: pedidos em andamento (destaque) e histórico do que já voltou, numa janela. */}
+        {item.pecaId && <BotaoPedidosItem itemId={item.id} nome={item.nome} emUso={item.eventos.length} unidades={item.eventos.reduce((a, e) => a + e.quantidade, 0)} />}
         <span className="block text-rotulo text-meta md:hidden">{item.categoria}</span>
         {/* Abaixo de 1280 px as colunas "em evento" e "em reforma" somem: o número vai para baixo do nome. */}
         {(item.emEvento > 0 || item.reservado > 0 || item.emReforma > 0) && (

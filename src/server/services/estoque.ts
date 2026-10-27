@@ -6,7 +6,7 @@ import { SemPermissaoError, ValidacaoError, NaoEncontradoError } from "@/domain/
 import { CATEGORIAS_ESTOQUE, periodosSeCruzam, podeGerenciarEstoque } from "@/domain/estoque";
 import inventario from "@/data/estoque-ativacao-2025.json";
 import { registrarHistorico } from "./support";
-import { capasDosItens, situacaoDoEstoque } from "./ativacao-situacao";
+import { capasDosItens, eventosDosItens, situacaoDoEstoque } from "./ativacao-situacao";
 
 function exigirEstoque(usuario: UsuarioAtual) {
   if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O estoque é da Ativação e do administrador.");
@@ -38,9 +38,9 @@ export async function listarEstoque(usuario: UsuarioAtual) {
     return i < 0 ? 99 : i;
   };
   // Saída pela OS, reformas e foto de capa (módulo Ativação).
-  const [sit, capas] = await Promise.all([situacaoDoEstoque(db), capasDosItens(rows.map((r) => r.id))]);
+  const [sit, capas, eventosPorItem] = await Promise.all([situacaoDoEstoque(db), capasDosItens(rows.map((r) => r.id)), eventosDosItens(db)]);
   return rows
-    .map((r) => ({ ...r, emEvento: sit.emEvento.get(r.id) ?? 0, reservado: sit.reservado.get(r.id) ?? 0, emReforma: sit.emReforma.get(r.id) ?? 0, capaId: capas.get(r.id) ?? null }))
+    .map((r) => ({ ...r, emEvento: sit.emEvento.get(r.id) ?? 0, reservado: sit.reservado.get(r.id) ?? 0, emReforma: sit.emReforma.get(r.id) ?? 0, capaId: capas.get(r.id) ?? null, eventos: eventosPorItem.get(r.id) ?? [] }))
     .sort((a, b) => ordem(a.categoria) - ordem(b.categoria) || a.nome.localeCompare(b.nome, "pt-BR"));
 }
 

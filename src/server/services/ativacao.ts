@@ -5,7 +5,7 @@ import { getDb } from "@/server/db";
 import { estoqueAnexos, estoqueItens, estoqueReformas, estoqueRetornos, historico, usuarios } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
-import { podeGerenciarEstoque, problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
+import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo } from "./projetos";
 import { diaBrasilia, registrarHistorico } from "./support";
@@ -348,4 +348,99 @@ export async function obterAnexoEstoque(usuario: UsuarioAtual, anexoId: string) 
   const a = await db.query.estoqueAnexos.findFirst({ where: eq(estoqueAnexos.id, anexoId) });
   if (!a) throw new NaoEncontradoError("Anexo");
   return { ...a, conteudo: await lerArquivo(a.conteudo) };
+}
+
+/* ------------------------------------------------------------------ */
+/* Pedidos do item (janela "Ver pedidos" do estoque)                    */
+/* ------------------------------------------------------------------ */
+
+export type PedidoDoItem = {
+  quantidade: number;
+  destino: string | null;
+  /** "solta" ou o nome do projeto que leva a peça (ex.: Stand 9×6 m × 2). */
+  origem: string;
+  solicitacao: { id: string; codigo: string; titulo: string | null; area: string; solicitante: string | null; enviadaEm: string | null } | null;
+};
+
+export type EventoComPedidos = {
+  evento: { id: string; codigo: string; nome: string; dataMontagem: string; dataDesmontagem: string };
+  situacao: "pedido" | "na OS" | "fora" | "devolvido";
+  total: number;
+  pedidos: PedidoDoItem[];
+  /** Quando já voltou: o que a Ativação registrou no retorno. */
+  retorno: { voltaram: number; reforma: number; perdidos: number; observacao: string | null; em: string } | null;
+};
+
+/**
+ * De onde vem cada unidade do item nos eventos: a linha da ata que leva a peça ligada (solta ou dentro de projeto) e,
+ * quando veio de um pedido, a solicitação (código, área, quem pediu, quando). Eventos desde `INICIO_RETORNOS`.
+ */
+export async function pedidosDoItem(usuario: UsuarioAtual, itemId: string): Promise<EventoComPedidos[]> {
+  exigirAtivacao(usuario);
+  const db = await getDb();
+  const item = await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, itemId), columns: { pecaId: true } });
+  if (!item) throw new NaoEncontradoError("Item do estoque");
+  if (!item.pecaId) return [];
+  const pecaId = item.pecaId;
+  const hoje = diaBrasilia();
+  const evs = await db.query.eventos.findMany({
+    where: (e, { and: e_and, inArray: e_in, gte: e_gte }) => e_and(e_in(e.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO", "ENCERRADO"]), e_gte(e.dataDesmontagem, INICIO_RETORNOS)),
+    columns: { id: true, codigo: true, nome: true, status: true, dataMontagem: true, dataDesmontagem: true },
+  });
+  if (!evs.length) return [];
+  const linhas = await db.query.eventoItens.findMany({
+    where: (l, { and: l_and, eq: l_eq, inArray: l_in }) => l_and(l_eq(l.ativo, true), l_in(l.eventoId, evs.map((e) => e.id))),
+    columns: { id: true, eventoId: true, tipo: true, pecaId: true, quantidade: true, destino: true, bomSnapshot: true, solicitacaoItemId: true },
+    with: { projeto: { columns: { nome: true } } },
+  });
+  const relevantes = linhas
+    .map((l) => {
+      if (l.tipo === "PECA" && l.pecaId === pecaId) return { l, quantidade: l.quantidade, origem: "solta" };
+      const porUnidade = l.tipo === "PROJETO" ? (l.bomSnapshot ?? []).filter((b) => b.pecaId === pecaId).reduce((a, b) => a + b.quantidade, 0) : 0;
+      return porUnidade > 0 ? { l, quantidade: porUnidade * l.quantidade, origem: `${l.projeto?.nome ?? "Projeto"} × ${l.quantidade}` } : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => Boolean(x && x.quantidade > 0));
+  if (!relevantes.length) return [];
+  const itemIds = relevantes.map((r) => r.l.solicitacaoItemId).filter((x): x is string => Boolean(x));
+  const origens = itemIds.length
+    ? await db.query.solicitacaoItens.findMany({
+        where: (si, { inArray: si_in }) => si_in(si.id, itemIds),
+        columns: { id: true },
+        with: { solicitacao: { columns: { id: true, codigo: true, titulo: true, enviadaEm: true }, with: { area: { columns: { nome: true } }, criadoPor: { columns: { nome: true } } } } },
+      })
+    : [];
+  const origemDe = new Map(origens.map((o) => [o.id, o.solicitacao]));
+  const retornos = await db
+    .select({ eventoId: estoqueRetornos.eventoId, voltaram: estoqueRetornos.voltaram, reforma: estoqueRetornos.reforma, perdidos: estoqueRetornos.perdidos, observacao: estoqueRetornos.observacao, em: estoqueRetornos.atualizadoEm })
+    .from(estoqueRetornos)
+    .where(eq(estoqueRetornos.itemId, itemId));
+  const retornoDe = new Map(retornos.map((r) => [r.eventoId, r]));
+
+  const out: EventoComPedidos[] = [];
+  for (const e of evs) {
+    const doEvento = relevantes.filter((r) => r.l.eventoId === e.id);
+    if (!doEvento.length) continue;
+    const ataAberta = e.status === "PREPARACAO" || e.status === "EM_REUNIAO";
+    const ret = retornoDe.get(e.id);
+    const situacao: EventoComPedidos["situacao"] = ret ? "devolvido" : ataAberta ? "pedido" : e.dataMontagem > hoje ? "na OS" : "fora";
+    out.push({
+      evento: { id: e.id, codigo: e.codigo, nome: e.nome, dataMontagem: e.dataMontagem, dataDesmontagem: e.dataDesmontagem },
+      situacao,
+      retorno: ret ? { voltaram: ret.voltaram, reforma: ret.reforma, perdidos: ret.perdidos, observacao: ret.observacao, em: ret.em.toISOString() } : null,
+      total: doEvento.reduce((a, r) => a + r.quantidade, 0),
+      pedidos: doEvento.map((r) => {
+        const s = r.l.solicitacaoItemId ? origemDe.get(r.l.solicitacaoItemId) : undefined;
+        return {
+          quantidade: r.quantidade,
+          destino: r.l.destino,
+          origem: r.origem,
+          solicitacao: s ? { id: s.id, codigo: s.codigo, titulo: s.titulo, area: s.area.nome, solicitante: s.criadoPor?.nome ?? null, enviadaEm: s.enviadaEm ? s.enviadaEm.toISOString() : null } : null,
+        };
+      }),
+    });
+  }
+  // Os que ainda estão em jogo primeiro (fora, na OS, pedido), por data de montagem; o histórico (devolvidos) do mais
+  // recente para o mais antigo.
+  const ordem = { fora: 0, "na OS": 1, pedido: 2, devolvido: 3 };
+  return out.sort((a, b) => ordem[a.situacao] - ordem[b.situacao] || (a.situacao === "devolvido" ? b.evento.dataMontagem.localeCompare(a.evento.dataMontagem) : a.evento.dataMontagem.localeCompare(b.evento.dataMontagem)));
 }

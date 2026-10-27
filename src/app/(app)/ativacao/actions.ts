@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireUsuario } from "@/server/auth/session";
 import { executar } from "@/lib/action";
 import { ajustarQuantidadeEstoque, salvarItemEstoque } from "@/server/services/estoque";
-import { abrirReforma, adicionarAnexoEstoque, concluirReforma, editarReforma, registrarRetorno, removerAnexoEstoque } from "@/server/services/ativacao";
+import { abrirReforma, adicionarAnexoEstoque, concluirReforma, editarReforma, pedidosDoItem, registrarRetorno, removerAnexoEstoque } from "@/server/services/ativacao";
 
 /** Tudo do módulo muda junto: estoque, retornos, reformas e a página do item. */
 const revalidar = () => revalidatePath("/ativacao", "layout");
@@ -138,4 +138,10 @@ export async function removerAnexoEstoqueAction(anexoId: string) {
   const r = await executar(() => removerAnexoEstoque(usuario, anexoId), "Arquivo removido.");
   revalidar();
   return r;
+}
+
+/** Janela "Ver pedidos" do estoque: só leitura, carregada quando a pessoa abre. */
+export async function pedidosDoItemAction(itemId: string) {
+  const usuario = await requireUsuario();
+  return executar(() => pedidosDoItem(usuario, id.parse(itemId)), undefined, { acao: "pedidosDoItem", usuarioId: usuario.id });
 }

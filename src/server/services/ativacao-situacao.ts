@@ -17,7 +17,7 @@ export type SaidaItem = { itemId: string; nome: string; levou: number };
  * O que cada evento com OS leva de cada item do estoque ligado a uma peça (peça solta ou dentro de projeto), só
  * dos eventos que desmontam a partir de `INICIO_RETORNOS`. Item ligado à mesma peça que outro: o primeiro pelo nome.
  */
-export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; itemId?: string } = {}) {
+export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; itemId?: string; status?: readonly string[] } = {}) {
   const ligados = await ex
     .select({ id: estoqueItens.id, nome: estoqueItens.nome, pecaId: estoqueItens.pecaId })
     .from(estoqueItens)
@@ -30,7 +30,7 @@ export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; it
   const evs: EventoComOs[] = await ex
     .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataMontagem: eventos.dataMontagem, dataDesmontagem: eventos.dataDesmontagem, status: eventos.status })
     .from(eventos)
-    .where(and(inArray(eventos.status, [...STATUS_COM_OS]), gte(eventos.dataDesmontagem, INICIO_RETORNOS), ...(filtro.eventoId ? [eq(eventos.id, filtro.eventoId)] : [])));
+    .where(and(inArray(eventos.status, [...(filtro.status ?? STATUS_COM_OS)] as Array<(typeof STATUS_COM_OS)[number]>), gte(eventos.dataDesmontagem, INICIO_RETORNOS), ...(filtro.eventoId ? [eq(eventos.id, filtro.eventoId)] : [])));
   if (!evs.length) return [];
   const linhas = await ex
     .select({ eventoId: eventoItens.eventoId, tipo: eventoItens.tipo, pecaId: eventoItens.pecaId, quantidade: eventoItens.quantidade, bom: eventoItens.bomSnapshot })
@@ -54,6 +54,35 @@ export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; it
     .filter((e) => porEvento.has(e.id))
     .map((e) => ({ evento: e, itens: [...porEvento.get(e.id)!.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) }))
     .sort((a, b) => a.evento.dataMontagem.localeCompare(b.evento.dataMontagem) || a.evento.codigo.localeCompare(b.evento.codigo));
+}
+
+/** Em que pé está o item num evento: pedido (ata ainda aberta), na OS (vai sair na montagem) ou fora (saiu e não voltou). */
+export type SituacaoNoEvento = "pedido" | "na OS" | "fora";
+export type EventoDoItem = { eventoId: string; codigo: string; nome: string; quantidade: number; situacao: SituacaoNoEvento; dataMontagem: string };
+
+/**
+ * Por item do estoque ligado a uma peça: os eventos que o levam e ainda não devolveram (para a lista mostrar onde ele
+ * está pedido ou em uso). Pedido de evento que já desmontou sem a ata fechar não entra (evento parado).
+ */
+export async function eventosDosItens(ex?: Executor): Promise<Map<string, EventoDoItem[]>> {
+  const db = ex ?? (await getDb());
+  const hoje = diaBrasilia();
+  const [saidas, retornos] = await Promise.all([
+    saidasPelaOs(db, { status: ["PREPARACAO", "EM_REUNIAO", ...STATUS_COM_OS] }),
+    db.select({ itemId: estoqueRetornos.itemId, eventoId: estoqueRetornos.eventoId }).from(estoqueRetornos),
+  ]);
+  const voltou = new Set(retornos.map((r) => `${r.itemId}|${r.eventoId}`));
+  const out = new Map<string, EventoDoItem[]>();
+  for (const s of saidas) {
+    const ataAberta = s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO";
+    if (ataAberta && s.evento.dataDesmontagem < hoje) continue;
+    for (const i of s.itens) {
+      if (voltou.has(`${i.itemId}|${s.evento.id}`)) continue;
+      const situacao: SituacaoNoEvento = ataAberta ? "pedido" : s.evento.dataMontagem > hoje ? "na OS" : "fora";
+      out.set(i.itemId, [...(out.get(i.itemId) ?? []), { eventoId: s.evento.id, codigo: s.evento.codigo, nome: s.evento.nome, quantidade: i.levou, situacao, dataMontagem: s.evento.dataMontagem }]);
+    }
+  }
+  return out;
 }
 
 /** Por item: quanto está fora agora (saiu na montagem e não voltou) e quanto está em reforma. */

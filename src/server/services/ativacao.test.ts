@@ -14,7 +14,7 @@ import { DomainError, SemPermissaoError, ValidacaoError } from "@/domain/errors"
 import { problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
 import { criarUsuario, dia, eventoAberto, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
-import { abrirReforma, concluirReforma, listarReformas, listarRetornos, obterItemAtivacao, registrarRetorno } from "./ativacao";
+import { abrirReforma, concluirReforma, listarReformas, listarRetornos, obterItemAtivacao, pedidosDoItem, registrarRetorno } from "./ativacao";
 import { estoqueParaSolicitacao, listarEstoque, salvarItemEstoque } from "./estoque";
 
 let E: Elenco;
@@ -112,6 +112,19 @@ describe("módulo Ativação", { timeout: 60_000 }, () => {
     const r = await estoqueParaSolicitacao([eventoId]);
     expect(r.porPeca[pecaId]).toMatchObject({ nome: "Puff Cubo", quantidade: 15, emReforma: 4, itemId });
     expect(r.outrosEventos[eventoId][pecaId]).toEqual([{ codigo: outro.codigo, nome: outro.nome, quantidade: 10 }]);
+  });
+
+  it("pedidos do item: o que ainda não voltou e o histórico com o retorno, e a lista mostra em que eventos está", async () => {
+    const p = await pedidosDoItem(ativacao, itemId);
+    const devolvido = p.find((e) => e.evento.id === eventoId)!;
+    expect(devolvido).toMatchObject({ situacao: "devolvido", total: 10, retorno: { voltaram: 7, reforma: 3, perdidos: 0 } });
+    expect(devolvido.pedidos[0]).toMatchObject({ quantidade: 10, origem: "solta", solicitacao: null });
+    const fora = p.filter((e) => e.situacao === "fora");
+    expect(fora).toHaveLength(1);
+    // Em andamento primeiro, histórico no fim.
+    expect(p.at(-1)!.situacao).toBe("devolvido");
+    const naLista = (await listarEstoque(ativacao)).find((i) => i.id === itemId)!;
+    expect(naLista.eventos.map((e) => e.situacao)).toEqual(["fora"]);
   });
 
   it("uma peça, um item; só a Ativação e o admin usam o módulo", async () => {
