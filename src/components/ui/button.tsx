@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { useFormPending } from "./action-form";
 import { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
 import { Spinner } from "./icons";
+import { toast } from "./toast";
 
 export { buttonClasses, type ButtonSize, type ButtonVariant } from "./button-classes";
 
@@ -39,7 +40,9 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button({ var
       aria-busy={loading || undefined}
       onClick={(e) => {
         if (comMotivo) {
+          // O title só aparece passando o mouse: no toque (e para quem não espera) o clique conta o motivo.
           e.preventDefault();
+          toast(motivoDesabilitado!, { grupo: "motivo-desabilitado" });
           return;
         }
         onClick?.(e);

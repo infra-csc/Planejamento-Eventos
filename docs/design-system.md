@@ -128,7 +128,8 @@ Estados (já embutidos em `buttonClasses`): hover, active (`scale(.98)` e tom ma
 visível (anel 2 px da marca com 2 px de folga; rosa nas variantes escuras), `disabled` (opacidade 50 %,
 cursor proibido), `loading` (spinner centralizado, **largura não muda**, `aria-busy`).
 Com `disabled` + `motivoDesabilitado="…"`, o botão fica `aria-disabled` (continua focável), mostra o
-motivo no `title` e o leitor de tela anuncia o motivo. Prefira isso a um botão desabilitado mudo.
+motivo no `title` e o leitor de tela anuncia o motivo; um clique (ou toque, no celular, onde não há `title`)
+mostra o motivo num toast. Prefira isso a um botão desabilitado mudo.
 
 `IconButton`/`IconLink` (redondo, só ícone, `label` obrigatório): 24/28 px no desktop, 40 px no celular.
 

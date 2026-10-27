@@ -33,6 +33,8 @@ export function Stepper({
 }) {
   const fixar = (n: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(n) ? n : min)));
   const sm = tamanho === "sm";
+  // "Aumentar" sozinho se repete em cada linha da lista: com o rótulo, o leitor de tela diz de qual quantidade é.
+  const deQue = label ? ` ${label.charAt(0).toLocaleLowerCase("pt-BR")}${label.slice(1)}` : "";
   /* 30/34 px no desktop; 40 px abaixo de md (alvo de toque). */
   const btn = cn(
     "flex shrink-0 cursor-pointer items-center justify-center border-0 bg-subtle text-ink-2 transition-colors duration-150 hover:bg-control hover:text-ink active:bg-line disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent max-md:size-10",
@@ -40,7 +42,7 @@ export function Stepper({
   );
   return (
     <div className={cn("inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-colors duration-150 focus-within:border-accent", disabled && "opacity-60", className)}>
-      <button type="button" aria-label="Diminuir" disabled={disabled || valor <= min} onClick={() => onChange(fixar(valor - 1))} className={btn}>
+      <button type="button" aria-label={`Diminuir${deQue}`} disabled={disabled || valor <= min} onClick={() => onChange(fixar(valor - 1))} className={btn}>
         <Icone nome="menos" />
       </button>
       <input
@@ -57,7 +59,7 @@ export function Stepper({
         onFocus={(e) => e.target.select()}
         className={cn("numero border-0 bg-surface text-center text-corpo font-medium text-ink focus:outline-none max-md:h-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", sm ? "h-[30px] w-12" : "h-[34px] w-16")}
       />
-      <button type="button" aria-label="Aumentar" disabled={disabled || valor >= max} onClick={() => onChange(fixar(valor + 1))} className={btn}>
+      <button type="button" aria-label={`Aumentar${deQue}`} disabled={disabled || valor >= max} onClick={() => onChange(fixar(valor + 1))} className={btn}>
         <Icone nome="mais" />
       </button>
     </div>

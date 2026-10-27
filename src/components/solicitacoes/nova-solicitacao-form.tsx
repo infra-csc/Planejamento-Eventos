@@ -167,7 +167,7 @@ export function NovaSolicitacaoForm({
 
   const escolherEvento = (e: EventoOpcao) => {
     if (rascunhoIdRef.current && e.id !== eventoId) {
-      toast("Para trocar de evento, exclua este rascunho e crie outro");
+      toast(edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação" : "Para trocar de evento, exclua este rascunho e crie outro");
       return;
     }
     const mantidos = itens.filter((i) => i.operacao === "ADICIONAR" || (e.tipo === "ALTERACAO" && (linhasPorEvento[e.id] ?? []).some((x) => x.id === i.eventoItemId)));
@@ -314,6 +314,19 @@ export function NovaSolicitacaoForm({
     });
   };
 
+  // Pedido já enviado em edição: sair sem salvar. Antes não havia saída na tela (só o menu) e a cópia
+  // local voltava na próxima edição sem como desistir dela.
+  const [confirmarDescarte, setConfirmarDescarte] = useState(false);
+  const voltarAoPedido = () => {
+    try {
+      if (chaveCopia) window.localStorage.removeItem(chaveCopia);
+    } catch {
+      // sem armazenamento local
+    }
+    if (rascunho) router.push(`/solicitacoes/${rascunho.id}`);
+  };
+  const descartar = edicaoEnviada && rascunho ? () => (assinatura !== salvoRef.current ? setConfirmarDescarte(true) : voltarAoPedido()) : undefined;
+
   const bloqueadoEnvio = Boolean(evento) && !evento?.aceita;
   // Passos numerados na ordem da tela; a lista da área (quando existe) é o passo 2.
   const areaNome = areas ? (areas.find((a) => a.id === areaId)?.nome ?? null) : areaUsuarioNome;
@@ -342,6 +355,7 @@ export function NovaSolicitacaoForm({
           {/* 1 · Evento */}
           <EscolhaEvento
             temRascunho={Boolean(rascunho)}
+            edicaoEnviada={edicaoEnviada}
             eventos={eventos}
             evento={evento}
             eventoId={eventoId}
@@ -389,6 +403,7 @@ export function NovaSolicitacaoForm({
           pendente={pendente}
           bloqueadoEnvio={bloqueadoEnvio}
           salvar={salvar}
+          descartar={descartar}
           edicaoEnviada={edicaoEnviada}
           estadoSalvo={estadoSalvo}
           codigoRascunho={codigoRascunho}
@@ -396,7 +411,22 @@ export function NovaSolicitacaoForm({
       </div>
 
       {/* Barra de envio fixa no celular e tablet. */}
-      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} edicaoEnviada={edicaoEnviada} estadoSalvo={estadoSalvo} />
+      <BarraEnvioMovel itens={itens} pendencias={pendencias} tentouEnviar={tentouEnviar} pendente={pendente} bloqueadoEnvio={bloqueadoEnvio} salvar={salvar} descartar={descartar} edicaoEnviada={edicaoEnviada} estadoSalvo={estadoSalvo} />
+
+      <ConfirmDialog
+        open={confirmarDescarte}
+        onOpenChange={setConfirmarDescarte}
+        title="Descartar as alterações?"
+        description={`O que você mudou agora se perde. ${rascunho?.codigo ?? "O pedido"} continua como foi enviado.`}
+        confirmLabel="Descartar alterações"
+        cancelLabel="Continuar editando"
+        danger
+        action={confirmarLocal}
+        onSuccess={() => {
+          setConfirmarDescarte(false);
+          voltarAoPedido();
+        }}
+      />
 
       <DialogoTendas tendaAberta={tendaAberta} setTendaAberta={setTendaAberta} projetos={projetos} itens={itens} setItens={setItens} />
 

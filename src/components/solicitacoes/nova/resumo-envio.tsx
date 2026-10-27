@@ -34,6 +34,7 @@ export function ResumoEnvio({
   pendente,
   bloqueadoEnvio,
   salvar,
+  descartar,
   edicaoEnviada = false,
   estadoSalvo,
   codigoRascunho,
@@ -61,6 +62,8 @@ export function ResumoEnvio({
   pendente: boolean;
   bloqueadoEnvio: boolean;
   salvar: (enviar: boolean) => void;
+  /** Pedido já enviado em edição: sair sem salvar (volta ao pedido). */
+  descartar?: () => void;
   /** Pedido já enviado em edição: um botão só, "Salvar alterações". */
   edicaoEnviada?: boolean;
   estadoSalvo: EstadoSalvo;
@@ -158,7 +161,7 @@ export function ResumoEnvio({
 
           {pendencias.length > 0 ? (
             <div>
-              <p className="mb-1 mt-0 text-pequeno font-medium text-ink-2">Para enviar, falta:</p>
+              <p className="mb-1 mt-0 text-pequeno font-medium text-ink-2">{edicaoEnviada ? "Para salvar, falta:" : "Para enviar, falta:"}</p>
               <ul className="m-0 flex list-none flex-col p-0">
                 {pendencias.map((p) => (
                   <li key={p.alvo}>
@@ -180,7 +183,7 @@ export function ResumoEnvio({
           ) : (
             <p className="m-0 flex items-center gap-1.5 text-pequeno font-medium text-success">
               <Icone nome="check-circulo" />
-              Pronto para enviar
+              {edicaoEnviada ? "Pronto para salvar" : "Pronto para enviar"}
             </p>
           )}
 
@@ -197,6 +200,11 @@ export function ResumoEnvio({
             {!edicaoEnviada && (
               <Button variant="secondary" size="lg" disabled={pendente} onClick={() => salvar(false)} className="w-full">
                 Salvar rascunho
+              </Button>
+            )}
+            {descartar && (
+              <Button variant="secondary" size="lg" disabled={pendente} onClick={descartar} className="w-full">
+                Descartar alterações
               </Button>
             )}
           </div>
@@ -226,6 +234,7 @@ export function BarraEnvioMovel({
   pendente,
   bloqueadoEnvio,
   salvar,
+  descartar,
   edicaoEnviada = false,
   estadoSalvo,
 }: {
@@ -235,6 +244,8 @@ export function BarraEnvioMovel({
   pendente: boolean;
   bloqueadoEnvio: boolean;
   salvar: (enviar: boolean) => void;
+  /** Pedido já enviado em edição: sair sem salvar (volta ao pedido). */
+  descartar?: () => void;
   edicaoEnviada?: boolean;
   estadoSalvo?: EstadoSalvo;
 }) {
@@ -248,12 +259,17 @@ export function BarraEnvioMovel({
             <Numero valor={n} /> {n === 1 ? "item" : "itens"}
           </p>
           <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : estadoSalvo?.tipo === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
-            {pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : estado ? `Pronto para enviar · ${estado.toLowerCase()}` : "Pronto para enviar"}
+            {pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : edicaoEnviada ? "Pronto para salvar" : estado ? `Pronto para enviar · ${estado.toLowerCase()}` : "Pronto para enviar"}
           </p>
         </div>
         {!edicaoEnviada && (
           <Button variant="ghost" size="md" disabled={pendente} onClick={() => salvar(false)} aria-label="Salvar rascunho">
             Salvar
+          </Button>
+        )}
+        {descartar && (
+          <Button variant="ghost" size="md" disabled={pendente} onClick={descartar} aria-label="Descartar alterações">
+            Descartar
           </Button>
         )}
         <Button variant="primary" size="md" loading={pendente} onClick={() => salvar(true)} disabled={bloqueadoEnvio} motivoDesabilitado="O evento não aceita solicitações agora.">

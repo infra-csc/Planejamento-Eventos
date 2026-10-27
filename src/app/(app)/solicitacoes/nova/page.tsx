@@ -121,8 +121,16 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     <div>
       <PageHeader
         title={rascunho ? `Editar ${rascunho.codigo}` : "Nova solicitação"}
-        description="Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."
-        breadcrumbs={[{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho ? rascunho.codigo : "Nova" }]}
+        // Quem edita um pedido já enviado não "escolhe o evento e envia": muda itens e salva.
+        description={
+          edicaoEnviada
+            ? "Mude o que precisar e clique em “Salvar alterações”. Até lá, vale o pedido como foi enviado."
+            : rascunho
+              ? "Continue de onde parou: confira os itens e envie. A logística responde item por item."
+              : "Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."
+        }
+        // O código leva de volta ao pedido (antes era só texto: a saída era o menu).
+        breadcrumbs={rascunho ? [{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho.codigo, href: `/solicitacoes/${rascunho.id}` }, { label: "Editar" }] : [{ label: "Solicitações", href: "/solicitacoes" }, { label: "Nova" }]}
       />
       {semArea && (
         <Aviso tom="warning" titulo="Sua área ainda não foi definida" className="mb-4">

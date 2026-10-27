@@ -15,6 +15,7 @@ import type { EventoOpcao } from "./tipos";
 /** Passo 1: área solicitante (todo solicitante escolhe) e escolha do evento. */
 export function EscolhaEvento({
   temRascunho,
+  edicaoEnviada = false,
   eventos,
   evento,
   eventoId,
@@ -30,6 +31,8 @@ export function EscolhaEvento({
   escolherEvento,
 }: {
   temRascunho: boolean;
+  /** Pedido já enviado em edição (não é rascunho): muda o texto sobre trocar de evento. */
+  edicaoEnviada?: boolean;
   eventos: EventoOpcao[];
   evento: EventoOpcao | null;
   eventoId: string | null;
@@ -94,7 +97,8 @@ export function EscolhaEvento({
                   value: e.id,
                   label: e.nome,
                   descricao: [e.codigo, e.cliente, e.periodo, e.marco].filter((x) => x && x.trim()).join(" · "),
-                  selo: e.tipo === "PRE_REUNIAO" ? "até a reunião" : "alterações",
+                  // O mesmo nome que o pedido ganha ao escolher (antes: "até a reunião" na lista e "pré-reunião" depois).
+                  selo: e.tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração pós-ata",
                   seloTom: e.tipo === "PRE_REUNIAO" ? "muted" : "warning",
                   disabled: !e.aceita && e.id !== eventoId,
                 }))}
@@ -135,7 +139,12 @@ export function EscolhaEvento({
                   "Pedidos até a reunião começar"
                 )}
               </p>
-              {temRascunho && <p className="m-0 basis-full text-pequeno text-meta">Para trocar de evento, exclua este rascunho e crie outro.</p>}
+              {temRascunho && (
+                <p className="m-0 basis-full text-pequeno text-meta">
+                  {/* Pedido já enviado não tem "excluir rascunho": o caminho é outra solicitação para o outro evento. */}
+                  {edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação." : "Para trocar de evento, exclua este rascunho e crie outro."}
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -310,7 +310,8 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={confirmar} loading={pendente}>
-          {corrigir ? "Salvar correção" : "Confirmar resposta"}
+          {/* O botão diz o que vai acontecer (antes: "Confirmar resposta" para parcial e para não atender). */}
+          {corrigir ? "Salvar correção" : status === "PARCIAL" ? "Atender parcialmente" : "Não atender o item"}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setEdicao(null)}>
           Cancelar
