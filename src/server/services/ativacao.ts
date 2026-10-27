@@ -1,14 +1,17 @@
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { estoqueAnexos, estoqueItens, estoqueReformas, estoqueRetornos, eventoItens, eventos, historico, usuarios, type BomSnapshotLinha } from "@/server/db/schema";
+import { estoqueAnexos, estoqueItens, estoqueReformas, estoqueRetornos, historico, usuarios } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
-import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetorno, situacaoItem, STATUS_COM_OS } from "@/domain/estoque";
+import { podeGerenciarEstoque, problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo } from "./projetos";
-import { diaBrasilia, registrarHistorico, type Executor } from "./support";
+import { diaBrasilia, registrarHistorico } from "./support";
+import { saidasPelaOs, situacaoDoEstoque } from "./ativacao-situacao";
+
+export { capasDosItens, situacaoDoEstoque, type SaidaItem } from "./ativacao-situacao";
 
 /*
  * Módulo Ativação (27/10): o estoque da Ativação com saída pela OS, retorno manual e reformas.
@@ -20,77 +23,6 @@ import { diaBrasilia, registrarHistorico, type Executor } from "./support";
 
 function exigirAtivacao(usuario: UsuarioAtual) {
   if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O módulo é da Ativação e do administrador.");
-}
-
-type EventoComOs = { id: string; codigo: string; nome: string; dataMontagem: string; dataDesmontagem: string; status: string };
-export type SaidaItem = { itemId: string; nome: string; levou: number };
-
-/**
- * O que cada evento com OS leva de cada item do estoque ligado a uma peça (peça solta ou dentro de projeto), só
- * dos eventos que desmontam a partir de `INICIO_RETORNOS`. Item ligado à mesma peça que outro: o primeiro pelo nome.
- */
-async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; itemId?: string } = {}) {
-  const ligados = await ex
-    .select({ id: estoqueItens.id, nome: estoqueItens.nome, pecaId: estoqueItens.pecaId })
-    .from(estoqueItens)
-    .where(and(eq(estoqueItens.ativo, true), sql`${estoqueItens.pecaId} is not null`, ...(filtro.itemId ? [eq(estoqueItens.id, filtro.itemId)] : [])))
-    .orderBy(asc(estoqueItens.nome));
-  const itemDaPeca = new Map<string, { id: string; nome: string }>();
-  for (const l of ligados) if (l.pecaId && !itemDaPeca.has(l.pecaId)) itemDaPeca.set(l.pecaId, { id: l.id, nome: l.nome });
-  if (!itemDaPeca.size) return [] as Array<{ evento: EventoComOs; itens: SaidaItem[] }>;
-
-  const evs: EventoComOs[] = await ex
-    .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataMontagem: eventos.dataMontagem, dataDesmontagem: eventos.dataDesmontagem, status: eventos.status })
-    .from(eventos)
-    .where(and(inArray(eventos.status, [...STATUS_COM_OS]), gte(eventos.dataDesmontagem, INICIO_RETORNOS), ...(filtro.eventoId ? [eq(eventos.id, filtro.eventoId)] : [])));
-  if (!evs.length) return [];
-  const linhas = await ex
-    .select({ eventoId: eventoItens.eventoId, tipo: eventoItens.tipo, pecaId: eventoItens.pecaId, quantidade: eventoItens.quantidade, bom: eventoItens.bomSnapshot })
-    .from(eventoItens)
-    .where(and(eq(eventoItens.ativo, true), inArray(eventoItens.eventoId, evs.map((e) => e.id))));
-  const porEvento = new Map<string, Map<string, SaidaItem>>();
-  const somar = (eventoId: string, pecaId: string | null, q: number) => {
-    const item = pecaId ? itemDaPeca.get(pecaId) : undefined;
-    if (!item || q <= 0) return;
-    const m = porEvento.get(eventoId) ?? new Map<string, SaidaItem>();
-    const s = m.get(item.id) ?? { itemId: item.id, nome: item.nome, levou: 0 };
-    s.levou += q;
-    m.set(item.id, s);
-    porEvento.set(eventoId, m);
-  };
-  for (const l of linhas) {
-    if (l.tipo === "PECA") somar(l.eventoId, l.pecaId, l.quantidade);
-    if (l.tipo === "PROJETO") for (const b of (l.bom as BomSnapshotLinha[] | null) ?? []) somar(l.eventoId, b.pecaId, b.quantidade * l.quantidade);
-  }
-  return evs
-    .filter((e) => porEvento.has(e.id))
-    .map((e) => ({ evento: e, itens: [...porEvento.get(e.id)!.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) }))
-    .sort((a, b) => a.evento.dataMontagem.localeCompare(b.evento.dataMontagem) || a.evento.codigo.localeCompare(b.evento.codigo));
-}
-
-/** Por item: quanto está fora agora (saiu na montagem e não voltou) e quanto está em reforma. */
-export async function situacaoDoEstoque(ex?: Executor) {
-  const db = ex ?? (await getDb());
-  const hoje = diaBrasilia();
-  const [saidas, retornos, reformas] = await Promise.all([
-    saidasPelaOs(db),
-    db.select({ itemId: estoqueRetornos.itemId, eventoId: estoqueRetornos.eventoId }).from(estoqueRetornos),
-    db
-      .select({ itemId: estoqueReformas.itemId, n: sql<number>`sum(${estoqueReformas.quantidade})::int` })
-      .from(estoqueReformas)
-      .where(eq(estoqueReformas.status, "ABERTA"))
-      .groupBy(estoqueReformas.itemId),
-  ]);
-  const voltou = new Set(retornos.map((r) => `${r.itemId}|${r.eventoId}`));
-  const emEvento = new Map<string, number>();
-  const reservado = new Map<string, number>();
-  for (const s of saidas)
-    for (const i of s.itens) {
-      if (voltou.has(`${i.itemId}|${s.evento.id}`)) continue;
-      const alvo = s.evento.dataMontagem <= hoje ? emEvento : reservado;
-      alvo.set(i.itemId, (alvo.get(i.itemId) ?? 0) + i.levou);
-    }
-  return { emEvento, reservado, emReforma: new Map(reformas.map((r) => [r.itemId, Number(r.n)])) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -416,18 +348,4 @@ export async function obterAnexoEstoque(usuario: UsuarioAtual, anexoId: string) 
   const a = await db.query.estoqueAnexos.findFirst({ where: eq(estoqueAnexos.id, anexoId) });
   if (!a) throw new NaoEncontradoError("Anexo");
   return { ...a, conteudo: await lerArquivo(a.conteudo) };
-}
-
-/** Primeira foto de cada item (capa da lista), sem ler os arquivos. */
-export async function capasDosItens(itemIds: string[]) {
-  if (!itemIds.length) return new Map<string, string>();
-  const db = await getDb();
-  const rows = await db
-    .select({ itemId: estoqueAnexos.itemId, id: estoqueAnexos.id })
-    .from(estoqueAnexos)
-    .where(and(inArray(estoqueAnexos.itemId, itemIds), eq(estoqueAnexos.tipo, "IMAGEM"), sql`${estoqueAnexos.reformaId} is null`))
-    .orderBy(asc(estoqueAnexos.criadoEm));
-  const m = new Map<string, string>();
-  for (const r of rows) if (!m.has(r.itemId)) m.set(r.itemId, r.id);
-  return m;
 }

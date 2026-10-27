@@ -6,7 +6,7 @@ import { SemPermissaoError, ValidacaoError, NaoEncontradoError } from "@/domain/
 import { CATEGORIAS_ESTOQUE, periodosSeCruzam, podeGerenciarEstoque } from "@/domain/estoque";
 import inventario from "@/data/estoque-ativacao-2025.json";
 import { registrarHistorico } from "./support";
-import { capasDosItens, situacaoDoEstoque } from "./ativacao";
+import { capasDosItens, situacaoDoEstoque } from "./ativacao-situacao";
 
 function exigirEstoque(usuario: UsuarioAtual) {
   if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O estoque é da Ativação e do administrador.");
