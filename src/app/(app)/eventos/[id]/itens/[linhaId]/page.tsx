@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { obterEventoCache } from "@/server/cache";
 import { detalheLinha } from "@/server/services/linha-do-tempo";
-import { opcoesReferenciasResumidas } from "@/server/services/eventos";
+import { obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { NaoEncontradoError } from "@/domain/errors";
 import { daMinhaArea, pode } from "@/domain/permissions";
 import { obterConferencia } from "@/server/services/conferencia";
@@ -22,6 +22,8 @@ import { PecasProjeto } from "@/components/eventos/pecas-projeto";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { DetalhesUnidadesTenda } from "@/components/eventos/detalhes-unidades-tenda";
 import { kitDaTenda } from "@/domain/tendas";
+import { AcoesLinhaEvento } from "@/components/eventos/acoes-linha-evento";
+import { tendaDoLocal } from "@/components/eventos/tenda-do-local";
 
 const TIPO = { PROJETO: "projeto padrão", PECA: "peça do catálogo", AVULSO: "fora do catálogo" } as const;
 const TOM: Record<TomLinhaTempo, TomEntrada> = { neutro: "neutro", info: "info", ok: "success", atencao: "warning", perigo: "danger" };
@@ -78,10 +80,14 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
   const totalMesmoItem = mesmoItem.reduce((a, l) => a + l.quantidade, 0);
   const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
-  const opcoes = editavel ? await opcoesReferenciasResumidas() : null;
-  const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : pode(usuario, "os.ver") && !antesDaAta ? { href: `/eventos/${id}/os?visao=composicao`, rotulo: "Itens da OS" } : { href: `/eventos/${id}/ata`, rotulo: "Ata" };
-  const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
   const ehTenda = d.tipo === "PROJETO" && Boolean(kitDaTenda(d.pecasDoProjeto.map((p) => p.codigo)));
+  // Tenda: o lápis abre o quadro do local (tendas, fechamentos e calhas), que precisa das linhas do mesmo local.
+  const [opcoes, linhasAta] = await Promise.all([editavel ? opcoesReferenciasResumidas() : null, editavel && ehTenda ? obterLinhasAta(id) : null]);
+  const linhaAta = linhasAta?.find((l) => l.id === d.id);
+  const tenda = linhaAta && linhasAta ? tendaDoLocal(linhaAta, linhasAta.filter((l) => l.tipo === "PROJETO" && l.projeto?.codigo === linhaAta.projeto?.codigo)) : undefined;
+  // Voltar para onde a lista com as ações está: a conferência na reunião; depois, os itens da visão geral.
+  const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : { href: `/eventos/${id}#itens`, rotulo: "Itens do evento" };
+  const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
 
   return (
     <div className="flex flex-col gap-4">
@@ -128,6 +134,17 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
           </div>
           {d.tipo === "AVULSO" && editavel && opcoes && (
             <VincularCatalogo linha={{ linhaId: d.id, descricao: d.descricaoOriginal ?? d.nome, quantidade: d.quantidade }} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+          )}
+          {/* Quantidade e retirada da linha aqui mesmo (antes só pela visão geral, pela conferência ou pela OS). */}
+          {editavel && (
+            <AcoesLinhaEvento
+              eventoId={id}
+              ataFechada={!antesDaAta}
+              tamanho="md"
+              linha={{ id: d.id, nome: `${d.nome}${d.destino ? ` · ${d.destino}` : ""}`, quantidade: d.quantidade, veioDePedido: Boolean(d.origem) }}
+              tenda={tenda}
+              aoRemover={`/eventos/${id}#itens`}
+            />
           )}
         </div>
       </section>

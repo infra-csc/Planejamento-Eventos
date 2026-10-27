@@ -23,6 +23,7 @@ import { AcoesLinhaEvento, IncluirItemEvento } from "@/components/eventos/acoes-
 import { BadgeVersao } from "@/components/eventos/ata-lista";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
+import { tendaDoLocal } from "@/components/eventos/tenda-do-local";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
 import { MudancasPosAta } from "@/components/eventos/mudancas-pos-ata";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
@@ -177,15 +178,6 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
     if (partes.length === 1) partes.push("sem fechamentos");
     return partes.join(" · ");
   };
-  // Para o quadro da tenda: o local inteiro (todas as linhas da mesma tenda no mesmo local) e os totais dele.
-  const tendaDoLocal = (x: (typeof linhas)[number], doItem: typeof linhas) => {
-    const bom = x.registro.bomSnapshot ?? [];
-    const kit = x.tipo === "PROJETO" ? kitDaTenda(bom.map((b) => b.codigo)) : null;
-    if (!kit) return undefined;
-    const doLocal = doItem.filter((y) => (y.destino ?? "").trim().toLowerCase() === (x.destino ?? "").trim().toLowerCase());
-    const soma = (codigo: string | undefined) => (codigo ? doLocal.reduce((a, y) => a + (y.registro.bomSnapshot ?? []).filter((b) => b.codigo === codigo).reduce((c, b) => c + b.quantidade, 0) * y.quantidade, 0) : 0);
-    return { linhaIds: doLocal.map((y) => y.id), local: x.destino, tamanho: kit.tamanho, tendas: doLocal.reduce((a, y) => a + y.quantidade, 0), fechamentos: soma(kit.pecas.fechamento), calhas: soma(kit.pecas.calha), temCalha: Boolean(kit.pecas.calha) };
-  };
   const agruparItens = (ls: typeof linhas) => {
     const m = new Map<string, typeof linhas>();
     for (const l of ls) {
@@ -231,6 +223,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               mudancas={mudancas.map((m) => ({ ...m, codigoVisivel: veTodasAsAreas || daMinhaArea(usuario, m.areaId) }))}
               ajustes={ajustesPosAta.map((h) => ({ id: h.id, titulo: classificarHistorico(h).titulo, autor: h.usuario?.nome ?? null, quando: h.criadoEm, href: `/eventos/${id}/itens/${h.entidadeId}` }))}
               hrefOs={veOs && versoes.length > 1 ? `/eventos/${id}/os?base=${versoes[versoes.length - 1].numero}` : null}
+              // Cinco à vista: a lista de itens (onde o admin corrige) fica logo abaixo; o resto abre no "Ver as outras".
+              maximo={5}
             />
           )}
 
