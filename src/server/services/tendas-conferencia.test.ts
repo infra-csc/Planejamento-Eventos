@@ -9,7 +9,10 @@ delete process.env.DATABASE_URL;
 
 import { getDb } from "@/server/db";
 import { pecas, projetoItens, projetoVersoes, projetos } from "@/server/db/schema";
-import { migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
+import { fecharAta, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
+import { eq } from "drizzle-orm";
+import { osVersoes } from "@/server/db/schema";
+import { ValidacaoError } from "@/domain/errors";
 import { incluirLinhaAta, transicionarEvento } from "./eventos";
 import { ajustarTendasDoLocal, obterConferencia } from "./conferencia";
 
@@ -59,5 +62,20 @@ describe("tendas na conferência", () => {
     // Menos tendas: as linhas que sobram saem.
     await ajustarTendasDoLocal(E.logistica, ev.id, { linhaIds: depois.ls.map((l) => l.id), tendas: 1, totais: { fechamento: 2, calha: 1 }, motivo: "Cliente reduziu" });
     expect(await doLocal(ev.id, "Dispersão")).toMatchObject({ tendas: 1, fechamentos: 2, calhas: 1 });
+  });
+  it("com a ata fechada o mesmo quadro ajusta as tendas do local, com justificativa e nova versão da OS", async () => {
+    const ev = await novoEvento(E.logistica);
+    await incluirLinhaAta(E.logistica, ev.id, { referenciaTipo: "PROJETO", projetoId: tendaId, pecaId: null, descricaoLivre: null, quantidade: 2, destino: "GV", areaId: E.areas.a.id, justificativa: null });
+    await transicionarEvento(E.logistica, ev.id, "INICIAR_REUNIAO");
+    await fecharAta(E.admin, ev.id);
+    const db = await getDb();
+    const versoes = async () => (await db.select().from(osVersoes).where(eq(osVersoes.eventoId, ev.id))).length;
+    const antesV = await versoes();
+    const antes = await doLocal(ev.id, "GV");
+    await expect(ajustarTendasDoLocal(E.admin, ev.id, { linhaIds: antes.ls.map((l) => l.id), tendas: 2, totais: { fechamento: 4, calha: 2 }, motivo: null })).rejects.toBeInstanceOf(ValidacaoError);
+    await ajustarTendasDoLocal(E.admin, ev.id, { linhaIds: antes.ls.map((l) => l.id), tendas: 3, totais: { fechamento: 6, calha: 3 }, motivo: "Cliente pediu mais uma tenda fechada" });
+    expect(await doLocal(ev.id, "GV")).toMatchObject({ tendas: 3, fechamentos: 6, calhas: 3 });
+    expect(await versoes()).toBeGreaterThan(antesV);
+    await expect(ajustarTendasDoLocal(E.requisitante, ev.id, { linhaIds: (await doLocal(ev.id, "GV")).ls.map((l) => l.id), tendas: 1, totais: {}, motivo: "x" })).rejects.toThrow();
   });
 });

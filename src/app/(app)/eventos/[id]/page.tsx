@@ -19,6 +19,8 @@ import { EmptyState, Metric, MetricStrip, Section, type TomSemantico } from "@/c
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
+import { AcoesLinhaEvento } from "@/components/eventos/acoes-linha-evento";
+import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
 import { MudancasPosAta } from "@/components/eventos/mudancas-pos-ata";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
@@ -150,6 +152,34 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   // de cada local fica na página do item (que lista todas as linhas dele).
   // Peça: só o nome (o código já está na linha de baixo e no detalhe).
   const nomeExibido = (l: (typeof linhas)[number]) => (l.tipo === "PECA" && l.peca ? l.peca.nome : l.nome);
+  // Admin e logística corrigem os itens daqui (mesma regra da página do item): antes da ata, e com a ata fechada.
+  const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
+  const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
+  // Tenda: quantas tendas e o que varia por local (fechamentos, calhas), pela lista de peças gravada na linha.
+  const detalheTenda = (l: (typeof linhas)[number]) => {
+    if (l.tipo !== "PROJETO") return null;
+    const bom = l.registro.bomSnapshot ?? [];
+    const kit = kitDaTenda(bom.map((b) => b.codigo));
+    if (!kit) return null;
+    const total = (codigo: string | undefined) => (codigo ? (bom.find((b) => b.codigo === codigo)?.quantidade ?? 0) * l.quantidade : 0);
+    const rotulos: Record<string, [string, string]> = { fechamento: ["fechamento", "fechamentos"], calha: ["calha", "calhas"] };
+    const partes = [`${l.quantidade} ${l.quantidade === 1 ? "tenda" : "tendas"} ${kit.tamanho}`];
+    for (const papel of PAPEIS_POR_LOCAL) {
+      const n = total(kit.pecas[papel]);
+      if (n > 0) partes.push(`${n} ${rotulos[papel]?.[n === 1 ? 0 : 1] ?? papel}`);
+    }
+    if (partes.length === 1) partes.push("sem fechamentos");
+    return partes.join(" · ");
+  };
+  // Para o quadro da tenda: o local inteiro (todas as linhas da mesma tenda no mesmo local) e os totais dele.
+  const tendaDoLocal = (x: (typeof linhas)[number], doItem: typeof linhas) => {
+    const bom = x.registro.bomSnapshot ?? [];
+    const kit = x.tipo === "PROJETO" ? kitDaTenda(bom.map((b) => b.codigo)) : null;
+    if (!kit) return undefined;
+    const doLocal = doItem.filter((y) => (y.destino ?? "").trim().toLowerCase() === (x.destino ?? "").trim().toLowerCase());
+    const soma = (codigo: string | undefined) => (codigo ? doLocal.reduce((a, y) => a + (y.registro.bomSnapshot ?? []).filter((b) => b.codigo === codigo).reduce((c, b) => c + b.quantidade, 0) * y.quantidade, 0) : 0);
+    return { linhaIds: doLocal.map((y) => y.id), local: x.destino, tamanho: kit.tamanho, tendas: doLocal.reduce((a, y) => a + y.quantidade, 0), fechamentos: soma(kit.pecas.fechamento), calhas: soma(kit.pecas.calha), temCalha: Boolean(kit.pecas.calha) };
+  };
   const agruparItens = (ls: typeof linhas) => {
     const m = new Map<string, typeof linhas>();
     for (const l of ls) {
@@ -217,109 +247,114 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                   <CaptionOculta>Itens do evento por tipo</CaptionOculta>
                   <thead>
                     <tr>
-                      <Th>Item</Th>
-                      <Th className="hidden sm:table-cell sm:w-[30%]">
-                        Área · destino
-                      </Th>
-                      <Th className="hidden xl:table-cell xl:w-[20%]">
-                        Origem
-                      </Th>
+                      <Th>Item · local</Th>
+                      <Th className="hidden md:table-cell md:w-[26%]">Área · origem</Th>
                       <Th largura={72} alinhar="right">
                         Qtd.
                       </Th>
+                      {editavel && (
+                        <Th className="hidden sm:table-cell" largura={190}>
+                          <span className="sr-only">Ações</span>
+                        </Th>
+                      )}
                     </tr>
                   </thead>
                   {porTipo.map((g) => (
                     <tbody key={g.tipo}>
                       <tr>
-                        <th colSpan={4} scope="colgroup" className="border-b border-line-soft bg-subtle px-cartao py-1.5 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
+                        <th colSpan={editavel ? 4 : 3} scope="colgroup" className="border-b border-line-soft bg-subtle px-cartao py-1.5 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
                           {g.rotulo}
                           <span className="numero ml-2 font-normal tracking-normal text-muted">{agruparItens(g.linhas).length}</span>
                         </th>
                       </tr>
-                      {agruparItens(g.linhas).map((itensDoGrupo) => {
+                      {agruparItens(g.linhas).flatMap((itensDoGrupo) => {
                         const l = itensDoGrupo[0];
-                        if (itensDoGrupo.length > 1) {
-                          const total = itensDoGrupo.reduce((a, x) => a + x.quantidade, 0);
-                          const areasG = [...new Set(itensDoGrupo.map((x) => x.areaNome ?? "Logística"))];
-                          const destinos = itensDoGrupo.map((x) => ({ d: x.destino, q: x.quantidade })).filter((x) => x.d);
-                          const origens = [...new Set(itensDoGrupo.map((x) => origemVisivel(x)))];
+                        const varios = itensDoGrupo.length > 1;
+                        const capa =
+                          g.tipo === "PROJETO" &&
+                          (l.capaId ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
+                          ) : (
+                            <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
+                              <Icone nome="camadas" className="size-3.5" />
+                            </span>
+                          ));
+                        // Mesmo item em vários locais: uma linha com o total e, embaixo, cada local com a sua quantidade
+                        // (e as suas ações), em vez de "N locais" sem detalhe.
+                        const cabecalho = varios ? (
+                          <tr key={`${l.id}-total`}>
+                            <th scope="row" className="border-b border-line-soft py-2 pl-cartao pr-3 text-left font-normal">
+                              <span className="flex min-w-0 items-center gap-2.5">
+                                {capa}
+                                <span className="line-clamp-2 text-corpo font-medium text-ink" title={nomeExibido(l)}>
+                                  {nomeExibido(l)}
+                                </span>
+                                <Tag tom="muted">{itensDoGrupo.length} locais</Tag>
+                              </span>
+                            </th>
+                            <td className="hidden border-b border-line-soft px-3 py-2 text-pequeno text-ink-3 md:table-cell">{[...new Set(itensDoGrupo.map((x) => x.areaNome ?? "Logística"))].join(", ")}</td>
+                            <td className="border-b border-line-soft py-2 pl-3 pr-cartao text-right text-corpo font-semibold text-ink">
+                              <QuantidadeAta valor={itensDoGrupo.reduce((a, x) => a + x.quantidade, 0)} />
+                            </td>
+                            {editavel && <td className="hidden border-b border-line-soft sm:table-cell" />}
+                          </tr>
+                        ) : null;
+                        const linhasDoItem = itensDoGrupo.map((x) => {
+                          const tenda = detalheTenda(x);
+                          const acoes = editavel ? (
+                            <AcoesLinhaEvento
+                              eventoId={id}
+                              ataFechada={Boolean(ev.ataFechadaEm)}
+                              linha={{ id: x.id, nome: `${nomeExibido(x)}${x.destino ? ` · ${x.destino}` : ""}`, quantidade: x.quantidade, veioDePedido: Boolean(x.origemSolicitacaoId) }}
+                              hrefPecas={x.tipo === "PROJETO" ? `/eventos/${id}/itens/${x.id}#pecas` : undefined}
+                              tenda={tendaDoLocal(x, itensDoGrupo)}
+                            />
+                          ) : null;
                           return (
-                            <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome} (${itensDoGrupo.length} linhas)`}>
-                              <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
+                            <LinhaLink key={x.id} href={`/eventos/${id}/itens/${x.id}`} rotulo={`Abrir ${nomeExibido(x)}${x.destino ? ` · ${x.destino}` : ""}`}>
+                              <th scope="row" className={cn("border-b border-line-row py-2.5 pr-3 text-left font-normal", varios ? "pl-10" : "pl-cartao")}>
                                 <span className="flex min-w-0 items-center gap-2.5">
-                                  {g.tipo === "PROJETO" &&
-                                    (l.capaId ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
-                                    ) : (
-                                      <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
-                                        <Icone nome="camadas" className="size-3.5" />
-                                      </span>
-                                    ))}
+                                  {!varios && capa}
                                   <span className="min-w-0">
                                     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                                      <span className="line-clamp-2 text-corpo text-ink" title={nomeExibido(l)}>
-                                        {nomeExibido(l)}
+                                      <span className={cn("line-clamp-2 text-ink", varios ? "text-pequeno" : "text-corpo")} title={nomeExibido(x)}>
+                                        {varios ? (
+                                          <>
+                                            <span aria-hidden className="text-meta">↳ </span>
+                                            {x.destino ?? "sem local informado"}
+                                          </>
+                                        ) : (
+                                          nomeExibido(x)
+                                        )}
                                       </span>
-                                      <Tag tom="muted">{itensDoGrupo.length} locais</Tag>
+                                      {x.posAta ? <Tag tom="info">depois da ata</Tag> : x.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
                                     </span>
-                                    <span className="mt-0.5 line-clamp-2 text-rotulo text-muted" title={destinos.map((x) => `${x.d} ${x.q}`).join(" · ")}>
-                                      {destinos.length > 0 ? destinos.map((x) => `${x.d} ${x.q}`).join(" · ") : "sem local informado"}
+                                    {!varios && x.destino && <span className="block text-pequeno text-ink-2">{x.destino}</span>}
+                                    {tenda && <span className="block text-rotulo text-ink-3">{tenda}</span>}
+                                    <span className="block text-rotulo text-muted md:hidden">
+                                      {x.areaNome ?? "Logística"} · {origemVisivel(x)}
+                                      {quemPediu(x) ? ` · ${quemPediu(x)}` : ""}
                                     </span>
+                                    {acoes && <span className="mt-1 block sm:hidden">{acoes}</span>}
                                   </span>
                                 </span>
                               </th>
-                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 sm:table-cell">{areasG.join(", ")}</td>
-                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">{origens.length === 1 ? origens[0] : `${origens.length} origens`}</td>
-                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-semibold text-ink">
-                                <QuantidadeAta valor={total} />
+                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 md:table-cell">
+                                {x.areaNome ?? "Logística"}
+                                <span className="block text-rotulo text-ink-3">
+                                  {origemVisivel(x)}
+                                  {quemPediu(x) ? ` · ${quemPediu(x)}` : ""}
+                                </span>
                               </td>
+                              <td className={cn("border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-ink", varios ? "text-pequeno" : "text-corpo font-medium")}>
+                                <QuantidadeAta valor={x.quantidade} />
+                              </td>
+                              {editavel && <td className="hidden border-b border-line-row py-2 pr-cartao text-right sm:table-cell">{acoes}</td>}
                             </LinhaLink>
                           );
-                        }
-                        return (
-                            <LinhaLink key={l.id} href={`/eventos/${id}/itens/${l.id}`} rotulo={`Abrir ${l.nome}`}>
-                              <th scope="row" className="border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
-                                <span className="flex min-w-0 items-center gap-2.5">
-                                  {g.tipo === "PROJETO" &&
-                                    (l.capaId ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={`/api/anexos/${l.capaId}?w=96`} alt="" loading="lazy" decoding="async" className="h-8 w-11 shrink-0 rounded-chip border border-line bg-white object-contain" />
-                                    ) : (
-                                      <span aria-hidden className="grid h-8 w-11 shrink-0 place-items-center rounded-chip border border-line bg-subtle text-meta">
-                                        <Icone nome="camadas" className="size-3.5" />
-                                      </span>
-                                    ))}
-                                  <span className="min-w-0">
-                                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                                      <span className="line-clamp-2 text-corpo text-ink" title={nomeExibido(l)}>
-                                        {nomeExibido(l)}
-                                      </span>
-                                      {l.posAta ? <Tag tom="info">depois da ata</Tag> : l.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
-                                    </span>
-                                    <span className="line-clamp-2 text-pequeno text-muted xl:hidden">
-                                      <span className="sm:hidden">
-                                        {l.areaNome ?? "Logística"}
-                                        {l.destino ? ` · ${l.destino}` : ""} ·{" "}
-                                      </span>
-                                      {origemVisivel(l)}
-                                      {quemPediu(l) ? ` · ${quemPediu(l)}` : ""}
-                                    </span>
-                                  </span>
-                                </span>
-                              </th>
-                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 sm:table-cell">
-                                {l.areaNome ?? "Logística"}
-                                {l.destino && <span className="text-muted"> · {l.destino}</span>}
-                              </td>
-                              <td className="hidden border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3 xl:table-cell">
-                                {origemVisivel(l)}
-                                {quemPediu(l) && <span className="block truncate text-rotulo text-muted">{quemPediu(l)}</span>}
-                              </td>
-                              <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right text-corpo font-medium text-ink"><QuantidadeAta valor={l.quantidade} /></td>
-                            </LinhaLink>
-                        );
+                        });
+                        return [cabecalho, ...linhasDoItem];
                       })}
                     </tbody>
                   ))}

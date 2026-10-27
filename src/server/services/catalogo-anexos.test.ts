@@ -51,7 +51,8 @@ describe("origem da peça", () => {
     const marcada = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on", temDisponivel: "1", disponivelEmSolicitacoes: "on" });
     const desmarcada = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on", temDisponivel: "1" });
     const semOpcao = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on" });
-    expect([marcada.disponivelEmSolicitacoes, desmarcada.disponivelEmSolicitacoes, "disponivelEmSolicitacoes" in semOpcao]).toEqual([true, false, false]);
+    const disp = (d: object) => (d as { disponivelEmSolicitacoes?: boolean }).disponivelEmSolicitacoes;
+    expect([disp(marcada), disp(desmarcada), "disponivelEmSolicitacoes" in semOpcao]).toEqual([true, false, false]);
   });
 });
 

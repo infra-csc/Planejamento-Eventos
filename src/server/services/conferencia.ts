@@ -533,7 +533,16 @@ export async function ajustarTendasDoLocal(
   const db = await getDb();
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
   if (!ev) throw new NaoEncontradoError("Evento");
-  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, ajuste pela OS, com justificativa.");
+  // Com a ata fechada (evento aberto), o mesmo quadro vale como ajuste da logística: justificativa obrigatória, cada
+  // passo gera a versão da OS e avisa a área (27/10: o admin corrige as tendas pela visão geral do evento).
+  const posAta = ev.status === "ABERTO";
+  if (!posAta && ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("O evento não aceita ajustes neste estado.");
+  if (posAta) {
+    exigir(usuario, "ata.ajustar");
+    if (!motivo) throw new ValidacaoError("Informe a justificativa do ajuste.", { motivo: "Obrigatória com a ata fechada: fica no histórico e vai para quem pediu." });
+  }
+  const ajustarLinha = (linhaId: string, quantidade: number, quantidadeEsperada: number) =>
+    posAta ? ajustarQuantidadeLinha(usuario, eventoId, linhaId, quantidade, motivo, { contexto: "ata", quantidadeEsperada }) : ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo);
 
   const lidas = await db.query.eventoItens.findMany({ where: and(inArray(eventoItens.id, dados.linhaIds), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)) });
   if (lidas.length !== dados.linhaIds.length) throw new DomainError("Alguma linha deste local mudou enquanto você editava. Confira e tente de novo.");
@@ -570,17 +579,18 @@ export async function ajustarTendasDoLocal(
     const l = linhas[i];
     if (g && l) {
       await acertarPecas(l.id, l.bomSnapshot, g.ajustes);
-      if (g.quantidade !== l.quantidade) await ajustarLinhaNaConferencia(usuario, eventoId, l.id, g.quantidade, motivo);
+      if (g.quantidade !== l.quantidade) await ajustarLinha(l.id, g.quantidade, l.quantidade);
       finais.push(l.id);
     } else if (l) {
       // Sobrou linha (menos tendas ou menos grupos): sai da ata, com histórico e resposta ao pedido.
-      await ajustarLinhaNaConferencia(usuario, eventoId, l.id, 0, motivo);
+      await ajustarLinha(l.id, 0, l.quantidade);
     } else if (g) {
       const nova = await incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PROJETO", projetoId: l0.projetoId, pecaId: null, descricaoLivre: null, quantidade: g.quantidade, destino: l0.destino, areaId: l0.areaId, justificativa: motivo || null });
       await acertarPecas(nova.id, nova.bomSnapshot, g.ajustes);
       finais.push(nova.id);
     }
   }
-  if (finais.length) await conferirTodasLinhas(usuario, eventoId, finais);
+  // Antes da ata a decisão é da reunião e o local fica conferido; depois dela não há conferência.
+  if (finais.length && !posAta) await conferirTodasLinhas(usuario, eventoId, finais);
   return { linhas: finais.length };
 }
