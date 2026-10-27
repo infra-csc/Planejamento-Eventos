@@ -380,12 +380,21 @@ export default async function PainelPage() {
         eyebrow={<span className="numero">{hoje.charAt(0).toUpperCase() + hoje.slice(1)}</span>}
         title={`${saudacao(agora)}, ${primeiroNome}`}
         actions={
-          acao && (
-            <ButtonLink href={acao.href} variant="primary" size="lg" className="no-underline">
-              <Icone nome={acao.icone} />
-              {acao.label}
-            </ButtonLink>
-          )
+          <>
+            {/* A Cenografia mantém a Biblioteca (projetos padrão e peças): o painel dela não apontava para lá. */}
+            {usuario.perfil === "CENOGRAFIA" && (
+              <ButtonLink href="/biblioteca" variant="secondary" size="lg" className="no-underline">
+                <Icone nome="livro" />
+                Biblioteca
+              </ButtonLink>
+            )}
+            {acao && (
+              <ButtonLink href={acao.href} variant="primary" size="lg" className="no-underline">
+                <Icone nome={acao.icone} />
+                {acao.label}
+              </ButtonLink>
+            )}
+          </>
         }
       />
 
