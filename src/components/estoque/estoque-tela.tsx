@@ -258,7 +258,30 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   );
 }
 
-function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { item: ItemEstoqueTela | null; categorias: string[]; catalogo: Array<{ id: string; codigo: string; nome: string }>; categoriaPadrao: string; onFechar: () => void }) {
+/** O que o formulário de edição lê do item (a página do item não tem as contagens da lista). */
+type ItemEditavel = Pick<ItemEstoqueTela, "id" | "nome" | "categoria" | "quantidade" | "comprar" | "observacao" | "pecaId" | "ativo">;
+
+/**
+ * Na página do item: o mesmo diálogo do "Editar" da lista. Antes a página mandava ir a "Estoque › Editar"
+ * para ligar o item a uma peça do catálogo, sem botão ali.
+ */
+export function BotaoEditarItemEstoque({ item, catalogo }: { item: ItemEditavel; catalogo: Array<{ id: string; codigo: string; nome: string }> }) {
+  const [aberto, setAberto] = useState(false);
+  const categorias = [...new Set([...CATEGORIAS_ESTOQUE, item.categoria])];
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setAberto(true)}>
+        <Icone nome="lapis" />
+        Editar item
+      </Button>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        {aberto && <FormItem item={item} categorias={categorias} catalogo={catalogo} categoriaPadrao={item.categoria} onFechar={() => setAberto(false)} />}
+      </Dialog>
+    </>
+  );
+}
+
+function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { item: ItemEditavel | null; categorias: string[]; catalogo: Array<{ id: string; codigo: string; nome: string }>; categoriaPadrao: string; onFechar: () => void }) {
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
   const [nome, setNome] = useState(item?.nome ?? "");
