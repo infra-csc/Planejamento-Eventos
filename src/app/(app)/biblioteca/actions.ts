@@ -7,7 +7,7 @@ import { listarPecas } from "@/server/services/catalogo";
 import { executar, type ActionResult } from "@/lib/action";
 import type { PecaOpcao } from "@/components/projetos/projeto-form";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
-import { desabilitarBibliotecaEmLote, organizarProjetosEmLote, type OrganizacaoProjetos } from "@/server/services/biblioteca-lote";
+import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, organizarProjetosEmLote, type OrganizacaoProjetos } from "@/server/services/biblioteca-lote";
 import { excluirGrupoProjeto } from "@/server/services/projetos";
 
 /**
@@ -77,4 +77,20 @@ export async function excluirGrupoProjetoAction(grupoId: string): Promise<Action
   revalidatePath("/catalogo", "layout");
   invalidarDados(TAGS_DADOS.projetos, TAGS_DADOS.catalogo);
   return r;
+}
+
+/** Mostrar ou tirar das solicitações os itens marcados. disponivel: "1" mostra, "0" tira. */
+export async function disponibilizarBibliotecaEmLoteAction(formData: FormData): Promise<ActionResult<{ alterados: number; semMudanca: number }>> {
+  const usuario = await requireUsuario();
+  const disponivel = formData.get("disponivel") === "1";
+  const resultado = await executar(() => disponibilizarBibliotecaEmLote(usuario, formData.get("tipo"), formData.getAll("ids"), disponivel));
+  if (!resultado.ok) return resultado;
+  revalidatePath("/biblioteca");
+  revalidatePath("/projetos", "layout");
+  revalidatePath("/catalogo", "layout");
+  revalidatePath("/solicitacoes/nova");
+  invalidarDados(TAGS_DADOS.projetos, TAGS_DADOS.catalogo);
+  const n = resultado.dados?.alterados ?? 0;
+  const texto = disponivel ? (n === 1 ? "item agora aparece nas solicitações" : "itens agora aparecem nas solicitações") : n === 1 ? "item saiu das solicitações" : "itens saíram das solicitações";
+  return { ...resultado, mensagem: n ? `${n} ${texto}.` : "Os itens selecionados já estavam assim." };
 }

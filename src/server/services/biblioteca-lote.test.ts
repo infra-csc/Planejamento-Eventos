@@ -9,7 +9,7 @@ import { historico, pecas, projetoGrupos, projetos } from "@/server/db/schema";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { criarPeca, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import { criarProjeto, listarProjetos } from "./projetos";
-import { desabilitarBibliotecaEmLote, organizarProjetosEmLote } from "./biblioteca-lote";
+import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, organizarProjetosEmLote } from "./biblioteca-lote";
 
 let E: Elenco;
 beforeAll(async () => {
@@ -130,5 +130,21 @@ describe("organizar projetos em lote", () => {
     expect(row.categoria).toBe("Teste");
     expect(row.grupoId).toBeNull();
     expect(await db.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.nomeNormalizado, "grupo fantasma") })).toBeUndefined();
+  });
+});
+
+describe("mostrar nas solicitações em lote", () => {
+  it("peças escondidas passam a aparecer (e voltam a sair), com histórico; requisitante não pode", async () => {
+    const db = await getDb();
+    const a = await criarPeca("MARCENARIA");
+    const b = await criarPeca("MARCENARIA");
+    await db.update(pecas).set({ disponivelEmSolicitacoes: false }).where(inArray(pecas.id, [a.id, b.id]));
+    expect(await disponibilizarBibliotecaEmLote(E.cenografia, "pecas", [a.id, b.id], true)).toEqual({ alterados: 2, semMudanca: 0 });
+    const lidas = await db.select().from(pecas).where(inArray(pecas.id, [a.id, b.id]));
+    expect(lidas.every((p) => p.disponivelEmSolicitacoes)).toBe(true);
+    expect((await db.select().from(historico).where(eq(historico.entidadeId, a.id))).some((h) => /passa a aparecer nas solicitações/.test(h.descricao))).toBe(true);
+    expect(await disponibilizarBibliotecaEmLote(E.cenografia, "pecas", [a.id, b.id], true)).toEqual({ alterados: 0, semMudanca: 2 });
+    expect(await disponibilizarBibliotecaEmLote(E.logistica, "pecas", [a.id], false)).toEqual({ alterados: 1, semMudanca: 0 });
+    await expect(disponibilizarBibliotecaEmLote(E.requisitante, "pecas", [a.id], true)).rejects.toThrow();
   });
 });

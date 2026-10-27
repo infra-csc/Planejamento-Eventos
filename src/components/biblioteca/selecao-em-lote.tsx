@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useRef, useState, useTransition, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { desabilitarBibliotecaEmLoteAction } from "@/app/(app)/biblioteca/actions";
+import { desabilitarBibliotecaEmLoteAction, disponibilizarBibliotecaEmLoteAction } from "@/app/(app)/biblioteca/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Aviso } from "@/components/ui/layout";
@@ -18,6 +18,8 @@ type ContextoSelecao = {
   alternar: (id: string) => void;
   selecionarPagina: (marcar: boolean) => void;
   abrirConfirmacao: () => void;
+  /** Mostrar (true) ou tirar (false) das solicitações os itens marcados: reversível, sem confirmação. */
+  mostrarNasSolicitacoes: (disponivel: boolean) => void;
   /** Só existe na aba de projetos: mudar grupo/categoria em lote. */
   abrirOrganizacao?: () => void;
 };
@@ -107,6 +109,28 @@ export function SelecaoEmLote({
     });
   };
 
+  const mostrarNasSolicitacoes = (disponivel: boolean) => {
+    if (ocupado || submetendo.current || selecionadosVisiveis.size === 0) return;
+    submetendo.current = true;
+    const formData = new FormData();
+    formData.set("tipo", tipo);
+    formData.set("disponivel", disponivel ? "1" : "0");
+    for (const id of selecionadosVisiveis) formData.append("ids", id);
+    iniciar(async () => {
+      try {
+        const r = await disponibilizarBibliotecaEmLoteAction(formData);
+        if (!r.ok) return toastErro(r.erro);
+        toastSucesso(r.mensagem ?? "Pronto.");
+        setSelecionados(new Set());
+        router.refresh();
+      } catch {
+        toastErro("Não foi possível alterar os itens. Verifique sua conexão e tente novamente.");
+      } finally {
+        submetendo.current = false;
+      }
+    });
+  };
+
   const ctx: ContextoSelecao = {
     itens,
     selecionados: selecionadosVisiveis,
@@ -117,6 +141,7 @@ export function SelecaoEmLote({
       setErro(null);
       setConfirmar(true);
     },
+    mostrarNasSolicitacoes,
     abrirOrganizacao: tipo === "projetos" && organizacao ? () => setOrganizar(true) : undefined,
   };
   const nomesSelecionados = ativos.filter((item) => selecionadosVisiveis.has(item.id));
@@ -188,7 +213,7 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
   if (count === 0)
     return (
       <p aria-live="polite" className="m-0 border-b border-line-soft bg-subtle/70 px-cartao py-2 text-pequeno text-muted">
-        Marque os itens ativos para organizar ou desabilitar vários de uma vez.
+        Marque os itens ativos para organizar, mostrar nas solicitações ou desabilitar vários de uma vez.
       </p>
     );
   return (
@@ -212,6 +237,12 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
             Organizar selecionados
           </Button>
         )}
+        <Button variant="secondary" size="sm" disabled={ctx.ocupado} onClick={() => ctx.mostrarNasSolicitacoes(true)}>
+          Mostrar nas solicitações
+        </Button>
+        <Button variant="ghost" size="sm" disabled={ctx.ocupado} onClick={() => ctx.mostrarNasSolicitacoes(false)}>
+          Tirar das solicitações
+        </Button>
         <Button variant="secondary" size="sm" disabled={ctx.ocupado} onClick={ctx.abrirConfirmacao}>
           Desabilitar selecionados
         </Button>

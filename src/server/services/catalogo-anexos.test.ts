@@ -47,6 +47,11 @@ describe("origem da peça", () => {
     expect(r.success).toBe(false);
     expect(r.error?.issues[0]).toMatchObject({ path: ["grupoEvento"] });
     expect(pecaSchema.safeParse({ ...dados(), permiteEmProjeto: "on", grupoEvento: "" }).success).toBe(true);
+    // "Aparece nas solicitações": só conta quando o formulário tem a opção; desmarcada = false; sem a opção = não mexe.
+    const marcada = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on", temDisponivel: "1", disponivelEmSolicitacoes: "on" });
+    const desmarcada = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on", temDisponivel: "1" });
+    const semOpcao = pecaSchema.parse({ ...dados(), permiteEmProjeto: "on" });
+    expect([marcada.disponivelEmSolicitacoes, desmarcada.disponivelEmSolicitacoes, "disponivelEmSolicitacoes" in semOpcao]).toEqual([true, false, false]);
   });
 });
 

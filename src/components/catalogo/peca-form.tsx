@@ -21,7 +21,7 @@ export function PecaForm({
   grupos,
   cancelarHref,
 }: {
-  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; permiteEmProjeto?: boolean; prova?: string | null };
+  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; permiteEmProjeto?: boolean; disponivelEmSolicitacoes?: boolean; prova?: string | null };
   usos?: Array<{ id: string; nome: string; quantidade: number }>;
   /** Provas já usadas na Biblioteca (grupos dos projetos), para a origem da peça. */
   grupos: readonly GrupoProjetoOpcao[];
@@ -71,6 +71,11 @@ export function PecaForm({
           </Field>
           <div className="sm:col-span-2">
             <Checkbox id="permiteEmProjeto" name="permiteEmProjeto" label="Pode entrar na lista de peças de projetos padrão" description="Desmarque para peças sempre lançadas avulsas com destino, como fechamento de tenda." defaultChecked={valores.permiteEmProjeto ?? true} />
+          </div>
+          <div className="sm:col-span-2">
+            {/* O campo oculto diz ao servidor que o formulário tem a opção (checkbox desmarcado não é enviado). */}
+            <input type="hidden" name="temDisponivel" value="1" />
+            <Checkbox id="disponivelEmSolicitacoes" name="disponivelEmSolicitacoes" label="Aparece nas solicitações" description="As áreas encontram a peça ao pedir. Desmarque para peças que só a cenografia e a logística usam." defaultChecked={valores.disponivelEmSolicitacoes ?? true} />
           </div>
         </div>
       </Section>

@@ -51,6 +51,7 @@ export default async function NovaPecaPage({ searchParams }: { searchParams: Pro
                 descricao: origem.descricao,
                 estoqueProprio: origem.estoqueProprio,
                 permiteEmProjeto: origem.permiteEmProjeto,
+                disponivelEmSolicitacoes: origem.disponivelEmSolicitacoes,
                 prova: origem.prova,
               }
             : {}

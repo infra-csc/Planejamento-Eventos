@@ -21,6 +21,8 @@ export type DadosPeca = {
   descricao: string | null;
   estoqueProprio: number;
   permiteEmProjeto: boolean;
+  /** Aparece nas solicitações; ausente = não mexe (na criação, aparece). */
+  disponivelEmSolicitacoes?: boolean;
   /** Prova para a qual a peça foi feita (nome livre, os mesmos grupos dos projetos); null = do galpão; ausente = não mexe. */
   grupoEvento?: string | null;
 };

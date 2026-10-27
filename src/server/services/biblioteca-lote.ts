@@ -112,3 +112,33 @@ export async function organizarProjetosEmLote(usuario: UsuarioAtual, selecao: un
     return { alterados: alterar.length, semMudanca: rows.length - alterar.length };
   });
 }
+
+/**
+ * Mostra ou tira das solicitações vários itens de uma vez (a cenografia escolhe o que as áreas podem pedir). Só a
+ * visibilidade na hora de pedir muda: o que já está em ata ou pedido continua igual. Cada item ganha histórico.
+ */
+export async function disponibilizarBibliotecaEmLote(usuario: UsuarioAtual, tipo: unknown, selecao: unknown, disponivel: boolean) {
+  if (tipo !== "projetos" && tipo !== "pecas") throw new ValidacaoError("Escolha projetos ou peças da biblioteca.");
+  exigir(usuario, tipo === "projetos" ? "projeto.gerenciar" : "catalogo.gerenciar");
+  const ids = idsSelecionados(selecao);
+  const tabela = tipo === "projetos" ? projetos : pecas;
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({ id: tabela.id, nome: tabela.nome, disponivel: tabela.disponivelEmSolicitacoes }).from(tabela).where(inArray(tabela.id, ids));
+    if (rows.length !== ids.length) throw new NaoEncontradoError(tipo === "projetos" ? "Um dos projetos selecionados" : "Uma das peças selecionadas");
+    const mudam = rows.filter((r) => r.disponivel !== disponivel);
+    if (mudam.length) await tx.update(tabela).set({ disponivelEmSolicitacoes: disponivel }).where(inArray(tabela.id, mudam.map((r) => r.id)));
+    for (const r of mudam) {
+      await registrarHistorico(tx, {
+        entidade: tipo === "projetos" ? "projeto" : "peca",
+        entidadeId: r.id,
+        acao: "EDITADA",
+        descricao: `${r.nome}: ${disponivel ? "passa a aparecer" : "deixa de aparecer"} nas solicitações (em lote).`,
+        usuarioId: usuario.id,
+        dadosAntes: { disponivelEmSolicitacoes: !disponivel },
+        dadosDepois: { disponivelEmSolicitacoes: disponivel },
+      });
+    }
+    return { alterados: mudam.length, semMudanca: rows.length - mudam.length };
+  });
+}
