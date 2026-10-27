@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
@@ -9,7 +10,7 @@ export const DialogClose = DialogPrimitive.Close;
 
 /**
  * Modal do handoff (§5.14): 460px, raio 12, sombra de modal, cabeçalho com título e subtítulo.
- * Radix cuida de focus trap, Esc e devolução de foco (pendência §11 do protótipo).
+ * Radix cuida de focus trap e Esc; a devolução do foco a quem abriu é feita aqui (vale também sem DialogTrigger).
  */
 export function DialogContent({
   title,
@@ -28,10 +29,32 @@ export function DialogContent({
   size?: "sm" | "md" | "lg";
 }) {
   const w = size === "sm" ? 420 : size === "md" ? 520 : size === "lg" ? 720 : width;
+  // Devolução do foco (WCAG 2.4.3): o Radix só devolve para um <DialogTrigger>. Os modais abertos por estado
+  // (botão comum + `open`) deixavam o foco no <body> ao fechar — quem usa teclado voltava ao topo da página.
+  // Guarda quem tinha o foco ao abrir e volta para ele, se ainda estiver na tela. Com `autoFocus` num campo
+  // do modal, o foco já entrou antes do onOpenAutoFocus: aí quem abriu vem do `relatedTarget` desse 1º foco.
+  const conteudo = useRef<HTMLDivElement>(null);
+  const retorno = useRef<HTMLElement | null>(null);
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-dialogo)] animate-fade-up-rapido bg-scrim" />
       <DialogPrimitive.Content
+        ref={conteudo}
+        onFocusCapture={(e) => {
+          if (!retorno.current && e.relatedTarget instanceof HTMLElement && !e.currentTarget.contains(e.relatedTarget)) retorno.current = e.relatedTarget;
+        }}
+        onOpenAutoFocus={() => {
+          const ativo = document.activeElement;
+          if (ativo instanceof HTMLElement && ativo !== document.body && !conteudo.current?.contains(ativo)) retorno.current = ativo;
+        }}
+        onCloseAutoFocus={(e) => {
+          const alvo = retorno.current;
+          retorno.current = null;
+          if (alvo?.isConnected) {
+            e.preventDefault();
+            alvo.focus({ preventScroll: true });
+          }
+        }}
         className={cn(
           "fixed left-1/2 top-1/2 z-[calc(var(--z-dialogo)+1)] flex max-h-[calc(100dvh-48px)] -translate-x-1/2 -translate-y-1/2 animate-fade-up-rapido flex-col rounded-modal border border-line-strong bg-surface shadow-modal focus:outline-none",
           // Celular: painel que sobe da borda de baixo, na largura toda (mais fácil com o polegar e com o teclado aberto).
