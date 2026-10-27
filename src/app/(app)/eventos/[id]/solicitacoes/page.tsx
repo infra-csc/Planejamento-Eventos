@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { requireUsuario } from "@/server/auth/session";
 import { listarSolicitacoes } from "@/server/services/solicitacoes";
 import { pode } from "@/domain/permissions";
-import { aguardaReuniao } from "@/domain/solicitacao";
+import { aguardaReuniao, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
+import { ButtonLink } from "@/components/ui/button";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
 import { EmptyState, Section } from "@/components/ui/layout";
@@ -17,8 +18,13 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
   const usuario = await requireUsuario();
   const { id } = await params;
   // Quem não vê todas as áreas recebe só as da própria área (regra do serviço).
-  const lista = (await listarSolicitacoes(usuario, { eventoId: id })).sort((a, b) => a.codigo.localeCompare(b.codigo));
+  const todas = (await listarSolicitacoes(usuario, { eventoId: id })).sort((a, b) => a.codigo.localeCompare(b.codigo));
   const veTodas = pode(usuario, "solicitacao.ver_todas");
+  // Quem responde (logística, admin) vê primeiro o que espera resposta agora, com o atalho para responder em sequência.
+  const responde = pode(usuario, "solicitacao.responder");
+  const aguardando = (x: (typeof todas)[number]) => responde && podeResponder(x.status) && !aguardaReuniao(x.tipo, x.evento.status) && podeResponderNaFase(x.tipo, x.evento.status);
+  const pendentes = todas.filter(aguardando);
+  const lista = [...pendentes, ...todas.filter((x) => !aguardando(x))];
   const agora = new Date();
   // Na ata: conta itens (a reunião é a do evento, no topo); alteração: quantos a logística já respondeu.
   const textoItens = (x: (typeof lista)[number]) =>
@@ -26,7 +32,20 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
   return (
     <Section
       titulo="Solicitações deste evento"
-      sub={veTodas ? "Necessidades pré-reunião e alterações pós-ata, de todas as áreas." : `Necessidades e alterações enviadas pela área ${usuario.areaNome ?? ""}.`}
+      sub={
+        pendentes.length > 0
+          ? `${pendentes.length} ${pendentes.length === 1 ? "aguarda" : "aguardam"} resposta (no topo). Responder, corrigir uma resposta ou devolver: abra a solicitação.`
+          : veTodas
+            ? "Necessidades pré-reunião e alterações pós-ata, de todas as áreas."
+            : `Necessidades e alterações enviadas pela área ${usuario.areaNome ?? ""}.`
+      }
+      acoes={
+        pendentes.length > 0 ? (
+          <ButtonLink href={`/solicitacoes/${pendentes[0].id}?fila=1`} variant="secondary" size="sm" className="no-underline">
+            Responder em sequência
+          </ButtonLink>
+        ) : undefined
+      }
     >
       {lista.length === 0 ? (
         <EmptyState compact title="Nenhuma solicitação neste evento" description={pode(usuario, "solicitacao.criar") ? "Use o botão no topo da página para enviar as necessidades da sua área." : "As solicitações enviadas pelas áreas aparecem aqui."} />
