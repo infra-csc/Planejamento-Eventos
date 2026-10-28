@@ -624,3 +624,94 @@ Perfis sem edição (requisitante, gestão) na visão geral nova (por código, a
 antes); evento antes da ata (conferência em andamento) e evento sem itens; erro de gravação (sem rede); "Incluir peça"
 e "Vincular" abertos pelas leituras novas (só os botões e nomes acessíveis); peça unificada no catálogo (sem caso no
 banco de demonstração).
+
+
+## 28/10/2026 — Resto do app: menos informação empilhada (painel, solicitações, conferência, ativação…)
+
+Pedido do admin: "deixe 10/10 em tudo, corrija os erros e deixe mais bonita sem eu precisar apontar tudo", com a
+queixa principal de **excesso de informação** (coisa empilhada embaixo de títulos, selos coloridos em metade das
+linhas, botões de texto repetidos em cada linha, colunas com dois assuntos, quadros laterais repetindo a mesma
+história, coisas longe de onde pertencem). Referência de densidade: a lista de itens do evento (73e2223, d0a2bab,
+201641f). Regra registrada em `docs/design-system.md` § 4 ("Densidade das listas"), junto com o selo novo
+`SolicitacaoStatusTexto`.
+
+Ambiente: dev server da porta 5000 (banco PGlite local de demonstração). Prints com um script Playwright próprio
+(login do seed uma vez por perfil, 1440 e 375, `scrollWidth` medido em todos: nenhuma rolagem lateral), em
+`C:\Users\yan.araujo\AppData\Local\Temp\evtshots\rev28\` (`antes-*` e `depois-*`, com perfil, caminho e largura no
+nome). Teclado e modais conferidos por script (`verif.mjs`, na mesma pasta).
+
+### Corrigido
+
+| Prior. | Tela | Problema que achei | Mudança | Commit |
+|---|---|---|---|---|
+| P1 | Painel (logística/admin/gestão) | A mesma história 3–4 vezes: cartão "2 solicitações atrasadas", fila com 2 atrasadas, métrica "Aguardando 2 / 2 atrasadas" e métrica "Atrasadas 2"; "7 fora do catálogo" em cartão e em "Saúde do sistema" com selo "1 ponto de atenção" | "Precisa de você agora" vira lista de uma linha por assunto num cartão só (sem link de texto repetindo o destino nem cartão órfão); saem a faixa de métricas e "Atalhos"; "Saúde do sistema" vira "Cadastro" (3 linhas, sem frase embaixo de cada número) | fb607e8 |
+| P1 | Painel › fila | Linha de 3 andares (título + tipo, "área · evento · 1 item", caixa com o item e dois botões de texto); tipo "alteração" em todas (a fila só tem alteração) | Tabela com uma informação por coluna (solicitação · área · evento · prazo) pela largura do cartão; atender rápido vira ícone (nome acessível "Atender <item> × n"); "Parcial / não atender" sai (a linha abre a solicitação) | fb607e8 |
+| P2 | Painel (gestão) | "Fila de resposta" para quem não responde; "Ver atrasos" repetia a linha de atrasadas | "Aguardando a logística"; sem ação principal | fb607e8 |
+| P1 | Painel (solicitante, ativação, cenografia) | Cartão por evento com 3 números grandes, pendência e "última mudança" (repetiam "Suas solicitações" e "O que mudou" ao lado); 3 cartões vazios; "Como funciona" escuro sempre aberto; faixa de métricas repetindo o topo | Eventos em tabela (evento · situação · próximo · itens); "O que mudou" e "Respostas" somem vazios; "Como funciona" recolhido; sem faixa de métricas; agenda numa linha por compromisso | fb607e8 |
+| P1 | Solicitações › lista | Título + selo de tipo + "por fulano" em 2 linhas, evento quebrando, prazo em 2 linhas, selo colorido em toda linha, coluna só para a seta (2.058 px a 1440) | Uma linha por solicitação (1.461 px), estado em ponto + texto, prazo numa linha ("atrasada há 33 dias", "não iniciada · 25/09"), Itens em número; celular em 2 linhas sem "—" vazio | 94b1db3 |
+| P1 | Solicitações › detalhe | Quadros "Dados" (6 de 7 linhas repetiam o cabeçalho) e "Evento" (9 linhas + 4 links que são da página do evento) ao lado | Uma coluna; o cabeçalho ganha "Enviada em", a data do evento e "Alterações até" | e763047 |
+| P1 | Solicitações › detalhe | Quadro "1 item fora do catálogo" acima da lista repetia o item; "Vincular" longe do item | "fora do catálogo · Vincular" no próprio item | e763047 |
+| P2 | Solicitações › detalhe | Selo "Em análise" ao lado dos botões de resposta; descrição numa caixa dentro do item; tenda de um local repetia "6 tendas" e "sem fechamento" 3 vezes; observação geral num cartão para uma frase; histórico com uma linha só para "Fulano · Perfil" | Sem o selo quando há botões; descrição em texto; tenda sem as repetições; observação abre a lista; autor na linha do título | e763047 |
+| P2 | Fila "Responder em sequência" (375) | Banner com o título quebrado palavra por palavra ao lado dos botões; "Vincular" espremia o nome do item | Ações descem no banner (`BannerEscuro`); selo e "Vincular" descem no item | e763047, ac0b784 |
+| P2 | Nova solicitação | "Adicionar" escrito em cada uma das 12 linhas do catálogo; "249 projetos no catálogo" repetia a aba; descrição do catálogo (2–3 linhas) no item escolhido; frase do cabeçalho e "Escolha o evento e adicione itens" repetindo os passos e as pendências | "+" com o mesmo nome acessível; contagem só com busca/grupo; descrição no title e em "Ver peças"; sem as frases | f10e508 |
+| P2 | Quadro de tendas | Campos flutuavam no meio da linha quando a descrição de várias unidades crescia; subtítulo de 2 linhas; totais numa caixa; no celular "Calhas" caía sozinha numa linha | Linha alinhada pelo topo; subtítulo de 1 linha; totais em texto; celular com tendas · fechamentos · calhas lado a lado | f10e508 |
+| P1 | Conferência | "Peças" e "Ajustar" escritos em toda linha (coluna de 164 px); código do catálogo em mono ao lado do nome; "· faltam N" repetindo "0 de N"; no celular, uma faixa a mais por item só para os botões | Ícones numa coluna de 72 px (lugar reservado), embaixo da quantidade na lista estreita (375: 3.575 → 3.231 px); "Vincular" junto do aviso; código no title | ac0b784 |
+| P3 | Conferência (375) | Vão de 240 px no banner da reunião (efeito da 1ª correção do `BannerEscuro`) | `min-w` em vez de `basis` | ac0b784 |
+| P2 | Ativação › estoque | Caixa cinza no lugar da foto em quase todas as 244 linhas; "sem estoque" ao lado do nome repetindo Disponível 0; "Editar" escrito em toda linha | Sem miniatura (a foto fica na página do item), Disponível 0 em atenção, lápis (15.416 → 13.878 px) | aba1843 |
+| P3 | Ativação › reformas e item | "0 unidades em reforma" em cima de "Nada em reforma"; seções do item com subtítulo e vazio dizendo a mesma coisa | Contagem só com reforma; subtítulo só quando há conteúdo | aba1843 |
+| P2 | Biblioteca › projetos | "Padrão" e "v1" em todas as linhas; 3ª linha com a descrição cortada; "6 tipos de peça · alterado em"; caixa cinza no lugar da foto | Selo só para grupo que não é o Padrão e versão > 1; descrição e data no title e no painel; sem caixa (linha de 90 → 70 px) | 239a00e |
+| P2 | Biblioteca › peças | Quadro tracejado no lugar da foto em quase toda linha; faixa fixa "Marque os itens ativos para…" entre abas e tabela | Espaço só reservado se alguma linha da página tem foto (69 → 47 px); dica só para o leitor de tela (a barra aparece ao marcar) | 239a00e |
+| P2 | Administração › usuários | Perfil em selo colorido (4 cores em 12 linhas); coluna "Situação" com "Ativo" em todas as linhas da aba Ativos; "Cenografia · Cenografia" no celular | Perfil em texto; "inativo" só ao lado do nome do inativo; área some no celular quando repete o perfil | 5770b13 |
+| P3 | Carga e descarga | "PLANILHA" em caixa-alta em quase todo cartão do calendário | Sai (a borda pontilhada e o filtro "Planilha 2026" dizem a origem; title e leitor de tela) | 5770b13 |
+
+Vistos sem mudança: notificações (uma linha por aviso, não lidas marcadas, agrupadas por período — ok), calendário
+(densidade já boa; a barra "Oficina do Código" em toda semana é um evento que cobre o mês, dado do banco), retornos
+da Ativação.
+
+Arquivos: `src/app/(app)/page.tsx`, `src/components/painel/{agora,atender-rapido,eventos-solicitante}.tsx`,
+`src/app/(app)/solicitacoes/{page,[id]/page,nova/page}.tsx`, `src/components/solicitacoes/{item-resposta,quadro-tendas}.tsx`,
+`src/components/solicitacoes/nova/{busca-catalogo,lista-itens,resumo-envio,dialogo-tendas}.tsx`,
+`src/components/eventos/{conferencia-ata,tenda-conferencia}.tsx`, `src/components/estoque/{estoque-tela,reformas-tela}.tsx`,
+`src/app/(app)/ativacao/itens/[id]/page.tsx`, `src/app/(app)/biblioteca/page.tsx`, `src/components/biblioteca/selecao-em-lote.tsx`,
+`src/components/admin/usuarios-painel.tsx`, `src/components/carga/calendario-carga.tsx`,
+`src/components/ui/{badge,layout,linha-do-tempo}.tsx`, `docs/design-system.md`.
+
+### Validação
+
+- `npx tsc --noEmit -p .` e eslint dos arquivos de cada commit: ok. Nenhum teste do vitest cobre os componentes
+  mexidos (os de `agrupamento-pedido` e `conferencia-descricao` são de domínio, que não mudou).
+- Rótulos dos E2E conferidos com grep: "Atender 1" (item da solicitação), "Adicionar <projeto>", "Marcar 2 como
+  conferidas", "Linhas conferidas", `/^Alteração pós-ata ·/` e "Na ata" continuam iguais.
+- Prints antes/depois a 1440 e 375: painel de admin, logística (Marina), gestão (Helena), cenografia (Bruno),
+  produção (Paulo) e ativação (Júlia); lista de solicitações (admin e Paulo); detalhe SOL-0017 (aberta), SOL-0013
+  (respondida, tenda; também como Paulo), SOL-0023 (na ata, fora do catálogo), fila a partir da SOL-0005; nova
+  solicitação (Paulo sem e com evento; rascunho SOL-0010 da Júlia) e o quadro de tendas aberto; conferência
+  EVT-0002 (Marina); estoque, retornos, reformas e página de item da Ativação (Júlia).
+- Script (`verif.mjs`): o lápis da conferência abre "Ajustar Ângulo 15° Q30" e Esc devolve o foco ao lápis; 3 links
+  "Peças de …"; ícones de atender rápido com o item no nome; "Vincular" no item da solicitação abre "Vincular ao
+  catálogo".
+
+### Proposto (muda comportamento ou regra — não feito)
+
+- P2 — Estoque da Ativação com as 244 linhas de uma vez (13.878 px a 1440): paginar ou carregar por partes. Muda
+  o comportamento da lista (busca e filtros hoje são no navegador), por isso não mexi.
+- P2 — Painel do solicitante: hoje "Suas solicitações em andamento" e "Respostas recebidas" são duas listas; poderiam
+  ser uma só ("o que é seu", com estado). Mexe na consulta do painel (`dashboard.ts`).
+- P3 — Biblioteca: abrir a foto do projeto na própria linha (hoje só no painel ao lado). Fica para quando a equipe
+  disser se a foto na lista ajuda a achar o projeto.
+- P3 — Notificações não lidas usam o vinho (filete e ponto), que o design system reserva para "aja aqui/escolhido".
+  Trocar exigiria decidir um tom para "novo"; deixei como está.
+- Solicitação: o texto do histórico ("Rascunho SOL-0017 criado — alteração pós-ata") repete o título do registro; vem
+  pronto do servidor (`linha-do-tempo.ts`).
+
+### Não visto / não rodado
+
+- E2E (Playwright) não rodado: a máquina levou de 4 s a 94 s por página no dev server; conferi por grep que os
+  nomes acessíveis usados nos specs não mudaram. Recomendo `npx playwright test e2e/solicitante.spec.ts
+  e2e/logistica.spec.ts e2e/conferencia.spec.ts e2e/acessibilidade.spec.ts` antes do push.
+- Não abri: páginas de projeto (`/projetos/[id]`, editar, novo), peça (`/catalogo/[id]/editar`), cadastro de carga,
+  abas Áreas e Configurações do admin, perfil; nova solicitação em alteração pós-ata (aba "Da ata"); atender de
+  verdade pelo ícone do painel (só o nome acessível; não gravei para não mexer na fila de demonstração).
+- O print do quadro de tendas mostrou o indicador "1 Issue" do Next: um aviso de hidratação (`data-aria-hidden` no
+  `BarraNavegacao`), provavelmente porque o script clicou em "Editar" antes da hidratação terminar (o Radix marca o
+  resto da página como oculto). Não reproduzi abrindo devagar; vale conferir no navegador.

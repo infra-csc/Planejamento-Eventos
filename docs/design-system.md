@@ -142,6 +142,14 @@ mostra o motivo num toast. Prefira isso a um botão desabilitado mudo.
 | `Badge` | **estado** da coisa (Enviada, Em análise, Atendido) | **um por linha**; fundo suave + borda sutil; cor semântica |
 | `Tag` | **tipo/categoria/observação** (pré-reunião, fora do catálogo, depois da ata) | texto discreto com contorno `line`, **sem fundo colorido**; o tom só tinge a letra |
 | `ChipMono` | **contador** (12, × 4) ou **código/versão** (v3) | contador em fonte normal tabular; código em mono |
+| `SolicitacaoStatusTexto` | **estado** numa lista longa em que a coluna inteira é o estado (`/solicitacoes`) | ponto colorido + texto `ink-2`, sem fundo: 25 selos cheios em coluna viram uma faixa de cor |
+
+**Densidade das listas (referência: lista de itens do evento, `/solicitacoes`, fila do painel):** uma linha = uma
+leitura; uma informação por coluna (nada de "Item · local" ou "por fulano" embaixo do nome); ações em ícone
+(`IconButton`/`IconLink` com `label` = verbo + objeto) sempre na mesma coluna, com lugar reservado quando a linha
+não tem a ação; avisos em texto discreto, não em selo; origem, tipo e autor no `title` e na página do registro.
+Coluna que some na lista estreita desce para a 2ª linha do nome (`@container` + `@lg:`/`@2xl:`). Seção vazia: uma
+frase só (sem subtítulo repetindo o vazio); quadro lateral não repete o cabeçalho.
 
 Tamanho mínimo 12 px (`text-rotulo`). Tons: `success` concluído · `warning` atenção/aguardando ·
 `danger` erro/atraso/recusa · `info` andamento/informativo · `neutral`/`muted`/`rascunho` neutros ·
