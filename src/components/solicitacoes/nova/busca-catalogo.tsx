@@ -300,7 +300,8 @@ export function BuscaCatalogo({
                 />
               )}
             </div>
-            <p className="mb-2 mt-2 text-pequeno text-muted" aria-live="polite">
+            {/* Sem busca nem grupo, a contagem só repetia o número da aba: fica para o leitor de tela. */}
+            <p className={cn("mb-2 mt-2 text-pequeno text-muted", !busca.trim() && !rotuloGrupo && modo !== "ata" && "sr-only")} aria-live="polite">
               <Numero valor={modo === "ata" ? linhasFiltradas.length : resultados.length} />{" "}
               {modo === "projeto"
                 ? resultados.length === 1
@@ -389,9 +390,16 @@ export function BuscaCatalogo({
                           }}
                         >
                           <Stepper tamanho="sm" valor={qtdNova[r.id] ?? 1} min={1} onChange={(v) => mudarQtdNova(r.id, v)} label={`Quantidade de ${r.nome}`} />
-                          <Button variant={jaNaLista > 0 ? "ghost" : "secondary"} size="sm" onClick={adicionar} aria-label={`Adicionar ${r.nome}`}>
+                          {/* Só o ícone: "Adicionar" escrito em cada uma das 12 linhas virava uma coluna de texto repetido. */}
+                          <Button
+                            variant={jaNaLista > 0 ? "ghost" : "secondary"}
+                            size="sm"
+                            onClick={adicionar}
+                            aria-label={`Adicionar ${r.nome}`}
+                            title={jaNaLista > 0 ? "Somar à lista" : "Adicionar à lista"}
+                            className="w-[30px] px-0 max-md:w-10"
+                          >
                             <Icone nome="mais" />
-                            {jaNaLista > 0 ? "Somar" : "Adicionar"}
                           </Button>
                         </span>
                       )}

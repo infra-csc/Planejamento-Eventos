@@ -79,8 +79,8 @@ export function DialogoTendas({
           title={`${tendaAtual.nome} por local`}
           description={
             iniciais
-              ? "As tendas que já estão nesta solicitação. Mude quantidades, fechamentos e calhas, zere o local que não vai ou acrescente outro."
-              : "Os locais e quantidades mais comuns das OS já vêm preenchidos: ajuste tendas e peças de cada local, zere o que não vai e acrescente outros. Tudo fica num item só."
+              ? "Uma linha por local. Zere o local que não vai."
+              : "Os locais mais comuns das OS já vêm preenchidos. Zere o que não vai."
           }
           width={760}
         >

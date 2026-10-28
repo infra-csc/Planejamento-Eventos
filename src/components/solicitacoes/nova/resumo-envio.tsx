@@ -92,14 +92,13 @@ export function ResumoEnvio({
         n={n}
         titulo="Resumo e envio"
         feito={pendencias.length === 0}
+        // Sem evento, "Para enviar, falta" logo abaixo já diz o que fazer.
         sub={
           evento ? (
             <>
               <Numero valor={grupos.length} /> {grupos.length === 1 ? "item" : "itens"} para {evento.nome}
             </>
-          ) : (
-            "Escolha o evento e adicione itens."
-          )
+          ) : undefined
         }
       >
         {itens.length > 0 && (

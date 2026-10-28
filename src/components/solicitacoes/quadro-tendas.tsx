@@ -134,8 +134,10 @@ export function QuadroTendas({
                 semDescricao: l.semDescricao ?? true,
               };
               return (
-                <tr key={n} className={cn("border-b border-line-row last:border-b-0 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-end max-sm:gap-x-3 max-sm:gap-y-2 max-sm:py-3", inativa && "text-meta")}>
-                  <td className="py-1.5 pr-1.5 max-sm:order-1 max-sm:min-w-0 max-sm:p-0">
+                // Desktop: tudo alinhado pelo topo (a descrição de várias unidades crescia e os campos flutuavam no meio).
+                // Celular: local + lixeira; tendas, fechamentos e calhas lado a lado; descrição embaixo.
+                <tr key={n} className={cn("border-b border-line-row align-top last:border-b-0 max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] max-sm:items-end max-sm:gap-x-3 max-sm:gap-y-2 max-sm:py-3", inativa && "text-meta")}>
+                  <td className="py-1.5 pr-1.5 max-sm:order-1 max-sm:col-span-2 max-sm:min-w-0 max-sm:p-0">
                     <Input
                       id={`tenda-local-${n}`}
                       value={l.local}
@@ -169,12 +171,12 @@ export function QuadroTendas({
                           onFocus={(e) => e.target.select()}
                           aria-label={`${p.rotulo} em ${nomeLinha}`}
                           title={alterado ? `Padrão: ${padrao}` : undefined}
-                          className={cn("numero mx-auto !w-16 text-center max-sm:mx-0 max-sm:!w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-accent font-medium text-accent")}
+                          className={cn("numero mx-auto !w-16 text-center max-sm:mx-0 max-sm:!w-full [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-accent font-medium text-accent")}
                         />
                       </td>
                     );
                   })}
-                  <td className="px-1.5 py-1.5 max-sm:order-5 max-sm:col-span-2 max-sm:p-0">
+                  <td className="px-1.5 py-1.5 max-sm:order-5 max-sm:col-span-3 max-sm:p-0">
                     <DescricoesItem
                       item={itemDescricao}
                       destacarVazias={erro?.linha === n && !l.semDescricao}
@@ -186,7 +188,7 @@ export function QuadroTendas({
                       })}
                     />
                   </td>
-                  <td className="py-1.5 pl-1.5 text-right max-sm:order-2 max-sm:self-center max-sm:p-0">
+                  <td className="py-1.5 pl-1.5 text-right max-sm:order-2 max-sm:self-center max-sm:justify-self-end max-sm:p-0">
                     {locais.length > 1 && (
                       <IconButton label={`Tirar ${nomeLinha}`} onClick={() => setLocais((ls) => ls.filter((_, i) => i !== n))}>
                         <Icone nome="lixeira" />
@@ -210,7 +212,8 @@ export function QuadroTendas({
         ))}
       </datalist>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-controle border border-line-soft bg-subtle px-3 py-2.5 text-pequeno text-ink-2">
+      {/* Totais em texto, sem caixa: é um resumo, não um campo. */}
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-line-soft pt-2.5 text-pequeno text-ink-2">
         <span>
           Total <Numero valor={tendas} className="font-semibold text-ink" /> {tendas === 1 ? "tenda" : "tendas"}
         </span>

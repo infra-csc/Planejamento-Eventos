@@ -121,14 +121,8 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
     <div>
       <PageHeader
         title={rascunho ? `Editar ${rascunho.codigo}` : "Nova solicitação"}
-        // Quem edita um pedido já enviado não "escolhe o evento e envia": muda itens e salva.
-        description={
-          edicaoEnviada
-            ? "Mude o que precisar e clique em “Salvar alterações”. Até lá, vale o pedido como foi enviado."
-            : rascunho
-              ? "Continue de onde parou: confira os itens e envie. A logística responde item por item."
-              : "Escolha o evento, adicione o que a sua área precisa e envie. A logística responde item por item."
-        }
+        // Os passos numerados já dizem o caminho; a frase fica só para quem edita um pedido já enviado.
+        description={edicaoEnviada ? "Mude o que precisar e clique em “Salvar alterações”. Até lá, vale o pedido como foi enviado." : undefined}
         // O código leva de volta ao pedido (antes era só texto: a saída era o menu).
         breadcrumbs={rascunho ? [{ label: "Solicitações", href: "/solicitacoes" }, { label: rascunho.codigo, href: `/solicitacoes/${rascunho.id}` }, { label: "Editar" }] : [{ label: "Solicitações", href: "/solicitacoes" }, { label: "Nova" }]}
       />

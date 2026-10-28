@@ -151,14 +151,15 @@ export function ListaItens({
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="m-0 line-clamp-2 break-words text-corpo font-medium text-ink" title={i.rotulo}>
+          {/* A descrição do projeto (texto do catálogo, 2–3 linhas) fica no title e em "Ver peças": no cartão do item
+              ela empurrava a quantidade e as descrições que a pessoa precisa preencher. */}
+          <p className="m-0 line-clamp-2 break-words text-corpo font-medium text-ink" title={p?.descricao ? `${i.rotulo} — ${p.descricao}` : i.rotulo}>
             {i.rotulo}
           </p>
           <p className="mb-0 mt-1 flex flex-wrap items-center gap-1.5 text-pequeno text-muted">
             <Tag tom={i.operacao === "REMOVER" ? "danger" : i.meta === "fora do catálogo" ? "warning" : "muted"}>{i.meta}</Tag>
             {extra}
           </p>
-          {p?.descricao && <p className="mb-0 mt-1 text-pequeno text-muted">{p.descricao}</p>}
           {i.operacao === "ADICIONAR" && (
             <AcoesReferencia
               referencia={{ nome: i.rotulo, codigo: p?.codigo, meta: p?.meta, descricao: p?.descricao, capaId: p?.capaId, bom: p?.bom }}
