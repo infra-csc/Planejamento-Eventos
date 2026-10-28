@@ -1,24 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cn } from "@/lib/cn";
 import { requireUsuario } from "@/server/auth/session";
 import { FiltroEvento } from "@/components/ui/filtro-evento";
 import { eventosComSolicitacoes, FILTROS_LISTA, paginarSolicitacoes, primeiraDaFila, REUNIOES_LISTA, type FiltroLista, type ReuniaoLista } from "@/server/services/solicitacoes";
 import { listarAreas } from "@/server/services/admin";
 import { FiltroSelectUrl } from "@/components/ui/filtro-select-url";
-import { diaMesHora, hora, isoSP } from "@/lib/format";
+import { diaMes, diaMesHora, hora, isoSP } from "@/lib/format";
 import { pode } from "@/domain/permissions";
 import { aguardaReuniao } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { hrefCom, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
+import { ForaJanelaTag, SolicitacaoStatusTexto } from "@/components/ui/badge";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
-import { Icone } from "@/components/ui/icons";
 import { IndicadorLink } from "@/components/ui/indicador-link";
 import { Codigo } from "@/components/ui/numero";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
@@ -74,6 +72,30 @@ export default async function SolicitacoesPage({
   // Reunião marcada que passou e o evento segue em preparação: a conferência não aconteceu no sistema.
   const reuniaoPassou = (x: { evento: { status: string; dataReuniao: Date } }) => x.evento.status === "PREPARACAO" && x.evento.dataReuniao.getTime() < agora.getTime() && diaBrasilia(x.evento.dataReuniao) !== hojeBr;
   const rotuloReuniao = (d: Date) => (diaBrasilia(d) === hojeBr ? `hoje ${hora(d)}` : diaBrasilia(d) === amanhaBr ? `amanhã ${hora(d)}` : diaMesHora(d));
+  /**
+   * Prazo ou reunião numa linha só (antes, duas: "25/09 14:00" e "reunião não iniciada" embaixo). Pré-reunião
+   * fala da reunião em que a logística confere; alteração aberta, do prazo de resposta; o resto não tem prazo.
+   */
+  const prazoDaLinha = (s: (typeof pag.itens)[number]): { texto: string; cor: string; pulsar?: boolean; title?: string } => {
+    if (aguardaReuniao(s.tipo, s.evento.status)) {
+      if (s.evento.status === "EM_REUNIAO") return { texto: "em reunião", cor: "var(--color-info)", title: `Reunião marcada ${rotuloReuniao(s.evento.dataReuniao)}` };
+      if (reuniaoPassou(s)) return { texto: `não iniciada · ${diaMes(s.evento.dataReuniao)}`, cor: "var(--color-warning)", title: `Reunião de OS marcada ${diaMesHora(s.evento.dataReuniao)} e ainda não iniciada` };
+      return { texto: `reunião ${rotuloReuniao(s.evento.dataReuniao)}`, cor: diaBrasilia(s.evento.dataReuniao) === hojeBr ? "var(--color-info)" : "var(--color-ink-2)" };
+    }
+    const pi = prazoInfo(s, agora);
+    if (pi.label === "—" || pi.label === "rascunho" || pi.label === "sem prazo") return { texto: "—", cor: "var(--color-line-strong)", title: "Sem prazo correndo" };
+    if (pi.vencido) return { texto: `atrasada ${pi.sub}`, cor: COR_TOM[pi.tom], pulsar: true };
+    return { texto: `até ${pi.sub}`, cor: COR_TOM[pi.tom], title: `Prazo de resposta ${pi.label}` };
+  };
+  const prazo = (s: (typeof pag.itens)[number]) => {
+    const p = prazoDaLinha(s);
+    return (
+      <span className="numero inline-flex items-center gap-1.5 whitespace-nowrap text-pequeno" style={{ color: p.cor }} title={p.title}>
+        {p.pulsar && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: p.cor }} />}
+        {p.texto === "—" ? <span aria-label="sem prazo correndo">—</span> : p.texto}
+      </span>
+    );
+  };
 
   const th = (chave: string, label: string, largura?: number, alinhar?: "left" | "right", className?: string) => {
     const prox = proximaOrdem(sp.ordem, sp.dir, chave);
@@ -186,142 +208,83 @@ export default async function SolicitacoesPage({
           />
         ) : (
           <>
-            {/* Celular: cartões empilhados (a tabela ficaria espremida em 375 px). */}
+            {/* Celular: duas linhas por solicitação — o quê e o estado; de onde e o prazo. */}
             <ul className="m-0 list-none p-0 md:hidden">
-              {pag.itens.map((s) => {
-                const pi = prazoInfo(s, agora);
-                const semPrazo = pi.label === "—" || pi.label === "rascunho";
-                return (
-                  <li key={s.id} className="border-b border-line-row last:border-b-0">
-                    <Link href={`/solicitacoes/${s.id}`} className="relative block px-cartao py-3.5 no-underline transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className="block text-pequeno text-ink-3">
-                            <Codigo>{s.codigo}</Codigo> · {s.area.nome}
-                          </span>
-                          <span className="mt-0.5 line-clamp-2 text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
-                          <span className="mt-0.5 line-clamp-1 text-pequeno text-muted">{s.evento.nome}</span>
-                        </span>
-                        <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+              {pag.itens.map((s) => (
+                <li key={s.id} className="border-b border-line-row last:border-b-0">
+                  <Link href={`/solicitacoes/${s.id}`} className="relative block px-cartao py-3 no-underline transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <Codigo className="shrink-0 text-pequeno text-ink-3">{s.codigo}</Codigo>
+                        <span className="truncate text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
                       </span>
-                      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-pequeno">
-                        <span className="numero text-ink-3">{textoItens(s)}</span>
-                        <TipoSolicitacaoTag tipo={s.tipo} />
-                        {s.foraDaJanela && <ForaJanelaTag />}
-                        {aguardaReuniao(s.tipo, s.evento.status) ? (
-                          <span className="numero ml-auto text-ink-2">{s.evento.status === "EM_REUNIAO" ? "em reunião" : `reunião ${rotuloReuniao(s.evento.dataReuniao)}`}</span>
-                        ) : !semPrazo && (
-                          <span className="numero ml-auto inline-flex items-center gap-1.5 font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                            {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                            {pi.vencido ? `atrasada ${pi.sub}` : pi.sub ? `${pi.label} · ${pi.sub}` : pi.label}
-                          </span>
-                        )}
-                      </span>
-                      <IndicadorLink lugar="sobre" />
-                    </Link>
-                  </li>
-                );
-              })}
+                      <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                    </span>
+                    <span className="mt-1 flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-pequeno text-muted">{[veTodas ? s.area.nome : null, s.evento.nome].filter(Boolean).join(" · ")}</span>
+                      {s.foraDaJanela ? <ForaJanelaTag className="shrink-0" /> : prazoDaLinha(s).texto !== "—" && prazo(s)}
+                    </span>
+                    <IndicadorLink lugar="sobre" />
+                  </Link>
+                </li>
+              ))}
             </ul>
+            {/* Uma linha por solicitação, uma informação por coluna. O tipo saiu da linha (filtro "Tipo" e a página
+                da solicitação dizem); "por fulano" também (a área já diz de onde veio). */}
             <div className="hidden overflow-x-auto md:block">
-              <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px]">
+              <table data-responsiva className="w-full table-fixed border-collapse">
                 <CaptionOculta>{`Solicitações · ${ROTULO_FILTRO[filtro]}`}</CaptionOculta>
                 <thead>
                   <tr className="bg-subtle">
-                    {th("codigo", "Código", 100, "left", "hidden sm:table-cell")}
+                    {th("codigo", "Código", 96)}
                     {th("titulo", "Solicitação")}
-                    <Th className="hidden xl:table-cell xl:w-[17%]">
-                      Evento
-                    </Th>
+                    <Th className="hidden lg:table-cell lg:w-[24%]">Evento</Th>
                     {/* Requisitante só vê a própria área: a coluna repetiria o mesmo nome em todas as linhas. */}
-                    {veTodas && (
-                      <Th className="hidden lg:table-cell" largura={120}>
-                        Área
-                      </Th>
-                    )}
-                    <Th className="hidden lg:table-cell" largura={128}>
+                    {veTodas && <Th className="hidden xl:table-cell xl:w-[120px]">Área</Th>}
+                    <Th alinhar="right" className="hidden xl:table-cell xl:w-[72px]">
                       Itens
                     </Th>
-                    {th("status", "Status", 124, "left", "hidden sm:table-cell")}
-                    {th(filtro === "NA_ATA" ? "reuniao" : "prazo", "Prazo / reunião", 132, "right", "hidden sm:table-cell")}
-                    <Th largura={44}>
-                      <span className="sr-only">Abrir</span>
-                    </Th>
+                    {th("status", "Status", 128)}
+                    {th(filtro === "NA_ATA" ? "reuniao" : "prazo", "Prazo / reunião", 176, "right")}
                   </tr>
                 </thead>
                 <tbody>
-                  {pag.itens.map((s) => {
-                    const pi = prazoInfo(s, agora);
-                    const semPrazo = pi.label === "—" || pi.label === "rascunho";
-                    return (
-                      <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
-                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
-                          <Codigo>{s.codigo}</Codigo>
-                        </td>
-                        <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
-                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[240px]">
-                            <Codigo className="text-rotulo text-ink-3 sm:hidden">{s.codigo}</Codigo>
-                            <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
-                            <TipoSolicitacaoTag tipo={s.tipo} />
-                            {s.foraDaJanela && <ForaJanelaTag />}
+                  {pag.itens.map((s) => (
+                    <LinhaLink key={s.id} href={`/solicitacoes/${s.id}`} rotulo={`Abrir ${s.codigo} — ${s.titulo || "sem título"}`}>
+                      <td className="border-b border-line-row px-3 py-2.5 text-pequeno text-ink-3">
+                        <Codigo>{s.codigo}</Codigo>
+                      </td>
+                      <th scope="row" className="max-w-0 border-b border-line-row px-3 py-2.5 text-left font-normal">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-corpo font-medium text-ink" title={`${s.titulo || "sem título"} · ${s.tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"} · por ${s.criadoPor.nome}`}>
+                            {s.titulo || "sem título"}
                           </span>
-                          <span className="mt-0.5 block text-pequeno text-muted">
-                            <span className="xl:hidden">{s.evento.nome} · </span>
-                            {veTodas && <span className="lg:hidden">{s.area.nome} · </span>}
-                            por {s.criadoPor.nome}
-                            <span className="lg:hidden">
-                              {" · "}
-                              <span className="numero">{textoItens(s)}</span>
-                            </span>
-                          </span>
-                          {/* Celular: status e prazo dentro da célula da solicitação. */}
-                          <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
-                            <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
-                            <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                              {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                              {pi.vencido ? "atrasada" : pi.label}
-                            </span>
-                          </span>
-                        </th>
-                        <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 xl:table-cell">
-                          <span className="line-clamp-2" title={s.evento.nome}>
+                          {s.foraDaJanela && <ForaJanelaTag className="shrink-0" />}
+                        </span>
+                        {/* Tela estreita: evento e área (colunas que sumiram) embaixo do título. */}
+                        <span className="mt-0.5 block truncate text-pequeno text-muted xl:hidden">
+                          {veTodas && s.area.nome}
+                          <span className="lg:hidden">
+                            {veTodas ? " · " : ""}
                             {s.evento.nome}
                           </span>
-                        </td>
-                        {veTodas && <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-2 lg:table-cell">{s.area.nome}</td>}
-                        <td className="numero hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 lg:table-cell">{textoItens(s)}</td>
-                        <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
-                          <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
-                        </td>
-                        <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
-                          {aguardaReuniao(s.tipo, s.evento.status) ? (
-                            <>
-                              <span className={cn("numero block text-pequeno font-medium", s.evento.status === "EM_REUNIAO" || diaBrasilia(s.evento.dataReuniao) === hojeBr ? "text-info" : reuniaoPassou(s) ? "text-warning" : "text-ink-2")}>
-                                {s.evento.status === "EM_REUNIAO" ? "em reunião" : rotuloReuniao(s.evento.dataReuniao)}
-                              </span>
-                              {/* Reunião aberta e ainda sem ata fechada: a data marcada fica embaixo (não é "agora"). */}
-                              <span className={cn("numero block text-rotulo", reuniaoPassou(s) ? "text-warning" : "text-meta")}>{s.evento.status === "EM_REUNIAO" ? `marcada ${rotuloReuniao(s.evento.dataReuniao)}` : reuniaoPassou(s) ? "reunião não iniciada" : "reunião de OS"}</span>
-                            </>
-                          ) : semPrazo ? (
-                            <span className="text-pequeno text-line-strong" aria-label="sem prazo correndo">
-                              —
-                            </span>
-                          ) : (
-                            <>
-                              <span className="numero flex items-center justify-end gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
-                                {pi.vencido && <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full" style={{ background: COR_TOM[pi.tom] }} />}
-                                {pi.vencido ? "atrasada" : pi.label}
-                              </span>
-                              <span className="numero block text-rotulo text-meta">{pi.sub}</span>
-                            </>
-                          )}
-                        </td>
-                        <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right text-ink-3">
-                          <Icone nome="chevron-direita" className="inline-block" />
-                        </td>
-                      </LinhaLink>
-                    );
-                  })}
+                        </span>
+                      </th>
+                      <td className="hidden max-w-0 border-b border-line-row px-3 py-2.5 lg:table-cell">
+                        <span className="block truncate text-pequeno text-ink-2" title={s.evento.nome}>
+                          {s.evento.nome}
+                        </span>
+                      </td>
+                      {veTodas && <td className="hidden max-w-0 truncate border-b border-line-row px-3 py-2.5 text-pequeno text-ink-2 xl:table-cell">{s.area.nome}</td>}
+                      <td className="numero hidden border-b border-line-row px-3 py-2.5 text-right text-pequeno text-ink-2 xl:table-cell" title={textoItens(s)}>
+                        {aguardaReuniao(s.tipo, s.evento.status) || s.itensRespondidos === s.totalItens || s.itensRespondidos === 0 ? s.totalItens : `${s.itensRespondidos}/${s.totalItens}`}
+                      </td>
+                      <td className="border-b border-line-row px-3 py-2.5">
+                        <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                      </td>
+                      <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right">{prazo(s)}</td>
+                    </LinhaLink>
+                  ))}
                 </tbody>
               </table>
             </div>

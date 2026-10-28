@@ -92,6 +92,22 @@ export function SolicitacaoStatusBadge({ status, naAta = false, naOs = false }: 
   return <Badge tom={TOM_SOLICITACAO[status]}>{SOLICITACAO_STATUS_LABEL[status]}</Badge>;
 }
 
+const PONTO: Partial<Record<Tom, string>> = { info: "bg-info", warning: "bg-warning", success: "bg-success", danger: "bg-danger" };
+
+/**
+ * Estado da solicitação em lista longa, onde a coluna inteira é o estado: ponto colorido + texto, sem fundo.
+ * Um selo cheio em cada linha de uma lista de 25 vira uma coluna de cores; o ponto mantém o tom e o texto diz o estado.
+ */
+export function SolicitacaoStatusTexto({ status, naAta = false }: { status: SolicitacaoStatus; naAta?: boolean }) {
+  const [tom, rotulo] = naAta && status === "RESPONDIDA" ? (["info", "Na ata"] as const) : ([TOM_SOLICITACAO[status], SOLICITACAO_STATUS_LABEL[status]] as const);
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-pequeno text-ink-2">
+      <span aria-hidden className={cn("block size-[7px] shrink-0 rounded-full", PONTO[tom] ?? "bg-line-strong")} />
+      {rotulo}
+    </span>
+  );
+}
+
 const TOM_ITEM: Record<ItemStatus, Tom> = {
   EM_ANALISE: "muted",
   ATENDIDO: "success",
