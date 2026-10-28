@@ -176,27 +176,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
     if (partes.length === 1) partes.push({ n: null, rotulo: "sem fechamentos" });
     return partes;
   };
-  // Tenda em chips ("1 tenda 3×3" "3 fechamentos" "2 calhas"): o número em destaque, fácil de bater o olho.
-  const chipsTenda = (partes: NonNullable<ReturnType<typeof detalheTenda>>, rotulo?: string) => (
-    <span className="mt-1 flex flex-wrap items-center gap-1.5" aria-label={`${rotulo ? `${rotulo}: ` : ""}${partes.map((p) => `${p.n ?? ""} ${p.rotulo}`.trim()).join(", ")}`}>
-      {rotulo && <span className="text-rotulo font-semibold text-ink-2">{rotulo}</span>}
-      {partes.map((p) => (
-        <span key={p.rotulo} aria-hidden className={cn("inline-flex items-baseline gap-1 rounded-chip border px-1.5 py-px text-rotulo", p.n === null ? "border-line-soft text-muted" : "border-line bg-surface text-ink-2")}>
-          {p.n !== null && <span className="numero font-semibold text-ink">{p.n}</span>}
-          {p.rotulo}
-        </span>
-      ))}
-    </span>
-  );
-  // Soma de todas as tendas do evento, uma frase por tamanho (projetos diferentes do mesmo tamanho somam juntos).
-  const resumoTendas = (ls: typeof linhas) => {
-    const porTamanho = new Map<string, typeof linhas>();
-    for (const l of ls) {
-      const kit = l.tipo === "PROJETO" ? kitDaTenda((l.registro.bomSnapshot ?? []).map((b) => b.codigo)) : null;
-      if (kit) porTamanho.set(kit.tamanho, [...(porTamanho.get(kit.tamanho) ?? []), l]);
-    }
-    return [...porTamanho.values()].map((x) => detalheTenda(x)).filter((t): t is NonNullable<typeof t> => Boolean(t));
-  };
+  // Na linha do item: só o que a coluna Qtd não mostra ("16 fechamentos · 10 calhas"), numa linha curta de texto.
+  const textoTenda = (partes: NonNullable<ReturnType<typeof detalheTenda>>) => partes.slice(1).map((p) => `${p.n ?? ""} ${p.rotulo}`.trim()).join(" · ");
   // Quadro de cada local de uma tenda (linhas do mesmo local somadas), para editar todos os locais de uma vez.
   const quadrosDoItem = (ls: typeof linhas) => {
     const vistos = new Set<string>();
@@ -312,26 +293,13 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                             <span className="numero ml-2 font-normal tracking-normal text-muted">{agruparItens(g.linhas).length}</span>
                           </th>
                         </tr>
-                        {/* Todas as tendas do evento somadas, por tamanho (cada tamanho tem as suas peças de fechamento e calha). */}
-                        {g.tipo === "PROJETO" && resumoTendas(g.linhas).length > 0 && (
-                          <tr>
-                            <td colSpan={editavel ? 4 : 3} className="border-b border-line-soft bg-info-bg px-cartao pb-2 pt-1.5">
-                              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <span className="text-pequeno font-semibold text-ink">Tendas no evento</span>
-                                {resumoTendas(g.linhas).map((t) => (
-                                  <span key={t[0].rotulo}>{chipsTenda(t)}</span>
-                                ))}
-                              </span>
-                            </td>
-                          </tr>
-                        )}
                         {agruparItens(g.linhas).flatMap((itensDoGrupo) => {
                           const l = itensDoGrupo[0];
                           const varios = itensDoGrupo.length > 1;
                           // Locais distintos: duas linhas no mesmo local (uma da reunião, outra incluída depois) não são "2 locais".
                           const nLocais = new Set(itensDoGrupo.map((x) => (x.destino ?? "").trim().toLowerCase())).size;
                           const semLocal = itensDoGrupo.every((x) => !x.destino?.trim());
-                          const rotuloGrupo = semLocal ? `${itensDoGrupo.length} linhas` : nLocais === itensDoGrupo.length ? `${nLocais} locais` : `${nLocais} ${nLocais === 1 ? "local" : "locais"} · ${itensDoGrupo.length} linhas`;
+                          const rotuloGrupo = semLocal ? `${itensDoGrupo.length} linhas` : `${nLocais} ${nLocais === 1 ? "local" : "locais"}`;
                           // Mesma origem em todas as linhas (ex.: tendas incluídas na reunião): ela aparece uma vez, no total do item.
                           const origemComum = varios && new Set(itensDoGrupo.map(deOnde)).size === 1;
                           const capa =
@@ -367,7 +335,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                       </span>
                                       <Tag tom="muted">{rotuloGrupo}</Tag>
                                     </span>
-                                    {detalheTenda(itensDoGrupo) && chipsTenda(detalheTenda(itensDoGrupo)!, "Total")}
+                                    {detalheTenda(itensDoGrupo) && <span className="block text-pequeno text-ink-2">{textoTenda(detalheTenda(itensDoGrupo)!)} no total</span>}
                                     {editavel && quadrosDoItem(itensDoGrupo).length > 0 && (
                                       <span className="mt-1 block sm:hidden">
                                         <EditarTendasDoItem eventoId={id} nome={nomeExibido(l)} locais={quadrosDoItem(itensDoGrupo)} ataFechada={Boolean(ev.ataFechadaEm)} />
@@ -418,11 +386,11 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                             nomeExibido(x)
                                           )}
                                         </span>
+                                        {tenda && <span className="text-rotulo text-ink-3">{textoTenda(tenda)}</span>}
                                         {x.posAta ? <Tag tom="info">depois da ata</Tag> : x.registro.justificativaAjuste ? <Tag tom="warning">ajustado</Tag> : null}
                                         {editavel && x.versaoDefasada && <BadgeVersao l={{ id: x.id, nome: nomeExibido(x), versao: x.versao, versaoAtual: x.versaoAtual }} eventoId={id} podeAtualizar />}
                                       </span>
                                       {!varios && x.destino && <span className="block text-pequeno text-ink-2">{x.destino}</span>}
-                                      {tenda && chipsTenda(tenda)}
                                       {!origemComum && <span className="block text-rotulo text-muted @3xl:hidden">{deOnde(x)}</span>}
                                       {acoes && <span className="mt-1 block sm:hidden">{acoes}</span>}
                                     </span>

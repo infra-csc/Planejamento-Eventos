@@ -79,6 +79,61 @@ componente compartilhado.
 - Seletores dos testes são por papel e rótulo acessível: se você mudar um rótulo, título ou nome acessível,
   procure o uso em `e2e/*.spec.ts` e atualize junto.
 
+## Checklist de interface (Vercel Web Interface Guidelines, adaptado a este app)
+
+Passe por esta lista em toda tela que revisar. Cada item que falhar vira uma correção ou uma linha no relatório.
+Fonte: github.com/vercel-labs/web-interface-guidelines (ficou de fora o que é de site de marketing e o tom de
+texto da Vercel; o texto do app segue o padrão de `docs/design-system.md`).
+
+**Interação**
+- Tudo funciona pelo teclado; foco visível (`focus-visible`) e nunca escondido atrás de barra fixa
+  (`scroll-mt-*` / `scroll-margin-top` nos alvos de âncora).
+- Alvo clicável do tamanho do visual: mínimo 24 px no desktop, 40–44 px no celular.
+- O que parece clicável é clicável (sem zona morta); navegação é `<Link>`/`<a>` (abre em nova aba, menu de
+  contexto), nunca `onClick` com `router.push` para ir a uma página.
+- Botão salvando mostra carregamento e mantém o rótulo; desabilita só quando o envio começa.
+- Ação destrutiva pede confirmação (`ConfirmDialog`) ou dá desfazer.
+- Filtro, aba, página e painel aberto ficam na URL quando faz sentido voltar a eles (recarregar, Voltar,
+  mandar o link).
+- Atualização otimista só com rollback e aviso quando o servidor recusa.
+- Toast e validação assíncrona em região `aria-live="polite"`.
+- Modal e gaveta: foco preso, devolvido ao fechar, `overscroll-behavior: contain`.
+- Menu ou ação que abre outro passo termina com "…" (ex.: "Editar tendas…" quando abre modal é opcional; seja
+  consistente na tela).
+
+**Conteúdo e estados**
+- Toda tela tem próximo passo ou saída: estado vazio diz o que fazer, erro diz como resolver.
+- Desenhe vazio, pouco, muito e erro; teste com texto curto, médio e muito longo (nome de evento, local, peça).
+- Números que se comparam em coluna: `numero` / `tabular-nums`, alinhados à direita.
+- Cor nunca sozinha: status sempre com texto (selo, rótulo).
+- Ícone sozinho tem nome acessível; decoração com `aria-hidden`.
+- Elemento nativo antes de ARIA; títulos em hierarquia (h1 → h2 → h3).
+- `<title>` da página reflete o contexto (evento, item).
+- Datas, números e moeda no formato pt-BR (`src/lib/format.ts`); reticências com o caractere "…".
+- Explicação inline antes de tooltip; tooltip é último recurso.
+- Esqueleto de carregamento com a mesma forma do conteúdo final (sem salto de layout).
+
+**Formulários**
+- Todo campo com rótulo associado; clicar no rótulo foca o campo; erro ao lado do campo e foco no primeiro
+  erro ao enviar.
+- Não bloqueie digitação nem colar; valide e mostre a mensagem.
+- `type`, `inputmode` e `autocomplete` certos; sem corretor em código, e-mail e usuário.
+- Fonte de campo ≥ 16 px no celular (evita zoom do iOS).
+- Placeholder com exemplo real, terminado em "…" quando é convite a digitar.
+- Aviso antes de sair com alterações não salvas (rascunho não pode se perder).
+- Remova espaços das pontas do que foi digitado.
+
+**Movimento e layout**
+- Respeite `prefers-reduced-motion`; anime só `transform`/`opacity`; nunca `transition: all`.
+- Alinhamento deliberado (grade, linha de base, borda); ícone + texto com peso e espaço equilibrados.
+- Layout por flex/grid, sem medir com JavaScript; teste também tela larga (zoom 50%).
+- Raio de elemento interno ≤ raio do contêiner; estados hover/ativo/foco com mais contraste que o repouso.
+
+**Desempenho percebido**
+- Lista grande pagina, virtualiza ou usa `content-visibility: auto`.
+- Imagem com tamanho reservado (sem salto); fora da primeira dobra com `loading="lazy"`.
+- Salvar responde rápido: se o servidor demora, a tela mostra o que está acontecendo.
+
 ## Limites (não negociáveis)
 
 - **Não altere** regras de negócio, cálculos (OS, regras de kit, estoque), permissões (`src/domain/permissions.ts`,
