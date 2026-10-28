@@ -67,7 +67,7 @@ export function ItemComLocais({
                 , {nLocais} {nLocais === 1 ? "local" : "locais"}
               </span>
             </button>
-            {detalhe && <span className="hidden shrink-0 text-pequeno text-ink-3 @lg:inline">{detalhe}</span>}
+            {detalhe && <span className="hidden min-w-0 shrink-[3] truncate text-pequeno text-ink-3 @lg:inline">{detalhe}</span>}
           </span>
           {/* Celular: sem as colunas Local e Área, o resumo ("2 locais · 7 fechamentos") desce para baixo do nome. */}
           {resumoCelular && <span className="block truncate pl-5 text-pequeno text-ink-2 @lg:hidden">{resumoCelular}</span>}

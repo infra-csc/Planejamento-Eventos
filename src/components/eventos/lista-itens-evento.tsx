@@ -133,7 +133,7 @@ export function ListaItensEvento({
           <span className={cn("truncate text-corpo text-ink", !recuo && "font-medium", so === "celular" && "@lg:hidden")} title={title}>
             {texto}
           </span>
-          {tenda && <span className="hidden shrink-0 text-pequeno text-ink-3 @lg:inline">{tenda}</span>}
+          {tenda && <span className="hidden min-w-0 shrink-[3] truncate text-pequeno text-ink-3 @lg:inline" title={tenda}>{tenda}</span>}
           {s && <span className="hidden shrink-0 @lg:inline-flex">{s}</span>}
           {versao && <span className="hidden shrink-0 @lg:inline-flex">{versao}</span>}
           {vincular("hidden @lg:inline-flex")}
