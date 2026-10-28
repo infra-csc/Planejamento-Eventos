@@ -81,15 +81,8 @@ export function CargaDoEvento({
           compact
           icone="caminhao"
           title="Nenhum veículo cadastrado"
-          description={podeCadastrar ? "Cadastre cada caminhão com a ida (carga no galpão) e a volta (descarga no galpão). Eles aparecem no calendário de carga e descarga." : "Os veículos deste evento aparecem aqui quando a logística cadastrar."}
-          action={
-            podeCadastrar ? (
-              <Button variant="secondary" size="md" onClick={novo}>
-                <Icone nome="mais" />
-                {compacto ? "Incluir veículo" : "Novo veículo"}
-              </Button>
-            ) : undefined
-          }
+          // Sem botão aqui: o do cabeçalho do cartão, logo acima, é o mesmo (antes eram dois "Novo veículo" juntos).
+          description={podeCadastrar ? `Cadastre cada caminhão em “${compacto ? "Incluir veículo" : "Novo veículo"}”, com a ida (carga no galpão) e a volta (descarga no galpão). Eles aparecem no calendário de carga e descarga.` : "Os veículos deste evento aparecem aqui quando a logística cadastrar."}
         />
       ) : compacto ? (
         <ul className="m-0 list-none p-0">
