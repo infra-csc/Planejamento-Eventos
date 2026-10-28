@@ -209,10 +209,11 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
   if (!gerencia || !ctx) return null;
   const count = ctx.selecionados.size;
   // Nada marcado: só a dica, numa linha. A barra com "Limpar" e as ações (todas desabilitadas sem seleção)
-  // ocupava duas ou três linhas acima da lista o tempo todo, no celular quase uma tela.
+  // ocupava duas ou três linhas acima da lista o tempo todo, no celular quase uma tela. A dica também era uma faixa
+  // fixa entre as abas e a tabela: fica para o leitor de tela (as caixas de seleção já se explicam; a barra aparece ao marcar).
   if (count === 0)
     return (
-      <p aria-live="polite" className="m-0 border-b border-line-soft bg-subtle/70 px-cartao py-2 text-pequeno text-muted">
+      <p aria-live="polite" className="sr-only">
         Marque os itens ativos para organizar, mostrar nas solicitações ou desabilitar vários de uma vez.
       </p>
     );

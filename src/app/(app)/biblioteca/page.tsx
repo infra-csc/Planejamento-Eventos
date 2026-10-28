@@ -262,25 +262,26 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                               <td className="relative hidden border-b border-line-row py-3.5 pl-cartao pr-1 sm:table-cell">
                                 {marca}
                                 {/* A linha inteira é clicável: aqui a foto é só miniatura; o zoom fica no painel de detalhe. */}
-                                {p.capa ? (
+                                {/* Sem foto, o espaço fica vazio (antes, a mesma caixa cinza com ícone em quase toda linha). */}
+                                {p.capa && (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={`/api/anexos/${p.capa.id}?w=320`} alt="" loading="lazy" decoding="async" className="block h-10 w-14 shrink-0 rounded-controle border border-line bg-white object-contain" />
-                                ) : (
-                                  <span aria-hidden title="Sem foto" className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta">
-                                    <Icone nome="camadas" className="size-4" />
-                                  </span>
                                 )}
                               </td>
                               <th scope="row" aria-current={sel ? "true" : undefined} className="relative border-b border-line-row py-3.5 pl-cartao pr-3 text-left font-normal sm:pl-3">
                                 {marca && <span className="sm:hidden">{marca}</span>}
+                                {/* Selo só do que foge do comum: grupo que não é o Padrão e versão depois da 1ª. A descrição
+                                    (antes uma 3ª linha cortada) e a data da última alteração ficam no title e no painel ao lado. */}
                                 <span className="flex min-w-[220px] flex-wrap items-start gap-2">
-                                  <span className="line-clamp-2 min-w-0 text-corpo font-medium text-ink" title={p.nome}>
+                                  <span className="line-clamp-2 min-w-0 text-corpo font-medium text-ink" title={[p.nome, p.descricao, `alterado em ${formatarDataHora(p.atualizadoEm)}`].filter(Boolean).join(" — ")}>
                                     {p.nome}
                                   </span>
-                                  <Tag tom={p.grupo ? "info" : "muted"} className="shrink-0">{p.grupo?.nome ?? "Padrão"}</Tag>
-                                  <ChipMono tom="control" className="shrink-0">
-                                    v{p.versaoAtual}
-                                  </ChipMono>
+                                  {p.grupo && <Tag tom="info" className="shrink-0">{p.grupo.nome}</Tag>}
+                                  {p.versaoAtual > 1 && (
+                                    <ChipMono tom="control" className="shrink-0">
+                                      v{p.versaoAtual}
+                                    </ChipMono>
+                                  )}
                                   {!p.ativo && <Tag tom="warning" className="shrink-0">inativo</Tag>}
                                   {!p.disponivelEmSolicitacoes && (
                                     <Tag tom="muted" className="shrink-0">
@@ -291,15 +292,9 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                                 {/* Quantas peças o projeto leva: na própria linha, onde não tem como cortar. */}
                                 <span className="mt-0.5 block text-pequeno text-ink-3">
                                   <Codigo>{p.codigo}</Codigo>
-                                  {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · <Numero valor={p.tiposPeca} /> {p.tiposPeca === 1 ? "tipo de peça" : "tipos de peça"} · <Numero valor={p.totalPecas} /> {p.totalPecas === 1 ? "peça" : "peças"}
+                                  {p.categoria && <span className="2xl:hidden"> · {p.categoria}</span>} · <Numero valor={p.totalPecas} /> {p.totalPecas === 1 ? "peça" : "peças"}
                                   <span className="xl:hidden"> · {textoUso(p.id)}</span>
-                                  <span title={`Última alteração: ${formatarDataHora(p.atualizadoEm)}`}> · alterado em {formatarDia(p.atualizadoEm)}</span>
                                 </span>
-                                {p.descricao && (
-                                  <span className="mt-0.5 block truncate text-pequeno text-muted" title={p.descricao}>
-                                    {p.descricao}
-                                  </span>
-                                )}
                               </th>
                               <td className="hidden truncate border-b border-line-row px-3 py-3.5 text-pequeno text-ink-3 2xl:table-cell" title={p.categoria || undefined}>
                                 {p.categoria || "—"}
@@ -457,6 +452,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     return <ThOrdenavel label={label} ativo={sp.ordem === chave} dir={sp.ordem === chave ? (sp.dir === "desc" ? "desc" : "asc") : undefined} href={hrefCom("/biblioteca", params, { ordem: prox.ordem, dir: prox.dir, pagina: null })} largura={largura} alinhar={alinhar} className={className} />;
   };
 
+  const algumaFoto = pag.itens.some((p) => p.capaFotoId);
   const celulas = (p: (typeof pag.itens)[number]) => (
     <>
       {gerencia && (
@@ -469,12 +465,13 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       </td>
       <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
         <span className="flex items-center gap-3">
-        {/* Capa (primeira foto): miniatura de 160 px; sem foto, um quadro vazio para as linhas alinharem. */}
+        {/* Capa (primeira foto): miniatura de 160 px. Sem foto, espaço vazio só se alguma linha da página tem foto
+            (para alinhar); antes era um quadro tracejado em quase toda linha. */}
         {p.capaFotoId ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/api/pecas/anexos/${p.capaFotoId}?w=160`} alt="" loading="lazy" decoding="async" className="size-11 shrink-0 rounded-controle border border-line bg-white object-cover" />
         ) : (
-          <span aria-hidden className="hidden size-11 shrink-0 rounded-controle border border-dashed border-line bg-subtle sm:block" />
+          algumaFoto && <span aria-hidden className="hidden size-11 shrink-0 sm:block" />
         )}
         <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
