@@ -547,3 +547,80 @@ produção, banco novo, desktop e celular) 32 de 32 passaram, sem violação do 
 Fechamento da ata e geração da OS (revisados ontem), downloads da OS (Excel, estrutura, marcenaria, folha),
 carga e descarga além da leitura da tela, Biblioteca (lote, duplicar, fotos), reabrir evento encerrado (não
 há evento encerrado no banco de demonstração), estados de erro de rede além do "ver como".
+
+## 27/10/2026 — Página do evento inteira (admin e logística corrigindo itens)
+
+Pedido: revisar /eventos/[id] pensando em quem corrige itens (admin e logística), com o checklist de interface
+(Vercel, adaptado). Reclamações do admin, em ordem: "muita informação embaixo do título" na lista; poder corrigir
+em todas as leituras, não só na Lista; tendas claras e iguais em todas as abas. O coordenador acrescentou (print de
+produção, EVT-0237, 1440 px): linhas de ~68 px com 2 linhas de texto, colunas com dois assuntos, Qtd longe do
+nome, miniatura sem utilidade, subtítulo repetido, cartão "O que mudou" alto para dizer "nada mudou" e coluna
+lateral repetindo a mesma história.
+
+Ambiente: dev server da porta 5000 (banco PGlite local de demonstração), EVT-0001 (ata fechada, tendas 3×3 e 5×5 em
+vários locais), admin. Navegador embutido (1280 e 375, cliques, teclado, modais) e um script Playwright próprio
+(login do seed, screenshots de 375/768/1280 e medição de `scrollWidth` e altura das linhas), porque o painel do
+navegador estava oculto e cortava as capturas a 1280.
+
+### Corrigido
+
+| Prior. | Tela / parte | Problema | Mudança | Commit |
+|---|---|---|---|---|
+| P1 | Visão geral › Itens › Lista | Linha com nome, selo, local, "área · SOL · quem pediu" empilhados (49–94 px a 1280; 140–210 px a 375); cabeçalhos "Item · local" e "Área · origem"; nome espremido por "Peças · Editar · lixeira" (~300 px) | Uma coisa por coluna: Item · Qtd. · Local · Área · ações; linha de 45 px com uma linha de texto (tabela de 1.280 para 795 px de altura no EVT-0001); origem no `title` da Área e na página do item; sem miniatura; um selo, ao lado do nome. Celular: nome na 1ª linha, selo e "local · área" na 2ª (57–79 px) | 73e2223 |
+| P1 | Lista › tendas | "Backstage" aparecia duas vezes (duas linhas da ata no mesmo local), cada uma com um lápis que abria o mesmo quadro | Linha do total ("2 locais", "7 fechamentos") que abre/fecha os locais (aberta até 3); uma linha por local, linhas do local somadas; sem lixeira quando o local tem várias linhas (tirar o local é 0 no quadro) | 73e2223 |
+| P1 | Lista › ações | "Peças" levava a `#pecas`, âncora que não existe (= abrir a linha) | Saiu; lápis e lixeira em ícone, sempre na mesma coluna (lugar reservado quando falta a lixeira); "Vincular" junto do nome do item fora do catálogo | 73e2223 |
+| P1 | Visão geral › layout | A lista dividia a tela com Datas, Quem está envolvido, Ajustes na reunião, Atividade e Atalhos (lista com 631 px a 1280) | Lista na largura toda (971 px a 1280). Saíram Datas (estão nas fases e nos cartões), Quem está envolvido (responsável no cabeçalho, áreas na coluna Área) e Ajustes na reunião (seguem no Histórico, com filtro). Galeria, Atividade e Atalhos embaixo | 73e2223 |
+| P2 | O que mudou depois da reunião | Cartão inteiro para "Nada mudou desde a ata"; 5 itens à vista empurravam a lista | Sem mudança: uma linha. Com mudanças: 3 à vista + "Ver as outras" | 73e2223 |
+| P2 | Itens do evento › subtítulo | "Ata da reunião mais o que entrou depois. Cada correção gera nova versão da OS." repetia o que os modais já dizem | Só antes da ata (onde orienta) | 73e2223 |
+| P1 | Peças por projeto | Só leitura | Cabeçalho de cada projeto com lápis (quantidade ou quadro da tenda do local) e lixeira; lápis em cada peça (mesma janela da página do item, agora `AjustePecaDialog`); "Incluir peça" no rodapé. Fechamento/calha de tenda abrem o quadro do local | d0a2bab |
+| P1 | Totais por peça | Só leitura; total soma várias linhas | Lápis abre "de onde vem o número" (linhas e locais, com a conta) e o ajuste de cada um por cima; com uma origem, o lápis é o dela. Sem regra nova de rateio | d0a2bab |
+| P1 | Soltas e fora do catálogo | Só leitura | Lápis/lixeira da linha (várias linhas da mesma peça abrem a lista); "Vincular" | d0a2bab |
+| P2 | Item (tenda) | "Tendas desta linha" repetia a lista de peças que vem logo abaixo, editável | Só as descrições de cada tenda | f135ff9 |
+| P1 | Item (tenda) › quadro dos locais, 375 px | Tabela com 640 px: Tendas e Fechamentos fora da tela, rolagem lateral sem aviso | `data-responsiva`, colunas estreitas, "Fech." (abbr) no celular: tudo visível em 375 | f135ff9 |
+| P2 | Item (tenda) depois da ata | Círculo de conferência vazio em cada local (linhas novas nunca são conferidas) parecia pendência | Só aparece antes de fechar a ata; "Editar" vira o mesmo lápis da lista | f135ff9 |
+| P3 | Carga (vazia) | Dois "Novo veículo" um embaixo do outro | Fica o do cabeçalho; o texto do vazio diz onde cadastrar | 970f8cc |
+| P3 | Lista a 768 px | Detalhe da tenda empurrava o nome para "Tenda 5…" e cortava o selo | O detalhe encolhe primeiro (inteiro no `title`) | fcacdcc |
+| P3 | Janela de ajuste de peça | Stepper sem nome ("Aumentar"); botão "Salvar" genérico | "Aumentar por unidade do projeto"; "Salvar ajuste" / "Incluir peça" | d0a2bab |
+
+Arquivos: `src/app/(app)/eventos/[id]/page.tsx`, `src/app/(app)/eventos/[id]/itens/[linhaId]/page.tsx`,
+`src/components/eventos/{lista-itens-evento,item-com-locais,edicao-os-evento,edicao-leituras}.tsx` (novos),
+`src/components/eventos/{acoes-linha-evento,mudancas-pos-ata,os-visoes,pecas-projeto,tendas-do-evento,detalhes-unidades-tenda}.tsx`,
+`src/components/carga/carga-evento.tsx`.
+
+Nota técnica: as leituras por peça da visão geral passam a usar `calcularOS(linhas)` sobre as mesmas linhas da
+lista (a mesma conta de `calcularOsAoVivo`, que só fazia `calcularOS(montarLinhasAta())`), para cada linha da
+leitura apontar para a linha da ata. Se a ordem não bater (conferida por código e quantidade), as ações somem e a
+leitura continua só leitura.
+
+### Validação
+
+- `npx tsc --noEmit -p .` ok; eslint dos arquivos alterados ok; `npx vitest run src/domain/os.test.ts
+  src/domain/regras.test.ts src/domain/tendas.test.ts` 48 de 48. E2E não rodado (máquina lenta; nenhum seletor dos
+  specs usa os textos mudados, conferido com grep).
+- 1280: Lista (linhas de 45 px, colunas 411/88/233/155/84 px), Peças por projeto, Totais, Soltas, item de tenda,
+  abas Ata, Solicitações, OS, Carga, Histórico. 768: Lista. 375: Lista, Peças por projeto, item de tenda e todas
+  as abas. `scrollWidth` igual à largura da tela em todas (sem rolagem lateral).
+- Teclado/modais (navegador embutido): abrir/fechar locais da tenda (`aria-expanded`); lápis do local abre o quadro,
+  Esc fecha e o foco volta ao lápis, sem abrir a linha; Totais › lista de origens › quadro do local por cima, Esc
+  duas vezes devolve o foco a cada gatilho.
+- Gravação real no banco de demonstração: ANG-15 do Estande 9×6 m de 5 para 6 por unidade pela leitura "Peças por
+  projeto" (tabela atualizou para 6 / 12 un.) e de volta a 5, com motivo.
+
+### Proposto (não feito)
+
+- Totais por peça: editar o total direto (ex.: "7 fechamentos 3 m" para 6) exige regra de rateio entre linhas/locais.
+  Recomendo manter "de onde vem o número" (feito) ou, se a equipe quiser, uma regra explícita: o ajuste vai para a
+  linha/local escolhido na própria janela.
+- O motivo aparece duas vezes em registros gerados pelo quadro da tenda ("Teste local: tenda do barTeste local:
+  tenda do bar") na Atividade da visão geral e nas versões da OS: o texto vem gravado assim pelo servidor
+  (ajuste de tendas do local, que gera ajustes de peça), fora do escopo visual.
+- Página do item: "1 nesta linha" e "2 linhas somadas neste local" falam de "linha da ata", conceito interno. Vale
+  trocar por "tendas deste pedido" quando a equipe confirmar o vocabulário.
+- Aba OS: lista de versões longa (24) ao lado das tabelas; agrupar ajustes do mesmo dia seria a próxima limpeza.
+
+### Não visto
+
+Perfis sem edição (requisitante, gestão) na visão geral nova (por código, as ações só aparecem com `editavel`, como
+antes); evento antes da ata (conferência em andamento) e evento sem itens; erro de gravação (sem rede); "Incluir peça"
+e "Vincular" abertos pelas leituras novas (só os botões e nomes acessíveis); peça unificada no catálogo (sem caso no
+banco de demonstração).
