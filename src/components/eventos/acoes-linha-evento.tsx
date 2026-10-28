@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ajustarTendasDoLocalAction, alterarQuantidadeLinhaAction } from "@/app/(app)/eventos/actions";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Field, FormError, Textarea } from "@/components/ui/field";
 import { toastSucesso } from "@/components/ui/toast";
 import { Icone } from "@/components/ui/icons";
+import { IconButton } from "@/components/ui/icon-button";
 import { Stepper } from "@/components/ui/stepper";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 
@@ -18,28 +18,30 @@ type Linha = { id: string; nome: string; quantidade: number; veioDePedido: boole
 /**
  * Editar e remover uma linha do evento (visão geral e página do item; admin e logística), pelo mesmo caminho da aba
  * Ata: antes de fechar a ata o motivo é opcional; com a ata fechada a justificativa é obrigatória, sai nova versão da
- * OS e a área é avisada. "Peças" leva à página do item, onde se mexe na composição do projeto.
+ * OS e a área é avisada. Nas listas (`tamanho="xs"`) são só dois ícones — lápis e lixeira — sempre no mesmo lugar
+ * da linha; as peças do projeto ficam na página do item (a linha inteira abre) e na leitura "Peças por projeto".
  * `aoRemover`: para onde ir quando a linha deixa de existir (a página do item não tem mais o que mostrar).
  */
 export function AcoesLinhaEvento({
   eventoId,
   linha,
   ataFechada,
-  hrefPecas,
   tenda,
   aoRemover,
   tamanho = "xs",
   extra,
+  semRemover = false,
 }: {
   eventoId: string;
   linha: Linha;
   ataFechada: boolean;
-  hrefPecas?: string;
   tenda?: TendaDoLocal;
   aoRemover?: string;
   tamanho?: "xs" | "md";
   /** Ação a mais antes das outras (ex.: "Vincular" num item fora do catálogo), protegida do clique da linha. */
   extra?: React.ReactNode;
+  /** Local de tenda com várias linhas somadas: tirar o local é no quadro (0 tendas), não numa linha só. */
+  semRemover?: boolean;
 }) {
   const router = useRouter();
   const [modo, setModo] = useState<"editar" | "remover" | null>(null);
@@ -52,27 +54,34 @@ export function AcoesLinhaEvento({
     // sobem pela árvore de componentes), não chegam a ela.
     <span className="inline-flex flex-nowrap items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {extra}
-      {hrefPecas && (
-        <Link href={hrefPecas} className="inline-flex min-h-8 items-center gap-1 rounded-controle px-2 text-rotulo font-medium text-ink-2 no-underline hover:bg-subtle hover:text-ink max-md:min-h-10" aria-label={`Peças de ${linha.nome}`}>
-          <Icone nome="camadas" className="size-3.5" />
-          Peças
-        </Link>
+      {tamanho === "md" ? (
+        <>
+          <Button variant="secondary" size="md" onClick={() => setModo("editar")} aria-label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`}>
+            <Icone nome="lapis" className="size-3.5" />
+            {aDefinir && !tenda ? "Definir" : tenda ? "Editar tendas" : "Editar quantidade"}
+          </Button>
+          {!semRemover && (
+            <Button variant="dangerOutline" size="md" onClick={() => setModo("remover")} aria-label={`Remover ${linha.nome}`} title="Remover do evento">
+              <Icone nome="lixeira" className="size-3.5" />
+              Remover
+            </Button>
+          )}
+        </>
+      ) : (
+        <>
+          <IconButton label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`} onClick={() => setModo("editar")}>
+            <Icone nome="lapis" />
+          </IconButton>
+          {/* Sem lixeira, o lugar fica reservado: o lápis não muda de coluna entre uma linha e outra. */}
+          {semRemover ? (
+            <span aria-hidden className="size-7 shrink-0 max-md:size-10" />
+          ) : (
+            <IconButton label={`Remover ${linha.nome}`} onClick={() => setModo("remover")} className="hover:text-danger">
+              <Icone nome="lixeira" />
+            </IconButton>
+          )}
+        </>
       )}
-      <Button variant={tamanho === "md" ? "secondary" : "ghost"} size={tamanho} onClick={() => setModo("editar")} aria-label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`}>
-        <Icone nome="lapis" className="size-3.5" />
-        {aDefinir && !tenda ? "Definir" : tamanho === "md" ? (tenda ? "Editar tendas" : "Editar quantidade") : "Editar"}
-      </Button>
-      <Button
-        variant={tamanho === "md" ? "dangerOutline" : "ghost"}
-        size={tamanho}
-        className={tamanho === "md" ? undefined : "px-2 text-danger hover:text-danger"}
-        onClick={() => setModo("remover")}
-        aria-label={`Remover ${linha.nome}`}
-        title="Remover do evento"
-      >
-        <Icone nome="lixeira" className="size-3.5" />
-        {tamanho === "md" && "Remover"}
-      </Button>
       {modo === "editar" && tenda && <EditarTendaDialog eventoId={eventoId} tenda={tenda} ataFechada={ataFechada} onFechar={() => setModo(null)} aoRemover={aoRemover} />}
       {modo === "editar" && !tenda && (
         <ConfirmDialog
@@ -191,11 +200,21 @@ export function EditarTendaDialog({ eventoId, tenda, ataFechada, onFechar, aoRem
 export function EditarTendasDoItem({ eventoId, nome, locais, ataFechada, tamanho = "xs" }: { eventoId: string; nome: string; locais: TendaDoLocal[]; ataFechada: boolean; tamanho?: "xs" | "sm" }) {
   const [aberto, setAberto] = useState(false);
   return (
-    <span className="inline-flex" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <Button variant={tamanho === "sm" ? "secondary" : "ghost"} size={tamanho} onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
-        <Icone nome="lapis" className="size-3.5" />
-        {tamanho === "sm" ? "Editar todos os locais" : "Editar tendas"}
-      </Button>
+    <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      {tamanho === "sm" ? (
+        <Button variant="secondary" size="sm" onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
+          <Icone nome="lapis" className="size-3.5" />
+          Editar todos os locais
+        </Button>
+      ) : (
+        // Na lista: o mesmo lápis das linhas de cada local, na mesma coluna (a lixeira não existe no total).
+        <>
+          <IconButton label={`Editar todas as tendas de ${nome}`} onClick={() => setAberto(true)}>
+            <Icone nome="lapis" />
+          </IconButton>
+          <span aria-hidden className="size-7 shrink-0 max-md:size-10" />
+        </>
+      )}
       {aberto && <QuadroTendasDialog eventoId={eventoId} nome={nome} locais={locais} ataFechada={ataFechada} onFechar={() => setAberto(false)} />}
     </span>
   );

@@ -119,6 +119,20 @@ export function MudancasPosAta({
     );
   };
 
+  // Nada mudou: uma linha só, sem o cartão de destaque (antes ocupava a altura de um cartão para dizer isto).
+  if (linhas.length === 0)
+    return (
+      <section id="mudancas" aria-labelledby="mudancas-titulo" className="alvo-ancora flex items-center gap-2 rounded-cartao border border-line bg-surface px-cartao py-2.5 text-pequeno text-ink-2">
+        <Icone nome="check-circulo" className="shrink-0 text-ink-3" />
+        <h2 id="mudancas-titulo" className="sr-only">
+          O que mudou depois da reunião
+        </h2>
+        <p className="m-0">
+          Nada mudou desde a ata, fechada em <span className="numero">{diaMesHora(ataFechadaEm)}</span>.
+        </p>
+      </section>
+    );
+
   return (
     <section id="mudancas" aria-labelledby="mudancas-titulo" className="alvo-ancora overflow-hidden rounded-cartao border border-l-4 border-info-border border-l-info bg-surface">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-line-soft px-cartao py-3.5">
@@ -155,27 +169,18 @@ export function MudancasPosAta({
           </Link>
         )}
       </div>
-      {linhas.length === 0 ? (
-        <p className="m-0 flex items-center gap-2 px-cartao py-3.5 text-pequeno text-muted">
-          <Icone nome="check-circulo" className="shrink-0 text-ink-3" />
-          Nada mudou desde a ata.
-        </p>
-      ) : (
-        <>
-          <ul className="m-0 list-none p-0">{linhas.slice(0, maximo).map(linha)}</ul>
-          {linhas.length > maximo && (
-            <details className="group border-t border-line-row">
-              <summary className="flex cursor-pointer list-none items-center gap-1 px-cartao py-2.5 text-pequeno font-medium text-accent hover:underline [&::-webkit-details-marker]:hidden">
-                <span className="group-open:hidden">
-                  Ver as outras <Numero valor={linhas.length - maximo} />
-                </span>
-                <span className="hidden group-open:inline">Mostrar menos</span>
-                <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
-              </summary>
-              <ul className="m-0 list-none border-t border-line-row p-0">{linhas.slice(maximo).map(linha)}</ul>
-            </details>
-          )}
-        </>
+      <ul className="m-0 list-none p-0">{linhas.slice(0, maximo).map(linha)}</ul>
+      {linhas.length > maximo && (
+        <details className="group border-t border-line-row">
+          <summary className="flex cursor-pointer list-none items-center gap-1 px-cartao py-2.5 text-pequeno font-medium text-accent hover:underline [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">
+              Ver as outras <Numero valor={linhas.length - maximo} />
+            </span>
+            <span className="hidden group-open:inline">Mostrar menos</span>
+            <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
+          </summary>
+          <ul className="m-0 list-none border-t border-line-row p-0">{linhas.slice(maximo).map(linha)}</ul>
+        </details>
       )}
     </section>
   );
