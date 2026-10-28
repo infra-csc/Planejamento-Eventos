@@ -152,8 +152,9 @@ export function RodapeTabela({ children, direita, className }: { children: React
 /** Banner escuro de destaque (andamento da reunião, diferença de versões, modo fila). */
 export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
   return (
-    <section className={cn("flex items-center gap-6 rounded-cartao bg-dark px-cartao py-4", className)} {...rest}>
-      <div className="min-w-0 flex-1">
+    // Celular: as ações descem para baixo do texto (lado a lado, o título quebrava palavra por palavra).
+    <section className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-cartao bg-dark px-cartao py-4", className)} {...rest}>
+      <div className="min-w-0 flex-1 basis-60">
         {titulo && <h2 className="m-0 text-secao font-semibold text-white">{titulo}</h2>}
         {children && <div className="mt-1 text-corpo text-on-dark-3">{children}</div>}
       </div>

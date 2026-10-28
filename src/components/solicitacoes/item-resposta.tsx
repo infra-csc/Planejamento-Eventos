@@ -56,6 +56,8 @@ type Ctx = {
   enviar: (item: ItemParaResposta, dados: DadosResposta) => Promise<boolean>;
   pendente: boolean;
   compacto: boolean;
+  /** Ação extra por item, vinda do servidor (ex.: "Vincular" no item descrito à mão), ao lado do nome. */
+  extras: Record<string, React.ReactNode>;
 };
 
 const RespostaCtx = createContext<Ctx | null>(null);
@@ -74,12 +76,14 @@ export function RespostaProvider({
   itens,
   sufixoToast,
   compacto = false,
+  extras = {},
   children,
 }: {
   itens: ItemParaResposta[];
   /** "ata atualizada" (reunião) ou "OS regerada" (alteração pós-ata). */
   sufixoToast: string;
   compacto?: boolean;
+  extras?: Record<string, React.ReactNode>;
   children: React.ReactNode;
 }) {
   const [foco, setFoco] = useState<string | null>(null);
@@ -166,7 +170,7 @@ export function RespostaProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <RespostaCtx.Provider value={{ foco, setFoco, edicao, setEdicao, enviar, pendente, compacto }}>{children}</RespostaCtx.Provider>;
+  return <RespostaCtx.Provider value={{ foco, setFoco, edicao, setEdicao, enviar, pendente, compacto, extras }}>{children}</RespostaCtx.Provider>;
 }
 
 function textoQuantidade(i: ItemParaResposta) {
@@ -393,6 +397,8 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
       >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-cartao pb-1 pt-4">
           <p className="m-0 min-w-0 flex-1 break-words text-corpo font-medium text-ink">{primeiro.descricao}</p>
+          {/* Um local só: o total já está na linha do local ("6 tendas · sem fechamento"); aqui repetia. */}
+          {!(somenteAdicoes && locais.length === 1) && (
           <span className="shrink-0 text-pequeno text-muted">
             {somenteAdicoes ? (
               <>
@@ -406,6 +412,7 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
             {" · "}
             <Numero valor={locais.length} className="font-semibold text-ink" /> {locais.length === 1 ? "local" : "locais"}
           </span>
+          )}
           {!semStatus && mesmoEstado && <ItemStatusBadge status={primeiro.status} naAta={naAtaGrupo} className="shrink-0" />}
         </div>
         {mesmoEstado && naAtaGrupo && <p className="m-0 px-cartao pb-1 text-pequeno text-ink-2">Aguarda conferência na reunião de OS.</p>}
@@ -467,6 +474,7 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
                       estadoNoGrupo={mesmoEstado}
                       localNoGrupo
                       parte={parteIndex + 1}
+                      unicaNoLocal={partes.length === 1}
                     />
                   </li>
                 ))}
@@ -513,6 +521,7 @@ export function ItemResposta({
   estadoNoGrupo = false,
   localNoGrupo = false,
   parte,
+  unicaNoLocal = false,
 }: {
   item: ItemParaResposta;
   semStatus?: boolean;
@@ -522,9 +531,12 @@ export function ItemResposta({
   /** O cabeçalho de destino já foi renderizado acima da lista de partes. */
   localNoGrupo?: boolean;
   parte?: number;
+  /** Tenda: a única parte do local. "6 tendas" e "Por tenda: sem fechamento" já estão na linha do local. */
+  unicaNoLocal?: boolean;
 }) {
   const item = emGrupo && itemOriginal.descricoes?.every((d) => !d.trim() || soRepeteLocal(d, itemOriginal.destino)) ? { ...itemOriginal, descricoes: null } : itemOriginal;
-  const { foco, setFoco, edicao, setEdicao, enviar, pendente, compacto } = useResposta();
+  const { foco, setFoco, edicao, setEdicao, enviar, pendente, compacto, extras } = useResposta();
+  const extra = extras[item.id];
   const selecionado = foco === item.id;
   const editando = edicao?.id === item.id ? edicao : null;
   const emAnalise = item.status === "EM_ANALISE";
@@ -553,8 +565,9 @@ export function ItemResposta({
       )}
     >
       {/* Cabeçalho: o que foi pedido, quanto e o estado (um selo só). */}
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+      {/* Estreito: "fora do catálogo · Vincular" e o selo descem para baixo do nome em vez de espremê-lo. */}
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5">
+        <div className="min-w-0 flex-1 basis-56">
           {emGrupo && !localNoGrupo ? (
             <p className="m-0 flex items-center gap-1.5 break-words text-corpo font-medium text-ink">
               <Icone nome="local" className="size-3.5 shrink-0 text-ink-3" />
@@ -562,8 +575,8 @@ export function ItemResposta({
             </p>
           ) : localNoGrupo ? (
             // "Tenda 1", "Tenda 2" (ou "3 tendas" quando a parte junta várias iguais): "Parte 1 · configuração
-            // específica" era linguagem do sistema, não de quem montou o pedido.
-            <p className="m-0 break-words text-rotulo font-medium text-ink-3">{item.quantidadeSolicitada === 1 ? `Tenda ${parte}` : `${item.quantidadeSolicitada} tendas`}</p>
+            // específica" era linguagem do sistema, não de quem montou o pedido. Parte única: o local já diz.
+            unicaNoLocal ? null : <p className="m-0 break-words text-rotulo font-medium text-ink-3">{item.quantidadeSolicitada === 1 ? `Tenda ${parte}` : `${item.quantidadeSolicitada} tendas`}</p>
           ) : (
             <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>
           )}
@@ -595,19 +608,25 @@ export function ItemResposta({
               </span>
             )}
           </p>
-          {item.ajustes && (
+          {item.ajustes && !(item.tenda && unicaNoLocal) && (
             <p className="mb-0 mt-1 text-pequeno text-ink-2">
               {!item.tenda && <span className="text-muted">Peças ajustadas: </span>}
               {item.ajustes}
             </p>
           )}
         </div>
-        {!semStatus && !estadoNoGrupo && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
+        {extra && (
+          <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            {extra}
+          </span>
+        )}
+        {/* Quem responde vê os botões: o selo "Em análise" ao lado deles só repetia que falta responder. */}
+        {!semStatus && !estadoNoGrupo && !podeResponder && <ItemStatusBadge status={item.status} naAta={naAta} className="shrink-0" />}
       </div>
 
-      {/* O que o solicitante escreveu: descrições das unidades e observação. */}
+      {/* O que o solicitante escreveu: descrições das unidades e observação, em texto (sem caixa dentro do item). */}
       {temContexto && (
-        <div className="mt-2.5 flex flex-col gap-2 rounded-controle border border-line-soft bg-subtle px-3 py-2.5">
+        <div className="mt-1.5 flex flex-col gap-1">
           <DescricoesUnidades lista={item.descricoes} quantidade={item.quantidadeSolicitada} />
           {/* A observação que só repete a descrição não aparece duas vezes. */}
           {item.justificativa && !((item.descricoes ?? []).some((d) => d.trim()) && (item.descricoes ?? []).every((d) => d.trim() === item.justificativa!.trim())) && (

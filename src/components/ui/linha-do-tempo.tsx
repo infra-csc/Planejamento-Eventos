@@ -26,18 +26,12 @@ function blocos(entradas: EntradaLinhaTempo[]): EntradaLinhaTempo[][] {
   return out.flatMap((b) => (b.length >= 3 ? [b] : b.map((e) => [e])));
 }
 
+/** Quem fez, na mesma linha do título (antes era uma linha só para "Fulano · Perfil"); o perfil fica no title. */
 function Autor({ e }: { e: EntradaLinhaTempo }) {
   return (
-    <p className="mb-0 mt-0.5 text-pequeno text-ink-3">
-      {e.por ? (
-        <>
-          <span className="text-ink-2">{e.por.nome}</span>
-          {e.por.perfil ? ` · ${e.por.perfil}` : ""}
-        </>
-      ) : (
-        "Sistema"
-      )}
-    </p>
+    <span className="text-pequeno text-ink-2" title={e.por?.perfil ?? undefined}>
+      {e.por ? e.por.nome : "Sistema"}
+    </span>
   );
 }
 
@@ -64,6 +58,7 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
                 <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-corpo [&::-webkit-details-marker]:hidden">
                   <span className="font-medium text-ink">{e.titulo}</span>
                   <span className="numero rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{b.length} registros</span>
+                  <Autor e={e} />
                   <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
                   <span className="inline-flex items-center gap-0.5 text-pequeno text-accent">
                     <span className="group-open:hidden">ver</span>
@@ -71,7 +66,6 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
                     <Icone nome="chevron-baixo" className="size-3.5 transition-transform duration-150 group-open:rotate-180" />
                   </span>
                 </summary>
-                <Autor e={e} />
                 <ul className="m-0 mt-1.5 list-none space-y-0.5 border-l-2 border-line-soft p-0 pl-3">
                   {b.map((x) => {
                     const it = x.itemId && rotuloItem ? rotuloItem(x.itemId) : null;
@@ -94,9 +88,9 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo">
                 <span className="font-medium text-ink">{e.titulo}</span>
                 {item && <span className="rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{item}</span>}
+                <Autor e={e} />
                 <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
               </p>
-              <Autor e={e} />
               <p className="mb-0 mt-0.5 break-words text-pequeno text-ink-2">{e.descricao}</p>
             </div>
           </li>

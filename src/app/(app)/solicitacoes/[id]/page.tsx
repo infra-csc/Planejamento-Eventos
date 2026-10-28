@@ -11,10 +11,9 @@ import { aceitaSolicitacao } from "@/domain/evento";
 import { podeCancelar, podeCorrigirResposta, podeDevolver, podeEditarEnviada, podeEnviar, podeResponder, podeResponderNaFase, aguardaReuniao, STATUS_ABERTOS, STATUS_EDITAVEIS } from "@/domain/solicitacao";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, BannerEscuro, EmptyState, ListaDados, Meta, PageHeader, Section } from "@/components/ui/layout";
-import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge } from "@/components/ui/badge";
+import { Aviso, BannerEscuro, EmptyState, Meta, PageHeader, Section } from "@/components/ui/layout";
+import { ChipMono, ForaJanelaTag, SolicitacaoStatusBadge, Tag } from "@/components/ui/badge";
 import { Codigo } from "@/components/ui/numero";
-import { Icone } from "@/components/ui/icons";
 import { ButtonLink } from "@/components/ui/button";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { DicaAtalhos, GrupoItens, ItemResposta, RespostaProvider, type ItemParaResposta } from "@/components/solicitacoes/item-resposta";
@@ -23,8 +22,6 @@ import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { LinhaDoTempo } from "@/components/ui/linha-do-tempo";
 import { linhaDoTempoSolicitacao } from "@/server/services/linha-do-tempo";
 import { obterEventoCache } from "@/server/cache";
-import { listarOsResumo } from "@/server/services/os";
-import { EventoStatusBadge } from "@/components/ui/badge";
 import { diaMesISO, hojeISO, periodoCurto } from "@/lib/format";
 import { opcoesReferenciasResumidas } from "@/server/services/eventos";
 
@@ -121,13 +118,26 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const enviada = s.status !== "RASCUNHO" && s.status !== "DEVOLVIDA" && s.status !== "CANCELADA";
   const eventoAtivo = s.evento.status !== "ENCERRADO" && s.evento.status !== "CANCELADO";
   const logisticaVincula = pode(usuario, "ata.consolidar") && enviada && eventoAtivo && foraCatalogo.length > 0;
-  const [opcoesVinculo, historicoSolicitacao, evento, versoesOs, fila] = await Promise.all([
+  const [opcoesVinculo, historicoSolicitacao, evento, fila] = await Promise.all([
     logisticaVincula ? opcoesReferenciasResumidas() : Promise.resolve(null),
     linhaDoTempoSolicitacao(usuario, s.id),
     obterEventoCache(usuario, s.eventoId),
-    listarOsResumo(s.eventoId),
     modoFila ? listarFila(usuario) : Promise.resolve([]),
   ]);
+  // Item descrito à mão: "Vincular" no próprio item (antes, um quadro à parte acima da lista repetia o item).
+  const extrasItens: Record<string, React.ReactNode> = {};
+  if (logisticaVincula && opcoesVinculo) {
+    for (const i of foraCatalogo) {
+      extrasItens[i.id] = (
+        <span className="inline-flex items-center gap-2">
+          <span title="A área descreveu à mão. Enquanto não for vinculado a uma peça ou projeto, o item não soma peças na OS.">
+            <Tag tom="warning">fora do catálogo</Tag>
+          </span>
+          <VincularCatalogo compacto linha={{ solicitacaoItemId: i.id, descricao: i.descricaoLivre ?? "", quantidade: i.quantidadeSolicitada }} opcoes={opcoesVinculo} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
+        </span>
+      );
+    }
+  }
   const idx = fila.findIndex((f) => f.id === s.id);
   const proxima = idx >= 0 ? fila[idx + 1] : fila.find((f) => f.id !== s.id);
   const anterior = idx > 0 ? fila[idx - 1] : null;
@@ -174,7 +184,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             </>
           }
         >
-          <span className="numero font-medium text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span> · ordenada por prazo · atalhos A, P e N no item selecionado
+          <span className="numero font-medium text-on-dark-2">{idx >= 0 ? `${idx + 1} de ${fila.length}` : `${fila.length} ${fila.length === 1 ? "restante" : "restantes"}`}</span> · ordenada por prazo
         </BannerEscuro>
       )}
 
@@ -215,10 +225,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
               />
             ) : s.respondidaEm ? (
               <Meta rotulo="Respondida em" valor={diaMesHora(s.respondidaEm)} />
-            ) : s.enviadaEm ? (
-              <Meta rotulo="Enviada em" valor={diaMesHora(s.enviadaEm)} />
             ) : null}
+            {/* O que o quadro "Dados" ao lado repetia (enviada, respondidos) e o que importava do quadro "Evento" (a data). */}
+            {s.enviadaEm && <Meta rotulo="Enviada em" valor={diaMesHora(s.enviadaEm)} />}
             {s.itens.length > 0 && !semStatus && <Meta rotulo={naAta ? "Na ata" : "Respondidos"} valor={naAta ? `${gruposNaAta} de ${gruposItens.length}` : `${gruposRespondidos} de ${gruposItens.length}`} />}
+            <Meta rotulo="Evento" valor={periodoCurto(evento.dataInicio, evento.dataFim)} />
+            {s.tipo === "ALTERACAO" && evento.janelaAlteracoesAte && <Meta rotulo="Alterações até" valor={diaMesISO(evento.janelaAlteracoesAte)} />}
           </>
         }
         actions={
@@ -289,56 +301,22 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         </Aviso>
       )}
 
-      {logisticaVincula && opcoesVinculo && (
-        <Section
-          titulo={
-            <span className="inline-flex items-center gap-2">
-              <Icone nome="alerta" className="text-warning" />
-              {foraCatalogo.length === 1 ? "1 item fora do catálogo" : `${foraCatalogo.length} itens fora do catálogo`}
-            </span>
-          }
-          sub="A área descreveu à mão. Vincule a uma peça ou projeto que já existe ou cadastre a peça nova. Enquanto isso, o item não soma peças na OS."
-          className="mb-cartao !border-warning-border"
-        >
-          <ul className="m-0 list-none p-0">
-            {foraCatalogo.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line-row px-cartao py-2.5 first:border-t-0">
-                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-corpo text-ink">
-                  “{i.descricaoLivre}” <ChipMono tom="control">× {i.quantidadeSolicitada}</ChipMono>
-                  {i.destino ? (
-                    <span className="inline-flex items-center gap-1 text-pequeno text-muted">
-                      <Icone nome="local" className="size-3.5" />
-                      {i.destino}
-                    </span>
-                  ) : null}
-                </span>
-                <VincularCatalogo linha={{ solicitacaoItemId: i.id, descricao: i.descricaoLivre ?? "", quantidade: i.quantidadeSolicitada }} opcoes={opcoesVinculo} podeCadastrar={pode(usuario, "catalogo.gerenciar")} />
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
       {!pode(usuario, "ata.consolidar") && enviada && foraCatalogo.length > 0 && (
         <Aviso className="mb-cartao">
           {foraCatalogo.length === 1 ? "Um item foi descrito à mão" : `${foraCatalogo.length} itens foram descritos à mão`}. A logística vai vincular ao catálogo ou cadastrar a peça, e você será avisado.
         </Aviso>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="flex flex-col gap-5">
-          {s.observacao && (
-            <Section titulo="Observação do solicitante">
-              <p className="m-0 whitespace-pre-wrap px-cartao py-3.5 text-corpo leading-relaxed text-ink-2">{s.observacao}</p>
-            </Section>
-          )}
-          <RespostaProvider itens={itensNaOrdem} sufixoToast={sufixo}>
+      {/* Uma coluna só: os quadros "Dados" e "Evento" que ficavam ao lado repetiam o cabeçalho (solicitante, área,
+          datas, respondidos) e a página do evento (cliente, local, responsável, OS, links das abas). */}
+      <div className="flex flex-col gap-5">
+          <RespostaProvider itens={itensNaOrdem} sufixoToast={sufixo} extras={extrasItens}>
             <Section
               titulo={
                 <span className="inline-flex items-center gap-2">
                   Itens <ChipMono tom="control">{gruposItens.length}</ChipMono>
                 </span>
               }
-              sub={respondivel ? (pendentes > 0 ? `${pendentes} ${pendentes === 1 ? "aguarda" : "aguardam"} resposta. Parcial e não atendido exigem motivo.` : "Todos os itens respondidos.") : undefined}
               acoes={
                 respondivel && pendentes > 0 ? (
                   <DicaAtalhos />
@@ -349,80 +327,25 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                 ) : undefined
               }
             >
+              {/* A observação geral abre a lista de itens (antes, um cartão inteiro para uma frase). */}
+              {s.observacao && (
+                <p className="m-0 whitespace-pre-wrap border-b border-line-row px-cartao py-3 text-corpo text-ink-2">
+                  <span className="text-muted">Observação de {s.criadoPor.nome.split(" ")[0]}: </span>
+                  {s.observacao}
+                </p>
+              )}
               {itens.length === 0 ? <EmptyState compact title="Nenhum item adicionado" /> : gruposItens.map((g) => (g.length === 1 && !g[0].tenda ? <ItemResposta key={g[0].id} item={g[0]} semStatus={semStatus} /> : <GrupoItens key={g[0].id} itens={g} semStatus={semStatus} />))}
             </Section>
           </RespostaProvider>
-          <Section titulo="Histórico" sub={`${historicoSolicitacao.length} ${historicoSolicitacao.length === 1 ? "registro" : "registros"} · quem pediu, quem respondeu, conferência, ajustes e vínculos`}>
+          <Section
+            titulo={
+              <span className="inline-flex items-center gap-2">
+                Histórico <ChipMono tom="control">{historicoSolicitacao.length}</ChipMono>
+              </span>
+            }
+          >
             <LinhaDoTempo entradas={historicoSolicitacao} rotuloItem={rotuloItem} />
           </Section>
-        </div>
-        <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo">
-        <Section titulo="Dados">
-          <ListaDados
-            itens={[
-              { label: "Solicitante", valor: s.criadoPor.nome },
-              { label: "Área", valor: s.area.nome },
-              { label: "Criada em", valor: diaMesHora(s.criadoEm) },
-              { label: "Enviada em", valor: s.enviadaEm ? diaMesHora(s.enviadaEm) : "—" },
-              ...(naAta
-                ? [
-                    { label: "Reunião de OS", valor: diaMesHora(s.evento.dataReuniao) },
-                    { label: "Situação", valor: "na ata · a logística confere na reunião" },
-                    { label: "Itens na ata", valor: `${gruposNaAta} de ${gruposItens.length}`, forte: true },
-                  ]
-                : [
-                    // Prazo só enquanto espera resposta; depois de respondida, vale "Respondida em".
-                    ...(STATUS_ABERTOS.includes(s.status) ? [{
-                      label: "Prazo de resposta",
-                      valor: s.prazoRespostaEm ? <span style={{ color: COR_TOM[pi.tom] }}>{diaMesHora(s.prazoRespostaEm)}</span> : "—",
-                      alerta: pi.vencido,
-                    }] : []),
-                    { label: "Respondida em", valor: s.respondidaEm ? diaMesHora(s.respondidaEm) : "—" },
-                    { label: "Itens respondidos", valor: `${gruposRespondidos} de ${gruposItens.length}`, forte: true },
-                  ]),
-            ]}
-          />
-        </Section>
-        <Section
-          titulo="Evento"
-          sub={`${evento.codigo} · ${evento.nome}`}
-          acoes={
-            <Link href={`/eventos/${evento.id}`} className="link text-pequeno">
-              Abrir
-            </Link>
-          }
-        >
-          <ListaDados
-            itens={[
-              { label: "Situação", valor: <EventoStatusBadge status={evento.status} /> },
-              { label: "Cliente", valor: evento.cliente || "—" },
-              { label: "Local", valor: evento.local || "—" },
-              { label: "Data do evento", valor: periodoCurto(evento.dataInicio, evento.dataFim), forte: true },
-              { label: "Reunião de OS", valor: diaMesHora(evento.dataReuniao) },
-              { label: "Alterações até", valor: evento.janelaAlteracoesAte ? diaMesISO(evento.janelaAlteracoesAte) : "até encerrar" },
-              { label: "Ata fechada", valor: evento.ataFechadaEm ? diaMesHora(evento.ataFechadaEm) : "ainda não" },
-              ...(pode(usuario, "os.ver") ? [{ label: "OS atual", valor: versoesOs[0] ? `v${versoesOs[0].numero}` : "não gerada" }] : []),
-              { label: "Responsável", valor: evento.responsavel.nome },
-            ]}
-          />
-          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line-faint px-cartao py-2.5 text-pequeno">
-            <Link href={`/eventos/${evento.id}/ata`} className="link">
-              Ata
-            </Link>
-            {pode(usuario, "os.ver") && (
-              <Link href={`/eventos/${evento.id}/os`} className="link">
-                Ordem de serviço
-              </Link>
-            )}
-            <Link href={`/eventos/${evento.id}/solicitacoes`} className="link">
-              Solicitações do evento
-            </Link>
-            <Link href={`/eventos/${evento.id}/historico`} className="link">
-              Histórico do evento
-            </Link>
-          </div>
-        </Section>
-        </div>
       </div>
     </div>
   );
