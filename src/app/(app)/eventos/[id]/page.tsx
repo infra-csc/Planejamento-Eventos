@@ -330,7 +330,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                           const varios = itensDoGrupo.length > 1;
                           // Locais distintos: duas linhas no mesmo local (uma da reunião, outra incluída depois) não são "2 locais".
                           const nLocais = new Set(itensDoGrupo.map((x) => (x.destino ?? "").trim().toLowerCase())).size;
-                          const rotuloGrupo = nLocais === itensDoGrupo.length ? `${nLocais} locais` : `${nLocais} ${nLocais === 1 ? "local" : "locais"} · ${itensDoGrupo.length} linhas`;
+                          const semLocal = itensDoGrupo.every((x) => !x.destino?.trim());
+                          const rotuloGrupo = semLocal ? `${itensDoGrupo.length} linhas` : nLocais === itensDoGrupo.length ? `${nLocais} locais` : `${nLocais} ${nLocais === 1 ? "local" : "locais"} · ${itensDoGrupo.length} linhas`;
                           // Mesma origem em todas as linhas (ex.: tendas incluídas na reunião): ela aparece uma vez, no total do item.
                           const origemComum = varios && new Set(itensDoGrupo.map(deOnde)).size === 1;
                           const capa =
@@ -410,7 +411,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                           {varios ? (
                                             <>
                                               <span aria-hidden className="text-meta">↳ </span>
-                                              {x.destino ?? "sem local informado"}
+                                              {/* Sem local: a linha se identifica pela área que pediu (o texto "sem local" só repetia em todas). */}
+                                              {x.destino ?? x.areaNome ?? "Logística"}
                                             </>
                                           ) : (
                                             nomeExibido(x)

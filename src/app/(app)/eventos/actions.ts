@@ -13,10 +13,13 @@ import {
   editarEvento,
   incluirLinhaAta,
   salvarObservacoesReuniao,
+  snapshotBom,
   transicionarEvento,
 } from "@/server/services/eventos";
 import { ataAlterarQuantidadeSchema, ataLinhaSchema, dadosReuniaoSchema, eventoSchema, justificativaSchema, motivoOpcionalSchema } from "@/lib/schemas";
 import { LIMITES } from "@/domain/constantes";
+import { getDb } from "@/server/db";
+import { kitDaTenda, padraoPorTenda, papeisDoKit, PAPEIS_POR_LOCAL, type PapelTenda } from "@/domain/tendas";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
@@ -112,7 +115,20 @@ export async function incluirLinhaAtaAction(_prev: ActionResult, formData: FormD
   let r: ActionResult;
   try {
     const dados = parseForm(ataLinhaSchema, formData);
-    r = await executar(() => incluirLinhaAta(usuario, eventoId, dados), "Linha incluída na ata");
+    // Tenda: fechamentos e calhas do local, quando quem incluiu mudou do padrão (campos só vêm nesse caso).
+    const totalTenda = (campo: string) => {
+      const v = formData.get(campo);
+      return typeof v === "string" && /^\d{1,5}$/.test(v) ? Number(v) : undefined;
+    };
+    const totais = Object.fromEntries((["fechamento", "calha"] as const).flatMap((p) => (totalTenda(`tenda_${p}`) === undefined ? [] : [[p, totalTenda(`tenda_${p}`)!]])));
+    // A justificativa só é pedida com a ata fechada: aí o item entra na OS (a ata não muda).
+    const mensagem = dados.justificativa ? "Item incluído na OS" : "Linha incluída na ata";
+    r = await executar(async () => {
+      const linha = await incluirLinhaAta(usuario, eventoId, dados);
+      if (dados.referenciaTipo === "PROJETO" && Object.keys(totais).length) {
+        await ajustarTendasDoLocal(usuario, eventoId, { linhaIds: [linha.id], tendas: dados.quantidade, totais, motivo: dados.justificativa });
+      }
+    }, mensagem);
   } catch (e) {
     r = tratarErro(e);
   }
@@ -300,4 +316,21 @@ export async function ajustarTendasDoLocalAction(eventoId: string, dados: { linh
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;
+}
+
+/**
+ * "Incluir item": se o projeto escolhido é tenda, os papéis que mudam por local (fechamento e, na 5×5, calha) e
+ * quantos vêm por tenda no padrão — o formulário mostra os totais do local para ajustar.
+ */
+export async function kitTendaDoProjetoAction(projetoId: string): Promise<{ tamanho: string; papeis: Array<{ papel: PapelTenda; rotulo: string; porTenda: number }> } | null> {
+  await requireUsuario();
+  if (typeof projetoId !== "string" || !projetoId || projetoId.length > 64) return null;
+  try {
+    const { bom } = await snapshotBom(await getDb(), projetoId);
+    const kit = kitDaTenda(bom.map((b) => b.codigo));
+    if (!kit) return null;
+    return { tamanho: kit.tamanho, papeis: papeisDoKit(kit).filter((x) => PAPEIS_POR_LOCAL.includes(x.papel)).map((x) => ({ papel: x.papel, rotulo: x.rotulo, porTenda: padraoPorTenda(kit, bom, x.papel) })) };
+  } catch {
+    return null;
+  }
 }

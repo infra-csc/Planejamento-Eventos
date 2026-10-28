@@ -1,9 +1,9 @@
 "use client";
 
 import { LIMITES } from "@/domain/constantes";
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
-import { incluirLinhaAtaAction } from "@/app/(app)/eventos/actions";
+import { incluirLinhaAtaAction, kitTendaDoProjetoAction } from "@/app/(app)/eventos/actions";
 import { Field, FormError, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { Button, SubmitButton } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -35,6 +35,20 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
   const [projetoId, setProjetoId] = useState("");
   const [pecaId, setPecaId] = useState("");
   const [quantidade, setQuantidade] = useState(1);
+  // Projeto de tenda: fechamentos e calhas do local, como no quadro de tendas (o padrão segue a quantidade até alguém mudar).
+  const [kit, setKit] = useState<Awaited<ReturnType<typeof kitTendaDoProjetoAction>>>(null);
+  const [totaisTenda, setTotaisTenda] = useState<Record<string, number>>({});
+  const ultimoProjeto = useRef("");
+  const escolherProjeto = (id: string) => {
+    setProjetoId(id);
+    setKit(null);
+    setTotaisTenda({});
+    ultimoProjeto.current = id;
+    // Resposta de um projeto escolhido antes (a pessoa trocou rápido) é ignorada.
+    if (id) void kitTendaDoProjetoAction(id).then((k) => ultimoProjeto.current === id && setKit(k)).catch(() => undefined);
+  };
+  const totalTenda = (p: { papel: string; porTenda: number }) => totaisTenda[p.papel] ?? p.porTenda * quantidade;
+  const tendaAjustada = Boolean(kit?.papeis.some((p) => totalTenda(p) !== p.porTenda * quantidade));
   useActionFeedback(state, onDone);
   const campos = !state.ok ? state.campos : undefined;
   return (
@@ -49,7 +63,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       {tipo === "PROJETO" && (
         <Field label="Projeto padrão" htmlFor="projetoId" error={campos?.projetoId} hint="A OS soma a lista de peças do projeto × quantidade.">
           <input type="hidden" name="projetoId" value={projetoId} />
-          <ComboBox id="projetoId" value={projetoId} onChange={setProjetoId} placeholder="Digite o nome ou o código do projeto" invalid={Boolean(campos?.projetoId)} opcoes={opcoes.projetos.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo}${p.versaoAtual ? ` · v${p.versaoAtual}` : ""}` }))} />
+          <ComboBox id="projetoId" value={projetoId} onChange={escolherProjeto} placeholder="Digite o nome ou o código do projeto" invalid={Boolean(campos?.projetoId)} opcoes={opcoes.projetos.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo}${p.versaoAtual ? ` · v${p.versaoAtual}` : ""}` }))} />
         </Field>
       )}
       {tipo === "PECA" && (
@@ -74,6 +88,23 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         </Field>
       </div>
       <input type="hidden" name="quantidade" value={quantidade} />
+      {kit && tipo === "PROJETO" && (
+        <div className="rounded-controle border border-line-soft bg-subtle p-3">
+          <p className="m-0 mb-2 text-pequeno font-medium text-ink">
+            Tenda {kit.tamanho} · totais do local
+            <span className="ml-1 font-normal text-ink-3">(padrão: {kit.papeis.map((p) => `${p.porTenda} ${p.rotulo.toLowerCase()} por tenda`).join(", ")})</span>
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {kit.papeis.map((p) => (
+              <Field key={p.papel} label={p.rotulo} htmlFor={`tenda-${p.papel}`} hint={totaisTenda[p.papel] === undefined ? "padrão × tendas" : "ajustado"}>
+                <Stepper id={`tenda-${p.papel}`} valor={totalTenda(p)} min={0} max={10_000} onChange={(v) => setTotaisTenda((t) => ({ ...t, [p.papel]: v }))} label={`${p.rotulo} no local`} />
+                {/* Só vai para o servidor quando algo muda do padrão, e aí vão todos os totais (o quadro zera o que não vier). */}
+                {tendaAjustada && <input type="hidden" name={`tenda_${p.papel}`} value={totalTenda(p)} />}
+              </Field>
+            ))}
+          </div>
+        </div>
+      )}
       <Field label="Área" htmlFor="areaId" optional>
         <Select id="areaId" name="areaId" defaultValue="" opcoes={[{ value: "", label: "Logística (sem área)" }, ...areas.map((a) => ({ value: a.id, label: a.nome }))]} />
       </Field>
