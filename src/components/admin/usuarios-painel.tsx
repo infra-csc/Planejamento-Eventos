@@ -7,7 +7,6 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
-import { Badge, PerfilBadge } from "@/components/ui/badge";
 import { Field, FormError, Input } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
@@ -247,9 +246,6 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                 <Th className="hidden lg:table-cell" largura={130}>
                   Último acesso
                 </Th>
-                <Th className="hidden sm:table-cell" largura={104}>
-                  Situação
-                </Th>
                 <Th largura={56}>
                   <span className="sr-only">Ações</span>
                 </Th>
@@ -262,26 +258,22 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                     <span className={cn("block text-corpo font-medium", u.ativo ? "text-ink" : "text-ink-3")}>
                       {u.nome}
                       {u.id === meuId && <span className="ml-1.5 text-rotulo font-normal text-muted">você</span>}
+                      {/* A coluna "Situação" dizia "Ativo" em todas as linhas da aba Ativos: o aviso fica só no inativo. */}
+                      {!u.ativo && <span className="ml-1.5 text-rotulo font-medium text-warning">inativo</span>}
                     </span>
                     <span className="mt-0.5 block truncate text-pequeno text-muted">{u.email}</span>
-                    {/* Celular: perfil e situação dentro da célula do nome. */}
-                    <span className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
-                      <PerfilBadge perfil={u.perfil} />
-                      {!u.ativo && <Badge tom="warning">Inativo</Badge>}
-                    </span>
+                    {/* Tela estreita: perfil, área e último acesso numa linha embaixo do e-mail. */}
                     <span className="mt-0.5 block text-pequeno text-muted lg:hidden">
-                      {u.areaNome ? `${u.areaNome} · ` : ""}
+                      <span className="sm:hidden">{PERFIL_LABEL[u.perfil]} · </span>
+                      {/* "Cenografia · Cenografia": no celular a área some quando repete o perfil. */}
+                      {u.areaNome ? <span className={u.areaNome === PERFIL_LABEL[u.perfil] ? "max-sm:hidden" : undefined}>{u.areaNome} · </span> : ""}
                       <span className="numero">{u.ultimoAcesso}</span>
                     </span>
                   </th>
-                  <td className={cn(CELULA, "hidden sm:table-cell")}>
-                    <PerfilBadge perfil={u.perfil} />
-                  </td>
+                  {/* Perfil é categoria, não estado: texto na coluna, sem selo colorido (eram 4 cores numa lista de 12). */}
+                  <td className={cn(CELULA, "hidden text-pequeno text-ink-2 sm:table-cell")}>{PERFIL_LABEL[u.perfil]}</td>
                   <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
                   <td className={cn(CELULA, "numero hidden text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
-                  <td className={cn(CELULA, "hidden sm:table-cell")}>
-                    {u.ativo ? <span className="text-pequeno text-muted">Ativo</span> : <Badge tom="warning">Inativo</Badge>}
-                  </td>
                   <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">
                     <AcoesUsuario u={u} meuId={meuId} pendente={pendente} onEditar={() => setModal(u)} onAlternar={() => alternar(u)} />
                   </td>

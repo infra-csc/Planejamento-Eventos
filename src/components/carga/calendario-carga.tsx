@@ -248,10 +248,11 @@ export function CalendarioCarga({
     const tipos = o.origem === "cadastro" ? veiculos.filter((v) => v.eventoId === o.eventoId).map((v) => v.tipo) : [];
     return (
       <li key={o.chave}>
-        <button type="button" onClick={() => abrir(o)} className={cn(cardCls, o.origem === "planilha" ? "border-dotted border-line-strong" : "border-success-border bg-success-bg/40")}>
+        <button type="button" onClick={() => abrir(o)} title={o.origem === "planilha" ? "Da planilha 2026" : undefined} className={cn(cardCls, o.origem === "planilha" ? "border-dotted border-line-strong" : "border-success-border bg-success-bg/40")}>
           <span className="block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
           {tipos.length > 0 && <ContagemVeiculos tipos={tipos} className="mt-1" />}
-          {o.origem === "planilha" && <span className="mt-0.5 block text-micro uppercase tracking-[0.06em] text-meta">planilha</span>}
+          {/* "PLANILHA" em caixa-alta em quase todo cartão: a borda pontilhada já diz a origem (e o filtro "Planilha"). */}
+          {o.origem === "planilha" && <span className="sr-only"> · da planilha</span>}
         </button>
       </li>
     );
@@ -261,7 +262,7 @@ export function CalendarioCarga({
     const origem = o.tipo === "descGalpao" ? origemDaDescarga(o.bruto ?? o.nome, o.data, planilha) : null;
     return (
       <li key={o.chave}>
-        <button type="button" onClick={() => abrir(o)} className={cn(cardCls, "border-dotted border-line-strong bg-subtle/40")}>
+        <button type="button" onClick={() => abrir(o)} title="Da planilha 2026" className={cn(cardCls, "border-dotted border-line-strong bg-subtle/40")}>
           <span className="block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
           {(o.materiais?.length || o.coluna === "kit") && (
             <span className="mt-1 flex flex-wrap gap-1">
@@ -274,7 +275,7 @@ export function CalendarioCarga({
             </span>
           )}
           {origem && <span className="mt-1 block text-rotulo text-ink-3">← evento de {diaSemana(origem).toLowerCase()} {diaMesTexto(origem)}</span>}
-          <span className="mt-0.5 block text-micro uppercase tracking-[0.06em] text-meta">planilha</span>
+          <span className="sr-only"> · da planilha</span>
         </button>
       </li>
     );
