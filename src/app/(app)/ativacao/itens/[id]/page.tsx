@@ -78,7 +78,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         <Metric label="Disponível agora" valor={situacao.disponivel} hint={item.comprar ? `comprar ${item.comprar}` : undefined} tom={situacao.disponivel === 0 ? "danger" : "success"} />
       </MetricStrip>
 
-      <Section titulo="Fotos e anexos" sub="Fotos do item e documentos (nota, manual). Fotos de estrago e orçamentos de reforma ficam na seção da reforma.">
+      <Section titulo="Fotos e anexos" sub="Fotos de estrago e orçamentos ficam em Reformas.">
         <AnexosPeca
           pecaId={item.id}
           anexos={anexosItem}
@@ -91,7 +91,9 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         />
       </Section>
 
-      <Section titulo="Eventos" sub="Eventos com OS que levam o item e ainda não registraram o retorno.">
+      {/* A frase de apoio de cada seção só aparece quando há o que explicar: vazia, a seção dizia a mesma coisa
+          duas vezes ("Nada em reforma agora." em cima de "Este item nunca foi para reforma."). */}
+      <Section titulo="Eventos" sub={d.eventos.length ? "Com OS que leva o item e retorno ainda não registrado." : undefined}>
         {d.eventos.length === 0 ? (
           <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento com OS leva este item agora." : "Ligue o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."}</p>
         ) : (
@@ -119,7 +121,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         )}
       </Section>
 
-      <Section titulo="Reformas" sub={reformasAbertas.length ? `${reformasAbertas.reduce((a, r) => a + r.quantidade, 0)} em reforma agora.` : "Nada em reforma agora."}>
+      <Section titulo="Reformas" sub={reformasAbertas.length ? `${reformasAbertas.reduce((a, r) => a + r.quantidade, 0)} em reforma agora.` : d.reformas.length ? "Nada em reforma agora." : undefined}>
         {d.reformas.length === 0 ? (
           <p className="m-0 px-cartao py-4 text-pequeno text-muted">Este item nunca foi para reforma.</p>
         ) : (
@@ -159,7 +161,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         )}
       </Section>
 
-      <Section titulo="Retornos" sub="O que voltou de cada evento.">
+      <Section titulo="Retornos">
         {d.retornos.length === 0 ? (
           <p className="m-0 px-cartao py-4 text-pequeno text-muted">Nenhum retorno registrado.</p>
         ) : (
@@ -184,7 +186,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         )}
       </Section>
 
-      <Section titulo="Histórico" sub="Últimas 30 mudanças.">
+      <Section titulo="Histórico" sub={d.historico.length >= 30 ? "Últimas 30 mudanças." : undefined}>
         {d.historico.length === 0 ? (
           <p className="m-0 px-cartao py-4 text-pequeno text-muted">Sem registros.</p>
         ) : (

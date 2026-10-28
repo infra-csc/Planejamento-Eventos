@@ -14,6 +14,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { Select } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { Icone } from "@/components/ui/icons";
+import { IconButton } from "@/components/ui/icon-button";
 import { Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
@@ -137,7 +138,7 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell">Comprar</th>
                   {/* relative: o rótulo sr-only (absoluto) fica preso à célula; sem isso escapava da rolagem da
                       tabela e alargava a página no celular (559 px numa tela de 375). */}
-                  <th className="relative w-24 px-3 py-2.5 pr-cartao max-sm:w-12 max-sm:px-1">
+                  <th className="relative w-14 px-3 py-2.5 pr-cartao max-sm:w-12 max-sm:px-1">
                     <span className="sr-only">Editar</span>
                   </th>
                 </tr>
@@ -202,16 +203,9 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   return (
     <tr className={cn("border-b border-line-row last:border-b-0", !item.ativo && "text-meta")}>
       <td className="px-3 py-2.5 pl-cartao align-middle">
-        <span className="flex items-start gap-2.5">
-        {item.capaId ? (
-          // eslint-disable-next-line @next/next/no-img-element -- miniatura já reduzida pela rota de anexos
-          <img src={`/api/ativacao/anexos/${item.capaId}?w=160`} alt="" loading="lazy" decoding="async" className="size-10 shrink-0 rounded-controle border border-line bg-white object-cover max-sm:hidden" />
-        ) : (
-          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-controle bg-subtle text-meta max-sm:hidden">
-            <Icone nome="caixa" className="size-4" />
-          </span>
-        )}
-        <span className="min-w-0">
+        {/* Sem miniatura na lista: na maioria das linhas era a mesma caixa cinza (a foto fica na página do item).
+            "sem estoque" saiu do nome: a coluna Disponível já mostra 0 (em atenção) e há o filtro "Sem estoque". */}
+        <span className="block min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <Link href={`/ativacao/itens/${item.id}`} className="text-corpo font-medium text-ink no-underline hover:underline">
             {item.nome}
@@ -221,7 +215,6 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
               na solicitação: {item.pecaCodigo}
             </Tag>
           )}
-          {valor === 0 && <Tag tom="warning">sem estoque</Tag>}
         </span>
         {item.observacao && <span className="mt-0.5 block text-pequeno text-muted">{item.observacao}</span>}
         {/* Item ligado ao catálogo: pedidos em andamento (destaque) e histórico do que já voltou, numa janela. */}
@@ -233,7 +226,6 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
             {[item.emEvento ? `${item.emEvento} em evento` : null, item.reservado ? `${item.reservado} reservado` : null, item.emReforma ? `${item.emReforma} em reforma` : null].filter(Boolean).join(" · ")}
           </span>
         )}
-        </span>
         </span>
       </td>
       <td className="hidden px-3 py-2.5 align-middle text-pequeno text-ink-2 md:table-cell">{item.categoria}</td>
@@ -250,14 +242,13 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} reservado</span>}
       </td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
-      <td className="numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell">{Math.max(0, valor - item.emEvento)}</td>
+      <td className={cn("numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell", valor - item.emEvento <= 0 && "text-warning")}>{Math.max(0, valor - item.emEvento)}</td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
       <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-1">
-        <Button variant="ghost" size="xs" onClick={onEditar} className="max-sm:px-2.5">
+        {/* Só o lápis, como nas outras listas: "Editar" escrito em 244 linhas. */}
+        <IconButton label={`Editar ${item.nome}`} onClick={onEditar}>
           <Icone nome="lapis" />
-          {/* Celular: só o lápis (o nome continua para o leitor de tela). */}
-          <span className="max-sm:sr-only">Editar</span>
-        </Button>
+        </IconButton>
       </td>
     </tr>
   );
