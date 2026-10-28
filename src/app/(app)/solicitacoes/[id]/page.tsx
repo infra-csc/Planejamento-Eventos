@@ -223,11 +223,10 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                   </span>
                 }
               />
-            ) : s.respondidaEm ? (
-              <Meta rotulo="Respondida em" valor={diaMesHora(s.respondidaEm)} />
             ) : null}
             {/* O que o quadro "Dados" ao lado repetia (enviada, respondidos) e o que importava do quadro "Evento" (a data). */}
             {s.enviadaEm && <Meta rotulo="Enviada em" valor={diaMesHora(s.enviadaEm)} />}
+            {!naAta && !(aberta && s.prazoRespostaEm) && s.respondidaEm && <Meta rotulo="Respondida em" valor={diaMesHora(s.respondidaEm)} />}
             {s.itens.length > 0 && !semStatus && <Meta rotulo={naAta ? "Na ata" : "Respondidos"} valor={naAta ? `${gruposNaAta} de ${gruposItens.length}` : `${gruposRespondidos} de ${gruposItens.length}`} />}
             <Meta rotulo="Evento" valor={periodoCurto(evento.dataInicio, evento.dataFim)} />
             {s.tipo === "ALTERACAO" && evento.janelaAlteracoesAte && <Meta rotulo="Alterações até" valor={diaMesISO(evento.janelaAlteracoesAte)} />}

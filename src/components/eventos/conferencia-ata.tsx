@@ -512,6 +512,8 @@ function Linha({
               {/* Sem local, o que diferencia as linhas é quem pediu (o cabeçalho do grupo já diz "sem local"). */}
               {l.destino ?? textoPedidoPor(l)}
             </Link>
+            {/* Fora do catálogo com o mesmo nome em vários locais: cada linha se vincula à parte. */}
+            {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
             {marcaOpcional}
           </p>
         ) : (

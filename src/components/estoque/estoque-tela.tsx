@@ -203,13 +203,18 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   return (
     <tr className={cn("border-b border-line-row last:border-b-0", !item.ativo && "text-meta")}>
       <td className="px-3 py-2.5 pl-cartao align-middle">
-        {/* Sem miniatura na lista: na maioria das linhas era a mesma caixa cinza (a foto fica na página do item).
-            "sem estoque" saiu do nome: a coluna Disponível já mostra 0 (em atenção) e há o filtro "Sem estoque". */}
+        {/* Sem coluna de miniatura: quase nenhum item tem foto e a coluna era uma caixa cinza (ou um recuo) em toda
+            linha. A foto, quando existe, vai pequena ao lado do nome. "sem estoque" saiu do nome: a coluna Disponível já
+            mostra 0 (em atenção). */}
         <span className="block min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <Link href={`/ativacao/itens/${item.id}`} className="text-corpo font-medium text-ink no-underline hover:underline">
             {item.nome}
           </Link>
+          {item.capaId && (
+            // eslint-disable-next-line @next/next/no-img-element -- miniatura já reduzida pela rota de anexos
+            <img src={`/api/ativacao/anexos/${item.capaId}?w=160`} alt="" loading="lazy" decoding="async" className="size-6 shrink-0 rounded-chip border border-line bg-white object-cover max-sm:hidden" />
+          )}
           {item.pecaCodigo && (
             <Tag tom="neutral" className="text-rotulo max-sm:whitespace-normal">
               na solicitação: {item.pecaCodigo}
