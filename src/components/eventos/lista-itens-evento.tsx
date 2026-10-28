@@ -70,6 +70,7 @@ export function ListaItensEvento({
   opcoes,
   podeCadastrar,
   origem,
+  quem,
 }: {
   eventoId: string;
   linhas: Linha[];
@@ -79,6 +80,8 @@ export function ListaItensEvento({
   podeCadastrar: boolean;
   /** "SOL-0001 · Paulo Ribeiro" (ou "Pedido de área" fora da área de quem vê): vai no `title` da coluna Área. */
   origem: (l: Linha) => string;
+  /** Nome de quem pediu (ou incluiu), à vista na coluna Área; null quando quem vê não pode ver. */
+  quem: (l: Linha) => string | null;
 }) {
   const porTipo = GRUPOS_TIPO.map((g) => ({ ...g, linhas: linhas.filter((l) => l.tipo === g.tipo).sort((a, b) => nomeExibido(a).localeCompare(nomeExibido(b), "pt-BR")) })).filter((g) => g.linhas.length > 0);
   const agrupar = (ls: Linha[]) => {
@@ -99,13 +102,16 @@ export function ListaItensEvento({
       </span>
     </td>
   );
-  const tdArea = (texto: string, title?: string) => (
+  // Área e quem pediu na mesma linha ("Cenografia · Vinicius Alexandre"): o nome à vista, sem precisar passar o mouse.
+  const tdArea = (texto: string, title?: string, nomes?: string) => (
     <td className={cn(celula, "hidden max-w-0 px-3 text-pequeno text-ink-2 @2xl:table-cell")}>
       <span className="block truncate" title={title ?? texto}>
         {texto}
+        {nomes && <span className="text-ink-3"> · {nomes}</span>}
       </span>
     </td>
   );
+  const nomesDe = (ls: readonly Linha[]) => unicos(ls.map(quem).filter((x): x is string => Boolean(x))) || undefined;
   const tdQtd = (valor: number, forte = true) => (
     <td className={cn(celula, "px-3 text-right text-corpo text-ink", forte ? "font-semibold" : "font-normal")}>
       <QuantidadeAta valor={valor} />
@@ -157,7 +163,7 @@ export function ListaItensEvento({
         {celulaItem({ texto: nomeExibido(l), title: nomeExibido(l), tenda, ls: [l], resumo: [l.destino, area(l)].filter(Boolean).join(" · "), resumoMedio: area(l) })}
         {tdQtd(l.quantidade)}
         {tdLocal(l.destino ?? <span className="text-muted">—</span>, l.destino ?? undefined)}
-        {tdArea(area(l), `${area(l)} · ${origem(l)}`)}
+        {tdArea(area(l), `${area(l)} · ${origem(l)}`, nomesDe([l]))}
         {tdAcoes(acoesDaLinha(l, [l]))}
       </LinhaLink>
     );
@@ -204,7 +210,7 @@ export function ListaItensEvento({
           <>
             {tdQtd(total)}
             {tdLocal(rotuloLocais)}
-            {tdArea(unicos(ls.map(area)))}
+            {tdArea(unicos(ls.map(area)), undefined, nomesDe(ls))}
             {tdAcoes(quadros.length > 0 ? <EditarTendasDoItem eventoId={eventoId} nome={nomeExibido(l)} locais={quadros} ataFechada={ataFechada} /> : null)}
           </>
         }
@@ -221,7 +227,7 @@ export function ListaItensEvento({
               {celulaItem({ texto: local, title: local, so: "celular", recuo: true, tenda, ls: g, resumo: "" })}
               {tdQtd(qtd, false)}
               {tdLocal(local, local)}
-              {tdArea(unicos(g.map(area)), g.map((y) => `${area(y)} · ${origem(y)}`).join("\n"))}
+              {tdArea(unicos(g.map(area)), g.map((y) => `${area(y)} · ${origem(y)}`).join("\n"), nomesDe(g))}
               {/* Local com várias linhas somadas: o lápis abre o quadro do local, que também tira o local (0 tendas). */}
               {tdAcoes(acoesDaLinha(x, ls, g.length > 1))}
             </LinhaLink>
@@ -245,8 +251,8 @@ export function ListaItensEvento({
             <Th alinhar="right" className="w-16 min-w-16 @lg:w-[88px]">
               Qtd.
             </Th>
-            <Th className="hidden @lg:table-cell @lg:w-[28%] @2xl:w-[24%]">Local</Th>
-            <Th className="hidden @2xl:table-cell @2xl:w-[16%]">Área</Th>
+            <Th className="hidden @lg:table-cell @lg:w-[28%] @2xl:w-[20%]">Local</Th>
+            <Th className="hidden @2xl:table-cell @2xl:w-[26%]">Área · pedido por</Th>
             {editavel && (
               <Th className="w-[84px] max-md:w-[110px]">
                 <span className="sr-only">Ações</span>

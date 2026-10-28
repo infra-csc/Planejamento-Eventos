@@ -224,7 +224,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} />
             </div>
           ) : (
-            <ListaItensEvento eventoId={id} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} />
+            <ListaItensEvento eventoId={id} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} quem={(l) => (podeVerOrigem(l) ? (l.origemPor ?? null) : null)} />
           )}
         </Section>
       </div>
