@@ -166,9 +166,9 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
         <Section
           titulo={`${d.nome} no evento`}
           acoes={editavel && locaisDaTenda.length > 1 ? <EditarTendasDoItem eventoId={id} nome={d.nome} locais={locaisDaTenda.map((l) => l.quadro)} ataFechada={!antesDaAta} tamanho="sm" /> : undefined}
-          sub={`${locaisDaTenda.reduce((a, l) => a + l.quadro.tendas, 0)} tendas em ${locaisDaTenda.length} ${locaisDaTenda.length === 1 ? "local" : "locais"}${editavel ? " · Editar ajusta tendas, fechamentos e calhas do local" : ""}`}
+          sub={`${locaisDaTenda.reduce((a, l) => a + l.quadro.tendas, 0)} tendas em ${locaisDaTenda.length} ${locaisDaTenda.length === 1 ? "local" : "locais"}${editavel ? " · o lápis de cada local ajusta tendas, fechamentos e calhas" : ""}`}
         >
-          <TendasDoEvento eventoId={id} atualId={d.id} locais={locaisDaTenda} editavel={editavel} ataFechada={!antesDaAta} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} />
+          <TendasDoEvento eventoId={id} atualId={d.id} locais={locaisDaTenda} editavel={editavel} ataFechada={!antesDaAta} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} mostrarConferencia={antesDaAta} />
         </Section>
       )}
 
@@ -189,8 +189,10 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
           )}
           {ehTenda && Number.isSafeInteger(d.quantidade) && d.quantidade > 0 && (
             <div id="detalhes-unidades" className="scroll-mt-24">
-              <Section titulo="Tendas desta linha" sub="A descrição de cada tenda e as peças que cada uma leva.">
+              {/* As peças de cada tenda já estão logo abaixo ("Peças do grupo de tendas", editáveis): aqui só o que a área escreveu. */}
+              <Section titulo="Tendas desta linha" sub="A descrição de cada tenda, como a área pediu.">
                 <DetalhesUnidadesTenda
+                  semPecas
                   key={`${d.id}-${unidadeInicial}`}
                   quantidade={d.quantidade}
                   descricoes={d.restrito ? null : (d.origem?.descricoesPorUnidade ?? [])}

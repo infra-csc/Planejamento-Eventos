@@ -12,7 +12,10 @@ export function DetalhesUnidadesTenda({
   pecas,
   unidadeInicial,
   destino,
+  semPecas = false,
 }: {
+  /** As peças já aparecem logo abaixo, editáveis ("Peças do grupo de tendas"): aqui só as descrições. */
+  semPecas?: boolean;
   quantidade: number;
   descricoes: string[] | null;
   pecas: Array<{ pecaId: string; codigo: string; nome: string; unidade: string; porUnidade: number }>;
@@ -27,7 +30,7 @@ export function DetalhesUnidadesTenda({
 
   return (
     <div>
-      <div className="border-b border-line-soft px-cartao py-3.5">
+      <div className={cn("px-cartao py-3.5", !semPecas && "border-b border-line-soft")}>
         <p className="m-0 text-pequeno text-muted">
           <span className="numero font-medium text-ink">{n}</span> {n === 1 ? "tenda" : "tendas"} em <span className="font-medium text-ink">{destino ?? "local não informado"}</span>
         </p>
@@ -46,6 +49,7 @@ export function DetalhesUnidadesTenda({
           </ol>
         )}
       </div>
+      {!semPecas && (
       <div className="px-cartao py-3.5">
         <p className="m-0 flex items-baseline justify-between gap-3 text-pequeno text-muted">
           <span className="flex-1">Peças de cada tenda</span>
@@ -71,6 +75,7 @@ export function DetalhesUnidadesTenda({
           <p className="mb-0 mt-2 text-pequeno text-muted">Nenhuma peça informada.</p>
         )}
       </div>
+      )}
     </div>
   );
 }

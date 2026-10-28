@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { conferirLinhaAction } from "@/app/(app)/eventos/actions";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
@@ -28,6 +28,7 @@ export function TendasDoEvento({
   editavel,
   ataFechada,
   podeConferir,
+  mostrarConferencia = true,
 }: {
   eventoId: string;
   atualId: string;
@@ -35,6 +36,8 @@ export function TendasDoEvento({
   editavel: boolean;
   ataFechada: boolean;
   podeConferir: boolean;
+  /** Depois da ata a conferência acabou: o círculo vazio só confundia (linhas novas nunca são conferidas). */
+  mostrarConferencia?: boolean;
 }) {
   const [editando, setEditando] = useState<string | null>(null);
   const temCalha = locais.some((l) => l.quadro.temCalha);
@@ -42,22 +45,39 @@ export function TendasDoEvento({
   const colunas = 4 + (temCalha ? 1 : 0) + (editavel ? 1 : 0);
   const emEdicao = locais.find((l) => l.chave === editando);
   return (
+    // data-responsiva: no celular os números cabem ao lado do local (antes a tabela ganhava 640 px e os números ficavam
+    // fora da tela, numa rolagem lateral sem aviso). "Fechamentos" vira "Fech." só no rótulo da coluna.
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left">
+      <table data-responsiva className="w-full border-collapse text-left">
         <CaptionOculta>Tendas por local</CaptionOculta>
         <thead>
           <tr>
             <Th>Local</Th>
-            <Th largura={84} alinhar="right">Tendas</Th>
-            <Th largura={112} alinhar="right">Fechamentos</Th>
-            {temCalha && <Th largura={84} alinhar="right">Calhas</Th>}
+            <Th alinhar="right" className="w-14 sm:w-[84px]">
+              Tendas
+            </Th>
+            <Th alinhar="right" className="w-16 sm:w-[112px]">
+              <abbr title="Fechamentos" className="no-underline sm:hidden">
+                Fech.
+              </abbr>
+              <span className="hidden sm:inline">Fechamentos</span>
+            </Th>
+            {temCalha && (
+              <Th alinhar="right" className="w-16 sm:w-[84px]">
+                Calhas
+              </Th>
+            )}
             <Th className="hidden md:table-cell">Pedido por</Th>
-            {editavel && <Th largura={96}><span className="sr-only">Ações</span></Th>}
+            {editavel && (
+              <Th className="w-14">
+                <span className="sr-only">Ações</span>
+              </Th>
+            )}
           </tr>
         </thead>
         <tbody>
           {locais.map((l) => (
-            <LinhaLocal key={l.chave} eventoId={eventoId} atualId={atualId} local={l} temCalha={temCalha} colunas={colunas} editavel={editavel} podeConferir={podeConferir} onEditar={() => setEditando(l.chave)} />
+            <LinhaLocal key={l.chave} eventoId={eventoId} atualId={atualId} local={l} temCalha={temCalha} colunas={colunas} editavel={editavel} podeConferir={podeConferir} mostrarConferencia={mostrarConferencia} onEditar={() => setEditando(l.chave)} />
           ))}
         </tbody>
         <tfoot>
@@ -86,6 +106,7 @@ function LinhaLocal({
   colunas,
   editavel,
   podeConferir,
+  mostrarConferencia = true,
   onEditar,
 }: {
   eventoId: string;
@@ -95,6 +116,8 @@ function LinhaLocal({
   colunas: number;
   editavel: boolean;
   podeConferir: boolean;
+  /** Depois da ata a conferência acabou: o círculo vazio só confundia (linhas novas nunca são conferidas). */
+  mostrarConferencia?: boolean;
   onEditar: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -110,7 +133,7 @@ function LinhaLocal({
       <tr className={cn(atual && "bg-selected")}>
         <th scope="row" className={cn(celula, "pl-cartao font-normal")}>
           <span className="flex items-start gap-2.5">
-            <Conferencia eventoId={eventoId} linhas={linhas} podeConferir={podeConferir} rotulo={quadro.local ?? "Local não informado"} />
+            {mostrarConferencia && <Conferencia eventoId={eventoId} linhas={linhas} podeConferir={podeConferir} rotulo={quadro.local ?? "Local não informado"} />}
             <span className="min-w-0">
               <span className="block text-corpo font-medium text-ink">{quadro.local ?? <span className="text-muted">local não informado</span>}</span>
               {linhas.length > 1 && <span className="block text-rotulo text-ink-3">{linhas.length} linhas somadas neste local</span>}
@@ -137,18 +160,18 @@ function LinhaLocal({
           {quem && <span className="block text-rotulo text-ink-3">{quem}</span>}
         </td>
         {editavel && (
-          <td className={cn(celula, "pr-cartao text-right")}>
-            <Button variant="ghost" size="xs" onClick={onEditar} aria-label={`Editar tendas de ${quadro.local ?? "local não informado"}`}>
-              <Icone nome="lapis" className="size-3.5" />
-              Editar
-            </Button>
+          // O mesmo lápis da lista de itens do evento, no mesmo lugar da linha.
+          <td className={cn(celula, "pl-1 pr-cartao text-right")}>
+            <IconButton label={`Editar tendas de ${quadro.local ?? "local não informado"}`} onClick={onEditar}>
+              <Icone nome="lapis" />
+            </IconButton>
           </td>
         )}
       </tr>
       {aberto && (
         <tr className={cn(atual && "bg-selected")}>
           <td colSpan={colunas} className="border-b border-line-row px-cartao pb-3 pt-0">
-            <div className="ml-12 flex flex-col gap-2">
+            <div className={cn("flex flex-col gap-2", mostrarConferencia && "ml-12")}>
               {linhas.map((x) => (
                 <Descricao key={x.id} linha={x} />
               ))}
