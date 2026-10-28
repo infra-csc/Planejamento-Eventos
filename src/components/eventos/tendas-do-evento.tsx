@@ -136,13 +136,12 @@ function LinhaLocal({
             {mostrarConferencia && <Conferencia eventoId={eventoId} linhas={linhas} podeConferir={podeConferir} rotulo={quadro.local ?? "Local não informado"} />}
             <span className="min-w-0">
               <span className="block text-corpo font-medium text-ink">{quadro.local ?? <span className="text-muted">local não informado</span>}</span>
-              {linhas.length > 1 && <span className="block text-rotulo text-ink-3">{linhas.length} linhas somadas neste local</span>}
               <span className="block text-rotulo text-ink-3 md:hidden">
                 {areas}
                 {quem ? ` · ${quem}` : ""}
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 text-rotulo">
-                {atual ? <span className="font-medium text-accent">você está aqui</span> : <Link href={`/eventos/${eventoId}/itens/${linhas[0].id}`} className="link">abrir</Link>}
+                {!atual && <Link href={`/eventos/${eventoId}/itens/${linhas[0].id}`} className="link">abrir</Link>}
                 {temDescricao && (
                   <button type="button" aria-expanded={aberto} onClick={() => setAberto((v) => !v)} className="link cursor-pointer border-0 bg-transparent p-0 text-rotulo">
                     {aberto ? "Esconder pedido" : "Ver pedido"}

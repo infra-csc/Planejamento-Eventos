@@ -1,7 +1,6 @@
 import type { LinhaAtaDetalhe } from "@/server/services/eventos/ata";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
 import { cn } from "@/lib/cn";
-import { Tag } from "@/components/ui/badge";
 import { Numero } from "@/components/ui/numero";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -46,11 +45,13 @@ function textoTenda(ls: readonly Linha[], noTotal: boolean): string | null {
   return partes.length ? partes.join(" · ") : "sem fechamentos";
 }
 
-/** Um selo por linha, no máximo: entrou depois da ata pesa mais que "ajustado". */
+/**
+ * Um aviso por linha, no máximo: entrou depois da ata pesa mais que "ajustado". Texto discreto, sem selo colorido:
+ * depois da ata quase toda linha tem um, e selos em metade da lista viram ruído.
+ */
 function selo(ls: readonly Linha[]) {
-  if (ls.some((l) => l.posAta)) return <Tag tom="info">depois da ata</Tag>;
-  if (ls.some((l) => l.registro.justificativaAjuste)) return <Tag tom="warning">ajustado</Tag>;
-  return null;
+  const aviso = ls.some((l) => l.posAta) ? "depois da ata" : ls.some((l) => l.registro.justificativaAjuste) ? "ajustado" : null;
+  return aviso ? <span className="shrink-0 text-rotulo text-ink-3">{aviso}</span> : null;
 }
 
 const unicos = (xs: string[]) => [...new Set(xs)].join(", ");

@@ -97,6 +97,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
   }
   // Voltar para onde a lista com as ações está: a conferência na reunião; depois, os itens da visão geral.
   const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : { href: `/eventos/${id}#itens`, rotulo: "Itens do evento" };
+  const quadroTenda = locaisDaTenda.length > 0 && Boolean(tenda);
   const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
 
   return (
@@ -137,6 +138,8 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
           </div>
         </div>
         {/* Celular: a quantidade vira uma faixa na largura toda ("1 nesta linha · Medica"), em vez de um número solto embaixo do título. */}
+        {/* Tenda: a quantidade e as ações ficam no quadro dos locais logo abaixo (aqui seriam a terceira forma de editar a mesma coisa). */}
+        {!quadroTenda && (
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between max-sm:border-t max-sm:border-line-soft max-sm:pt-3">
           <div className="text-right max-sm:flex max-sm:items-baseline max-sm:gap-2 max-sm:text-left">
             <span className="numero block text-metrica font-semibold tracking-[-0.02em] text-ink max-sm:inline max-sm:text-titulo">{d.quantidade}</span>
@@ -157,12 +160,13 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
             />
           )}
         </div>
+        )}
       </section>
 
       {d.restrito && <Aviso>Este item é de outra área: você vê o que está na ata e os ajustes, sem as observações internas da solicitação.</Aviso>}
 
       {/* Tenda: o quadro dos locais na largura toda (tem colunas de números), antes das peças e de quem pediu. */}
-      {locaisDaTenda.length > 0 && tenda && (
+      {quadroTenda && (
         <Section
           titulo={`${d.nome} no evento`}
           acoes={editavel && locaisDaTenda.length > 1 ? <EditarTendasDoItem eventoId={id} nome={d.nome} locais={locaisDaTenda.map((l) => l.quadro)} ataFechada={!antesDaAta} tamanho="sm" /> : undefined}
@@ -174,7 +178,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
-          {mesmoItem.length > 0 && !(locaisDaTenda.length > 0 && tenda) && (
+          {mesmoItem.length > 0 && !quadroTenda && (
             <Section
               titulo={`${d.nome} no evento`}
               sub={
@@ -187,7 +191,8 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
               <MesmoItemNoEvento eventoId={id} atualId={d.id} linhas={mesmoItem} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} mostrarUnidades={ehTenda} />
             </Section>
           )}
-          {ehTenda && Number.isSafeInteger(d.quantidade) && d.quantidade > 0 && (
+          {/* Só quando a área escreveu algo: "Sem descrição" numa seção inteira não ajuda ninguém. */}
+          {ehTenda && Number.isSafeInteger(d.quantidade) && d.quantidade > 0 && !d.restrito && (d.origem?.descricoesPorUnidade ?? []).some((x) => x?.trim()) && (
             <div id="detalhes-unidades" className="scroll-mt-24">
               {/* As peças de cada tenda já estão logo abaixo ("Peças do grupo de tendas", editáveis): aqui só o que a área escreveu. */}
               <Section titulo="Tendas desta linha" sub="A descrição de cada tenda, como a área pediu.">
