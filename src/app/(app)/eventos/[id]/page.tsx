@@ -2,7 +2,9 @@ import { conferenciaOpcional } from "@/domain/itens-padrao";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
-import { calcularOsAoVivo, listarOsResumo, totalPecasOs } from "@/server/services/os";
+import { listarOsResumo, totalPecasOs } from "@/server/services/os";
+import { calcularOS } from "@/domain/os";
+import { montarEdicaoOs } from "@/components/eventos/edicao-os-evento";
 import { slugArenaDoEvento } from "@/server/services/arenas";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { OsVisoes, type VisaoOs } from "@/components/eventos/os-visoes";
@@ -69,14 +71,17 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   // Leituras independentes em paralelo. As leituras por peça vêm do estado de agora (ata + o que
   // entrou depois), igual à OS em vigor. Catálogo e áreas só para quem inclui e vincula itens.
-  const [osAgora, totalOs, slugArena, gruposMaterial, opcoes, areasAtivas] = await Promise.all([
-    leitura === "lista" ? null : calcularOsAoVivo(id),
+  const [totalOs, slugArena, gruposMaterial, opcoes, areasAtivas] = await Promise.all([
     veOs && versoes[0] ? totalPecasOs(id, versoes[0].numero) : 0,
     veArena ? slugArenaDoEvento(id) : null,
     leitura === "lista" ? undefined : mapaGruposPecas(),
     editavel ? opcoesReferenciasResumidas() : null,
     editavel ? listarAreasCache() : Promise.resolve([]),
   ]);
+  // As leituras por peça saem das mesmas linhas da lista (a mesma conta de `calcularOsAoVivo`, sem ir de novo ao banco):
+  // cada linha da leitura aponta para a linha da ata que a gerou, e admin e logística corrigem dali também.
+  const osAgora = leitura === "lista" ? null : calcularOS(linhas);
+  const edicaoOs = osAgora && editavel ? montarEdicaoOs({ eventoId: id, linhas, os: osAgora, ataFechada: Boolean(ev.ataFechadaEm), opcoes, podeCadastrar: pode(usuario, "catalogo.gerenciar") }) : undefined;
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   // Para fechar a ata contam só as obrigatórias ("a definir" e estaiamento ficam de fora).
@@ -216,7 +221,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             <EmptyState compact title="Nenhum item ainda" description={editavel ? "Os pedidos das áreas entram aqui sozinhos. O que for decidido fora de um pedido entra por “Incluir item”." : "Quando as áreas enviarem necessidades, os itens aparecem aqui."} />
           ) : osAgora ? (
             <div className="flex flex-col gap-4 bg-subtle p-3 sm:p-4">
-              <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} />
+              <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} />
             </div>
           ) : (
             <ListaItensEvento eventoId={id} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} />

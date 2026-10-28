@@ -1,5 +1,5 @@
 import { SETOR_LABEL, individuaisAgrupadas, osParaLeitura, textoLocais } from "@/domain/os";
-import type { OsConteudo } from "@/server/db/schema";
+import type { OsConteudo, OsLinha } from "@/server/db/schema";
 import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { ChipMono } from "@/components/ui/badge";
@@ -10,6 +10,24 @@ import { Pills } from "@/components/ui/pills";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 
 export type VisaoOs = "totais" | "projetos" | "individuais" | "composicao";
+
+/**
+ * Ações de correção nas leituras (visão geral do evento, admin e logística). Só repassa os ajustes que já existem para
+ * cada linha da ata; o que soma várias linhas (um total por peça) abre de onde vem o número, sem regra nova.
+ */
+export type EdicaoOs = {
+  /** Projeto `i` (ordem de `os.projetos`): quantidade/remover, o lápis de cada peça e "Incluir peça". */
+  projeto?: (i: number) => { acoes: React.ReactNode; peca: (codigo: string, porUnidade: number) => React.ReactNode; rodape?: React.ReactNode } | null;
+  /** Linha dos totais por peça. */
+  total?: (l: OsLinha) => React.ReactNode;
+  /** Peça solta (somada por código). */
+  solta?: (codigo: string) => React.ReactNode;
+  /** Item fora do catálogo `i` (ordem de `os.semSetor`). */
+  foraCatalogo?: (i: number) => React.ReactNode;
+};
+
+/** Coluna de ações das leituras: lápis (e lixeira) sempre no mesmo lugar, como na lista. */
+const tdAcoes = "border-b border-line-row py-1.5 pl-2 pr-cartao text-right align-middle whitespace-nowrap";
 
 export function visaoDe(v?: string): VisaoOs {
   return v === "projetos" || v === "individuais" || v === "composicao" ? v : "totais";
@@ -49,7 +67,9 @@ export function OsVisoes({
   titulo,
   composicao,
   semNavegacao = false,
+  edicao,
 }: {
+  edicao?: EdicaoOs;
   os: OsConteudo;
   visao: VisaoOs;
   hrefVisao: (v: VisaoOs) => string;
@@ -92,9 +112,12 @@ export function OsVisoes({
               <EmptyState compact title="Nenhum projeto padrão nesta OS" description="Só peças soltas e itens fora do catálogo." />
             </Section>
           )}
-          {os.projetos?.map((p, i) => (
+          {os.projetos?.map((p, i) => {
+            const ed = edicao?.projeto?.(i) ?? null;
+            return (
             <Section
               key={`${p.codigo}-${i}`}
+              acoes={ed?.acoes}
               titulo={
                 <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span>{p.nome}</span>
@@ -124,6 +147,11 @@ export function OsVisoes({
                       <Th largura={110} alinhar="right">
                         Total
                       </Th>
+                      {ed && (
+                        <Th largura={64}>
+                          <span className="sr-only">Ações</span>
+                        </Th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -143,16 +171,19 @@ export function OsVisoes({
                         </th>
                         <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
                         <td className={`${tdNumero} hidden sm:table-cell`}>{x.porUnidade}</td>
-                        <td className={tdTotal}>
+                        <td className={ed ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>
                           <Total n={x.total} unidade={x.unidade} />
                         </td>
+                        {ed && <td className={tdAcoes}>{ed.peca(x.codigo, x.porUnidade)}</td>}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {ed?.rodape && <RodapeTabela direita={ed.rodape}>{null}</RodapeTabela>}
             </Section>
-          ))}
+            );
+          })}
         </>
       )}
 
@@ -184,6 +215,11 @@ export function OsVisoes({
                       <Th largura={110} alinhar="right">
                         Qtd.
                       </Th>
+                      {edicao?.solta && (
+                        <Th largura={84}>
+                          <span className="sr-only">Ações</span>
+                        </Th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -203,9 +239,10 @@ export function OsVisoes({
                         </th>
                         <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{grupos ? GRUPO_LABEL[grupoDoCodigo(grupos, x.codigo, x.setor)] : SETOR_LABEL[x.setor]}</td>
                         <td className={`${td} hidden text-pequeno text-ink-2 sm:table-cell`}>{textoLocais(x.locais)}</td>
-                        <td className={tdTotal}>
+                        <td className={edicao?.solta ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>
                           <Total n={x.quantidade} unidade={x.unidade} />
                         </td>
+                        {edicao?.solta && <td className={tdAcoes}>{edicao.solta(x.codigo)}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -248,6 +285,11 @@ export function OsVisoes({
                       <Th largura={110} alinhar="right">
                         Total
                       </Th>
+                      {edicao?.total && (
+                        <Th largura={64}>
+                          <span className="sr-only">Ações</span>
+                        </Th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -274,9 +316,10 @@ export function OsVisoes({
                             ))}
                           </span>
                         </td>
-                        <td className={tdTotal}>
+                        <td className={edicao?.total ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>
                           <Total n={l.total} unidade={l.unidade} />
                         </td>
+                        {edicao?.total && <td className={tdAcoes}>{edicao.total(l)}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -308,6 +351,11 @@ export function OsVisoes({
                   <Th largura={90} alinhar="right">
                     Qtd.
                   </Th>
+                  {edicao?.foraCatalogo && (
+                    <Th largura={84}>
+                      <span className="sr-only">Ações</span>
+                    </Th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +366,8 @@ export function OsVisoes({
                       <span className="mt-0.5 block text-rotulo text-muted sm:hidden">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>
                     </th>
                     <td className={`${td} hidden text-pequeno text-ink-2 sm:table-cell`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
-                    <td className={tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
+                    <td className={edicao?.foraCatalogo ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
+                    {edicao?.foraCatalogo && <td className={tdAcoes}>{edicao.foraCatalogo(i)}</td>}
                   </tr>
                 ))}
               </tbody>

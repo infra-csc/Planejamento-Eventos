@@ -41,29 +41,7 @@ export function PecasProjeto({
   depoisDaAta: boolean;
 }) {
   const [edicao, setEdicao] = useState<Edicao | null>(null);
-  const [qtd, setQtd] = useState(0);
-  const [motivo, setMotivo] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-
-  const abrir = (e: Edicao) => {
-    setEdicao(e);
-    setQtd(e.pecaId ? e.porUnidade : 1);
-    setMotivo("");
-    setErro(null);
-  };
-
-  const salvar = () => {
-    if (!edicao?.pecaId) return setErro("Escolha a peça.");
-    if (depoisDaAta && !motivo.trim()) return setErro("Com a ata fechada, informe o motivo. Ele fica no histórico e vai para a área.");
-    const pecaId = edicao.pecaId;
-    iniciar(async () => {
-      const r = await ajustarPecaDoProjetoAction(eventoId, linhaId, pecaId, qtd, motivo);
-      if (!r.ok) return setErro(r.erro);
-      toast(qtd === 0 ? `${edicao.nome} retirada do projeto` : `${edicao.nome}: ${qtd} por unidade`);
-      setEdicao(null);
-    });
-  };
+  const abrir = (e: Edicao) => setEdicao(e);
 
   const naLista = new Set(pecas.map((p) => p.pecaId));
   const totalUnidades = pecas.reduce((a, p) => a + p.total, 0);
@@ -135,57 +113,131 @@ export function PecasProjeto({
         {pecas.length} {pecas.length === 1 ? "tipo de peça" : "tipos de peça"} · <span className="numero">{totalUnidades.toLocaleString("pt-BR")}</span> unidades para <span className="numero">× {quantidadeProjeto}</span>
       </RodapeTabela>
 
-      {edicao && (
-        <Dialog open onOpenChange={(o) => !o && setEdicao(null)}>
-          <DialogContent
-            title={edicao.codigo ? `Ajustar ${edicao.codigo}` : "Incluir peça no projeto"}
-            description={depoisDaAta ? "A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área." : "Ajuste só deste projeto neste evento. Fica no histórico com seu nome (e o motivo, se escrever)."}
-            width={460}
-          >
-            <div className="flex flex-col gap-3.5">
-              {!edicao.codigo && (
-                <div>
-                  <Label>Peça do catálogo</Label>
-                  <ComboBox
-                    value={edicao.pecaId}
-                    onChange={(id) => {
-                      const p = opcoesPecas.find((x) => x.id === id);
-                      if (p) setEdicao({ pecaId: p.id, codigo: "", nome: p.nome, porUnidade: 0 });
-                    }}
-                    placeholder="Buscar por código ou nome"
-                    opcoes={opcoesPecas.filter((p) => !naLista.has(p.id)).map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo }))}
-                  />
-                </div>
-              )}
-              {edicao.codigo && <p className="m-0 text-corpo text-ink-2">{edicao.nome}</p>}
-              <div className="flex flex-wrap items-end gap-3">
-                <Field label="Por unidade do projeto" htmlFor="qtd-peca">
-                  <Stepper id="qtd-peca" valor={qtd} onChange={setQtd} min={0} />
-                </Field>
-                <p className="m-0 pb-2 text-pequeno text-muted">
-                  × {quantidadeProjeto} = <span className="numero font-medium text-ink">{qtd * quantidadeProjeto}</span>
-                  {edicao.codigo ? ` (era ${edicao.porUnidade * quantidadeProjeto})` : ""}
-                  {qtd === 0 && edicao.codigo ? " · retira a peça" : ""}
-                </p>
-              </div>
-              <Field label={depoisDaAta ? "Motivo" : "Motivo (opcional)"} htmlFor="motivo-peca" obrigatorio={depoisDaAta}>
-                <Textarea id="motivo-peca" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 2 tramos disponíveis; o cliente pediu vão menor" className="min-h-[72px]" />
-              </Field>
-              <FormError message={erro} />
+      {edicao && <AjustePecaDialog eventoId={eventoId} linhaId={linhaId} quantidadeProjeto={quantidadeProjeto} inicial={edicao} opcoesPecas={opcoesPecas} naLista={naLista} depoisDaAta={depoisDaAta} onFechar={() => setEdicao(null)} />}
+    </>
+  );
+}
+
+/**
+ * Janela de ajuste de uma peça do projeto (ou de inclusão, com `inicial.pecaId` nulo): quantidade por unidade e motivo.
+ * A mesma da página do item, da leitura "Peças por projeto" e de "Totais por peça" na visão geral.
+ */
+export function AjustePecaDialog({
+  eventoId,
+  linhaId,
+  quantidadeProjeto,
+  inicial,
+  opcoesPecas = [],
+  naLista = new Set<string>(),
+  depoisDaAta,
+  contexto,
+  onFechar,
+}: {
+  eventoId: string;
+  linhaId: string;
+  quantidadeProjeto: number;
+  inicial: Edicao;
+  opcoesPecas?: Array<{ id: string; codigo: string; nome: string }>;
+  naLista?: ReadonlySet<string>;
+  depoisDaAta: boolean;
+  /** De qual linha do evento (fora da página do item, onde isso é óbvio): "Tenda 3×3 m · Backstage × 2". */
+  contexto?: string;
+  onFechar: () => void;
+}) {
+  const [edicao, setEdicao] = useState<Edicao>(inicial);
+  const [qtd, setQtd] = useState(inicial.pecaId ? inicial.porUnidade : 1);
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+
+  const salvar = () => {
+    if (!edicao.pecaId) return setErro("Escolha a peça.");
+    if (depoisDaAta && !motivo.trim()) return setErro("Com a ata fechada, informe o motivo. Ele fica no histórico e vai para a área.");
+    const pecaId = edicao.pecaId;
+    iniciar(async () => {
+      const r = await ajustarPecaDoProjetoAction(eventoId, linhaId, pecaId, qtd, motivo).catch(() => ({ ok: false as const, erro: "Sem conexão. Tente de novo." }));
+      if (!r.ok) return setErro(r.erro);
+      toast(qtd === 0 ? `${edicao.nome} retirada do projeto` : `${edicao.nome}: ${qtd} por unidade`);
+      onFechar();
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent
+        title={edicao.codigo ? `Ajustar ${edicao.codigo}` : "Incluir peça no projeto"}
+        description={`${contexto ? `${contexto}. ` : ""}${depoisDaAta ? "A ata já foi fechada: o ajuste gera nova versão da OS e avisa a área." : "Ajuste só deste projeto neste evento. Fica no histórico com seu nome (e o motivo, se escrever)."}`}
+        width={460}
+      >
+        <div className="flex flex-col gap-3.5">
+          {!inicial.codigo && (
+            <div>
+              <Label>Peça do catálogo</Label>
+              <ComboBox
+                value={edicao.pecaId}
+                onChange={(id) => {
+                  const p = opcoesPecas.find((x) => x.id === id);
+                  if (p) setEdicao({ pecaId: p.id, codigo: "", nome: p.nome, porUnidade: 0 });
+                }}
+                placeholder="Buscar por código ou nome"
+                opcoes={opcoesPecas.filter((p) => !naLista.has(p.id)).map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo }))}
+              />
             </div>
-            <DialogFooter>
-              <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
-                Salvar
-              </Button>
-              <DialogClose asChild>
-                <Button variant="secondary" size="lg" disabled={pendente}>
-                  Cancelar
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+          {inicial.codigo && <p className="m-0 text-corpo text-ink-2">{edicao.nome}</p>}
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Por unidade do projeto" htmlFor="qtd-peca">
+              <Stepper id="qtd-peca" valor={qtd} onChange={setQtd} min={0} label="Por unidade do projeto" />
+            </Field>
+            <p className="m-0 pb-2 text-pequeno text-muted">
+              × {quantidadeProjeto} = <span className="numero font-medium text-ink">{qtd * quantidadeProjeto}</span>
+              {inicial.codigo ? ` (era ${inicial.porUnidade * quantidadeProjeto})` : ""}
+              {qtd === 0 && inicial.codigo ? " · retira a peça" : ""}
+            </p>
+          </div>
+          <Field label={depoisDaAta ? "Motivo" : "Motivo (opcional)"} htmlFor="motivo-peca" obrigatorio={depoisDaAta}>
+            <Textarea id="motivo-peca" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: só 2 tramos disponíveis; o cliente pediu vão menor" className="min-h-[72px]" />
+          </Field>
+          <FormError message={erro} />
+        </div>
+        <DialogFooter>
+          <Button variant="primary" size="lg" onClick={salvar} loading={pendente}>
+            {inicial.codigo ? "Salvar ajuste" : "Incluir peça"}
+          </Button>
+          <DialogClose asChild>
+            <Button variant="secondary" size="lg" disabled={pendente}>
+              Cancelar
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Lápis de uma peça do projeto fora da página do item (leituras da visão geral). */
+export function AjustarPecaBotao({ eventoId, linhaId, quantidadeProjeto, peca, depoisDaAta, contexto }: { eventoId: string; linhaId: string; quantidadeProjeto: number; peca: { pecaId: string; codigo: string; nome: string; porUnidade: number }; depoisDaAta: boolean; contexto: string }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <>
+      <IconButton label={`Ajustar ${peca.nome} em ${contexto}`} onClick={() => setAberto(true)}>
+        <Icone nome="lapis" />
+      </IconButton>
+      {aberto && <AjustePecaDialog eventoId={eventoId} linhaId={linhaId} quantidadeProjeto={quantidadeProjeto} inicial={peca} depoisDaAta={depoisDaAta} contexto={contexto} onFechar={() => setAberto(false)} />}
+    </>
+  );
+}
+
+/** "Incluir peça" num projeto fora da página do item. */
+export function IncluirPecaBotao({ eventoId, linhaId, quantidadeProjeto, opcoesPecas, naLista, depoisDaAta, contexto }: { eventoId: string; linhaId: string; quantidadeProjeto: number; opcoesPecas: Array<{ id: string; codigo: string; nome: string }>; naLista: string[]; depoisDaAta: boolean; contexto: string }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <>
+      <Button variant="link" size="sm" onClick={() => setAberto(true)} aria-label={`Incluir peça em ${contexto}`}>
+        <Icone nome="mais" />
+        Incluir peça
+      </Button>
+      {aberto && <AjustePecaDialog eventoId={eventoId} linhaId={linhaId} quantidadeProjeto={quantidadeProjeto} inicial={{ pecaId: null, codigo: "", nome: "", porUnidade: 0 }} opcoesPecas={opcoesPecas} naLista={new Set(naLista)} depoisDaAta={depoisDaAta} contexto={contexto} onFechar={() => setAberto(false)} />}
     </>
   );
 }
