@@ -95,8 +95,10 @@ export function BlocoTenda({
   return (
     <section aria-label={`${p0.nome}: ${locaisOk} de ${locais.length} locais conferidos`} className="border-b border-line-row last:border-b-0">
       <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
-        <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
-        {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
+        {/* Código do projeto no title, como nas outras linhas da conferência. */}
+        <span className="text-corpo font-semibold text-ink" title={p0.codigo ?? undefined}>
+          {p0.nome}
+        </span>
         <span className="numero text-pequeno text-muted">
           <b className="font-semibold text-ink">{totalTendas}</b> {totalTendas === 1 ? "tenda" : "tendas"}
           {colunas.map((c) => {

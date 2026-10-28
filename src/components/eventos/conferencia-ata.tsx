@@ -17,7 +17,7 @@ import { Select } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
 import { ajustarLinhaConferenciaAction, completarAcompanhanteAction, conferirLinhaAction, conferirTodasAction, definirExtraDaRegraAction, editarDescricoesLinhaAction } from "@/app/(app)/eventos/actions";
-import { IconButton } from "@/components/ui/icon-button";
+import { IconButton, IconLink } from "@/components/ui/icon-button";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 import { VincularCatalogo } from "./vincular-catalogo";
 import { BlocoTenda } from "./tenda-conferencia";
@@ -381,7 +381,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
  * Pelo contêiner porque, a 1280 px, o painel da reunião ao lado deixa a lista com ~600 px e a coluna do
  * item ficava com ~130 px (descrições quebradas palavra por palavra).
  */
-const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 @3xl:grid-cols-[40px_minmax(0,1fr)_150px_56px_164px]";
+const GRADE = "grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 @3xl:grid-cols-[40px_minmax(0,1fr)_150px_56px_72px] @3xl:gap-y-2";
 /** Linha conferida ganha um fundo verde quase imperceptível; pendente fica neutra (a maioria é pendente). */
 const fundoLinha = (conferida: boolean) => cn("border-b border-line-row px-cartao py-3 transition-colors duration-200 last:border-b-0 @3xl:py-2.5", conferida ? "bg-success-bg/40 hover:bg-success-bg/70" : "hover:bg-subtle");
 
@@ -430,29 +430,24 @@ function PedidoPor({ l, semPessoa = false }: { l: LinhaConferencia; semPessoa?: 
 }
 
 /**
- * Ações de uma linha, sempre na mesma ordem e com o mesmo peso: abrir as peças e ajustar a quantidade.
- * "Ajustar" vem por último: com as ações alinhadas à direita (desktop), ele fica sempre no mesmo lugar,
- * tenha a linha "Peças" ou não. O nome acessível começa pelo texto visível (WCAG 2.5.3).
+ * Ações de uma linha em ícone, sempre no mesmo lugar (como na lista de itens do evento): peças e ajustar a
+ * quantidade. Antes eram "Peças" e "Ajustar" escritos em cada linha, numa coluna de 164 px. O lápis vem por
+ * último e um lugar fica reservado quando a linha não tem peças, para ele não mudar de posição.
  */
 function AcoesLinha({ l, eventoId, editavel, onAjustar }: { l: LinhaConferencia; eventoId: string; editavel: boolean; onAjustar: (l: LinhaConferencia) => void }) {
   return (
     <>
-      {l.tipo === "PROJETO" && (
-        <Link
-          href={`/eventos/${eventoId}/itens/${l.id}`}
-          className="inline-flex h-[27px] items-center gap-1.5 rounded-controle px-2 text-pequeno font-medium text-ink-2 no-underline transition-colors hover:bg-black/[0.04] hover:text-ink max-md:min-h-10"
-          aria-label={`Peças de ${rotuloLinha(l)}`}
-          title={`Peças de ${l.nome} nesta linha: ajuste peça a peça e histórico`}
-        >
+      {l.tipo === "PROJETO" ? (
+        <IconLink href={`/eventos/${eventoId}/itens/${l.id}`} label={`Peças de ${rotuloLinha(l)}`}>
           <Icone nome="camadas" />
-          Peças
-        </Link>
+        </IconLink>
+      ) : (
+        editavel && <span aria-hidden className="inline-block size-7 max-md:size-10" />
       )}
       {editavel && (
-        <Button variant="ghost" size="xs" onClick={() => onAjustar(l)} aria-label={`Ajustar a quantidade de ${rotuloLinha(l)}`} title="Ajustar a quantidade">
+        <IconButton onClick={() => onAjustar(l)} label={`Ajustar a quantidade de ${rotuloLinha(l)}`}>
           <Icone nome="lapis" />
-          Ajustar
-        </Button>
+        </IconButton>
       )}
     </>
   );
@@ -510,7 +505,7 @@ function Linha({
         </span>
       )}
 
-      <div className="min-w-0 @xl:row-span-2 @3xl:row-span-1">
+      <div className="row-span-2 min-w-0 @3xl:row-span-1">
         {emGrupo ? (
           <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo font-medium text-ink">
             <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="text-ink no-underline hover:text-accent hover:underline" title={`Detalhes desta linha de ${l.nome}`}>
@@ -521,11 +516,13 @@ function Linha({
           </p>
         ) : (
           <p className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`Detalhes, peças e histórico de ${l.nome}`}>
+            {/* O código do catálogo (mono, ao lado do nome) fica no title: na reunião se fala o nome. */}
+            <Link href={`/eventos/${eventoId}/itens/${l.id}`} className="line-clamp-2 min-w-0 text-corpo font-medium text-ink no-underline hover:text-accent hover:underline" title={`${l.codigo ? `${l.codigo} · ` : ""}Detalhes, peças e histórico de ${l.nome}`}>
               {l.nome}
             </Link>
             {l.tipo === "AVULSO" && <Tag tom="warning">{TIPO[l.tipo]}</Tag>}
-            {l.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{l.codigo}</Codigo>}
+            {/* "Vincular" junto do aviso de fora do catálogo, não na coluna de ações. */}
+            {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
             {marcaOpcional}
           </p>
         )}
@@ -565,9 +562,8 @@ function Linha({
         {pedidoDiferente && <span className="numero block text-rotulo text-muted">pedido {l.origem!.quantidadeSolicitada}</span>}
       </span>
 
-      {/* Celular: faixa abaixo do item. `@xl`: abaixo da quantidade (coluna 3). `@3xl`: coluna própria. */}
-      <span className="col-span-full flex flex-wrap items-center justify-start gap-1 pl-[52px] empty:hidden @xl:col-span-1 @xl:col-start-3 @xl:flex-nowrap @xl:-mr-2 @xl:justify-end @xl:self-start @xl:pl-0 @3xl:col-start-auto @3xl:mr-0 @3xl:self-center">
-        {editavel && l.tipo === "AVULSO" && <VincularCatalogo compacto linha={{ linhaId: l.id, descricao: l.nome, quantidade: l.quantidade }} opcoes={opcoes} podeCadastrar={podeCadastrar} />}
+      {/* Lista estreita: ícones embaixo da quantidade (coluna 3), sem uma faixa a mais por item. `@3xl`: coluna própria. */}
+      <span className="col-start-3 -mr-1.5 flex items-center justify-end gap-0.5 self-start empty:hidden @3xl:col-start-auto @3xl:mr-0 @3xl:self-center">
         <AcoesLinha l={l} eventoId={eventoId} editavel={editavel} onAjustar={onAjustar} />
       </span>
     </li>
@@ -977,9 +973,10 @@ export function ConferenciaAta({
                   return (
                     <section key={chave} aria-label={`${p0.nome}: ${ok} de ${ls.length} linhas conferidas`} className="border-b border-line-row last:border-b-0">
                       <h4 className="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-cartao pb-2 pt-3 font-normal">
-                        <span className="text-corpo font-semibold text-ink">{p0.nome}</span>
+                        <span className="text-corpo font-semibold text-ink" title={p0.codigo ?? undefined}>
+                          {p0.nome}
+                        </span>
                         {p0.tipo === "AVULSO" && <Tag tom="warning">{TIPO[p0.tipo]}</Tag>}
-                        {p0.codigo && <Codigo className="hidden text-rotulo text-muted xl:inline">{p0.codigo}</Codigo>}
                         <span className="text-pequeno text-muted">
                           <span className="numero font-medium text-ink">{total}</span> no total · {ls.length} linhas · {textoLocais}
                           {origemComum && <> · {quemDe(p0)}</>}
@@ -1076,7 +1073,7 @@ export function ConferenciaAta({
                     <span className="text-corpo text-ink-2">
                       de <span className="numero">{obrigatorias.length}</span> conferidas
                     </span>
-                    <span className="numero text-pequeno text-muted">· faltam {pendentes}</span>
+                    {/* "· faltam N" saiu: repetia "0 de N" e o "Conferir as N restantes" ao lado. */}
                   </p>
                 )}
                 {(opcionais > 0 || (completo && !presentesOk)) && (
@@ -1087,7 +1084,7 @@ export function ConferenciaAta({
                       </button>
                     ) : (
                       <span title="Linhas a definir (quantidade 0) e estaiamento: podem ser conferidas, mas não travam o fechamento da ata.">
-                        + {opcionais} {opcionais === 1 ? "linha opcional" : "linhas opcionais"} (a definir e estaiamento), fora da contagem
+                        + {opcionais} {opcionais === 1 ? "opcional" : "opcionais"}, fora da contagem
                       </span>
                     )}
                   </p>
