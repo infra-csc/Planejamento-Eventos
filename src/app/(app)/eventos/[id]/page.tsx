@@ -19,7 +19,7 @@ import { EmptyState, Metric, MetricStrip, Section, type TomSemantico } from "@/c
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
-import { AcoesLinhaEvento, IncluirItemEvento } from "@/components/eventos/acoes-linha-evento";
+import { AcoesLinhaEvento, EditarTendasDoItem, IncluirItemEvento } from "@/components/eventos/acoes-linha-evento";
 import { BadgeVersao } from "@/components/eventos/ata-lista";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
@@ -158,21 +158,55 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const nomeExibido = (l: (typeof linhas)[number]) => (l.tipo === "PECA" && l.peca ? l.peca.nome : l.nome);
   // De onde veio a linha (área · pedido ou inclusão · quem), numa frase só: na coluna larga e embaixo do nome.
   const deOnde = (l: (typeof linhas)[number]) => `${l.areaNome ?? "Logística"} · ${origemVisivel(l)}${quemPediu(l) ? ` · ${quemPediu(l)}` : ""}`;
-  // Tenda: quantas tendas e o que varia por local (fechamentos, calhas), pela lista de peças gravada na linha.
-  const detalheTenda = (l: (typeof linhas)[number]) => {
-    if (l.tipo !== "PROJETO") return null;
-    const bom = l.registro.bomSnapshot ?? [];
-    const kit = kitDaTenda(bom.map((b) => b.codigo));
+  // Tenda: quantas tendas e o que varia por local (fechamentos, calhas), pela lista de peças gravada em cada linha.
+  // Com várias linhas (o total do item), soma tudo: "13 tendas 3×3 · 20 fechamentos".
+  const detalheTenda = (ls: ReadonlyArray<(typeof linhas)[number]>) => {
+    if (ls[0]?.tipo !== "PROJETO") return null;
+    const kit = kitDaTenda((ls[0].registro.bomSnapshot ?? []).map((b) => b.codigo));
     if (!kit) return null;
-    const total = (codigo: string | undefined) => (codigo ? (bom.find((b) => b.codigo === codigo)?.quantidade ?? 0) * l.quantidade : 0);
+    const total = (codigo: string | undefined) => (codigo ? ls.reduce((a, l) => a + ((l.registro.bomSnapshot ?? []).find((b) => b.codigo === codigo)?.quantidade ?? 0) * l.quantidade, 0) : 0);
+    const tendas = ls.reduce((a, l) => a + l.quantidade, 0);
     const rotulos: Record<string, [string, string]> = { fechamento: ["fechamento", "fechamentos"], calha: ["calha", "calhas"] };
-    const partes = [`${l.quantidade} ${l.quantidade === 1 ? "tenda" : "tendas"} ${kit.tamanho}`];
+    const partes: Array<{ n: number | null; rotulo: string }> = [{ n: tendas, rotulo: `${tendas === 1 ? "tenda" : "tendas"} ${kit.tamanho}` }];
     for (const papel of PAPEIS_POR_LOCAL) {
       const n = total(kit.pecas[papel]);
-      if (n > 0) partes.push(`${n} ${rotulos[papel]?.[n === 1 ? 0 : 1] ?? papel}`);
+      // No total, a calha (e o fechamento) aparece mesmo zerada quando o tamanho tem a peça: "0 calhas" também é resposta.
+      if (n > 0 || (ls.length > 1 && kit.pecas[papel])) partes.push({ n, rotulo: rotulos[papel]?.[n === 1 ? 0 : 1] ?? papel });
     }
-    if (partes.length === 1) partes.push("sem fechamentos");
-    return partes.join(" · ");
+    if (partes.length === 1) partes.push({ n: null, rotulo: "sem fechamentos" });
+    return partes;
+  };
+  // Tenda em chips ("1 tenda 3×3" "3 fechamentos" "2 calhas"): o número em destaque, fácil de bater o olho.
+  const chipsTenda = (partes: NonNullable<ReturnType<typeof detalheTenda>>, rotulo?: string) => (
+    <span className="mt-1 flex flex-wrap items-center gap-1.5" aria-label={`${rotulo ? `${rotulo}: ` : ""}${partes.map((p) => `${p.n ?? ""} ${p.rotulo}`.trim()).join(", ")}`}>
+      {rotulo && <span className="text-rotulo font-semibold text-ink-2">{rotulo}</span>}
+      {partes.map((p) => (
+        <span key={p.rotulo} aria-hidden className={cn("inline-flex items-baseline gap-1 rounded-chip border px-1.5 py-px text-rotulo", p.n === null ? "border-line-soft text-muted" : "border-line bg-surface text-ink-2")}>
+          {p.n !== null && <span className="numero font-semibold text-ink">{p.n}</span>}
+          {p.rotulo}
+        </span>
+      ))}
+    </span>
+  );
+  // Soma de todas as tendas do evento, uma frase por tamanho (projetos diferentes do mesmo tamanho somam juntos).
+  const resumoTendas = (ls: typeof linhas) => {
+    const porTamanho = new Map<string, typeof linhas>();
+    for (const l of ls) {
+      const kit = l.tipo === "PROJETO" ? kitDaTenda((l.registro.bomSnapshot ?? []).map((b) => b.codigo)) : null;
+      if (kit) porTamanho.set(kit.tamanho, [...(porTamanho.get(kit.tamanho) ?? []), l]);
+    }
+    return [...porTamanho.values()].map((x) => detalheTenda(x)).filter((t): t is NonNullable<typeof t> => Boolean(t));
+  };
+  // Quadro de cada local de uma tenda (linhas do mesmo local somadas), para editar todos os locais de uma vez.
+  const quadrosDoItem = (ls: typeof linhas) => {
+    const vistos = new Set<string>();
+    return ls.flatMap((x) => {
+      const chave = (x.destino ?? "").trim().toLowerCase();
+      if (vistos.has(chave)) return [];
+      vistos.add(chave);
+      const q = tendaDoLocal(x, ls);
+      return q ? [q] : [];
+    });
   };
   const agruparItens = (ls: typeof linhas) => {
     const m = new Map<string, typeof linhas>();
@@ -278,6 +312,19 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                             <span className="numero ml-2 font-normal tracking-normal text-muted">{agruparItens(g.linhas).length}</span>
                           </th>
                         </tr>
+                        {/* Todas as tendas do evento somadas, por tamanho (cada tamanho tem as suas peças de fechamento e calha). */}
+                        {g.tipo === "PROJETO" && resumoTendas(g.linhas).length > 0 && (
+                          <tr>
+                            <td colSpan={editavel ? 4 : 3} className="border-b border-line-soft bg-info-bg px-cartao pb-2 pt-1.5">
+                              <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span className="text-pequeno font-semibold text-ink">Tendas no evento</span>
+                                {resumoTendas(g.linhas).map((t) => (
+                                  <span key={t[0].rotulo}>{chipsTenda(t)}</span>
+                                ))}
+                              </span>
+                            </td>
+                          </tr>
+                        )}
                         {agruparItens(g.linhas).flatMap((itensDoGrupo) => {
                           const l = itensDoGrupo[0];
                           const varios = itensDoGrupo.length > 1;
@@ -319,6 +366,12 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                       </span>
                                       <Tag tom="muted">{rotuloGrupo}</Tag>
                                     </span>
+                                    {detalheTenda(itensDoGrupo) && chipsTenda(detalheTenda(itensDoGrupo)!, "Total")}
+                                    {editavel && quadrosDoItem(itensDoGrupo).length > 0 && (
+                                      <span className="mt-1 block sm:hidden">
+                                        <EditarTendasDoItem eventoId={id} nome={nomeExibido(l)} locais={quadrosDoItem(itensDoGrupo)} ataFechada={Boolean(ev.ataFechadaEm)} />
+                                      </span>
+                                    )}
                                     <span className="block text-rotulo text-muted @3xl:hidden">{origemComum ? deOnde(l) : [...new Set(itensDoGrupo.map((x) => x.areaNome ?? "Logística"))].join(", ")}</span>
                                   </span>
                                 </span>
@@ -327,11 +380,15 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                               <td className="border-b border-line-soft py-2 pl-3 pr-cartao text-right text-corpo font-semibold text-ink">
                                 <QuantidadeAta valor={itensDoGrupo.reduce((a, x) => a + x.quantidade, 0)} />
                               </td>
-                              {editavel && <td className="hidden border-b border-line-soft sm:table-cell" />}
+                              {editavel && (
+                                <td className="hidden border-b border-line-soft py-2 pr-cartao text-right sm:table-cell">
+                                  {quadrosDoItem(itensDoGrupo).length > 0 && <EditarTendasDoItem eventoId={id} nome={nomeExibido(l)} locais={quadrosDoItem(itensDoGrupo)} ataFechada={Boolean(ev.ataFechadaEm)} />}
+                                </td>
+                              )}
                             </tr>
                           ) : null;
                           const linhasDoItem = itensDoGrupo.map((x) => {
-                            const tenda = detalheTenda(x);
+                            const tenda = detalheTenda([x]);
                             const acoes = editavel ? (
                               <AcoesLinhaEvento
                                 eventoId={id}
@@ -363,7 +420,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
                                         {editavel && x.versaoDefasada && <BadgeVersao l={{ id: x.id, nome: nomeExibido(x), versao: x.versao, versaoAtual: x.versaoAtual }} eventoId={id} podeAtualizar />}
                                       </span>
                                       {!varios && x.destino && <span className="block text-pequeno text-ink-2">{x.destino}</span>}
-                                      {tenda && <span className="block text-rotulo text-ink-3">{tenda}</span>}
+                                      {tenda && chipsTenda(tenda)}
                                       {!origemComum && <span className="block text-rotulo text-muted @3xl:hidden">{deOnde(x)}</span>}
                                       {acoes && <span className="mt-1 block sm:hidden">{acoes}</span>}
                                     </span>

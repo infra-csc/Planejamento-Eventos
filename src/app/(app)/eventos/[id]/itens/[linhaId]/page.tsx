@@ -22,8 +22,9 @@ import { PecasProjeto } from "@/components/eventos/pecas-projeto";
 import { VincularCatalogo } from "@/components/eventos/vincular-catalogo";
 import { DetalhesUnidadesTenda } from "@/components/eventos/detalhes-unidades-tenda";
 import { kitDaTenda } from "@/domain/tendas";
-import { AcoesLinhaEvento } from "@/components/eventos/acoes-linha-evento";
+import { AcoesLinhaEvento, EditarTendasDoItem } from "@/components/eventos/acoes-linha-evento";
 import { tendaDoLocal } from "@/components/eventos/tenda-do-local";
+import { TendasDoEvento, type LocalDaTenda } from "@/components/eventos/tendas-do-evento";
 
 const TIPO = { PROJETO: "projeto padrão", PECA: "peça do catálogo", AVULSO: "fora do catálogo" } as const;
 const TOM: Record<TomLinhaTempo, TomEntrada> = { neutro: "neutro", info: "info", ok: "success", atencao: "warning", perigo: "danger" };
@@ -82,9 +83,18 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   const ehTenda = d.tipo === "PROJETO" && Boolean(kitDaTenda(d.pecasDoProjeto.map((p) => p.codigo)));
   // Tenda: o lápis abre o quadro do local (tendas, fechamentos e calhas), que precisa das linhas do mesmo local.
-  const [opcoes, linhasAta] = await Promise.all([editavel ? opcoesReferenciasResumidas() : null, editavel && ehTenda ? obterLinhasAta(id) : null]);
+  const [opcoes, linhasAta] = await Promise.all([editavel ? opcoesReferenciasResumidas() : null, ehTenda ? obterLinhasAta(id) : null]);
   const linhaAta = linhasAta?.find((l) => l.id === d.id);
-  const tenda = linhaAta && linhasAta ? tendaDoLocal(linhaAta, linhasAta.filter((l) => l.tipo === "PROJETO" && l.projeto?.codigo === linhaAta.projeto?.codigo)) : undefined;
+  const daTenda = linhaAta && linhasAta ? linhasAta.filter((l) => l.tipo === "PROJETO" && l.projeto?.codigo === linhaAta.projeto?.codigo) : [];
+  const tenda = linhaAta ? tendaDoLocal(linhaAta, daTenda) : undefined;
+  // Tenda: um quadro por local (linhas do mesmo local somadas), na ordem em que os locais aparecem.
+  const locaisDaTenda: LocalDaTenda[] = [];
+  for (const l of daTenda) {
+    const chave = (l.destino ?? "").trim().toLowerCase();
+    if (locaisDaTenda.some((x) => x.chave === chave)) continue;
+    const quadro = tendaDoLocal(l, daTenda);
+    if (quadro) locaisDaTenda.push({ chave, quadro, linhas: mesmoItem.filter((m) => quadro.linhaIds.includes(m.id)) });
+  }
   // Voltar para onde a lista com as ações está: a conferência na reunião; depois, os itens da visão geral.
   const voltar = antesDaAta && pode(usuario, "ata.consolidar") ? { href: `/conferencia/${id}`, rotulo: "Conferência da ata" } : { href: `/eventos/${id}#itens`, rotulo: "Itens do evento" };
   const naAta = d.origem ? aguardaReuniao(d.origem.tipo, ev.status) : false;
@@ -151,9 +161,20 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
 
       {d.restrito && <Aviso>Este item é de outra área: você vê o que está na ata e os ajustes, sem as observações internas da solicitação.</Aviso>}
 
+      {/* Tenda: o quadro dos locais na largura toda (tem colunas de números), antes das peças e de quem pediu. */}
+      {locaisDaTenda.length > 0 && tenda && (
+        <Section
+          titulo={`${d.nome} no evento`}
+          acoes={editavel && locaisDaTenda.length > 1 ? <EditarTendasDoItem eventoId={id} nome={d.nome} locais={locaisDaTenda.map((l) => l.quadro)} ataFechada={!antesDaAta} tamanho="sm" /> : undefined}
+          sub={`${locaisDaTenda.reduce((a, l) => a + l.quadro.tendas, 0)} tendas em ${locaisDaTenda.length} ${locaisDaTenda.length === 1 ? "local" : "locais"}${editavel ? " · Editar ajusta tendas, fechamentos e calhas do local" : ""}`}
+        >
+          <TendasDoEvento eventoId={id} atualId={d.id} locais={locaisDaTenda} editavel={editavel} ataFechada={!antesDaAta} podeConferir={pode(usuario, "ata.consolidar") && antesDaAta} />
+        </Section>
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
-          {mesmoItem.length > 0 && (
+          {mesmoItem.length > 0 && !(locaisDaTenda.length > 0 && tenda) && (
             <Section
               titulo={`${d.nome} no evento`}
               sub={

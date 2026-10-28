@@ -185,6 +185,111 @@ export function EditarTendaDialog({ eventoId, tenda, ataFechada, onFechar, aoRem
 }
 
 /**
+ * Todas as tendas de um projeto no evento num quadro só, um local por linha (como na solicitação): tendas, fechamentos
+ * e calhas de cada local, com o total embaixo. Salva só os locais que mudaram, um por vez (mesma ação do quadro do local).
+ */
+export function EditarTendasDoItem({ eventoId, nome, locais, ataFechada, tamanho = "xs" }: { eventoId: string; nome: string; locais: TendaDoLocal[]; ataFechada: boolean; tamanho?: "xs" | "sm" }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <span className="inline-flex" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <Button variant={tamanho === "sm" ? "secondary" : "ghost"} size={tamanho} onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
+        <Icone nome="lapis" className="size-3.5" />
+        {tamanho === "sm" ? "Editar todos os locais" : "Editar tendas"}
+      </Button>
+      {aberto && <QuadroTendasDialog eventoId={eventoId} nome={nome} locais={locais} ataFechada={ataFechada} onFechar={() => setAberto(false)} />}
+    </span>
+  );
+}
+
+function QuadroTendasDialog({ eventoId, nome, locais, ataFechada, onFechar }: { eventoId: string; nome: string; locais: TendaDoLocal[]; ataFechada: boolean; onFechar: () => void }) {
+  const router = useRouter();
+  const [pendente, iniciar] = useTransition();
+  const [valores, setValores] = useState(locais.map((l) => ({ tendas: l.tendas, fechamentos: l.fechamentos, calhas: l.calhas })));
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const temCalha = locais.some((l) => l.temCalha);
+  const mudou = (i: number) => valores[i].tendas !== locais[i].tendas || valores[i].fechamentos !== locais[i].fechamentos || (locais[i].temCalha && valores[i].calhas !== locais[i].calhas);
+  const alterados = locais.map((_, i) => i).filter(mudou);
+  const total = (k: "tendas" | "fechamentos" | "calhas") => valores.reduce((a, v) => a + v[k], 0);
+  const mudar = (i: number, k: "tendas" | "fechamentos" | "calhas", v: number) => setValores((atual) => atual.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+  const salvar = () =>
+    iniciar(async () => {
+      if (!alterados.length) return onFechar();
+      if (ataFechada && !motivo.trim()) return setErro("Informe a justificativa: a ata já foi fechada.");
+      for (const i of alterados) {
+        const l = locais[i];
+        const v = valores[i];
+        const r = await ajustarTendasDoLocalAction(eventoId, { linhaIds: l.linhaIds, tendas: v.tendas, totais: { fechamento: v.fechamentos, ...(l.temCalha ? { calha: v.calhas } : {}) }, motivo }).catch(() => ({ ok: false as const, erro: "Sem conexão. Tente de novo." }));
+        if (!r.ok) {
+          router.refresh();
+          return setErro(`${l.local ?? "Local não informado"}: ${r.erro}`);
+        }
+      }
+      toastSucesso(`${alterados.length} ${alterados.length === 1 ? "local ajustado" : "locais ajustados"}${ataFechada ? " — OS atualizada" : ""}`);
+      onFechar();
+      router.refresh();
+    });
+  const celula = "border-b border-line-row px-2 py-2";
+  return (
+    <Dialog open onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent title={`${nome} · todos os locais`} description={ataFechada ? "Mude o que precisar em cada local. Sai nova versão da OS e a área é avisada." : "Mude o que precisar em cada local, como no quadro de tendas da solicitação. 0 tendas tira o local."} width={temCalha ? 760 : 640}>
+        <div className="max-h-[55vh] overflow-auto">
+          <table className="w-full border-collapse text-left">
+            <thead className="sticky top-0 bg-surface">
+              <tr className="text-rotulo text-ink-3">
+                <th scope="col" className="border-b border-line-soft px-2 py-1.5 font-medium">Local</th>
+                <th scope="col" className="border-b border-line-soft px-2 py-1.5 font-medium">Tendas</th>
+                <th scope="col" className="border-b border-line-soft px-2 py-1.5 font-medium">Fechamentos</th>
+                {temCalha && <th scope="col" className="border-b border-line-soft px-2 py-1.5 font-medium">Calhas</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {locais.map((l, i) => (
+                <tr key={l.linhaIds.join("|")} className={mudou(i) ? "bg-selected" : undefined}>
+                  <th scope="row" className={`${celula} text-pequeno font-medium text-ink`}>
+                    {l.local ?? <span className="text-muted">local não informado</span>}
+                    {valores[i].tendas === 0 && <span className="block text-rotulo font-normal text-danger">sai do evento</span>}
+                  </th>
+                  <td className={celula}>
+                    <Stepper id={`q-tendas-${i}`} valor={valores[i].tendas} min={0} onChange={(v) => mudar(i, "tendas", v)} label={`Tendas em ${l.local ?? "local não informado"}`} />
+                  </td>
+                  <td className={celula}>
+                    <Stepper id={`q-fech-${i}`} valor={valores[i].fechamentos} min={0} onChange={(v) => mudar(i, "fechamentos", v)} label={`Fechamentos em ${l.local ?? "local não informado"}`} />
+                  </td>
+                  {temCalha && <td className={celula}>{l.temCalha ? <Stepper id={`q-calha-${i}`} valor={valores[i].calhas} min={0} onChange={(v) => mudar(i, "calhas", v)} label={`Calhas em ${l.local ?? "local não informado"}`} /> : "—"}</td>}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-subtle text-pequeno font-semibold text-ink">
+                <th scope="row" className="px-2 py-2 text-left">Total</th>
+                <td className="numero px-2 py-2">{total("tendas")} tendas</td>
+                <td className="numero px-2 py-2">{total("fechamentos")} fechamentos</td>
+                {temCalha && <td className="numero px-2 py-2">{total("calhas")} calhas</td>}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div className="mt-3.5">
+          <Field label={ataFechada ? "Justificativa" : "Motivo"} htmlFor="quadro-motivo" obrigatorio={ataFechada} optional={!ataFechada}>
+            <Textarea id="quadro-motivo" value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} className="min-h-[56px]" placeholder="Fica registrado no histórico de cada local alterado." />
+          </Field>
+        </div>
+        {erro && <FormError message={erro} />}
+        <DialogFooter>
+          <Button variant="primary" onClick={salvar} loading={pendente} disabled={!alterados.length}>
+            {alterados.length ? `Salvar ${alterados.length} ${alterados.length === 1 ? "local" : "locais"}` : "Nada mudou"}
+          </Button>
+          <Button variant="secondary" onClick={onFechar}>
+            Cancelar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
  * "Incluir item" (admin e logística): o que ficou esquecido entra pelo mesmo formulário da conferência e dos itens da
  * OS. Antes da ata entra na ata; depois, entra na OS com justificativa (nova versão, área avisada).
  */
