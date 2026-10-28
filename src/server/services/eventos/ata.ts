@@ -203,46 +203,7 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
   const db = await getDb();
   return db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
-    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
-    if (!ev) throw new NaoEncontradoError("Evento");
-    const geraOs = exigirEstadoAjuste(ev.status, dados.justificativa);
-    if (geraOs) exigir(usuario, "ata.ajustar");
-    if (!Number.isInteger(dados.quantidade) || dados.quantidade <= 0 || dados.quantidade > 1_000_000) {
-      throw new ValidacaoError("Quantidade deve ser um inteiro entre 1 e 1.000.000.", { quantidade: "Informe um valor maior que zero." });
-    }
-
-    if (dados.areaId) {
-      const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, dados.areaId), eq(areas.ativo, true)), columns: { id: true } });
-      if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
-    }
-    let valores: typeof eventoItens.$inferInsert;
-    // Linha incluída pela própria logística durante a reunião já nasce conferida; antes dela, é conferida na reunião.
-    const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id, ...(ev.status === "EM_REUNIAO" ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : {}) };
-    if (dados.referenciaTipo === "PROJETO") {
-      if (!dados.projetoId) throw new ValidacaoError("Escolha o projeto padrão.");
-      const snap = await snapshotBom(tx, dados.projetoId);
-      valores = { ...base, tipo: "PROJETO", projetoId: dados.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom };
-    } else if (dados.referenciaTipo === "PECA") {
-      if (!dados.pecaId) throw new ValidacaoError("Escolha a peça.");
-      const peca = await tx.query.pecas.findFirst({ where: eq(pecas.id, dados.pecaId) });
-      if (!peca || !peca.ativo) throw new NaoEncontradoError("Peça");
-      valores = { ...base, tipo: "PECA", pecaId: peca.id };
-    } else {
-      if (!dados.descricaoLivre) throw new ValidacaoError("Descreva o item avulso.");
-      valores = { ...base, tipo: "AVULSO", descricaoLivre: dados.descricaoLivre };
-    }
-    const [linha] = await tx.insert(eventoItens).values(valores).returning();
-    const [l] = await montarLinhasAta(tx, eventoId, { linhaId: linha.id });
-    const desc = descricaoLinha(l);
-    await registrarHistorico(tx, {
-      eventoId,
-      entidade: "evento_item",
-      entidadeId: linha.id,
-      acao: geraOs ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
-      descricao: `${geraOs ? "Ajuste da logística" : "Incluída na reunião"}: ${desc} × ${dados.quantidade}${dados.justificativa ? ` — ${dados.justificativa}` : ""}`,
-      usuarioId: usuario.id,
-      dadosDepois: valores,
-    });
+    const { linha, geraOs, desc, ev } = await incluirLinhaNaTransacao(tx, usuario, eventoId, dados);
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${dados.quantidade} incluído — ${dados.justificativa}`);
       await notificarAjusteLinha(tx, {
@@ -259,6 +220,55 @@ export async function incluirLinhaAta(usuario: UsuarioAtual, eventoId: string, d
     await sincronizarRegrasAta(tx, eventoId, null);
     return linha;
   });
+}
+
+/**
+ * A inclusão em si (estado do evento, validação, linha e histórico), dentro de uma transação que já travou o evento.
+ * Versão da OS, aviso e regras ficam com quem chama: a tenda com fechamentos (conferencia.ts) inclui e ajusta as
+ * peças antes, para sair uma versão só.
+ */
+export async function incluirLinhaNaTransacao(tx: Executor, usuario: UsuarioAtual, eventoId: string, dados: DadosLinhaAta) {
+  const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
+  if (!ev) throw new NaoEncontradoError("Evento");
+  const geraOs = exigirEstadoAjuste(ev.status, dados.justificativa);
+  if (geraOs) exigir(usuario, "ata.ajustar");
+  if (!Number.isInteger(dados.quantidade) || dados.quantidade <= 0 || dados.quantidade > 1_000_000) {
+    throw new ValidacaoError("Quantidade deve ser um inteiro entre 1 e 1.000.000.", { quantidade: "Informe um valor maior que zero." });
+  }
+
+  if (dados.areaId) {
+    const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, dados.areaId), eq(areas.ativo, true)), columns: { id: true } });
+    if (!area) throw new ValidacaoError("Área inativa ou inexistente.", { areaId: "Escolha outra área." });
+  }
+  let valores: typeof eventoItens.$inferInsert;
+  // Linha incluída pela própria logística durante a reunião já nasce conferida; antes dela, é conferida na reunião.
+  const base = { eventoId, quantidade: dados.quantidade, destino: dados.destino, areaId: dados.areaId, origem: "AJUSTE_LOGISTICA" as const, justificativaAjuste: dados.justificativa, criadoPorId: usuario.id, ...(ev.status === "EM_REUNIAO" ? { conferidoEm: new Date(), conferidoPorId: usuario.id } : {}) };
+  if (dados.referenciaTipo === "PROJETO") {
+    if (!dados.projetoId) throw new ValidacaoError("Escolha o projeto padrão.");
+    const snap = await snapshotBom(tx, dados.projetoId);
+    valores = { ...base, tipo: "PROJETO", projetoId: dados.projetoId, projetoVersaoId: snap.versaoId, bomSnapshot: snap.bom };
+  } else if (dados.referenciaTipo === "PECA") {
+    if (!dados.pecaId) throw new ValidacaoError("Escolha a peça.");
+    const peca = await tx.query.pecas.findFirst({ where: eq(pecas.id, dados.pecaId) });
+    if (!peca || !peca.ativo) throw new NaoEncontradoError("Peça");
+    valores = { ...base, tipo: "PECA", pecaId: peca.id };
+  } else {
+    if (!dados.descricaoLivre) throw new ValidacaoError("Descreva o item avulso.");
+    valores = { ...base, tipo: "AVULSO", descricaoLivre: dados.descricaoLivre };
+  }
+  const [linha] = await tx.insert(eventoItens).values(valores).returning();
+  const [l] = await montarLinhasAta(tx, eventoId, { linhaId: linha.id });
+  const desc = descricaoLinha(l);
+  await registrarHistorico(tx, {
+    eventoId,
+    entidade: "evento_item",
+    entidadeId: linha.id,
+    acao: geraOs ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
+    descricao: `${geraOs ? "Ajuste da logística" : "Incluída na reunião"}: ${desc} × ${dados.quantidade}${dados.justificativa ? ` — ${dados.justificativa}` : ""}`,
+    usuarioId: usuario.id,
+    dadosDepois: valores,
+  });
+  return { linha, geraOs, desc, ev };
 }
 
 /**

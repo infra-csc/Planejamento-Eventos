@@ -252,3 +252,83 @@ export function locaisDosItens(kit: KitTenda, bom: ReadonlyArray<LinhaPadrao>, i
     ...(l.temDescricao ? metadadosDescricao(l.quantidade, l.descricoes, l.semDescricao) : {}),
   }));
 }
+
+/** Uma linha da ata com tendas de um local: quantas tendas e quantas peças de cada papel por tenda. */
+export type LinhaTendaLocal = { id: string; quantidade: number; porUnidade: Partial<Record<PapelTenda, number>>; doPedido: boolean };
+/** Parte de uma linha depois do quadro: a primeira fica na própria linha; as outras viram linhas novas da mesma área. */
+export type ParteTenda = { quantidade: number; porUnidade: Partial<Record<PapelTenda, number>> };
+
+/**
+ * Quadro do local (tendas e totais de fechamento/calha) aplicado às linhas que já existem, sem trocar o dono de
+ * nenhuma tenda (28/10: o quadro casava linhas pela posição, e mudar só os fechamentos tirava a tenda de uma área).
+ *
+ * - Tendas a mais vão para a linha da logística (sem pedido) ou, sem ela, para a primeira linha; tendas a menos saem
+ *   primeiro das linhas da logística e depois das últimas linhas.
+ * - Total de um papel que já bate com as linhas fica como está. Senão, cada tenda recebe a divisão inteira e o resto
+ *   vai a linhas inteiras quando dá; quando não dá, uma linha se divide em duas partes (preferindo a da logística),
+ *   e as duas continuam da mesma linha: a quantidade da linha (e do pedido) não muda por causa dos fechamentos.
+ */
+export function distribuirTendasDoLocal(
+  linhas: readonly LinhaTendaLocal[],
+  tendas: number,
+  totais: Partial<Record<PapelTenda, number>>,
+  papeis: readonly PapelTenda[],
+): Array<{ id: string; partes: ParteTenda[] }> {
+  const q = linhas.map((l) => l.quantidade);
+  let diff = tendas - q.reduce((a, n) => a + n, 0);
+  if (diff > 0 && linhas.length) {
+    const i = linhas.findIndex((l) => !l.doPedido);
+    q[i >= 0 ? i : 0] += diff;
+  } else if (diff < 0) {
+    const ordem = [...linhas.keys()].reverse().sort((a, b) => Number(linhas[a].doPedido) - Number(linhas[b].doPedido));
+    for (const i of ordem) {
+      const tira = Math.min(q[i], -diff);
+      q[i] -= tira;
+      diff += tira;
+      if (diff === 0) break;
+    }
+  }
+  type Parte = ParteTenda & { linha: number };
+  const partes: Parte[] = linhas.flatMap((l, i) => (q[i] > 0 ? [{ linha: i, quantidade: q[i], porUnidade: { ...l.porUnidade } }] : []));
+  const total = partes.reduce((a, p) => a + p.quantidade, 0);
+  for (const papel of papeis) {
+    const alvo = totais[papel];
+    if (alvo === undefined || total === 0) continue;
+    if (partes.reduce((a, p) => a + p.quantidade * (p.porUnidade[papel] ?? 0), 0) === alvo) continue;
+    const base = Math.floor(alvo / total);
+    let resto = alvo - base * total;
+    for (const p of partes) p.porUnidade[papel] = base;
+    if (!resto) continue;
+    // Linhas inteiras que somam o resto (sem dividir nada), se existirem.
+    const inteiras = subconjuntoQueSoma(partes.map((p) => p.quantidade), resto);
+    if (inteiras) {
+      for (const k of inteiras) partes[k].porUnidade[papel] = base + 1;
+      continue;
+    }
+    // Senão, linhas inteiras enquanto cabem e uma dividida (a da logística primeiro, para não mexer no pedido).
+    const ordem = [...partes.keys()].sort((a, b) => Number(linhas[partes[a].linha].doPedido) - Number(linhas[partes[b].linha].doPedido) || partes[b].quantidade - partes[a].quantidade);
+    for (const k of ordem) {
+      const p = partes[k];
+      if (p.quantidade <= resto) {
+        p.porUnidade[papel] = base + 1;
+        resto -= p.quantidade;
+      } else {
+        partes.push({ linha: p.linha, quantidade: p.quantidade - resto, porUnidade: { ...p.porUnidade, [papel]: base } });
+        p.quantidade = resto;
+        p.porUnidade[papel] = base + 1;
+        resto = 0;
+      }
+      if (!resto) break;
+    }
+  }
+  return linhas.map((l, i) => ({ id: l.id, partes: partes.filter((p) => p.linha === i).map(({ quantidade, porUnidade }) => ({ quantidade, porUnidade })) }));
+}
+
+/** Índices de `valores` que somam exatamente `alvo` (o primeiro conjunto encontrado), ou null. */
+function subconjuntoQueSoma(valores: readonly number[], alvo: number): number[] | null {
+  const de = new Map<number, number[]>([[0, []]]);
+  valores.forEach((v, i) => {
+    for (const [soma, idx] of [...de]) if (soma + v <= alvo && !de.has(soma + v)) de.set(soma + v, [...idx, i]);
+  });
+  return de.get(alvo) ?? null;
+}

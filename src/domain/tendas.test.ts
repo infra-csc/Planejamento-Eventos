@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
+import { distribuirTendasDoLocal, dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -183,5 +183,49 @@ describe("descrições opcionais de tendas", () => {
     expect(itens).toHaveLength(2);
     expect(itens.every((i) => i.descricoes?.every((d) => d === "Lona branca"))).toBe(true);
     expect(voltar(itens)).toEqual([local]);
+  });
+});
+
+describe("distribuirTendasDoLocal (quadro do local sobre as linhas que já existem)", () => {
+  const P = ["fechamento", "calha"] as const;
+  const soma = (r: ReturnType<typeof distribuirTendasDoLocal>, papel: "fechamento" | "calha") => r.flatMap((l) => l.partes).reduce((a, p) => a + p.quantidade * (p.porUnidade[papel] ?? 0), 0);
+  const qtd = (r: ReturnType<typeof distribuirTendasDoLocal>, id: string) => r.find((l) => l.id === id)!.partes.reduce((a, p) => a + p.quantidade, 0);
+
+  it("duas áreas no mesmo local: mudar só os fechamentos não tira a tenda de ninguém", () => {
+    const r = distribuirTendasDoLocal([{ id: "a", quantidade: 1, porUnidade: { fechamento: 0, calha: 1 }, doPedido: true }, { id: "b", quantidade: 1, porUnidade: { fechamento: 0, calha: 1 }, doPedido: true }], 2, { fechamento: 2, calha: 2 }, P);
+    expect([qtd(r, "a"), qtd(r, "b"), soma(r, "fechamento"), soma(r, "calha")]).toEqual([1, 1, 2, 2]);
+    expect(r.every((l) => l.partes.length === 1)).toBe(true);
+  });
+
+  it("fechamentos que não dividem igual: a linha se divide, mas continua com as mesmas tendas", () => {
+    const r = distribuirTendasDoLocal([{ id: "a", quantidade: 2, porUnidade: { fechamento: 0, calha: 1 }, doPedido: true }], 2, { fechamento: 3, calha: 2 }, P);
+    expect(qtd(r, "a")).toBe(2);
+    expect(r[0].partes).toHaveLength(2);
+    expect([soma(r, "fechamento"), soma(r, "calha")]).toEqual([3, 2]);
+  });
+
+  it("resto que cabe em linhas inteiras não divide nada", () => {
+    const r = distribuirTendasDoLocal([{ id: "a", quantidade: 2, porUnidade: {}, doPedido: true }, { id: "b", quantidade: 1, porUnidade: {}, doPedido: true }], 3, { fechamento: 4 }, ["fechamento"]);
+    expect(r.map((l) => l.partes.length)).toEqual([1, 1]);
+    expect(soma(r, "fechamento")).toBe(4);
+  });
+
+  it("tenda a mais vai para a linha da logística; a menos sai dela primeiro", () => {
+    const linhas = [{ id: "area", quantidade: 2, porUnidade: {}, doPedido: true }, { id: "log", quantidade: 1, porUnidade: {}, doPedido: false }];
+    const mais = distribuirTendasDoLocal(linhas, 5, {}, P);
+    expect([qtd(mais, "area"), qtd(mais, "log")]).toEqual([2, 3]);
+    const menos = distribuirTendasDoLocal(linhas, 1, {}, P);
+    expect([qtd(menos, "area"), qtd(menos, "log")]).toEqual([1, 0]);
+  });
+
+  it("sem linha da logística, a tenda a mais fica na primeira linha", () => {
+    const r = distribuirTendasDoLocal([{ id: "a", quantidade: 2, porUnidade: { calha: 1 }, doPedido: true }], 3, { fechamento: 5, calha: 4 }, P);
+    expect([qtd(r, "a"), soma(r, "fechamento"), soma(r, "calha")]).toEqual([3, 5, 4]);
+  });
+
+  it("total que já bate com as linhas fica como está", () => {
+    const linhas = [{ id: "a", quantidade: 1, porUnidade: { fechamento: 3 }, doPedido: true }, { id: "b", quantidade: 1, porUnidade: { fechamento: 1 }, doPedido: true }];
+    const r = distribuirTendasDoLocal(linhas, 2, { fechamento: 4 }, ["fechamento"]);
+    expect(r.map((l) => l.partes[0].porUnidade.fechamento)).toEqual([3, 1]);
   });
 });

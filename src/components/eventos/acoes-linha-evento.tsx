@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ajustarTendasDoLocalAction, alterarQuantidadeLinhaAction } from "@/app/(app)/eventos/actions";
+import { ajustarTendasDoLocalAction, ajustarTendasDosLocaisAction, alterarQuantidadeLinhaAction } from "@/app/(app)/eventos/actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
@@ -235,15 +235,12 @@ function QuadroTendasDialog({ eventoId, nome, locais, ataFechada, onFechar }: { 
     iniciar(async () => {
       if (!alterados.length) return onFechar();
       if (ataFechada && !motivo.trim()) return setErro("Informe a justificativa: a ata já foi fechada.");
-      for (const i of alterados) {
-        const l = locais[i];
-        const v = valores[i];
-        const r = await ajustarTendasDoLocalAction(eventoId, { linhaIds: l.linhaIds, tendas: v.tendas, totais: { fechamento: v.fechamentos, ...(l.temCalha ? { calha: v.calhas } : {}) }, motivo }).catch(() => ({ ok: false as const, erro: "Sem conexão. Tente de novo." }));
-        if (!r.ok) {
-          router.refresh();
-          return setErro(`${l.local ?? "Local não informado"}: ${r.erro}`);
-        }
-      }
+      // Uma gravação para todos os locais mudados: ou tudo entra, ou nada (e uma versão da OS só).
+      const r = await ajustarTendasDosLocaisAction(eventoId, {
+        locais: alterados.map((i) => ({ linhaIds: locais[i].linhaIds, tendas: valores[i].tendas, totais: { fechamento: valores[i].fechamentos, ...(locais[i].temCalha ? { calha: valores[i].calhas } : {}) } })),
+        motivo,
+      }).catch(() => ({ ok: false as const, erro: "Sem conexão. Tente de novo." }));
+      if (!r.ok) return setErro(r.erro);
       toastSucesso(`${alterados.length} ${alterados.length === 1 ? "local ajustado" : "locais ajustados"}${ataFechada ? " — OS atualizada" : ""}`);
       onFechar();
       router.refresh();

@@ -24,7 +24,7 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { parseDateTimeLocal } from "@/lib/format";
 import { ACOES_EVENTO, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { ValidacaoError } from "@/domain/errors";
-import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, completarAcompanhante, definirExtraDaRegra, editarDescricoesLinha } from "@/server/services/conferencia";
+import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, ajustarTendasDosLocais, completarAcompanhante, incluirTendaNaAta, definirExtraDaRegra, editarDescricoesLinha } from "@/server/services/conferencia";
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { salvarSeparacao } from "@/server/services/separacao";
@@ -123,12 +123,8 @@ export async function incluirLinhaAtaAction(_prev: ActionResult, formData: FormD
     const totais = Object.fromEntries((["fechamento", "calha"] as const).flatMap((p) => (totalTenda(`tenda_${p}`) === undefined ? [] : [[p, totalTenda(`tenda_${p}`)!]])));
     // A justificativa só é pedida com a ata fechada: aí o item entra na OS (a ata não muda).
     const mensagem = dados.justificativa ? "Item incluído na OS" : "Linha incluída na ata";
-    r = await executar(async () => {
-      const linha = await incluirLinhaAta(usuario, eventoId, dados);
-      if (dados.referenciaTipo === "PROJETO" && Object.keys(totais).length) {
-        await ajustarTendasDoLocal(usuario, eventoId, { linhaIds: [linha.id], tendas: dados.quantidade, totais, motivo: dados.justificativa });
-      }
-    }, mensagem);
+    // Tenda com fechamentos/calhas: inclui e ajusta as peças numa gravação só (uma versão da OS depois da ata).
+    r = await executar(() => (dados.referenciaTipo === "PROJETO" && Object.keys(totais).length ? incluirTendaNaAta(usuario, eventoId, dados, totais) : incluirLinhaAta(usuario, eventoId, dados)), mensagem);
   } catch (e) {
     r = tratarErro(e);
   }
@@ -300,19 +296,34 @@ export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: stri
   return r;
 }
 
+type QuadroLocalEntrada = { linhaIds: string[]; tendas: number; totais: Record<string, number> };
+const localValido = (d: QuadroLocalEntrada | undefined): d is QuadroLocalEntrada =>
+  Boolean(d) &&
+  Array.isArray(d!.linhaIds) &&
+  d!.linhaIds.every((x) => typeof x === "string") &&
+  typeof d!.tendas === "number" &&
+  Object.entries(d!.totais ?? {}).every(([k, v]) => (k === "fechamento" || k === "calha") && typeof v === "number");
+
 /** Tendas de um local na conferência: quantas tendas e o total de fechamentos e calhas (como no quadro). */
-export async function ajustarTendasDoLocalAction(eventoId: string, dados: { linhaIds: string[]; tendas: number; totais: Record<string, number>; motivo: string }) {
+export async function ajustarTendasDoLocalAction(eventoId: string, dados: QuadroLocalEntrada & { motivo: string }) {
   const usuario = await requireUsuario();
-  const ok =
-    typeof eventoId === "string" &&
-    Array.isArray(dados?.linhaIds) &&
-    dados.linhaIds.every((x) => typeof x === "string") &&
-    typeof dados.tendas === "number" &&
-    typeof dados.motivo === "string" &&
-    Object.entries(dados.totais ?? {}).every(([k, v]) => (k === "fechamento" || k === "calha") && typeof v === "number");
-  if (!ok) return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || !localValido(dados) || typeof dados.motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
   if (!motivoOpcionalSchema.safeParse(dados.motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarTendasDoLocal(usuario, eventoId, { linhaIds: dados.linhaIds, tendas: dados.tendas, totais: dados.totais, motivo: dados.motivo }));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
+  revalidatePath(`/conferencia/${eventoId}`);
+  return r;
+}
+
+/** "Editar todos os locais": os locais mudados de uma vez, numa gravação (uma versão da OS e um aviso). */
+export async function ajustarTendasDosLocaisAction(eventoId: string, dados: { locais: QuadroLocalEntrada[]; motivo: string }) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || !Array.isArray(dados?.locais) || !dados.locais.length || dados.locais.length > 200 || !dados.locais.every(localValido) || typeof dados.motivo !== "string") {
+    return { ok: false, erro: "Dados inválidos." } as const;
+  }
+  if (!motivoOpcionalSchema.safeParse(dados.motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
+  const locais = dados.locais.map((l) => ({ linhaIds: l.linhaIds, tendas: l.tendas, totais: l.totais }));
+  const r = await executar(() => ajustarTendasDosLocais(usuario, eventoId, { locais, motivo: dados.motivo }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

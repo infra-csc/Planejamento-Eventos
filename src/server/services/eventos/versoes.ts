@@ -4,7 +4,7 @@ import { configuracoes, eventoItens, eventos, historico, projetoVersoes, projeto
 import { aplicarAjustesBom } from "@/domain/os";
 import { contrapesoDaRegraAntiga } from "@/domain/regras-kit";
 import { gerarOsVersao } from "../os";
-import { bloquearEvento, registrarHistorico, type Executor } from "../support";
+import { bloquearEvento, notificar, registrarHistorico, usuariosComPedidoNoEvento, type Executor } from "../support";
 import { snapshotBom } from "./ata";
 import { sincronizarRegrasAta } from "./regras-kit";
 
@@ -68,7 +68,22 @@ export async function atualizarProjetosNosEventos(tx: Executor, opcoes: { projet
     if (!atualizadas.length) continue;
     await encolherContrapesoAntigo(tx, eventoId, opcoes.usuarioId);
     await sincronizarRegrasAta(tx, eventoId, null);
-    if (linhas[0].status === "ABERTO") await gerarOsVersao(tx, eventoId, "ATUALIZACAO_PROJETO", opcoes.usuarioId, `Projetos atualizados: ${[...new Set(atualizadas)].join(", ")}`);
+    if (linhas[0].status === "ABERTO") {
+      const texto = `Projetos atualizados: ${[...new Set(atualizadas)].join(", ")}`;
+      await gerarOsVersao(tx, eventoId, "ATUALIZACAO_PROJETO", opcoes.usuarioId, texto);
+      // Projeto editado na Biblioteca muda a OS com a ata fechada: quem pediu algo no evento fica sabendo, como em
+      // todo ajuste depois da ata (28/10; antes só a logística era avisada). A rotina de subida (sem projeto) não avisa.
+      if (opcoes.projetoId) {
+        await notificar(tx, {
+          usuarioIds: await usuariosComPedidoNoEvento(tx, eventoId),
+          tipo: "ATA_AJUSTE",
+          titulo: `Ajuste na OS: ${linhas[0].codigoEvento}`,
+          mensagem: `${texto} (projeto editado na Biblioteca).`,
+          link: `/eventos/${eventoId}`,
+          ...(opcoes.usuarioId ? { excetoUsuarioId: opcoes.usuarioId } : {}),
+        });
+      }
+    }
     resultado.eventos.push(linhas[0].codigoEvento);
     resultado.linhas += atualizadas.length;
   }

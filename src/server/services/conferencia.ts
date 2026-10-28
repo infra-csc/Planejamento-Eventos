@@ -2,14 +2,14 @@ import { grupoDaLinha } from "@/domain/grupos-material";
 import { descricaoDaRegra, necessidadesAcompanhantes } from "@/domain/regras-kit";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
+import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios, type BomSnapshotLinha } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { descricaoLinha, resumirAjustes } from "@/domain/os";
 import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
-import { bloquearEvento, notificar, notificarAjusteLinha, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea } from "./support";
+import { bloquearEvento, notificar, notificarAjusteLinha, registrarHistorico, usuariosComPedidoNoEvento, usuariosDaArea, type Executor } from "./support";
 
 /** Descrições das unidades agrupadas por texto; uma descrição só num pedido de várias vale para todas. */
 function gruposDescricao(lista: readonly string[] | null | undefined, quantidade: number) {
@@ -20,8 +20,8 @@ function gruposDescricao(lista: readonly string[] | null | undefined, quantidade
 }
 import { agruparDescricoes, textoDescricoes } from "@/domain/descricoes-itens";
 import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
-import { itensDoQuadro, kitDaTenda, KITS_TENDA, PAPEIS_POR_LOCAL, padraoPorTenda, papeisDoKit, type PapelTenda } from "@/domain/tendas";
-import { conferirTodasLinhas, incluirLinhaAta, snapshotBom } from "./eventos";
+import { distribuirTendasDoLocal, kitDaTenda, KITS_TENDA, PAPEIS_POR_LOCAL, padraoPorTenda, papeisDoKit, type PapelTenda } from "@/domain/tendas";
+import { incluirLinhaAta, incluirLinhaNaTransacao, snapshotBom, type DadosLinhaAta } from "./eventos";
 
 /** Ações do histórico que contam como "ajuste de quantidade" de uma linha, para o log da conferência. */
 const ACOES_AJUSTE = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE"];
@@ -172,8 +172,8 @@ export async function obterConferencia(eventoId: string) {
 export type LinhaConferencia = Awaited<ReturnType<typeof obterConferencia>>[number];
 
 /** Cavaletes e pés da ata: quanto a regra pede pelas peças de origem e quanto a ata tem (com o nome da peça). */
-export async function acompanhantesDaAta(eventoId: string) {
-  const db = await getDb();
+export async function acompanhantesDaAta(eventoId: string, ex?: Executor) {
+  const db = ex ?? (await getDb());
   const linhas = await db.query.eventoItens.findMany({
     where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)),
     with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } } },
@@ -189,16 +189,29 @@ export async function acompanhantesDaAta(eventoId: string) {
 
 export type AcompanhanteDaAta = Awaited<ReturnType<typeof acompanhantesDaAta>>[number];
 
-/** Completa o que vem junto (cavalete, pé) até o que a regra pede: inclui uma linha da logística com o que falta. */
+/**
+ * Completa o que vem junto (cavalete, pé) até o que a regra pede: inclui uma linha da logística com o que falta.
+ * A falta é contada dentro da transação, com o evento travado: dois cliques (ou duas pessoas) não incluem duas vezes.
+ */
 export async function completarAcompanhante(usuario: UsuarioAtual, eventoId: string, codigo: string) {
   exigir(usuario, "ata.consolidar");
-  const n = (await acompanhantesDaAta(eventoId)).find((x) => x.codigo === codigo);
-  const falta = n ? n.precisa - n.naAta : 0;
-  if (!n || falta <= 0) throw new DomainError("Nada a completar: a ata já tem o que a regra pede.");
   const db = await getDb();
-  const peca = await db.query.pecas.findFirst({ where: eq(pecas.codigo, codigo), columns: { id: true } });
-  if (!peca) throw new NaoEncontradoError("Peça");
-  return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: peca.id, descricaoLivre: null, quantidade: falta, destino: null, areaId: null, justificativa: `Completa a regra (${n.texto})` });
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const n = (await acompanhantesDaAta(eventoId, tx)).find((x) => x.codigo === codigo);
+    const falta = n ? n.precisa - n.naAta : 0;
+    if (!n || falta <= 0) throw new DomainError("Nada a completar: a ata já tem o que a regra pede.");
+    const peca = await tx.query.pecas.findFirst({ where: eq(pecas.codigo, codigo), columns: { id: true } });
+    if (!peca) throw new NaoEncontradoError("Peça");
+    const dados = { referenciaTipo: "PECA" as const, projetoId: null, pecaId: peca.id, descricaoLivre: null, quantidade: falta, destino: null, areaId: null, justificativa: `Completa a regra (${n.texto})` };
+    const { linha, geraOs, desc, ev } = await incluirLinhaNaTransacao(tx, usuario, eventoId, dados);
+    if (geraOs) {
+      await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${falta} incluído — ${dados.justificativa}`);
+      await notificarAjusteLinha(tx, { eventoId, areaId: null, tipo: "ATA_AJUSTE", titulo: `Item novo na OS: ${ev.nome}`, mensagem: `A logística incluiu ${desc} × ${falta}. Motivo: ${dados.justificativa}`, mensagemSemMotivo: `A logística incluiu ${desc} × ${falta}.`, link: `/eventos/${eventoId}/itens/${linha.id}`, excetoUsuarioId: usuario.id });
+    }
+    await sincronizarRegrasAta(tx, eventoId, null);
+    return linha;
+  });
 }
 
 /** De onde veio o ajuste: canetinha da conferência (antes da ata) ou ajuste pela aba Ata/OS. */
@@ -263,29 +276,7 @@ export async function ajustarQuantidadeLinha(
     const agora = new Date();
 
     // Linha de um pedido já respondido (e solicitação ainda corrigível): a mudança passa pela resposta do item.
-    let respondeu: { areaId: string; criadoPorId: string } | null = null;
-    const item = linha.registro.solicitacaoItemId
-      ? await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, linha.registro.solicitacaoItemId), with: { solicitacao: { columns: { status: true, excluida: true } } } })
-      : null;
-    const corrigivel = item && item.operacao === "ADICIONAR" && item.status !== "EM_ANALISE" && !item.solicitacao.excluida && (item.solicitacao.status === "RESPONDIDA" || item.solicitacao.status === "EM_ANALISE");
-    if (item && corrigivel) {
-      const status = quantidade === 0 ? "NAO_ATENDIDO" : quantidade < item.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO";
-      const atendida = Math.min(quantidade, item.quantidadeSolicitada);
-      if (!(status === item.status && atendida === item.quantidadeAtendida)) {
-        const r = await responderNaTransacao(
-          tx,
-          usuario,
-          item.id,
-          // A pendência de compra marcada antes continua (atendido integralmente a zera).
-          // Parcial/não atendido pedem observação: sem motivo, fica registrado que foi ajuste da reunião.
-          { status, quantidadeAtendida: atendida, observacaoLogistica: razao ?? "Ajustado na reunião de OS", pendenciaCompra: item.pendenciaCompra },
-          razao ?? "Ajustado na reunião de OS",
-          // A fase já foi conferida aqui (a pré-reunião também é corrigida pela aba Ata depois do fechamento); a OS sai uma vez só, abaixo.
-          { gerarOs: false, notificar: true, ignorarFase: true },
-        );
-        respondeu = { areaId: r.areaId, criadoPorId: r.criadoPorId };
-      }
-    }
+    const respondeu = linha.registro.solicitacaoItemId ? await responderPelaQuantidade(tx, usuario, linha.registro.solicitacaoItemId, quantidade, razao) : null;
 
     // A resposta aplica só a diferença em relação à resposta anterior; o ajuste define o valor absoluto
     // da linha. Por isso a linha é gravada aqui de qualquer jeito (também no caminho da resposta).
@@ -352,6 +343,31 @@ export async function ajustarQuantidadeLinha(
 }
 
 /**
+ * A quantidade da linha de um pedido mudou: o item responde de acordo (atendido, parcial, não atendido), com histórico e
+ * aviso à área, se a resposta mudou e a solicitação ainda aceita correção. Devolve quem foi avisado (ou null).
+ */
+async function responderPelaQuantidade(tx: Executor, usuario: UsuarioAtual, solicitacaoItemId: string, quantidade: number, razao: string | null) {
+  const item = await tx.query.solicitacaoItens.findFirst({ where: eq(solicitacaoItens.id, solicitacaoItemId), with: { solicitacao: { columns: { status: true, excluida: true } } } });
+  const corrigivel = item && item.operacao === "ADICIONAR" && item.status !== "EM_ANALISE" && !item.solicitacao.excluida && (item.solicitacao.status === "RESPONDIDA" || item.solicitacao.status === "EM_ANALISE");
+  if (!item || !corrigivel) return null;
+  const status = quantidade === 0 ? "NAO_ATENDIDO" : quantidade < item.quantidadeSolicitada ? "PARCIAL" : "ATENDIDO";
+  const atendida = Math.min(quantidade, item.quantidadeSolicitada);
+  if (status === item.status && atendida === item.quantidadeAtendida) return null;
+  const r = await responderNaTransacao(
+    tx,
+    usuario,
+    item.id,
+    // A pendência de compra marcada antes continua (atendido integralmente a zera).
+    // Parcial/não atendido pedem observação: sem motivo, fica registrado que foi ajuste da reunião.
+    { status, quantidadeAtendida: atendida, observacaoLogistica: razao ?? "Ajustado na reunião de OS", pendenciaCompra: item.pendenciaCompra },
+    razao ?? "Ajustado na reunião de OS",
+    // A fase já foi conferida por quem chama (a pré-reunião também é corrigida pela aba Ata depois do fechamento); a OS sai uma vez só, lá.
+    { gerarOs: false, notificar: true, ignorarFase: true },
+  );
+  return { areaId: r.areaId, criadoPorId: r.criadoPorId };
+}
+
+/**
  * Canetinha da conferência: muda a quantidade de uma linha na reunião, com log (motivo opcional).
  * Mesmo caminho do ajuste pela aba Ata (`ajustarQuantidadeLinha`).
  */
@@ -364,6 +380,10 @@ export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: strin
   exigir(usuario, "ata.consolidar");
   if (!Number.isInteger(extra) || extra < 0 || extra > 1_000_000) throw new ValidacaoError("Quantidade deve ser um inteiro entre 0 e 1.000.000.");
   const db = await getDb();
+  // É decisão da conferência: depois da ata, a inclusão sairia com uma justificativa que ninguém escreveu.
+  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
+  if (!ev) throw new NaoEncontradoError("Evento");
+  if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("As grades a mais do prisma são decididas na conferência. Depois da ata, inclua a peça pelo ajuste com justificativa.");
   const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)) });
   if (!regra?.regra || !regra.pecaId) throw new NaoEncontradoError("Linha da regra");
   // "A mais" = linha da logística sem pedido e sem local (é assim que este ajuste cria). Grade incluída à mão com
@@ -511,86 +531,234 @@ export async function editarDescricoesLinha(usuario: UsuarioAtual, eventoId: str
   });
 }
 
+/** Um local do quadro de tendas: as linhas da tenda nele, quantas tendas e o total de fechamentos e calhas. */
+export type QuadroDoLocal = { linhaIds: string[]; tendas: number; totais: Partial<Record<PapelTenda, number>> };
+
 /**
- * Tendas de um local na conferência, como no quadro de tendas: quantas tendas e o total de fechamentos e
- * calhas do local. O quadro vira linhas (uma por grupo de tendas com as mesmas peças, como no pedido) e
- * as linhas do local são ajustadas para bater: quantidade, peças por tenda, linhas a mais saem (0) e
- * linhas que faltam entram. Cada passo usa o ajuste de sempre (histórico, resposta ao pedido); no fim o
- * local fica conferido (a decisão é da reunião).
+ * Tendas de um local, como no quadro de tendas: quantas tendas e o total de fechamentos e calhas do local, aplicados
+ * às linhas que já existem sem trocar o dono de nenhuma tenda (`distribuirTendasDoLocal`). Tudo numa transação:
+ * ou o local fica como pedido, ou nada muda. Antes da ata o local fica conferido (a decisão é da reunião); com a ata
+ * fechada sai uma versão da OS e um aviso por salvamento, com a justificativa.
  */
-export async function ajustarTendasDoLocal(
-  usuario: UsuarioAtual,
-  eventoId: string,
-  dados: { linhaIds: string[]; tendas: number; totais: Partial<Record<PapelTenda, number>>; motivo: string | null },
-) {
+export async function ajustarTendasDoLocal(usuario: UsuarioAtual, eventoId: string, dados: QuadroDoLocal & { motivo: string | null }) {
+  return ajustarTendasDosLocais(usuario, eventoId, { locais: [dados], motivo: dados.motivo });
+}
+
+/** Vários locais de uma vez ("Editar todos os locais"): uma transação, uma versão da OS e um aviso para tudo. */
+export async function ajustarTendasDosLocais(usuario: UsuarioAtual, eventoId: string, dados: { locais: QuadroDoLocal[]; motivo: string | null }) {
   exigir(usuario, "ata.consolidar");
-  const inteiro = (n: number) => Number.isInteger(n) && n >= 0 && n <= 10_000;
-  if (!inteiro(dados.tendas) || Object.values(dados.totais).some((n) => n !== undefined && !inteiro(n))) {
-    throw new ValidacaoError("Use números inteiros entre 0 e 10.000.", { quantidade: "Número inteiro." });
-  }
-  if (!dados.linhaIds.length) throw new ValidacaoError("Nenhuma linha informada.");
+  if (!dados.locais.length || dados.locais.some((l) => !l.linhaIds.length)) throw new ValidacaoError("Nenhuma linha informada.");
   const motivo = dados.motivo?.trim() || "";
   const db = await getDb();
-  const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
-  if (!ev) throw new NaoEncontradoError("Evento");
-  // Com a ata fechada (evento aberto), o mesmo quadro vale como ajuste da logística: justificativa obrigatória, cada
-  // passo gera a versão da OS e avisa a área (27/10: o admin corrige as tendas pela visão geral do evento).
-  const posAta = ev.status === "ABERTO";
-  if (!posAta && ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("O evento não aceita ajustes neste estado.");
-  if (posAta) {
-    exigir(usuario, "ata.ajustar");
-    if (!motivo) throw new ValidacaoError("Informe a justificativa do ajuste.", { motivo: "Obrigatória com a ata fechada: fica no histórico e vai para quem pediu." });
-  }
-  const ajustarLinha = (linhaId: string, quantidade: number, quantidadeEsperada: number) =>
-    posAta ? ajustarQuantidadeLinha(usuario, eventoId, linhaId, quantidade, motivo, { contexto: "ata", quantidadeEsperada }) : ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo);
-
-  const lidas = await db.query.eventoItens.findMany({ where: and(inArray(eventoItens.id, dados.linhaIds), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)) });
-  if (lidas.length !== dados.linhaIds.length) throw new DomainError("Alguma linha deste local mudou enquanto você editava. Confira e tente de novo.");
-  const linhas = dados.linhaIds.map((id) => lidas.find((l) => l.id === id)!);
-  const l0 = linhas[0];
-  if (!l0.projetoId || linhas.some((l) => l.tipo !== "PROJETO" || l.projetoId !== l0.projetoId || (l.destino ?? "") !== (l0.destino ?? ""))) {
-    throw new DomainError("As linhas informadas não são da mesma tenda no mesmo local.");
-  }
-  const kit = kitDaTenda((l0.bomSnapshot ?? []).map((b) => b.codigo));
-  if (!kit) throw new DomainError("Esta linha não é de tenda.");
-
-  // Padrão do projeto (por tenda), para saber o que é ajuste: a calha da 5×5 vem 1 por tenda.
-  const padrao = (await snapshotBom(db, l0.projetoId, l0.projetoVersaoId)).bom;
-  const papeis = papeisDoKit(kit).filter((x) => PAPEIS_POR_LOCAL.includes(x.papel));
-  const totais = Object.fromEntries(papeis.map((x) => [x.papel, dados.totais[x.papel] ?? 0]));
-  const grupos = dados.tendas > 0 ? itensDoQuadro(kit, padrao, [{ local: l0.destino ?? "", quantidade: dados.tendas, totais }]) : [];
-  const codigos = papeis.map((x) => x.codigo);
-  const pecasKit = await db.select({ id: pecas.id, codigo: pecas.codigo }).from(pecas).where(inArray(pecas.codigo, codigos));
-  const idDe = (codigo: string) => pecasKit.find((x) => x.codigo === codigo)?.id ?? null;
-
-  const porTendaDe = (bom: ReadonlyArray<{ codigo: string; quantidade: number }> | null, codigo: string) => bom?.find((b) => b.codigo === codigo)?.quantidade ?? 0;
-  const acertarPecas = async (linhaId: string, bomAtual: ReadonlyArray<{ codigo: string; quantidade: number }> | null, ajustes: Record<string, number>) => {
-    for (const x of papeis) {
-      const desejado = Math.max(0, padraoPorTenda(kit, padrao, x.papel) + (ajustes[x.codigo] ?? 0));
-      const pecaId = idDe(x.codigo);
-      if (pecaId && desejado !== porTendaDe(bomAtual, x.codigo)) await ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, desejado, motivo);
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
+    if (!ev) throw new NaoEncontradoError("Evento");
+    const posAta = ev.status === "ABERTO";
+    if (!posAta && ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("O evento não aceita ajustes neste estado.");
+    if (posAta) {
+      exigir(usuario, "ata.ajustar");
+      if (!motivo) throw new ValidacaoError("Informe a justificativa do ajuste.", { motivo: "Obrigatória com a ata fechada: fica no histórico e vai para quem pediu." });
     }
-  };
-
-  const finais: string[] = [];
-  const n = Math.max(grupos.length, linhas.length);
-  for (let i = 0; i < n; i++) {
-    const g = grupos[i];
-    const l = linhas[i];
-    if (g && l) {
-      await acertarPecas(l.id, l.bomSnapshot, g.ajustes);
-      if (g.quantidade !== l.quantidade) await ajustarLinha(l.id, g.quantidade, l.quantidade);
-      finais.push(l.id);
-    } else if (l) {
-      // Sobrou linha (menos tendas ou menos grupos): sai da ata, com histórico e resposta ao pedido.
-      await ajustarLinha(l.id, 0, l.quantidade);
-    } else if (g) {
-      const nova = await incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PROJETO", projetoId: l0.projetoId, pecaId: null, descricaoLivre: null, quantidade: g.quantidade, destino: l0.destino, areaId: l0.areaId, justificativa: motivo || null });
-      await acertarPecas(nova.id, nova.bomSnapshot, g.ajustes);
-      finais.push(nova.id);
+    const r = await aplicarQuadros(tx, usuario, eventoId, dados.locais, motivo, { posAta, conferir: !posAta, localInteiro: true });
+    if (r.resumos.length) {
+      await sincronizarRegrasAta(tx, eventoId, null);
+      if (posAta) await fecharAjustePosAta(tx, usuario, ev, r, motivo, { titulo: `Ajuste na OS: ${ev.nome}`, texto: `A logística ajustou as tendas: ${r.resumos.join("; ")}` });
     }
+    return { linhas: r.finais.length, mudou: r.resumos.length > 0 };
+  });
+}
+
+/**
+ * "Incluir item" de tenda já com fechamentos e calhas: a linha entra com as peças certas na mesma transação, com uma
+ * versão da OS e um aviso (antes eram duas versões, a primeira sem os fechamentos, e um erro no meio deixava a tenda
+ * incluída sem eles).
+ */
+export async function incluirTendaNaAta(usuario: UsuarioAtual, eventoId: string, dados: DadosLinhaAta, totais: Partial<Record<PapelTenda, number>>) {
+  exigir(usuario, "ata.consolidar");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    await bloquearEvento(tx, eventoId);
+    const { linha, geraOs, desc, ev } = await incluirLinhaNaTransacao(tx, usuario, eventoId, dados);
+    const motivo = dados.justificativa?.trim() || "";
+    const r = await aplicarQuadros(tx, usuario, eventoId, [{ linhaIds: [linha.id], tendas: dados.quantidade, totais }], motivo, { posAta: geraOs, conferir: ev.status === "EM_REUNIAO", localInteiro: false });
+    await sincronizarRegrasAta(tx, eventoId, null);
+    if (geraOs) {
+      const pecasTexto = r.resumos.length ? ` (${r.resumos.join("; ")})` : "";
+      await fecharAjustePosAta(tx, usuario, ev, { ...r, areas: [dados.areaId ?? null], link: `/eventos/${eventoId}/itens/${linha.id}` }, motivo, {
+        titulo: `Item novo na OS: ${ev.nome}`,
+        texto: `A logística incluiu ${desc} × ${dados.quantidade}${pecasTexto}`,
+      });
+    }
+    return linha;
+  });
+}
+
+type ResultadoQuadros = { finais: string[]; resumos: string[]; areas: Array<string | null>; avisados: Set<string>; link: string | null };
+
+/** Aplica os quadros dos locais dentro da transação (evento já travado). Não gera OS nem aviso de ajuste. */
+async function aplicarQuadros(
+  tx: Executor,
+  usuario: UsuarioAtual,
+  eventoId: string,
+  locais: readonly QuadroDoLocal[],
+  motivo: string,
+  opcoes: { posAta: boolean; conferir: boolean; localInteiro: boolean },
+): Promise<ResultadoQuadros> {
+  const inteiro = (n: number) => Number.isInteger(n) && n >= 0 && n <= 10_000;
+  const r: ResultadoQuadros = { finais: [], resumos: [], areas: [], avisados: new Set(), link: null };
+  const agora = new Date();
+  const razao = motivo || null;
+  const conferido = opcoes.conferir ? { conferidoEm: agora, conferidoPorId: usuario.id } : {};
+  for (const local of locais) {
+    if (!inteiro(local.tendas) || Object.values(local.totais).some((n) => n !== undefined && !inteiro(n))) {
+      throw new ValidacaoError("Use números inteiros entre 0 e 10.000.", { quantidade: "Número inteiro." });
+    }
+    const lidas = await tx.query.eventoItens.findMany({ where: and(inArray(eventoItens.id, local.linhaIds), eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)) });
+    if (lidas.length !== local.linhaIds.length) throw new DomainError("Alguma linha deste local mudou enquanto você editava. Confira e tente de novo.");
+    const linhas = local.linhaIds.map((id) => lidas.find((l) => l.id === id)!);
+    const l0 = linhas[0];
+    // Mesmo local como a tela agrupa: sem diferença de maiúsculas e espaços nas pontas.
+    const mesmoLocal = (a: string | null, b: string | null) => (a ?? "").trim().toLocaleLowerCase("pt-BR") === (b ?? "").trim().toLocaleLowerCase("pt-BR");
+    if (!l0.projetoId || linhas.some((l) => l.tipo !== "PROJETO" || l.projetoId !== l0.projetoId || !mesmoLocal(l.destino, l0.destino))) {
+      throw new DomainError("As linhas informadas não são da mesma tenda no mesmo local.");
+    }
+    if (opcoes.localInteiro) {
+      // O quadro vale para o local inteiro: se outra linha da mesma tenda entrou nele depois que a tela abriu (outro
+      // salvamento dividiu uma linha, alguém incluiu), os números da tela já não são os do local.
+      const doProjeto = await tx.query.eventoItens.findMany({ where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.projetoId, l0.projetoId), eq(eventoItens.ativo, true)), columns: { id: true, destino: true } });
+      if (doProjeto.some((x) => mesmoLocal(x.destino, l0.destino) && !local.linhaIds.includes(x.id))) throw new DomainError("Este local mudou enquanto você editava. Confira e tente de novo.");
+    }
+    const kit = kitDaTenda((l0.bomSnapshot ?? []).map((b) => b.codigo));
+    if (!kit) throw new DomainError("Esta linha não é de tenda.");
+    // Padrão por tenda da versão que está na ata (vale também para projeto inativado depois do pedido).
+    const padrao = (await snapshotBom(tx, l0.projetoId, l0.projetoVersaoId)).bom;
+    const papeis = papeisDoKit(kit).filter((x) => PAPEIS_POR_LOCAL.includes(x.papel));
+    // Total que não veio = padrão × tendas (antes virava 0 e zerava as calhas).
+    const totais = Object.fromEntries(papeis.map((x) => [x.papel, local.totais[x.papel] ?? padraoPorTenda(kit, padrao, x.papel) * local.tendas]));
+    const porTendaDe = (bom: ReadonlyArray<{ codigo: string; quantidade: number }> | null, codigo: string) => bom?.find((b) => b.codigo === codigo)?.quantidade ?? 0;
+    const distribuido = distribuirTendasDoLocal(
+      linhas.map((l) => ({ id: l.id, quantidade: l.quantidade, doPedido: Boolean(l.solicitacaoItemId), porUnidade: Object.fromEntries(papeis.map((x) => [x.papel, porTendaDe(l.bomSnapshot, x.codigo)])) })),
+      local.tendas,
+      totais,
+      papeis.map((x) => x.papel),
+    );
+    const pecasKit = await tx.select().from(pecas).where(inArray(pecas.codigo, papeis.map((x) => x.codigo)));
+    const bomCom = (bom: readonly BomSnapshotLinha[], porUnidade: Partial<Record<PapelTenda, number>>) => {
+      const novo = [...bom];
+      for (const x of papeis) {
+        const n = porUnidade[x.papel] ?? 0;
+        const i = novo.findIndex((b) => b.codigo === x.codigo);
+        if (i >= 0) {
+          if (n === 0) novo.splice(i, 1);
+          else novo[i] = { ...novo[i], quantidade: n };
+        } else if (n > 0) {
+          const p = pecasKit.find((y) => y.codigo === x.codigo);
+          if (!p) throw new NaoEncontradoError(`Peça ${x.codigo}`);
+          novo.push({ pecaId: p.id, codigo: p.codigo, nome: p.nome, setor: p.setor, unidade: p.unidade, quantidade: n });
+        }
+      }
+      return novo;
+    };
+    type Estado = { quantidade: number; bom: ReadonlyArray<{ codigo: string; quantidade: number }> | null };
+    const total = (ls: readonly Estado[], codigo: string) => ls.reduce((a, l) => a + l.quantidade * porTendaDe(l.bom, codigo), 0);
+    const antes: Estado[] = linhas.map((l) => ({ quantidade: l.quantidade, bom: l.bomSnapshot }));
+    const depois: Estado[] = [];
+    const onde = l0.destino ?? "local não informado";
+    let mudou = false;
+
+    for (const [i, l] of linhas.entries()) {
+      const partes = distribuido[i].partes;
+      const quantidade = partes.reduce((a, p) => a + p.quantidade, 0);
+      // Pedido da área: só a quantidade de tendas da linha (somando as partes) mexe na resposta; fechamentos não.
+      if (l.solicitacaoItemId && quantidade !== l.quantidade) {
+        const resp = await responderPelaQuantidade(tx, usuario, l.solicitacaoItemId, quantidade, razao);
+        if (resp) {
+          r.avisados.add(resp.criadoPorId);
+          for (const u of await usuariosDaArea(tx, resp.areaId)) r.avisados.add(u);
+        }
+      }
+      const bomBase = l.bomSnapshot ?? [];
+      if (!partes.length) {
+        mudou = true;
+        await tx.update(eventoItens).set({ ativo: false, removidoEm: agora, removidoPorId: usuario.id, justificativaAjuste: razao, conferidoEm: null, conferidoPorId: null }).where(eq(eventoItens.id, l.id));
+        await registrarHistorico(tx, {
+          eventoId,
+          entidade: "evento_item",
+          entidadeId: l.id,
+          acao: opcoes.posAta ? "ATA_REMOCAO" : "CONFERENCIA_AJUSTE",
+          descricao: `Tendas de ${onde}: linha retirada (era ${l.quantidade})${razao ? ` — ${razao}` : ""}`,
+          usuarioId: usuario.id,
+          dadosAntes: { quantidade: l.quantidade },
+          dadosDepois: { quantidade: 0, motivo: razao },
+        });
+        r.areas.push(l.areaId ?? null);
+        continue;
+      }
+      const [primeira, ...outras] = partes;
+      const bom = bomCom(bomBase, primeira.porUnidade);
+      if (primeira.quantidade !== l.quantidade || JSON.stringify(bom) !== JSON.stringify(bomBase)) {
+        mudou = true;
+        await tx.update(eventoItens).set({ quantidade: primeira.quantidade, bomSnapshot: bom, justificativaAjuste: razao, ...conferido }).where(eq(eventoItens.id, l.id));
+        await registrarHistorico(tx, {
+          eventoId,
+          entidade: "evento_item",
+          entidadeId: l.id,
+          acao: opcoes.posAta ? "ATA_QUANTIDADE" : "CONFERENCIA_AJUSTE",
+          descricao: `Tendas de ${onde}: ${l.quantidade} → ${primeira.quantidade}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
+          usuarioId: usuario.id,
+          dadosAntes: { quantidade: l.quantidade },
+          dadosDepois: { quantidade: primeira.quantidade, motivo: razao },
+        });
+        r.areas.push(l.areaId ?? null);
+      } else if (opcoes.conferir && !l.conferidoEm) {
+        await tx.update(eventoItens).set(conferido).where(eq(eventoItens.id, l.id));
+      }
+      r.finais.push(l.id);
+      depois.push({ quantidade: primeira.quantidade, bom });
+      // Parte com outra composição: linha nova da mesma área e da mesma versão do projeto (sem o pedido, que é único por linha).
+      for (const p of outras) {
+        mudou = true;
+        const bomParte = bomCom(bomBase, p.porUnidade);
+        const [nova] = await tx
+          .insert(eventoItens)
+          .values({ eventoId, tipo: "PROJETO", projetoId: l.projetoId, projetoVersaoId: l.projetoVersaoId, bomSnapshot: bomParte, quantidade: p.quantidade, destino: l.destino, areaId: l.areaId, origem: "AJUSTE_LOGISTICA", justificativaAjuste: razao, criadoPorId: usuario.id, ...conferido })
+          .returning({ id: eventoItens.id });
+        await registrarHistorico(tx, {
+          eventoId,
+          entidade: "evento_item",
+          entidadeId: nova.id,
+          acao: opcoes.posAta ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
+          descricao: `Tendas de ${onde}: ${p.quantidade}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
+          usuarioId: usuario.id,
+        });
+        r.finais.push(nova.id);
+        depois.push({ quantidade: p.quantidade, bom: bomParte });
+      }
+    }
+    if (!mudou) continue;
+    r.link ??= r.finais[0] ? `/eventos/${eventoId}/itens/${r.finais[0]}` : null;
+    const contar = (ls: readonly Estado[]) => ls.reduce((a, l) => a + l.quantidade, 0);
+    const mudancas = [`${contar(antes)} → ${contar(depois)} tendas`, ...papeis.map((x) => `${total(antes, x.codigo)} → ${total(depois, x.codigo)} ${x.rotulo.toLocaleLowerCase("pt-BR")}`)];
+    r.resumos.push(`${onde}: ${mudancas.join(", ")}`);
   }
-  // Antes da ata a decisão é da reunião e o local fica conferido; depois dela não há conferência.
-  if (finais.length && !posAta) await conferirTodasLinhas(usuario, eventoId, finais);
-  return { linhas: finais.length };
+  return r;
+}
+
+/** " tendas · 2 fechamentos e 1 calhas por tenda" (só os papéis do quadro). */
+function resumoPorTenda(papeis: ReadonlyArray<{ papel: PapelTenda; rotulo: string }>, porUnidade: Partial<Record<PapelTenda, number>>) {
+  const t = papeis.map((x) => `${porUnidade[x.papel] ?? 0} ${x.rotulo.toLocaleLowerCase("pt-BR")}`).join(" e ");
+  return ` tendas${t ? ` · ${t} por tenda` : ""}`;
+}
+
+/** Com a ata fechada: uma versão da OS e um aviso para o salvamento inteiro (quem já foi avisado pela resposta do item não recebe de novo). */
+async function fecharAjustePosAta(tx: Executor, usuario: UsuarioAtual, ev: { id: string; nome: string }, r: ResultadoQuadros, motivo: string, aviso: { titulo: string; texto: string }) {
+  await gerarOsVersao(tx, ev.id, "AJUSTE_LOGISTICA", usuario.id, `${aviso.texto} — ${motivo}`);
+  const base = { tipo: "ATA_AJUSTE", titulo: aviso.titulo, link: r.link ?? `/eventos/${ev.id}`, excetoUsuarioId: usuario.id };
+  if (r.avisados.size) {
+    const outros = (await usuariosComPedidoNoEvento(tx, ev.id)).filter((u) => !r.avisados.has(u));
+    await notificar(tx, { ...base, usuarioIds: outros, mensagem: `${aviso.texto}.` });
+  } else {
+    await notificarAjusteLinha(tx, { ...base, eventoId: ev.id, areaId: r.areas.find(Boolean) ?? null, mensagem: `${aviso.texto}. Motivo: ${motivo}`, mensagemSemMotivo: `${aviso.texto}.` });
+  }
 }

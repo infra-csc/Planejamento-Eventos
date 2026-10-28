@@ -27,6 +27,7 @@ export {
   alterarQuantidadeLinha,
   atualizarVersaoLinha,
   incluirLinhaAta,
+  incluirLinhaNaTransacao,
   listarAtaVersoes,
   obterLinhasAta,
   snapshotBom,
