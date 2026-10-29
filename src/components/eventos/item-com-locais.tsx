@@ -47,7 +47,7 @@ export function ItemComLocais({
       <tr
         className="cursor-pointer hover:bg-subtle"
         onClick={(e) => {
-          if (e.target instanceof HTMLElement && e.target.closest("a,button,input,[role=dialog]")) return;
+          if (e.target instanceof Element && e.target.closest("a,button,input,[role=dialog]")) return;
           setAberto((v) => !v);
         }}
       >

@@ -6,8 +6,10 @@ import { Children, cloneElement, Fragment, isValidElement, useTransition, type R
 import { cn } from "@/lib/cn";
 import { useSinalizarNavegacao } from "./navegacao";
 
+/** Clique num controle de dentro da linha. `Element`, não `HTMLElement`: o clique no ícone cai no <svg>/<path>, e o
+ *  ✓ de "Atender" do painel atendia e ainda abria a solicitação (auditoria de usabilidade 28/10). */
 function deveIgnorar(alvo: EventTarget | null) {
-  return alvo instanceof HTMLElement && Boolean(alvo.closest("a,button,input,select,textarea,label"));
+  return alvo instanceof Element && Boolean(alvo.closest("a,button,input,select,textarea,label,[role=dialog]"));
 }
 
 const novaAba = (href: string) => window.open(href, "_blank", "noopener,noreferrer");

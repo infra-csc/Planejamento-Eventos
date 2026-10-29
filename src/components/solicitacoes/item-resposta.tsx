@@ -149,6 +149,9 @@ export function RespostaProvider({
       if (!f || ed || e.metaKey || e.ctrlKey || e.altKey) return;
       const alvo = e.target as HTMLElement | null;
       if (alvo && /^(input|textarea|select)$/i.test(alvo.tagName)) return;
+      // Só com o foco no item selecionado (ou dentro dele): com o foco em outro lugar da página, "A" gravava
+      // "Atendido" no item que ficou marcado (WCAG 2.1.4, auditoria de acessibilidade 28/10).
+      if (alvo?.closest?.("[data-item-resposta]")?.getAttribute("data-item-resposta") !== f) return;
       if (document.querySelector("[role=dialog]")) return;
       const item = lista.find((i) => i.id === f);
       if (!item || !item.respondivel || item.status !== "EM_ANALISE") return;
@@ -551,6 +554,7 @@ export function ItemResposta({
     <div
       tabIndex={0}
       role="group"
+      data-item-resposta={item.id}
       aria-label={`${item.descricao}${localNoGrupo && parte ? `, parte ${parte}` : emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
       aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}

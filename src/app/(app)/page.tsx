@@ -82,7 +82,7 @@ function TabelaFila({ fila, agora, rapida, comArea, rotulo }: { fila: ItemFila[]
             <Th>Solicitação</Th>
             {comArea && <Th className="hidden @2xl:table-cell @2xl:w-[100px]">Área</Th>}
             <Th className="hidden @lg:table-cell @lg:w-[26%]">Evento</Th>
-            <Th alinhar="right" className="w-[96px] @lg:w-[140px]">
+            <Th alinhar="right" className="w-[116px] @lg:w-[140px]">
               Prazo
             </Th>
             {temRapida && (
@@ -96,6 +96,8 @@ function TabelaFila({ fila, agora, rapida, comArea, rotulo }: { fila: ItemFila[]
           {fila.map((f) => {
             const titulo = f.titulo || "sem título";
             const itens = `${f.total} ${plural(f.total, "item", "itens")}${f.respondidos > 0 ? `, ${f.respondidos} ${plural(f.respondidos, "respondido", "respondidos")}` : ""}`;
+            // Com o ✓ de atender, a linha diz o que ele atende (antes só no title e no aviso depois do clique).
+            const pendente = rapida && f.pendenteUnico ? `${f.pendenteUnico.descricao} × ${f.pendenteUnico.quantidade}${f.pendenteUnico.destino ? ` · ${f.pendenteUnico.destino}` : ""}` : null;
             return (
               <LinhaLink key={f.id} href={`/solicitacoes/${f.id}`} rotulo={`Abrir ${f.codigo} — ${titulo}`}>
                 <th scope="row" className={`${celula} max-w-0 pl-cartao pr-3 text-left font-normal`}>
@@ -104,8 +106,18 @@ function TabelaFila({ fila, agora, rapida, comArea, rotulo }: { fila: ItemFila[]
                     <span className="truncate text-corpo font-medium text-ink" title={`${titulo} · ${itens}`}>
                       {titulo}
                     </span>
-                    {f.foraDaJanela && <ForaJanelaTag className="shrink-0" />}
                   </span>
+                  {/* "Fora da janela" na linha de baixo: ao lado do título, o selo espremia o nome até "Ba…". */}
+                  {(f.foraDaJanela || pendente) && (
+                    <span className="mt-1 flex min-w-0 items-center gap-2 text-pequeno text-ink-2">
+                      {f.foraDaJanela && <ForaJanelaTag className="shrink-0" />}
+                      {pendente && (
+                        <span className="truncate" title={pendente}>
+                          {pendente}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {/* Cartão estreito: área (se a coluna sumiu) e evento embaixo do título. */}
                   <span className={`mt-0.5 block truncate text-pequeno text-muted ${comArea ? "@2xl:hidden" : "@lg:hidden"}`}>
                     {comArea && f.areaNome}

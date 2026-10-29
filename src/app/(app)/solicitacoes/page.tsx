@@ -259,7 +259,6 @@ export default async function SolicitacoesPage({
                           <span className="truncate text-corpo font-medium text-ink" title={`${s.titulo || "sem título"} · ${s.tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"} · por ${s.criadoPor.nome}`}>
                             {s.titulo || "sem título"}
                           </span>
-                          {s.foraDaJanela && <ForaJanelaTag className="shrink-0" />}
                         </span>
                         {/* Tela estreita: evento e área (colunas que sumiram) embaixo do título. */}
                         <span className="mt-0.5 block truncate text-pequeno text-muted xl:hidden">
@@ -282,7 +281,8 @@ export default async function SolicitacoesPage({
                       <td className="border-b border-line-row px-3 py-2.5">
                         <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                       </td>
-                      <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right">{prazo(s)}</td>
+                      {/* "Fora da janela" no lugar do prazo, como no celular: ao lado do título, espremia o nome até sumir. */}
+                      <td className="border-b border-line-row py-2.5 pl-3 pr-cartao text-right">{s.foraDaJanela ? <ForaJanelaTag className="shrink-0" /> : prazo(s)}</td>
                     </LinhaLink>
                   ))}
                 </tbody>
