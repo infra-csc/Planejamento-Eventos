@@ -715,3 +715,24 @@ Arquivos: `src/app/(app)/page.tsx`, `src/components/painel/{agora,atender-rapido
 - O print do quadro de tendas mostrou o indicador "1 Issue" do Next: um aviso de hidratação (`data-aria-hidden` no
   `BarraNavegacao`), provavelmente porque o script clicou em "Editar" antes da hidratação terminar (o Radix marca o
   resto da página como oculto). Não reproduzi abrindo devagar; vale conferir no navegador.
+
+## 28/10/2026 — QA visual do app inteiro (visual-qa, só relato)
+
+Relatório completo: `docs/auditoria/2026-10-28-visual-qa.md` (inventário, matriz tela × perfil × largura, 42 achados
+com print e `arquivo:linha`). Nada foi alterado no código. Mais visíveis: título da solicitação cortado em 0–6 letras
+pelo selo "fora da janela" no painel (todas as larguras); nome do item cortado em ~12 letras na lista de itens do
+evento no celular; lista do `ComboBox` abrindo acima da tela nos diálogos do celular (Novo veículo, Enviar para
+reforma); prazo cortado na borda do cartão no painel do solicitante (375). Para decidir e registrar aqui: menu lateral
+claro × "barra lateral escura" do handoff/entregáveis; título de tela de detalhe 24 × 18 px.
+
+## 28/10/2026 — Auditoria de usabilidade (ux-intuitive), só relato
+
+Relatório completo: `docs/auditoria/2026-10-28-ux-intuitive.md` (inventário, 13 tarefas com cliques, matriz tela ×
+perfil, 2 P1 · 14 P2 · 12 P3, o que ficou de fora). Nada do app foi alterado. Mais graves:
+- P1 — ✓ "atender rápido" do painel: a linha não mostra o item/quantidade (no celular nem o título) e o clique no
+  ícone atende **e** abre a solicitação (`linha-link.tsx:10` testa `HTMLElement`; o alvo é o `<svg>`); no celular o
+  "Desfazer" some.
+- P1 — Quadro "Tenda por local" abre com 5 tendas em 5 locais ("Zere o que não vai"); na tarefa saíram 3 tendas
+  quando a intenção eram 2.
+- P2 — "CSV" da seção Estrutura na OS baixa o Excel "OS de estrutura" (rota `api/os/[id]/estrutura` ganha de
+  `[setor]`); Biblioteca duplicou o projeto do painel lateral (1º resultado), não o buscado.
