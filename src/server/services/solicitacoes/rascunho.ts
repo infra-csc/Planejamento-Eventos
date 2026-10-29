@@ -352,8 +352,7 @@ async function editarAlteracaoNaTransacao(
  */
 export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dados: DadosSolicitacaoCompleta): Promise<{ id: string; codigo: string; enviada: boolean; erroEnvio: string | null; foraDaJanela?: boolean }> {
   exigir(usuarioSessao, "solicitacao.criar");
-  // A área escolhida agora passa a ser do usuário já nesta gravação (a sessão só a vê na próxima requisição).
-  let usuario = usuarioSessao;
+  const usuario = usuarioSessao;
   if (dados.enviar) validarParaEnvio(dados);
   dados.itens.forEach((i) => validarItem(i));
 
@@ -365,7 +364,6 @@ export async function salvarSolicitacaoCompleta(usuarioSessao: UsuarioAtual, dad
       if (s.eventoId !== dados.eventoId) throw new DomainError("Para trocar de evento, exclua este rascunho e crie outro.");
     } else {
       const novo = await criarRascunhoTx(tx, usuario, dados.eventoId, dados.areaId);
-      usuario = { ...usuario, areasPedidas: [...(usuario.areasPedidas ?? []), novo.areaId] };
       s = await carregarEditavel(tx, usuario, novo.id);
     }
     await tx

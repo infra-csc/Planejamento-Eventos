@@ -50,7 +50,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
   const usuario = await requirePermissao("os.ver");
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes, complemento, grupos, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), complementoOs(id), mapaGruposPecas(), obterSeparacao(id)]);
+  const [ev, versoes, complemento, grupos, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id, usuario), complementoOs(id), mapaGruposPecas(), obterSeparacao(id)]);
   // Estrutura locada no local: admin e logística tiram box, tendas e estaiamento da folha de separação.
   const quadroSeparacao = pode(usuario, "ata.consolidar") ? <SeparacaoLocada eventoId={id} inicial={separacao} /> : null;
 

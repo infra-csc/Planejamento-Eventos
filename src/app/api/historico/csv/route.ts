@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUsuarioAtual } from "@/server/auth/session";
+import { getUsuarioDaApi } from "@/server/auth/session";
 import { pode, PERFIL_LABEL } from "@/domain/permissions";
 import { exportarHistoricoGeral } from "@/server/services/historico-geral";
 import { CATEGORIAS_HISTORICO, ehCategoria, ehPeriodo, rotuloAcao } from "@/domain/historico-geral";
@@ -9,10 +9,17 @@ import { formatarDataHora, hojeISO } from "@/lib/format";
  * Histórico em CSV com os mesmos filtros da tela (?cat=&periodo=&evento=&quem=&q=), até 5000
  * registros, do mais recente para o mais antigo. Separador ";" e BOM: abre certo no Excel em pt-BR.
  */
-const celula = (v: string | null | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+// Texto que começa com = + - @ (ou tab/CR) vira texto no Excel (prefixo '), como no CSV da OS: a descrição pode trazer o
+// que um requisitante escreveu (CSV injection, auditoria de segurança).
+const FORMULA = /^[=+\-@\t\r]/;
+const celula = (v: string | null | undefined) => {
+  const s = String(v ?? "");
+  const texto = FORMULA.test(s) ? "'" + s : s;
+  return '"' + texto.replace(/"/g, '""') + '"';
+};
 
 export async function GET(request: Request) {
-  const usuario = await getUsuarioAtual();
+  const usuario = await getUsuarioDaApi();
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   if (!pode(usuario, "historico.ver_tudo")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const sp = new URL(request.url).searchParams;

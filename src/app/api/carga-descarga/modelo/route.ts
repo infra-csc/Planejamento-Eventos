@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUsuarioAtual } from "@/server/auth/session";
+import { getUsuarioDaApi } from "@/server/auth/session";
 import { pode } from "@/domain/permissions";
 import { eventosParaModelo } from "@/server/services/carga-importacao";
 import { montarModeloCarga } from "@/server/export/carga-modelo";
@@ -10,7 +10,7 @@ import { hojeISO } from "@/lib/format";
  * eventos ativos de hoje, para escolher na lista suspensa.
  */
 export async function GET() {
-  const usuario = await getUsuarioAtual();
+  const usuario = await getUsuarioDaApi();
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   if (!pode(usuario, "carga.editar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
   const hoje = hojeISO();

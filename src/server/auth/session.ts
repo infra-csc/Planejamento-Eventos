@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, count, eq, gt, ne, sql, type AnyColumn } from "drizzle-orm";
+import { and, count, eq, gt, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, sessoes, usuarios } from "@/server/db/schema";
 import { gerarToken, hashSenha, hashToken, verificarSenha } from "./password";
@@ -19,9 +19,6 @@ export { exigir, type UsuarioAtual, COOKIE_SESSAO, COOKIE_VER_COMO };
 
 const JANELA_LOGIN_MS = 15 * 60_000;
 
-/** Áreas que o usuário já escolheu ao pedir (solicitações não excluídas), como lista de ids. */
-const areasPedidasSql = (usuarioId: AnyColumn) =>
-  sql<string[]>`coalesce((select array_agg(distinct s.area_id) from solicitacoes s where s.criado_por_id = ${usuarioId} and not s.excluida), '{}')`;
 /** Falhas do mesmo e-mail no mesmo IP (a pessoa errando a própria senha). */
 const MAX_POR_EMAIL_IP = 8;
 /** Falhas no mesmo e-mail vindas de qualquer IP (ataque distribuído contra uma conta). */
@@ -166,8 +163,7 @@ async function carregarUsuario(id: string): Promise<UsuarioAtual | null> {
   const db = await getDb();
   const u = await db.query.usuarios.findFirst({ where: eq(usuarios.id, id), with: { area: true } });
   if (!u || !u.ativo) return null;
-  const [p] = await db.select({ areas: areasPedidasSql(usuarios.id) }).from(usuarios).where(eq(usuarios.id, id));
-  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null, areasPedidas: p?.areas ?? [], trocarSenha: exigeTroca(u.trocarSenha) });
+  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.area?.nome ?? null, trocarSenha: exigeTroca(u.trocarSenha) });
 }
 
 /**
@@ -192,7 +188,6 @@ export const getUsuarioReal = cache(async (): Promise<UsuarioAtual | null> => {
       areaNome: areas.nome,
       ativo: usuarios.ativo,
       trocarSenha: usuarios.trocarSenha,
-      areasPedidas: areasPedidasSql(usuarios.id),
       sessaoId: sessoes.id,
       expiraEm: sessoes.expiraEm,
       criadoEm: sessoes.criadoEm,
@@ -210,7 +205,7 @@ export const getUsuarioReal = cache(async (): Promise<UsuarioAtual | null> => {
       db.update(usuarios).set({ ultimoAcessoEm: agora }).where(eq(usuarios.id, u.id)),
     ]);
   }
-  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null, areasPedidas: u.areasPedidas ?? [], trocarSenha: exigeTroca(u.trocarSenha) });
+  return comAreaPadrao({ id: u.id, nome: u.nome, email: u.email, perfil: u.perfil, areaId: u.areaId, areaNome: u.areaNome ?? null, trocarSenha: exigeTroca(u.trocarSenha) });
 });
 
 /** Lê o cookie de "ver como" (perfil e área escolhidos), sem validar a área. */
@@ -237,8 +232,17 @@ export const getUsuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
   if (!vc) return real;
   const db = await getDb();
   const area = vc.areaId ? await db.query.areas.findFirst({ where: and(eq(areas.id, vc.areaId), eq(areas.ativo, true)), columns: { id: true, nome: true } }) : null;
-  return { ...real, perfil: vc.perfil, areaId: area?.id ?? null, areaNome: area?.nome ?? null, areasPedidas: [], verComo: { perfilReal: "ADMIN" } };
+  return { ...real, perfil: vc.perfil, areaId: area?.id ?? null, areaNome: area?.nome ?? null, verComo: { perfilReal: "ADMIN" } };
 });
+
+/**
+ * Usuário das rotas /api (downloads, anexos, busca). Com senha provisória, nada abre até a troca — nas páginas o
+ * `requireUsuario` manda para o perfil; aqui a rota responde como não autenticada (auditoria de segurança, SEC-03).
+ */
+export async function getUsuarioDaApi(): Promise<UsuarioAtual | null> {
+  const u = await getUsuarioAtual();
+  return u && !u.trocarSenha ? u : null;
+}
 
 /**
  * Exige sessão. Com a troca de senha pendente, qualquer página (e action) fora do perfil manda

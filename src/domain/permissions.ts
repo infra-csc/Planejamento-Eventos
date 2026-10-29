@@ -87,15 +87,15 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   "admin.configuracoes": ["ADMIN"],
 };
 
-export type UsuarioPermissao = { perfil: Perfil; areaId: string | null; areasPedidas?: readonly string[] };
+export type UsuarioPermissao = { perfil: Perfil; areaId: string | null };
 
 /**
- * Áreas em nome das quais o usuário age: a área fixa do cadastro (se tiver) e as áreas que ele já
- * escolheu ao pedir. O solicitante escolhe a área em cada solicitação, então é por essas áreas que
- * ele enxerga pedidos, linhas da ata e motivos da logística.
+ * Áreas em nome das quais o usuário age: a área do cadastro. Até 29/10 somava também as áreas em que a pessoa
+ * já tinha pedido (do tempo em que o solicitante escolhia a área); com isso, quem era transferido continuava vendo
+ * e editando os pedidos da área antiga (auditoria de segurança, SEC-02). Hoje só o administrador escolhe a área.
  */
 export function areasDoUsuario(usuario: UsuarioPermissao): string[] {
-  return [...new Set([usuario.areaId, ...(usuario.areasPedidas ?? [])].filter((a): a is string => Boolean(a)))];
+  return usuario.areaId ? [usuario.areaId] : [];
 }
 
 /** A área informada é uma das áreas do usuário (null = linha da logística, de ninguém). */
@@ -107,7 +107,7 @@ export function pode(usuario: UsuarioPermissao, acao: Acao): boolean {
   return MATRIZ[acao].includes(usuario.perfil);
 }
 
-/** Requisitantes e Cenografia só enxergam solicitações das próprias áreas (fixa ou escolhidas ao pedir). */
+/** Requisitantes e Cenografia só enxergam solicitações da própria área. */
 export function podeVerSolicitacao(usuario: UsuarioPermissao, solicitacao: { areaId: string; status?: string }): boolean {
   if (daMinhaArea(usuario, solicitacao.areaId)) return true;
   // Quem vê todas as áreas ainda não vê rascunho não enviado (só o administrador, que edita qualquer um).

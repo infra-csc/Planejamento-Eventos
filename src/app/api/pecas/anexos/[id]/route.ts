@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getUsuarioAtual } from "@/server/auth/session";
+import { getUsuarioDaApi } from "@/server/auth/session";
 import { obterAnexoPeca, obterAnexoPecaMeta } from "@/server/services/catalogo";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { CACHE, ehImagem, LARGURAS, miniatura, miniaturaPronta, nomeWebp, respostaArquivo } from "@/server/resposta-arquivo";
 
 /** Foto ou PDF de uma peça do catálogo (?w=160|320|640 numa foto devolve a miniatura em WEBP). */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const usuario = await getUsuarioAtual();
+  const usuario = await getUsuarioDaApi();
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   const { id } = await params;
   const wParam = Number(new URL(req.url).searchParams.get("w"));

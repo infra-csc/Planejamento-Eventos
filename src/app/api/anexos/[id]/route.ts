@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getUsuarioAtual } from "@/server/auth/session";
+import { getUsuarioDaApi } from "@/server/auth/session";
 import { obterAnexo, obterAnexoMeta } from "@/server/services/projetos";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { CACHE, ehImagem, LARGURAS, miniatura, miniaturaPronta, nomeWebp, respostaArquivo } from "@/server/resposta-arquivo";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const usuario = await getUsuarioAtual();
+  const usuario = await getUsuarioDaApi();
   if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
   const { id } = await params;
   const wParam = Number(new URL(req.url).searchParams.get("w"));

@@ -3,6 +3,7 @@ import { getDb } from "@/server/db";
 import { eventoItens, eventos, osVersoes, pecas, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
 import { calcularOS, diffOS, osIguais, renomearPecasOs, resumoVersaoOs, type LinhaAta, type NomeAtual } from "@/domain/os";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
+import { pode, type UsuarioPermissao } from "@/domain/permissions";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { bloquearEvento, registrarHistorico, type Executor } from "./support";
 
@@ -107,14 +108,22 @@ export async function listarOsVersoes(eventoId: string) {
 }
 
 /** Lista de versões sem o JSON da OS: número, gatilho, autor, data e resumo. */
-export async function listarOsResumo(eventoId: string) {
+/**
+ * Versões da OS, da mais nova para a mais antiga. Com `usuario` (telas): quem não vê o histórico inteiro recebe as
+ * versões sem a descrição, que leva o motivo da logística e os pedidos de outras áreas ("SOL-0025 · Quadro… —
+ * atendido") — o mesmo que o histórico do evento já esconde (auditoria de segurança, SEC-04). A tela mostra o
+ * tipo da versão no lugar.
+ */
+export async function listarOsResumo(eventoId: string, usuario?: UsuarioPermissao) {
   const db = await getDb();
-  return db.query.osVersoes.findMany({
+  const versoes = await db.query.osVersoes.findMany({
     where: eq(osVersoes.eventoId, eventoId),
     columns: { conteudo: false },
     with: { geradaPor: { columns: { id: true, nome: true } } },
     orderBy: (t, { desc }) => [desc(t.numero)],
   });
+  if (!usuario || pode(usuario, "historico.ver_tudo")) return versoes;
+  return versoes.map((v) => ({ ...v, descricao: null }));
 }
 
 /** Conteúdo só das versões pedidas. */
