@@ -123,7 +123,7 @@ export function Select({
                       disabled={o.disabled}
                       className={cn(
                         "relative flex cursor-pointer select-none items-center gap-2 rounded-controle py-[7px] pl-8 pr-3 text-corpo text-ink outline-none focus:outline-none focus-visible:outline-none max-md:min-h-10",
-                        "data-[highlighted]:bg-subtle data-[state=checked]:font-medium data-[disabled]:cursor-not-allowed data-[disabled]:text-meta",
+                        "data-[highlighted]:opcao-ativa data-[state=checked]:font-medium data-[disabled]:cursor-not-allowed data-[disabled]:text-meta",
                         o.value === "" && "text-ink-3",
                       )}
                     >

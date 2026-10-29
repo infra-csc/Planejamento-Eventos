@@ -22,8 +22,8 @@ export function DropdownItem({ children, onSelect, danger, disabled, className }
       disabled={disabled}
       onSelect={onSelect}
       className={cn(
-        "flex cursor-pointer select-none items-center gap-2 rounded-controle px-2.5 py-1.5 outline-none transition-colors duration-100 data-[disabled]:pointer-events-none data-[highlighted]:bg-subtle data-[disabled]:opacity-50 max-md:min-h-10",
-        danger ? "text-danger data-[highlighted]:bg-danger-bg" : "text-ink",
+        "flex cursor-pointer select-none items-center gap-2 rounded-controle px-2.5 py-1.5 outline-none transition-colors duration-100 data-[disabled]:pointer-events-none data-[highlighted]:opcao-ativa data-[disabled]:opacity-50 max-md:min-h-10",
+        danger ? "text-danger data-[highlighted]:bg-danger-bg data-[highlighted]:shadow-[inset_2px_0_0_var(--color-danger)]" : "text-ink",
         className,
       )}
     >

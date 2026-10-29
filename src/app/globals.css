@@ -203,6 +203,16 @@
   --folga-ancora: 1.25rem;
 }
 
+/*
+ * Opção ativa de lista, menu e busca (a que o teclado está apontando): fundo de seleção e uma barra vinho de 2 px à
+ * esquerda. Só o fundo cinza dava 1,06:1 contra o branco e quem usa teclado não via onde estava (WCAG 2.4.7/1.4.11,
+ * auditoria 28/10). A barra é a cor do anel de foco.
+ */
+@utility opcao-ativa {
+  background-color: var(--color-selected);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
 /* Alvo de âncora (#hash) ou de rolagem programada: para a uma folga abaixo do cabeçalho fixo. */
 @utility alvo-ancora {
   scroll-margin-top: var(--folga-ancora);

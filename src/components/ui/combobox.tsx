@@ -187,7 +187,7 @@ export function ComboBox({
                 onClick={() => escolher(o)}
                 className={cn(
                   "flex cursor-pointer items-center gap-2.5 rounded-controle px-2.5 py-2 text-corpo max-md:min-h-10",
-                  i === indice && "bg-subtle",
+                  i === indice && "opcao-ativa",
                   o.value === value && "font-medium",
                   o.disabled && "cursor-not-allowed text-meta",
                 )}

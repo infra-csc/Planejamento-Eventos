@@ -181,7 +181,7 @@ export function BuscaGlobal() {
                       tabIndex={-1}
                       onClick={() => abrir(r)}
                       onMouseEnter={() => setSel(i)}
-                      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left max-md:min-h-11", ativo ? "bg-accent-bg" : "bg-transparent")}
+                      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left max-md:min-h-11", ativo ? "opcao-ativa" : "bg-transparent")}
                     >
                       <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
                         {r.tag}
