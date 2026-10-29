@@ -55,7 +55,8 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   // Na ordem da lista de carregamento da logística (domain/folha-separacao), com cinta catraca e corda pela regra.
   const secoes = montarFolhaSeparacao(
     os.setores.flatMap((s) => s.linhas.filter((l) => vai(l.codigo, l.nome)).map((l) => ({ ...l, setor: s.setor, grupo: grupoDoCodigo(mapa, l.codigo, s.setor) }))),
-    { stands: standsDaOs(os.projetos) },
+    // Estrutura locada: sem estaio, então também sem a cinta catraca de 4 por stand.
+    { stands: separacao.locada ? 0 : standsDaOs(os.projetos) },
   );
   const antesDaMarcenaria = secoes.filter((x) => !x.bloco);
   const marcenaria = secoes.filter((x) => x.bloco);

@@ -94,7 +94,7 @@ describe("montarOsEstrutura", () => {
   });
 
   it("estrutura locada: box Q30, tendas e estaiamento saem da folha; Q15 só se marcado; o resto fica", () => {
-    for (const c of ["BOX-3000", "CUBO", "PARAF", "BOX-300", "SAPATA", "TND5-CANT", "TND3-LONA", "ESTACA", "CORDA", "MALOTE"]) expect(pecaDeEstruturaLocada(c, { q15: false })).toBe(true);
+    for (const c of ["BOX-3000", "CUBO", "PARAF", "BOX-300", "SAPATA", "TND5-CANT", "TND3-LONA", "ESTACA", "CORDA", "MALOTE", "TINA-1000", "PALLET-FE", "CINTA-CATRACA"]) expect(pecaDeEstruturaLocada(c, { q15: false })).toBe(true);
     for (const c of ["CONE-G", "GRADE-2X1", "PRISMA", "TESTEIRA-9M", "LONA-9X6", "Q15-2000"]) expect(pecaDeEstruturaLocada(c, { q15: false })).toBe(false);
     expect(pecaDeEstruturaLocada("Q15-2000", { q15: true })).toBe(true);
     expect(pecaDeEstruturaLocada("CUBO - 3F", { q15: false, nome: "Cubo de conexão Q30 (3 faces - L)" })).toBe(true);

@@ -77,6 +77,12 @@ const ESTAIAMENTO: ReadonlyArray<[codigo: string, rotulo: string]> = [
 ];
 
 /**
+ * Estaio dos stands na folha de separação (contrapeso e amarração): com a estrutura locada, o estaio vem com ela
+ * (29/10, logística: "se a estrutura for locada, não tem estaio").
+ */
+const ESTAIO_DOS_STANDS = ["TINA-1000", "PALLET-FE", "CINTA-CATRACA"];
+
+/**
  * Bloco OUTROS MATERIAIS: a lista fixa que toda OS traz (a cenografia marca "X" no que vai), com a
  * quantidade quando a peça está na OS. Itens fora do catálogo e peças soltas que não têm lugar
  * noutro bloco entram depois.
@@ -114,7 +120,7 @@ export function pecaDeEstruturaLocada(codigo: string, opcoes: { q15: boolean; no
   if (ehQ15(codigo)) return opcoes.q15;
   // Cubos e outras conexões Q30 têm códigos variados ("CUBO-2F", "CUBO - 3F"): o nome "… Q30 …" também vale.
   const q30 = ROTULO_Q30.has(codigo) || codigo in OUTROS_ROTULOS || /^(BOX|CUBO|ANG|PRAT)[-\s]/.test(codigo) || /\bQ30\b/i.test(opcoes.nome ?? "");
-  return q30 || ehTenda(codigo) || ESTAIAMENTO.some(([c]) => c === codigo);
+  return q30 || ehTenda(codigo) || ESTAIAMENTO.some(([c]) => c === codigo) || ESTAIO_DOS_STANDS.includes(codigo);
 }
 
 /** Rótulo da peça como na planilha; peça que a cenografia não nomeia sai com o nome do catálogo. */
