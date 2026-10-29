@@ -42,7 +42,7 @@ export async function salvarSeparacao(usuario: UsuarioAtual, eventoId: string, d
       entidade: "evento",
       entidadeId: eventoId,
       acao: "SEPARACAO_LOCADA",
-      descricao: valor.locada ? `Folha de separação: estrutura locada (box Q30, tendas e estaiamento fora${valor.q15Locado ? "; box Q15 também" : ""})` : "Folha de separação: estrutura volta a sair inteira",
+      descricao: valor.locada ? `Folha de separação: estrutura locada (box Q30, tendas e estaio fora${valor.q15Locado ? "; box Q15 também" : ""})` : "Folha de separação: estrutura volta a sair inteira",
       usuarioId: usuario.id,
       dadosDepois: valor,
     });

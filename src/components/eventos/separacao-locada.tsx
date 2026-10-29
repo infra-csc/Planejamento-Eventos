@@ -22,7 +22,7 @@ export function SeparacaoLocada({ eventoId, inicial }: { eventoId: string; inici
         setValor(antes);
         return toastErro(r.erro);
       }
-      toastSucesso(novo.locada ? `Folha sem box Q30, tendas e estaiamento${novo.q15Locado ? " e sem box Q15" : ""}` : "Folha volta a sair com toda a estrutura");
+      toastSucesso(novo.locada ? `Folha sem box Q30, tendas e estaio${novo.q15Locado ? " e sem box Q15" : ""}` : "Folha volta a sair com toda a estrutura");
     });
   };
   return (
@@ -31,7 +31,7 @@ export function SeparacaoLocada({ eventoId, inicial }: { eventoId: string; inici
         <Checkbox
           id="estrutura-locada"
           label="Estrutura locada no local"
-          description="Box truss Q30, peças de tenda e estaiamento não saem na folha."
+          description="Box truss Q30, peças de tenda e estaio (tina, pallet de ferro, cinta catraca, malote, estaca e corda) não saem na folha."
           checked={valor.locada}
           onChange={(v) => salvar({ locada: v, q15Locado: v && valor.q15Locado })}
         />

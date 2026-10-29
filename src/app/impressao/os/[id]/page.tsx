@@ -97,7 +97,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       <p className="mb-4 mt-0 text-pequeno text-ink-3">Tudo o que vai para o evento, somado por peça. Marque ao separar.</p>
       {separacao.locada && (
         <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">
-          Estrutura locada no local: box truss Q30, tendas e estaiamento{separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
+          Estrutura locada no local: box truss Q30, tendas e estaio (tina, pallet de ferro, cinta catraca, malote, estaca e corda){separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
         </p>
       )}
       {antesDaMarcenaria.map((secao) => (

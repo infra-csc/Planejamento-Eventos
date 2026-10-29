@@ -705,7 +705,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: l.id,
           acao: opcoes.posAta ? "ATA_QUANTIDADE" : "CONFERENCIA_AJUSTE",
-          descricao: `Tendas de ${onde}: ${l.quantidade} → ${primeira.quantidade}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
+          descricao: `Tendas de ${onde}: ${l.quantidade} → ${qtdTendas(primeira.quantidade)}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
           dadosAntes: { quantidade: l.quantidade },
           dadosDepois: { quantidade: primeira.quantidade, motivo: razao },
@@ -729,7 +729,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: nova.id,
           acao: opcoes.posAta ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
-          descricao: `Tendas de ${onde}: ${p.quantidade}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
+          descricao: `Tendas de ${onde}: ${qtdTendas(p.quantidade)}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
         });
         r.finais.push(nova.id);
@@ -739,17 +739,21 @@ async function aplicarQuadros(
     if (!mudou) continue;
     r.link ??= r.finais[0] ? `/eventos/${eventoId}/itens/${r.finais[0]}` : null;
     const contar = (ls: readonly Estado[]) => ls.reduce((a, l) => a + l.quantidade, 0);
-    const mudancas = [`${contar(antes)} → ${contar(depois)} tendas`, ...papeis.map((x) => `${total(antes, x.codigo)} → ${total(depois, x.codigo)} ${x.rotulo.toLocaleLowerCase("pt-BR")}`)];
+    const mudancas = [`${contar(antes)} → ${qtdTendas(contar(depois))}`, ...papeis.map((x) => `${total(antes, x.codigo)} → ${qtdPapel(x.papel, total(depois, x.codigo))}`)];
     r.resumos.push(`${onde}: ${mudancas.join(", ")}`);
   }
   return r;
 }
 
 /** " tendas · 2 fechamentos e 1 calhas por tenda" (só os papéis do quadro). */
-function resumoPorTenda(papeis: ReadonlyArray<{ papel: PapelTenda; rotulo: string }>, porUnidade: Partial<Record<PapelTenda, number>>) {
-  const t = papeis.map((x) => `${porUnidade[x.papel] ?? 0} ${x.rotulo.toLocaleLowerCase("pt-BR")}`).join(" e ");
-  return ` tendas${t ? ` · ${t} por tenda` : ""}`;
+function resumoPorTenda(papeis: ReadonlyArray<{ papel: PapelTenda }>, porUnidade: Partial<Record<PapelTenda, number>>) {
+  const t = papeis.map((x) => qtdPapel(x.papel, porUnidade[x.papel] ?? 0)).join(" e ");
+  return t ? ` · ${t} por tenda` : "";
 }
+
+const qtdTendas = (n: number) => `${n} ${n === 1 ? "tenda" : "tendas"}`;
+/** "1 fechamento", "2 calhas": o rótulo da coluna é plural ("Fechamentos"), a frase não. */
+const qtdPapel = (papel: PapelTenda, n: number) => `${n} ${n === 1 ? papel : `${papel}s`}`;
 
 /** Com a ata fechada: uma versão da OS e um aviso para o salvamento inteiro (quem já foi avisado pela resposta do item não recebe de novo). */
 async function fecharAjustePosAta(tx: Executor, usuario: UsuarioAtual, ev: { id: string; nome: string }, r: ResultadoQuadros, motivo: string, aviso: { titulo: string; texto: string }) {
