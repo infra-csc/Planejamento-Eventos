@@ -73,7 +73,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       <MetricStrip>
         <Metric label="Em posse" valor={situacao.emPosse} hint="em bom estado, no galpão ou em evento" />
-        <Metric label="Em evento" valor={situacao.emEvento} hint={situacao.reservado ? `+${situacao.reservado} reservado para eventos que vão montar` : "saiu com a OS e não voltou"}  />
+        <Metric label="Em evento" valor={situacao.emEvento} hint={situacao.reservado ? `+${situacao.reservado} ${situacao.reservado === 1 ? "reservado" : "reservados"} para eventos que vão montar` : "saiu com a OS e não voltou"}  />
         <Metric label="Em reforma" valor={situacao.emReforma} tom={situacao.emReforma ? "warning" : "neutro"} href="/ativacao/reformas" />
         <Metric label="Disponível agora" valor={situacao.disponivel} hint={item.comprar ? `comprar ${item.comprar}` : undefined} tom={situacao.disponivel === 0 ? "danger" : "success"} />
       </MetricStrip>
@@ -132,7 +132,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
                   <b className="numero text-corpo font-semibold">{r.quantidade}</b>
                   <span className="text-ink-2">{r.motivo || "sem motivo informado"}</span>
                   <Tag tom={r.status === "ABERTA" ? "warning" : "success"} className="ml-auto">
-                    {r.status === "ABERTA" ? "em reforma" : `concluída · ${r.consertados ?? 0} voltaram${r.baixados ? `, ${r.baixados} baixados` : ""}`}
+                    {r.status === "ABERTA" ? "em reforma" : `concluída · ${r.consertados ?? 0} ${(r.consertados ?? 0) === 1 ? "voltou" : "voltaram"}${r.baixados ? `, ${r.baixados} ${r.baixados === 1 ? "baixado" : "baixados"}` : ""}`}
                   </Tag>
                 </span>
                 <span className="mt-0.5 block text-rotulo text-muted">

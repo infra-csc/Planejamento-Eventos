@@ -66,7 +66,7 @@ export function PecaForm({
           <Field label="Unidade" htmlFor="unidade" error={c?.unidade} hint="Ex.: un, m, m², par." obrigatorio>
             <Input id="unidade" name="unidade" defaultValue={valores.unidade ?? "un"} maxLength={LIMITES.unidade} />
           </Field>
-          <Field label="Estoque próprio" htmlFor="estoqueProprio" error={c?.estoqueProprio} hint="Quantidade da empresa. Usado na consolidação por período (integração futura com o sistema de Logística).">
+          <Field label="Estoque próprio" htmlFor="estoqueProprio" error={c?.estoqueProprio} hint="Quantidade que a empresa tem. Por enquanto é só registro: nenhuma tela soma este número.">
             <Input id="estoqueProprio" name="estoqueProprio" type="number" min={0} defaultValue={valores.estoqueProprio ?? 0} className="numero" />
           </Field>
           <div className="sm:col-span-2">

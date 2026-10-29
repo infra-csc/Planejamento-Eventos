@@ -125,7 +125,7 @@ async function fecharAta(ctx: ContextoTransicao) {
       ),
     );
   if (Number(pend[0].n) > 0) {
-    throw new DomainError(`Ainda há ${Number(pend[0].n)} item(ns) de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.`);
+    throw new DomainError(`Ainda há ${Number(pend[0].n)} ${Number(pend[0].n) === 1 ? "item" : "itens"} de necessidades pré-reunião sem resposta. Responda todos antes de fechar a ata.`);
   }
   // A ata só fecha depois de a logística conferir cada linha na reunião e registrar quem estava presente.
   // "A definir" (quantidade 0) e estaiamento não travam: a projetista completa depois.

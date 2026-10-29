@@ -14,9 +14,13 @@ export class DomainError extends Error {
   }
 }
 
+/** Nomes femininos usados com `NaoEncontradoError` (pela primeira palavra): "Solicitação não encontrada". */
+const FEMININO = /^(solicitação|peça|linha|arena|reforma|versão|posição|uma|área|ata|resposta|foto|regra)\b/i;
+
 export class NaoEncontradoError extends DomainError {
   constructor(entidade = "Registro") {
-    super(`${entidade} não encontrado.`, "NAO_ENCONTRADO");
+    // Concordância e o que fazer (antes: "Solicitação não encontrado."; auditoria de textos 28/10).
+    super(`${entidade} não ${FEMININO.test(entidade) ? "encontrada" : "encontrado"}. Atualize a página e tente de novo.`, "NAO_ENCONTRADO");
   }
 }
 

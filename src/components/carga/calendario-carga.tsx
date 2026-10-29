@@ -424,8 +424,8 @@ export function CalendarioCarga({
                     setBusca("");
                     setSemana(w);
                   }}
-                  title={`${diaMesTexto(w)} – ${diaMesTexto(somarDias(w, 6))}: ${t.carga} cargas, ${t.descarga} descargas, ${t.evento} eventos`}
-                  aria-label={`Semana de ${diaMesTexto(w)}: ${t.carga} cargas, ${t.descarga} descargas, ${t.evento} eventos`}
+                  title={`${diaMesTexto(w)} – ${diaMesTexto(somarDias(w, 6))}: ${qtd(t.carga, "carga", "cargas")}, ${qtd(t.descarga, "descarga", "descargas")}, ${qtd(t.evento, "evento", "eventos")}`}
+                  aria-label={`Semana de ${diaMesTexto(w)}: ${qtd(t.carga, "carga", "cargas")}, ${qtd(t.descarga, "descarga", "descargas")}, ${qtd(t.evento, "evento", "eventos")}`}
                   aria-current={sel ? "true" : undefined}
                   className={cn("group flex h-full min-w-[14px] flex-1 cursor-pointer flex-col items-center justify-end gap-0.5 rounded-[3px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent", sel && "bg-selected")}
                 >
@@ -665,3 +665,5 @@ function CardRodape({ tags, hora, extra }: { tags: readonly (typeof TAGS_CARGA)[
   );
 }
 
+/** "1 evento", "2 eventos" (antes: "1 eventos" no resumo da semana). */
+const qtd = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;

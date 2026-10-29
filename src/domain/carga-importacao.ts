@@ -155,7 +155,7 @@ export function lerTags(v: ValorCelula | undefined): { valor: TagCarga[] } | { e
   const tags: TagCarga[] = [];
   for (const p of partes) {
     const t = SINONIMOS_TAG[p];
-    if (!t) return { erro: `"${p.toLowerCase()}" não existe (use${TAGS_CARGA.map((x) => (x === "ativacao" ? "ativação" : x)).join(", ")})` };
+    if (!t) return { erro: `"${p.toLowerCase()}" não existe (use: ${TAGS_CARGA.map((x) => (x === "ativacao" ? "ativação" : x)).join(", ")})` };
     if (!tags.includes(t)) tags.push(t);
   }
   return { valor: tags };

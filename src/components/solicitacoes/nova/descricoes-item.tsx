@@ -133,7 +133,7 @@ export function DescricoesItem({
       )}
       {comErro && (
         <ErroCampo id={idErro} className="mt-2">
-          {vazias === 1 ? "Falta descrever 1 unidade." : `Faltam descrever ${vazias} unidades.`}
+          {vazias === 1 ? "Falta descrever 1 unidade." : `Falta descrever ${vazias} unidades.`}
         </ErroCampo>
       )}
     </div>

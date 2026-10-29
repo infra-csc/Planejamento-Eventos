@@ -563,7 +563,7 @@ export async function ajustarTendasDosLocais(usuario: UsuarioAtual, eventoId: st
     const r = await aplicarQuadros(tx, usuario, eventoId, dados.locais, motivo, { posAta, conferir: !posAta, localInteiro: true });
     if (r.resumos.length) {
       await sincronizarRegrasAta(tx, eventoId, null);
-      if (posAta) await fecharAjustePosAta(tx, usuario, ev, r, motivo, { titulo: `Ajuste na OS: ${ev.nome}`, texto: `A logística ajustou as tendas: ${r.resumos.join("; ")}` });
+      if (posAta) await fecharAjustePosAta(tx, usuario, ev, r, motivo, { titulo: `Ajuste na OS: ${ev.nome}`, texto: `A logística ajustou as tendas ${r.resumos.join("; ")}` });
     }
     return { linhas: r.finais.length, mudou: r.resumos.length > 0 };
   });
@@ -584,7 +584,7 @@ export async function incluirTendaNaAta(usuario: UsuarioAtual, eventoId: string,
     const r = await aplicarQuadros(tx, usuario, eventoId, [{ linhaIds: [linha.id], tendas: dados.quantidade, totais }], motivo, { posAta: geraOs, conferir: ev.status === "EM_REUNIAO", localInteiro: false });
     await sincronizarRegrasAta(tx, eventoId, null);
     if (geraOs) {
-      const pecasTexto = r.resumos.length ? ` (${r.resumos.join("; ")})` : "";
+      const pecasTexto = Object.keys(totais).length ? ` (${Object.entries(totais).map(([papel, n]) => qtdPapel(papel as PapelTenda, n ?? 0)).join(", ")})` : "";
       await fecharAjustePosAta(tx, usuario, ev, { ...r, areas: [dados.areaId ?? null], link: `/eventos/${eventoId}/itens/${linha.id}` }, motivo, {
         titulo: `Item novo na OS: ${ev.nome}`,
         texto: `A logística incluiu ${desc} × ${dados.quantidade}${pecasTexto}`,
@@ -664,7 +664,8 @@ async function aplicarQuadros(
     const total = (ls: readonly Estado[], codigo: string) => ls.reduce((a, l) => a + l.quantidade * porTendaDe(l.bom, codigo), 0);
     const antes: Estado[] = linhas.map((l) => ({ quantidade: l.quantidade, bom: l.bomSnapshot }));
     const depois: Estado[] = [];
-    const onde = l0.destino ?? "local não informado";
+    // "Tendas de GV" / "Tendas sem local" (o histórico não diz "Tendas de local não informado").
+    const tendasDe = l0.destino ? `Tendas de ${l0.destino}` : "Tendas sem local";
     let mudou = false;
 
     for (const [i, l] of linhas.entries()) {
@@ -687,7 +688,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: l.id,
           acao: opcoes.posAta ? "ATA_REMOCAO" : "CONFERENCIA_AJUSTE",
-          descricao: `Tendas de ${onde}: linha retirada (era ${l.quantidade})${razao ? ` — ${razao}` : ""}`,
+          descricao: `${tendasDe}: linha retirada (era ${l.quantidade})${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
           dadosAntes: { quantidade: l.quantidade },
           dadosDepois: { quantidade: 0, motivo: razao },
@@ -705,7 +706,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: l.id,
           acao: opcoes.posAta ? "ATA_QUANTIDADE" : "CONFERENCIA_AJUSTE",
-          descricao: `Tendas de ${onde}: ${l.quantidade} → ${qtdTendas(primeira.quantidade)}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
+          descricao: `${tendasDe}: ${l.quantidade} → ${primeira.quantidade}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
           dadosAntes: { quantidade: l.quantidade },
           dadosDepois: { quantidade: primeira.quantidade, motivo: razao },
@@ -729,7 +730,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: nova.id,
           acao: opcoes.posAta ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
-          descricao: `Tendas de ${onde}: ${qtdTendas(p.quantidade)}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
+          descricao: `${tendasDe}: ${qtdTendas(p.quantidade)}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
         });
         r.finais.push(nova.id);
@@ -740,7 +741,7 @@ async function aplicarQuadros(
     r.link ??= r.finais[0] ? `/eventos/${eventoId}/itens/${r.finais[0]}` : null;
     const contar = (ls: readonly Estado[]) => ls.reduce((a, l) => a + l.quantidade, 0);
     const mudancas = [`${contar(antes)} → ${qtdTendas(contar(depois))}`, ...papeis.map((x) => `${total(antes, x.codigo)} → ${qtdPapel(x.papel, total(depois, x.codigo))}`)];
-    r.resumos.push(`${onde}: ${mudancas.join(", ")}`);
+    r.resumos.push(`${l0.destino ? `de ${l0.destino}` : "sem local"} (${mudancas.join(", ")})`);
   }
   return r;
 }

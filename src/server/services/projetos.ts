@@ -58,7 +58,7 @@ export async function excluirGrupoProjeto(usuario: UsuarioAtual, grupoId: string
       entidade: "projeto_grupo",
       entidadeId: grupoId,
       acao: "GRUPO_EXCLUIDO",
-      descricao: `Grupo "${g.nome}" excluído: ${movidosProj.length} projeto(s) e ${movidasPecas.length} peça(s) passaram para Padrão.`,
+      descricao: `Grupo "${g.nome}" excluído: ${movidosProj.length} ${movidosProj.length === 1 ? "projeto" : "projetos"} e ${movidasPecas.length} ${movidasPecas.length === 1 ? "peça" : "peças"} passaram para Padrão.`,
       usuarioId: usuario.id,
       dadosAntes: { nome: g.nome, projetos: movidosProj.map((p) => p.codigo), pecas: movidasPecas.map((p) => p.codigo) },
     });
