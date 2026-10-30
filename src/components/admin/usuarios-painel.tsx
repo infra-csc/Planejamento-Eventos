@@ -132,7 +132,9 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title={usuario ? `Editar ${usuario.nome.split(" ")[0]}` : "Novo usuário"} description={usuario ? "Alterações valem a partir do próximo acesso." : "Sem envio de e-mail neste ambiente: ao criar, você recebe o link para a pessoa definir a senha."}>
+      {/* A sessão lê perfil e área do cadastro a cada pedido desde 2a58e97: dizer "próximo acesso" fazia o admin
+          achar que a pessoa mantinha o acesso até sair (auditoria 30/10, parte D N12). */}
+      <DialogContent title={usuario ? `Editar ${usuario.nome.split(" ")[0]}` : "Novo usuário"} description={usuario ? "Perfil e área valem na hora: a pessoa passa a ver só o que o novo perfil permite." : "Sem envio de e-mail neste ambiente: ao criar, você recebe o link para a pessoa definir a senha."}>
         <form
           noValidate
           onSubmit={(e) => {
