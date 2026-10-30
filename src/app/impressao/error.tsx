@@ -23,7 +23,7 @@ export default function ErroImpressao({ error, reset }: { error: Error & { diges
             Tentar de novo
           </Button>
           <Link href="/" className="link text-corpo">
-            Voltar para o painel
+            Ir para o painel
           </Link>
         </div>
       </div>

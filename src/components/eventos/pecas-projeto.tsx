@@ -173,8 +173,10 @@ export function AjustePecaDialog({
         <div className="flex flex-col gap-3.5">
           {!inicial.codigo && (
             <div>
-              <Label>Peça do catálogo</Label>
+              {/* Rótulo ligado ao campo (o nome lido era só o exemplo; auditoria 28/10, nº 64). */}
+              <Label htmlFor="incluir-peca-projeto">Peça do catálogo</Label>
               <ComboBox
+                id="incluir-peca-projeto"
                 value={edicao.pecaId}
                 onChange={(id) => {
                   const p = opcoesPecas.find((x) => x.id === id);
