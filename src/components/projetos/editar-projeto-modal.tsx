@@ -24,7 +24,7 @@ export function EditarProjetoModal({
   categorias,
   grupos = [],
 }: {
-  projeto: { id: string; nome: string; categoria: string; descricao: string | null; grupoEvento?: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number }> };
+  projeto: { id: string; nome: string; categoria: string; descricao: string | null; grupoEvento?: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number; codigo?: string; nome?: string }> };
   anexos: Anexo[];
   categorias?: string[];
   grupos?: GrupoProjetoOpcao[];

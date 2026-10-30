@@ -160,7 +160,9 @@ async function validarItens(itens: DadosProjeto["itens"]) {
   const rows = await db.query.pecas.findMany({ where: inArray(pecas.id, ids) });
   for (const i of itens) {
     const p = rows.find((r) => r.id === i.pecaId);
-    if (!p || !p.ativo) throw new ValidacaoError("Uma das peças está inativa ou não existe.");
+    // Diz qual peça: a mensagem genérica deixava a pessoa procurando a linha (auditoria 30/10, parte C N8).
+    if (!p) throw new ValidacaoError("Uma das peças da lista não existe mais no catálogo. Remova a linha e salve de novo.", { itens: "Uma peça da lista não existe mais no catálogo." });
+    if (!p.ativo) throw new ValidacaoError(`A peça ${p.codigo} (${p.nome}) está inativa no catálogo. Remova-a da lista ou reative a peça.`, { itens: `${p.codigo} (${p.nome}) está inativa no catálogo.` });
     if (!p.permiteEmProjeto) throw new ValidacaoError(`"${p.nome}" não pode entrar em BOM: é sempre lançada como item avulso.`);
     if (!Number.isInteger(i.quantidade) || i.quantidade <= 0) throw new ValidacaoError("Quantidades devem ser inteiros maiores que zero.");
   }
@@ -257,6 +259,21 @@ export async function alterarAtivoProjeto(usuario: UsuarioAtual, id: string, ati
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, id) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");
+  // Projeto ativo só com peças ativas (a peça só se inativa fora de projeto ativo): reativar com peça inativa
+  // devolvia o projeto às solicitações e o formulário não salvava mais (auditoria 30/10, parte C N8).
+  if (ativo && !p.ativo) {
+    const inativas = await db
+      .selectDistinct({ codigo: pecas.codigo, nome: pecas.nome })
+      .from(projetoItens)
+      .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+      .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
+      .where(and(eq(projetoVersoes.projetoId, id), eq(projetoVersoes.numero, p.versaoAtual), eq(pecas.ativo, false)));
+    if (inativas.length) {
+      const uma = inativas.length === 1;
+      const lista = inativas.map((x) => `${x.codigo} (${x.nome})`).join(", ");
+      throw new ValidacaoError(`Não dá para reativar: ${uma ? `a peça ${lista} está inativa` : `as peças ${lista} estão inativas`} no catálogo. Reative ${uma ? "a peça" : "as peças"} ou tire-${uma ? "a" : "as"} do projeto antes.`);
+    }
+  }
   await db.update(projetos).set({ ativo }).where(eq(projetos.id, id));
   await registrarHistorico(db, { entidade: "projeto", entidadeId: id, acao: ativo ? "REATIVADO" : "INATIVADO", descricao: `Projeto ${p.nome} ${ativo ? "reativado" : "inativado"}.`, usuarioId: usuario.id });
 }

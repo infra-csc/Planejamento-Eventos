@@ -124,3 +124,24 @@ describe("excluir grupo de prova", () => {
     expect((await db.query.pecas.findFirst({ where: eq(pecas.id, peca.id) }))?.grupoId).toBeNull();
   });
 });
+
+describe("peça inativa (auditoria 30/10, parte C N8)", () => {
+  it("não reativa projeto com peça inativa e a mensagem do salvar cita a peça", async () => {
+    const peca = await criarPeca();
+    const p = await criarProjeto(E.cenografia, dados("Projeto com peça que sai", { itens: [{ pecaId: peca.id, quantidade: 1 }] }));
+    await alterarAtivoProjeto(E.cenografia, p.id, false);
+    await (await getDb()).update(pecas).set({ ativo: false }).where(eq(pecas.id, peca.id));
+
+    const erro = await alterarAtivoProjeto(E.cenografia, p.id, true).catch((e) => e);
+    expect(erro).toBeInstanceOf(ValidacaoError);
+    expect((erro as Error).message).toContain(`a peça ${peca.codigo} (Peça de teste) está inativa`);
+    expect((await obterProjeto(E.cenografia, p.id)).ativo).toBe(false);
+
+    const salvar = await editarProjeto(E.cenografia, p.id, dados("Projeto com peça que sai", { itens: [{ pecaId: peca.id, quantidade: 1 }] })).catch((e) => e);
+    expect((salvar as ValidacaoError).campos?.itens).toContain(`${peca.codigo} (Peça de teste) está inativa`);
+
+    // Trocando a peça, o projeto volta a salvar e pode ser reativado.
+    await editarProjeto(E.cenografia, p.id, dados("Projeto com peça que sai"));
+    await expect(alterarAtivoProjeto(E.cenografia, p.id, true)).resolves.toBeUndefined();
+  });
+});

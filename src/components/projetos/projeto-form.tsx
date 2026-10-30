@@ -40,7 +40,8 @@ export function ProjetoForm({
     categoria?: string;
     descricao?: string | null;
     grupoEvento?: string | null;
-    itens: Linha[];
+    /** `codigo`/`nome`: para mostrar a peça que saiu do catálogo (inativa), que não vem em `pecas`. */
+    itens: Array<Linha & { codigo?: string; nome?: string }>;
     versaoAtual?: number;
     disponivelEmSolicitacoes?: boolean;
     /** Duplicando outro projeto: de onde veio a lista (só informativo). */
@@ -57,7 +58,10 @@ export function ProjetoForm({
   voltarPara?: string;
 }) {
   const [state, action] = useActionState(salvarProjetoAction, ESTADO_INICIAL);
-  const [itens, setItens] = useState<Linha[]>(valores.itens);
+  const [itens, setItens] = useState<Linha[]>(() => valores.itens.map(({ pecaId, quantidade }) => ({ pecaId, quantidade })));
+  // Peça da versão salva que não está mais entre as ativas: antes virava "Peça fora do catálogo" e o salvar falhava
+  // sem dizer qual era (auditoria 30/10, parte C N8).
+  const salvas = useMemo(() => new Map(valores.itens.map((i) => [i.pecaId, i])), [valores.itens]);
   const [novaPeca, setNovaPeca] = useState<string | null>(null);
   const [novaQtd, setNovaQtd] = useState(1);
   const qtdRef = useRef<HTMLInputElement>(null);
@@ -189,14 +193,20 @@ export function ProjetoForm({
             <ul aria-label="Peças do projeto" aria-describedby={c?.itens ? "itens-erro" : undefined} className="m-0 list-none p-0">
               {itens.map((i, idx) => {
                 const p = mapa.get(i.pecaId);
+                const salva = p ? undefined : salvas.get(i.pecaId);
+                const codigo = p?.codigo ?? salva?.codigo;
                 return (
                   <li key={i.pecaId} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-row px-cartao py-2.5 last:border-b-0">
                     <span className="min-w-0 flex-1 basis-[220px]">
                       <span className="block text-corpo text-ink">
-                        {p?.codigo && <Codigo className="mr-2 text-pequeno font-medium text-ink-2">{p.codigo}</Codigo>}
-                        {p?.nome ?? "Peça fora do catálogo"}
+                        {codigo && <Codigo className="mr-2 text-pequeno font-medium text-ink-2">{codigo}</Codigo>}
+                        {p?.nome ?? (salva?.nome ? `${salva.nome} (inativa)` : "Peça fora do catálogo")}
                       </span>
-                      <span className="block text-pequeno text-muted">{p ? `${SETOR_LABEL[p.setor]}${p.familia ? ` · ${p.familia}` : ""}` : "—"}</span>
+                      {p ? (
+                        <span className="block text-pequeno text-muted">{`${SETOR_LABEL[p.setor]}${p.familia ? ` · ${p.familia}` : ""}`}</span>
+                      ) : (
+                        <span className="block text-pequeno text-warning">Inativa no catálogo: remova a linha (ou reative a peça) para salvar.</span>
+                      )}
                     </span>
                     <Stepper tamanho="sm" min={1} valor={i.quantidade} label={`Quantidade de ${p?.nome ?? "peça"}`} onChange={(v) => setItens((l) => l.map((x, j) => (j === idx ? { ...x, quantidade: v } : x)))} />
                     <IconButton label={`Remover ${p?.nome ?? "peça"}`} className="hover:text-danger" onClick={() => setItens((l) => l.filter((_, j) => j !== idx))}>

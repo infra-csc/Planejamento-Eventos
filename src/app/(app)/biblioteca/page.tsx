@@ -329,7 +329,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                     <span className="flex items-center gap-3">
                       {pode(usuario, "projeto.gerenciar") && (
                         <EditarProjetoModal
-                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, grupoEvento: detalhe.grupo?.nome ?? null, versaoAtual: detalhe.versaoAtual, disponivelEmSolicitacoes: detalhe.disponivelEmSolicitacoes, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
+                          projeto={{ id: detalhe.id, nome: detalhe.nome, categoria: detalhe.categoria, descricao: detalhe.descricao, grupoEvento: detalhe.grupo?.nome ?? null, versaoAtual: detalhe.versaoAtual, disponivelEmSolicitacoes: detalhe.disponivelEmSolicitacoes, itens: bom.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade, codigo: i.peca.codigo, nome: i.peca.nome })) }}
                           anexos={detalhe.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))}
                           categorias={[...new Set(projetos.map((x) => x.categoria).filter(Boolean))]}
                           grupos={gruposProjeto}
@@ -613,15 +613,17 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Quem só vê o catálogo também abre a peça (página de leitura, com fotos e PDFs): antes a linha
+                      mostrava o selo "PDF" e não abria nada (auditoria 30/10, parte C N9). */}
                   {pag.itens.map((p) =>
                     gerencia ? (
                       <LinhaLink key={p.id} className="group" href={hrefPeca(`/catalogo/${p.id}/editar`, voltaAqui)} rotulo={`Editar ${p.codigo} — ${p.nome}`}>
                         {celulas(p)}
                       </LinhaLink>
                     ) : (
-                      <tr key={p.id} className="hover:bg-subtle">
+                      <LinhaLink key={p.id} href={hrefPeca(`/catalogo/${p.id}`, voltaAqui)} rotulo={`Ver ${p.codigo} — ${p.nome}`}>
                         {celulas(p)}
-                      </tr>
+                      </LinhaLink>
                     ),
                   )}
                 </tbody>

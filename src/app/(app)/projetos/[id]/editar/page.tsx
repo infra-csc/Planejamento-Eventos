@@ -40,7 +40,7 @@ export default async function EditarProjetoPage({ params }: { params: Promise<{ 
         breadcrumbs={[{ label: "Biblioteca", href: "/biblioteca" }, { label: p.codigo, href: `/projetos/${p.id}` }, { label: "Editar" }]}
       />
       <ProjetoForm
-        valores={{ id: p.id, nome: p.nome, categoria: p.categoria, descricao: p.descricao, grupoEvento: p.grupo?.nome ?? null, versaoAtual: p.versaoAtual, disponivelEmSolicitacoes: p.disponivelEmSolicitacoes, itens: (p.versaoAtualObj?.itens ?? []).map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })) }}
+        valores={{ id: p.id, nome: p.nome, categoria: p.categoria, descricao: p.descricao, grupoEvento: p.grupo?.nome ?? null, versaoAtual: p.versaoAtual, disponivelEmSolicitacoes: p.disponivelEmSolicitacoes, itens: (p.versaoAtualObj?.itens ?? []).map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade, codigo: i.peca.codigo, nome: i.peca.nome })) }}
         pecas={pecas}
         categorias={categorias}
         grupos={grupos}

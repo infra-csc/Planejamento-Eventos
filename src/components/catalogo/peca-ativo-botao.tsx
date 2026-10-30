@@ -6,7 +6,8 @@ import { Button, type ButtonSize } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Aviso } from "@/components/ui/layout";
-import { toastErro } from "@/components/ui/toast";
+import { toastErro, toastSucesso } from "@/components/ui/toast";
+import type { ActionResult } from "@/lib/action";
 import { alterarAtivoPecaAction, impactoInativacaoPecaAction } from "@/app/(app)/catalogo/actions";
 import type { ImpactoInativacaoPeca } from "@/server/services/catalogo";
 
@@ -52,6 +53,14 @@ export function PecaAtivoBotao({ id, ativo, nome, size = "sm" }: { id: string; a
     if (!o) setImpacto(null);
   };
   const bloqueada = ativo && impacto && impacto.projetos.length > 0;
+  // O toast sai daqui, não do diálogo: na lista da Biblioteca a linha remonta (a chave leva `ativo`) antes de o
+  // diálogo mostrar o aviso, e a pessoa ficava sem retorno nenhum (auditoria 30/10, parte C N10).
+  const alterarComAviso = async (prev: ActionResult, fd: FormData): Promise<ActionResult> => {
+    const r = await alterarAtivoPecaAction(prev, fd);
+    if (!r.ok) return r;
+    toastSucesso(`${ativo ? "Peça inativada" : "Peça reativada"}: ${nome}`);
+    return { ...r, mensagem: undefined };
+  };
 
   return (
     // A linha da tabela abre a peça ao clicar: nada daqui (botão ou diálogo) pode chegar até ela.
@@ -84,7 +93,7 @@ export function PecaAtivoBotao({ id, ativo, nome, size = "sm" }: { id: string; a
           description={ativo ? "Peças inativas deixam de aparecer para novos projetos, solicitações e inclusões na ata." : "A peça volta a aparecer nas seleções."}
           confirmLabel={ativo ? "Inativar" : "Reativar"}
           danger={ativo}
-          action={alterarAtivoPecaAction}
+          action={alterarComAviso}
           hidden={{ id, ativo: String(!ativo) }}
         >
           {ativo && impacto && impacto.pedidos.length > 0 && (
