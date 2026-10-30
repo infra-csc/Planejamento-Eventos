@@ -5,6 +5,7 @@ import { areas, sessoes, solicitacoes, usuarios, type Perfil } from "@/server/db
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
+import { normalizarTexto } from "@/domain/carga-descarga";
 import { hashSenha, verificarSenha } from "@/server/auth/password";
 import { exigirDentroDoLimite, liberarTentativas } from "@/server/auth/limite";
 import { exibirDemo, SENHA_DEMO } from "@/server/auth/demo";
@@ -38,15 +39,18 @@ export async function listarAreasComContagem(usuario: UsuarioAtual) {
 export async function salvarArea(usuario: UsuarioAtual, id: string | null, dados: { nome: string; ativo: boolean }) {
   exigir(usuario, "admin.areas");
   const db = await getDb();
-  const [dup] = await db.select({ id: areas.id }).from(areas).where(sql`lower(${areas.nome}) = ${dados.nome.toLowerCase()}`);
-  if (dup && dup.id !== id) throw new ValidacaoError("Já existe uma área com este nome.", { nome: "Nome em uso." });
+  // Sem acento e sem caixa: "Producao" ao lado de "Produção" virava uma segunda área nas listas (auditoria 30/10,
+  // parte D N14). São poucas áreas: compara na memória, sem depender de extensão do banco (unaccent).
+  const chave = normalizarTexto(dados.nome.trim());
+  const dup = (await db.select({ id: areas.id, nome: areas.nome }).from(areas)).find((a) => normalizarTexto(a.nome.trim()) === chave);
+  if (dup && dup.id !== id) throw new ValidacaoError(`Já existe a área “${dup.nome}”.`, { nome: `Nome em uso por “${dup.nome}”.` });
   if (id) {
     await db.update(areas).set(dados).where(eq(areas.id, id));
-    await registrarHistorico(db, { entidade: "area", entidadeId: id, acao: "EDITADA", descricao: `Área "${dados.nome}" alterada`, usuarioId: usuario.id, dadosDepois: dados });
+    await registrarHistorico(db, { entidade: "area", entidadeId: id, acao: "EDITADA", descricao: `Área “${dados.nome}” alterada`, usuarioId: usuario.id, dadosDepois: dados });
     return id;
   }
   const [a] = await db.insert(areas).values(dados).returning();
-  await registrarHistorico(db, { entidade: "area", entidadeId: a.id, acao: "CRIADA", descricao: `Área "${dados.nome}" criada`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "area", entidadeId: a.id, acao: "CRIADA", descricao: `Área “${dados.nome}” criada`, usuarioId: usuario.id });
   return a.id;
 }
 
@@ -123,7 +127,11 @@ export async function editarUsuario(usuario: UsuarioAtual, id: string, dados: Da
   const mudancas: string[] = [];
   if (atual.perfil !== dados.perfil) mudancas.push(`perfil ${PERFIL_LABEL[atual.perfil]} → ${PERFIL_LABEL[dados.perfil]}`);
   if (atual.ativo !== dados.ativo) mudancas.push(dados.ativo ? "reativado" : "desativado");
-  if (atual.areaId !== patch.areaId) mudancas.push("área alterada");
+  // Nome das áreas, de e para: "área alterada" sozinho não dizia o que mudou (auditoria 30/10, parte D N18).
+  const nomesArea = new Map((await db.select({ id: areas.id, nome: areas.nome }).from(areas)).map((a) => [a.id, a.nome]));
+  const areaAntes = atual.areaId ? (nomesArea.get(atual.areaId) ?? null) : null;
+  const areaDepois = patch.areaId ? (nomesArea.get(patch.areaId) ?? null) : null;
+  if (atual.areaId !== patch.areaId) mudancas.push(`área ${areaAntes ?? "sem área"} → ${areaDepois ?? "sem área"}`);
   if (dados.senha) mudancas.push("senha redefinida");
   await registrarHistorico(db, {
     entidade: "usuario",
@@ -131,8 +139,8 @@ export async function editarUsuario(usuario: UsuarioAtual, id: string, dados: Da
     acao: "EDITADO",
     descricao: `Usuário ${dados.nome} alterado${mudancas.length ? ` — ${mudancas.join(", ")}` : ""}`,
     usuarioId: usuario.id,
-    dadosAntes: { perfil: atual.perfil, areaId: atual.areaId, ativo: atual.ativo },
-    dadosDepois: { perfil: dados.perfil, areaId: patch.areaId, ativo: dados.ativo },
+    dadosAntes: { perfil: atual.perfil, area: areaAntes, areaId: atual.areaId, ativo: atual.ativo },
+    dadosDepois: { perfil: dados.perfil, area: areaDepois, areaId: patch.areaId, ativo: dados.ativo },
   });
 }
 

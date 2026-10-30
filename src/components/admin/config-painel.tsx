@@ -64,7 +64,7 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
       <div className="flex items-center gap-6 border-b border-line-row px-cartao py-4">
         <span className="min-w-0 flex-1">
           <span className="block text-corpo font-medium text-ink">Reabertura de evento</span>
-          <span className="mt-0.5 block text-pequeno text-muted">Só a Gestão reabre um evento encerrado, com justificativa registrada no histórico.</span>
+          <span className="mt-0.5 block text-pequeno text-muted">Só a Gestão e o administrador reabrem um evento encerrado, com justificativa registrada no histórico.</span>
         </span>
         <Badge tom="rascunho">Restrita</Badge>
       </div>

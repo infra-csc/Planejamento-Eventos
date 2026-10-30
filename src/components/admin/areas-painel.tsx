@@ -38,7 +38,8 @@ function ModalArea({ area, onClose }: { area: A | null; onClose: () => void }) {
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title={area ? `Editar ${area.nome}` : "Nova área"} description="Todas as áreas ativas participam de qualquer evento.">
+      {/* A frase "todas as áreas ativas participam…" já está na nota da lista (auditoria 28/10, nº 183). */}
+      <DialogContent title={area ? `Editar ${area.nome}` : "Nova área"}>
         <form
           noValidate
           onSubmit={(e) => {

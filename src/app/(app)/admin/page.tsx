@@ -6,7 +6,6 @@ import { ultimoAcesso } from "@/lib/format";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { hrefCom } from "@/lib/url";
 import { PageHeader } from "@/components/ui/layout";
-import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { Paginacao } from "@/components/ui/tabela";
@@ -126,7 +125,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           areas={pag.itens}
           vazio={
             areas.length === 0
-              ? { titulo: "Nenhuma área cadastrada", descricao: "Todas as áreas ativas participam de qualquer evento." }
+              ? // A regra "todas participam" fica só na nota da barra; aqui, o próximo passo (auditoria 28/10, nº 183).
+                { titulo: "Nenhuma área cadastrada", descricao: "Crie a primeira área em “Nova área”." }
               : termo
                 ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia do nome da área.", acao: limparBusca }
                 : { titulo: situacao === "INATIVOS" ? "Nenhuma área inativa" : "Nenhuma área ativa" }
@@ -142,13 +142,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Administração" divisor actions={acao} />
+      <PageHeader title="Administração" actions={acao} />
 
-      {/* Barra compacta (template de pedidos): seção da administração e busca na mesma linha. */}
-      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <Pills rotulo="Seções da administração" itens={secoes.map((t) => ({ href: t.href, label: t.label, ativo: aba === t.chave }))} />
-        {busca}
-      </div>
+      {/* Seção da página em abas sublinhadas, como Carga e Ativação; pílulas ficam para filtro (auditoria 28/10, nº 53). */}
+      <TabsNav rotulo="Seções da administração" tabs={secoes.map((t) => ({ href: t.href, label: t.label, ativo: aba === t.chave }))} />
+      {busca && <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">{busca}</div>}
 
       {conteudo}
     </>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -14,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { toast, toastErro } from "@/components/ui/toast";
 import { usePedidoNovo } from "./novo-via-url";
 import { alternarAtivoUsuarioAction, gerarLinkAcessoAction, salvarUsuarioAction } from "@/app/(app)/admin/actions";
+import { verComoAction } from "@/app/(app)/ver-como/actions";
 import { PERFIL_DESCRICAO, PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { PERFIS } from "@/domain/constantes";
 import type { Perfil } from "@/server/db/schema";
@@ -22,6 +24,27 @@ type U = { id: string; nome: string; email: string; perfil: Perfil; areaId: stri
 type Form = { nome: string; email: string; perfil: Perfil; areaId: string };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Botão "⋯" da linha: é para ele que o foco volta depois de editar ou de fechar o link de acesso. */
+const idAcoes = (id: string) => `acoes-usuario-${id}`;
+/**
+ * O diálogo seguinte (link de acesso) e a revalidação da lista deixavam o foco no <body> (auditoria 30/10,
+ * parte D N20): devolve ao "⋯" da pessoa, depois que o Radix termina de fechar.
+ */
+function focarAcoes(id: string | null | undefined) {
+  if (!id) return;
+  requestAnimationFrame(() => document.getElementById(idAcoes(id))?.focus());
+}
+/** Ordem dos campos no formulário: o foco vai ao primeiro com erro, em vez de ficar no botão (N20). */
+const ORDEM_CAMPOS = [
+  ["nome", "u-nome"],
+  ["email", "u-email"],
+  ["areaId", "u-area"],
+] as const;
+function focarPrimeiroErro(e: Record<string, string>) {
+  const alvo = ORDEM_CAMPOS.find(([campo]) => e[campo]);
+  if (alvo) requestAnimationFrame(() => document.getElementById(alvo[1])?.focus());
+}
 
 function absoluto(link: string) {
   return link.startsWith("/") && typeof window !== "undefined" ? `${window.location.origin}${link}` : link;
@@ -70,7 +93,7 @@ function avisarDesativado(u: { id: string; nome: string }) {
   });
 }
 
-function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usuario: U | null; areas: Array<{ id: string; nome: string }>; emails: Array<{ id: string; email: string }>; meuId: string; onClose: () => void; onLink: (nome: string, link: string) => void }) {
+function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usuario: U | null; areas: Array<{ id: string; nome: string }>; emails: Array<{ id: string; email: string }>; meuId: string; onClose: (focarId?: string) => void; onLink: (nome: string, link: string, id: string) => void }) {
   const [f, setF] = useState<Form>({ nome: usuario?.nome ?? "", email: usuario?.email ?? "", perfil: usuario?.perfil ?? "REQUISITANTE", areaId: usuario?.areaId ?? "" });
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
@@ -87,6 +110,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
     }
     if (usaArea && !f.areaId) e.areaId = "Escolha a área.";
     setErros(e);
+    focarPrimeiroErro(e);
     return Object.keys(e).length === 0;
   };
 
@@ -96,15 +120,18 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
     iniciar(async () => {
       const r = await salvarUsuarioAction({ id: usuario?.id ?? null, nome: f.nome.trim(), email: f.email.trim(), perfil: f.perfil, areaId: usaArea ? f.areaId : null, ativo: usuario?.ativo ?? true });
       if (!r.ok) {
-        if (r.campos) setErros(r.campos);
+        if (r.campos) {
+          setErros(r.campos);
+          focarPrimeiroErro(r.campos);
+        }
         setErroGeral(r.erro);
         return;
       }
-      onClose();
       const d = r.dados;
+      onClose(d?.linkAcesso ? undefined : d?.id);
       if (!d) return;
       toast(d.criado ? `${d.nome} criado` : "Alterações salvas");
-      if (d.linkAcesso) onLink(d.nome, d.linkAcesso);
+      if (d.linkAcesso) onLink(d.nome, d.linkAcesso, d.id);
     });
   };
 
@@ -125,13 +152,13 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
       const r = await gerarLinkAcessoAction(usuario.id);
       if (r.ok && r.dados) {
         onClose();
-        onLink(usuario.nome, r.dados);
+        onLink(usuario.nome, r.dados, usuario.id);
       } else if (!r.ok) setErroGeral(r.erro);
     });
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && onClose(usuario?.id)}>
       {/* A sessão lê perfil e área do cadastro a cada pedido desde 2a58e97: dizer "próximo acesso" fazia o admin
           achar que a pessoa mantinha o acesso até sair (auditoria 30/10, parte D N12). */}
       <DialogContent title={usuario ? `Editar ${usuario.nome.split(" ")[0]}` : "Novo usuário"} description={usuario ? "Perfil e área valem na hora: a pessoa passa a ver só o que o novo perfil permite." : "Sem envio de e-mail neste ambiente: ao criar, você recebe o link para a pessoa definir a senha."}>
@@ -167,7 +194,7 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
             <Button type="submit" variant="primary" loading={pendente}>
               {usuario ? "Salvar alterações" : "Criar usuário"}
             </Button>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={() => onClose(usuario?.id)}>
               Cancelar
             </Button>
             <span className="flex-1" />
@@ -184,16 +211,22 @@ function ModalUsuario({ usuario, areas, emails, meuId, onClose, onLink }: { usua
 }
 
 /** Menu "⋯" da linha (template de pedidos): editar e, para outros usuários, desativar/reativar. */
-function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar }: { u: U; meuId: string; pendente: boolean; onEditar: () => void; onAlternar: () => void }) {
+function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar, onVerComo }: { u: U; meuId: string; pendente: boolean; onEditar: () => void; onAlternar: () => void; onVerComo: () => void }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
-        <IconButton label={`Ações de ${u.nome}`}>
+        <IconButton id={idAcoes(u.id)} label={`Ações de ${u.nome}`}>
           <Icone nome="reticencias" />
         </IconButton>
       </DropdownTrigger>
       <DropdownContent>
         <DropdownItem onSelect={onEditar}>Editar</DropdownItem>
+        {/* "Ver o app como…" ficava só no menu da conta (auditoria 28/10, nº 110): daqui, com o perfil e a área da pessoa. */}
+        {u.ativo && u.perfil !== "ADMIN" && (
+          <DropdownItem disabled={pendente} onSelect={onVerComo}>
+            Ver o app como {u.nome.split(" ")[0]}
+          </DropdownItem>
+        )}
         {u.id !== meuId && (
           <>
             <DropdownSeparator />
@@ -211,14 +244,31 @@ const CELULA = "border-b border-line-row px-3 py-3";
 
 export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; vazio: { titulo: string; descricao?: string; acao?: React.ReactNode } }) {
   const [modal, setModal] = useState<U | "novo" | null>(null);
-  const [link, setLink] = useState<{ nome: string; link: string } | null>(null);
+  const [link, setLink] = useState<{ nome: string; link: string; id: string } | null>(null);
   const [pendente, iniciar] = useTransition();
+  const router = useRouter();
   // "Novo usuário" do cabeçalho (e o link direto /admin?novo=1) abre o modal de criação.
   const limparPedido = usePedidoNovo(() => setModal("novo"));
-  const fechar = () => {
+  const fechar = (focarId?: string) => {
     setModal(null);
     limparPedido();
+    focarAcoes(focarId);
   };
+
+  const verComo = (u: U) =>
+    iniciar(async () => {
+      try {
+        const r = await verComoAction(u.perfil, u.areaId);
+        if (!r.ok) {
+          toastErro(r.erro ?? "Não foi possível trocar de perfil.");
+          return;
+        }
+        // O painel vale para todos os perfis; a administração não vale para nenhum dos perfis vistos.
+        router.push("/");
+      } catch {
+        toastErro("Não foi possível falar com o servidor. Tente de novo.");
+      }
+    });
 
   const alternar = (u: U) =>
     iniciar(async () => {
@@ -277,7 +327,7 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
                   <td className={cn(CELULA, "hidden text-pequeno text-ink-2 lg:table-cell")}>{u.areaNome ?? "—"}</td>
                   <td className={cn(CELULA, "numero hidden text-pequeno text-muted lg:table-cell")}>{u.ultimoAcesso}</td>
                   <td className="border-b border-line-row py-3 pl-1 pr-cartao text-right">
-                    <AcoesUsuario u={u} meuId={meuId} pendente={pendente} onEditar={() => setModal(u)} onAlternar={() => alternar(u)} />
+                    <AcoesUsuario u={u} meuId={meuId} pendente={pendente} onEditar={() => setModal(u)} onAlternar={() => alternar(u)} onVerComo={() => verComo(u)} />
                   </td>
                 </tr>
               ))}
@@ -285,8 +335,17 @@ export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usua
           </table>
         </div>
       )}
-      {modal && <ModalUsuario key={modal === "novo" ? "novo" : modal.id} usuario={modal === "novo" ? null : modal} areas={areas} emails={emails} meuId={meuId} onClose={fechar} onLink={(nome, l) => setLink({ nome, link: l })} />}
-      {link && <LinkAcesso nome={link.nome} link={link.link} onClose={() => setLink(null)} />}
+      {modal && <ModalUsuario key={modal === "novo" ? "novo" : modal.id} usuario={modal === "novo" ? null : modal} areas={areas} emails={emails} meuId={meuId} onClose={fechar} onLink={(nome, l, id) => setLink({ nome, link: l, id })} />}
+      {link && (
+        <LinkAcesso
+          nome={link.nome}
+          link={link.link}
+          onClose={() => {
+            setLink(null);
+            focarAcoes(link.id);
+          }}
+        />
+      )}
     </>
   );
 }
