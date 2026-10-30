@@ -140,7 +140,7 @@ export function Marcadores3D({
                       !emFoco && !p.principal && !divergente && "group-data-[zoom=longe]/mapa:hidden",
                     )}
                   >
-                    {p.legenda && !emFoco && <span className="mr-1 font-mono text-micro opacity-60">{p.legenda.split(" ")[0]}</span>}
+                    {p.legenda && !emFoco && <span className={cn("mr-1 numero text-micro", ativo ? "text-white/80" : "text-muted")}>{p.legenda.split(" ")[0]}</span>}
                     {p.nome}
                     {qtd != null && <span className={cn("ml-1 numero text-rotulo font-normal", ativo ? "text-white/75" : "text-muted")}>× {qtd.toLocaleString("pt-BR")}</span>}
                     {emFoco && !ativo && <span className="ml-1.5 font-normal text-muted">· {p.tipo}</span>}

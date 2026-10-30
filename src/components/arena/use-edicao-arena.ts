@@ -17,6 +17,8 @@ export type FormEdicao = { modo: "novo" | "info"; nome: string; categoria: strin
 
 const LIMITE_DESFAZER = 30;
 export const PASSO_GIRO = Math.PI / 12;
+/** Passo do "mover" pelo teclado/botões, em metros. */
+export const PASSO_MOVER = 1;
 const tipoRegistro = (chave: string) => (chave.startsWith("novo:") ? "NOVO" : "MOVER");
 const itemAtaDe = (p: PontoArena) => (p.itensAta[0] ? chaveItemAta(p.itensAta[0]) : null);
 
@@ -163,7 +165,7 @@ export function useEdicaoArena({
           if (!podeMexerNoPonto(secoesEditaveis, item.itemAta)) return avisarOutraArea(item.nome);
           empilhar(`posicionar ${item.nome}`, item.chave);
           setSelecionado(item.chave);
-          salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} entrou no mapa — arraste para acertar o lugar`);
+          salvarPosicao({ chave: item.chave, tipo: "NOVO", x, z, nome: item.nome, itemAta: item.itemAta, categoria: item.categoria ?? null }, `${item.nome} entrou no mapa — arraste ou use as setas de mover para acertar o lugar`);
         },
       }
     : null;
@@ -202,6 +204,27 @@ export function useEdicaoArena({
     salvarPosicao({ chave: p.id, tipo: tipoRegistro(p.id), x: p.posicao[0], z: p.posicao[1], nome: p.nome, itemAta: itemAtaDe(p), rotacao }, "", true);
   };
 
+  /**
+   * Mover sem arrastar (auditoria 28/10, nº 15 / A-P1-3): o ponto selecionado anda PASSO_MOVER metros. x = leste,
+   * z = sul. Cada passo grava e entra no "Desfazer", como o arraste.
+   */
+  const mover = (dx: number, dz: number) => {
+    const p = pontoSelecionadoEdicao;
+    if (!p || medindo) return;
+    if (!podeMexer(p)) return avisarOutraArea(p.nome);
+    const x = Math.round((p.posicao[0] + dx) * 10) / 10;
+    const z = Math.round((p.posicao[1] + dz) * 10) / 10;
+    empilhar(`mover ${p.nome}`, p.id);
+    setLocais((l) => ({ ...l, [p.id]: { ...l[p.id], posicao: [x, z] } }));
+    salvarPosicao({ chave: p.id, tipo: tipoRegistro(p.id), x, z, nome: p.nome, itemAta: itemAtaDe(p) }, "", true);
+  };
+
+  /** Pôr o item escolhido no centro da planta, sem clicar no mapa; depois se acerta com "mover" (nº 15). */
+  const colocarNoCentro = () => {
+    const a = arenaSalva.area;
+    edicaoPlano?.onColocar(Math.round(((a.minX + a.maxX) / 2) * 10) / 10, Math.round(((a.minZ + a.maxZ) / 2) * 10) / 10);
+  };
+
   /** Apaga o registro: ponto movido volta à planta, item novo sai do mapa (o da ata volta para "sem posição"). */
   const removerRegistro = (id: string, aviso: string, limparSelecao = true) => {
     const tinha = temRegistro(id);
@@ -224,7 +247,8 @@ export function useEdicaoArena({
     const livre = p.id.startsWith("novo:livre:");
     const novo = p.id.startsWith("novo:");
     empilhar(livre ? `excluir ${p.nome}` : novo ? `tirar ${p.nome} do mapa` : `voltar ${p.nome} ao lugar original`, p.id);
-    removerRegistro(p.id, livre ? `${p.nome} excluído do mapa` : novo ? `${p.nome} voltou para "sem posição"` : `${p.nome} voltou ao lugar da planta`);
+    // Aspas curvas, como o resto do app (auditoria 28/10, nº 153).
+    removerRegistro(p.id, livre ? `${p.nome} excluído do mapa` : novo ? `${p.nome} voltou para “sem posição”` : `${p.nome} voltou ao lugar da planta`);
   };
 
   const desfazer = () => {
@@ -267,6 +291,8 @@ export function useEdicaoArena({
     alternarEdicao,
     confirmarFormEdicao,
     girar,
+    mover,
+    colocarNoCentro,
     excluirDoMapa,
     desfazer,
     aposRestaurar,
@@ -283,10 +309,13 @@ export type EdicaoArena = ReturnType<typeof useEdicaoArena>;
  */
 export function useAtalhosEdicao({
   wrapperRef,
+  raizRef,
   edicao,
   medindo,
 }: {
   wrapperRef: React.RefObject<HTMLDivElement | null>;
+  /** Onde Q/E valem (mapa e barras): fora dela, as letras são do resto da página (auditoria 28/10, nº 65). */
+  raizRef?: React.RefObject<HTMLDivElement | null>;
   edicao: EdicaoArena;
   medindo: boolean;
 }) {
@@ -299,6 +328,7 @@ export function useAtalhosEdicao({
       if (!editando || !wrapperRef.current?.isConnected) return;
       const alvo = e.target as HTMLElement | null;
       if (alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.tagName === "SELECT" || alvo.isContentEditable)) return;
+      if (alvo && alvo !== document.body && !wrapperRef.current?.contains(alvo) && !raizRef?.current?.contains(alvo)) return;
       const tecla = e.key.toLowerCase();
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && tecla === "z") {
         e.preventDefault();

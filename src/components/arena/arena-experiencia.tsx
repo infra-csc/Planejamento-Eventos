@@ -48,6 +48,8 @@ export function ArenaExperiencia({
     arenaCenaRef.current = arena;
   });
   const wrapperRef = useRef<HTMLDivElement>(null);
+  /** Mapa, barra de edição e cabeçalho: onde os atalhos de uma tecla valem. */
+  const raizRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
@@ -324,8 +326,13 @@ export function ArenaExperiencia({
     const overflowAnterior = document.body.style.overflow;
     document.body.appendChild(el);
     document.body.style.overflow = "hidden";
+    // Sem a Fullscreen API (iPhone), o resto da página continuava focável atrás do mapa (auditoria 28/10, nº 65):
+    // fica inerte enquanto o mapa ocupa a tela. Menus e diálogos abertos depois entram no <body> e seguem usáveis.
+    const inertes = [...document.body.children].filter((c): c is HTMLElement => c !== el && c instanceof HTMLElement && !c.inert);
+    for (const c of inertes) c.inert = true;
     motorRef.current?.redimensionar();
     return () => {
+      for (const c of inertes) c.inert = false;
       document.body.style.overflow = overflowAnterior;
       if (pai) pai.insertBefore(el, proximo);
       requestAnimationFrame(() => motorRef.current?.redimensionar());
@@ -373,6 +380,9 @@ export function ArenaExperiencia({
   };
 
   const escolherResultado = (id: string) => {
+    // A opção clicada some com a lista e o foco caía no <body> (auditoria 30/10, parte D N20): fica no campo de busca,
+    // que também é para onde o Esc da ficha devolve.
+    buscaRef.current?.focus();
     setBuscaAberta(false);
     setTermo("");
     const cat = CATEGORIAS[arena.pontos.find((p) => p.id === id)?.categoria ?? "estrutura"];
@@ -386,6 +396,9 @@ export function ArenaExperiencia({
     atalhosRef.current = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
       const digitando = alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA" || alvo.isContentEditable);
+      // Atalhos de uma tecla só valem com o foco no mapa ou nas barras dele (ou em lugar nenhum): na janela inteira
+      // pegavam teclas digitadas no menu, no sino etc. (WCAG 2.1.4; auditoria 28/10, nº 65).
+      if (e.key !== "Escape" && alvo && alvo !== document.body && !raizRef.current?.contains(alvo) && !wrapperRef.current?.contains(alvo)) return;
       if (e.key === "Escape") {
         if (medindo && !digitando) pararMedicao();
         else if (buscaAberta) setBuscaAberta(false);
@@ -450,10 +463,10 @@ export function ArenaExperiencia({
   });
 
   // Ctrl+Z e Q/E da edição: registrados depois dos atalhos gerais, como antes.
-  useAtalhosEdicao({ wrapperRef, edicao, medindo });
+  useAtalhosEdicao({ wrapperRef, raizRef, edicao, medindo });
 
   return (
-    <div className="flex flex-col">
+    <div ref={raizRef} className="flex flex-col">
       {/* Cabeçalho compacto (tamanho "sm"): lido uma vez, não pode roubar altura do mapa para sempre. */}
       <CabecalhoArena arena={arena} totalDivergencias={totalDivergencias} conferenciaAtiva={conferenciaAtiva} onAlternarConferencia={alternarConferencia} />
 
@@ -598,13 +611,18 @@ export function ArenaExperiencia({
         {lento && usar3D && <AvisoLento onUsarLeve={() => trocarQualidade("leve")} onManter={() => setLento(false)} />}
         {/* Ações do ponto escolhido (editando): flutuam no canto do mapa (a legenda some ao editar) em vez de espremer a barra. */}
         {editando && pontoSelecionadoEdicao && !colocando && !medindo && (
-          <AcoesPontoEdicao ponto={pontoSelecionadoEdicao} pontoEditado={edicao.pontoEditado} girar={edicao.girar} setFormEdicao={setFormEdicao} excluirDoMapa={edicao.excluirDoMapa} />
+          <AcoesPontoEdicao ponto={pontoSelecionadoEdicao} pontoEditado={edicao.pontoEditado} girar={edicao.girar} mover={edicao.mover} setFormEdicao={setFormEdicao} excluirDoMapa={edicao.excluirDoMapa} />
         )}
         {arena.pontos.length === 0 && !editando && (
           // Embaixo e compacto: no meio, o aviso cobria justamente o mapa (planta e prédios do entorno).
           <div className="pointer-events-none absolute inset-x-3 bottom-16 z-10 flex justify-center sm:bottom-4">
             <p role="status" className="pointer-events-auto m-0 max-w-md rounded-cartao border border-line bg-surface/95 px-4 py-2.5 text-center text-pequeno text-ink-2 shadow-pill backdrop-blur-sm">
-              <span className="font-medium text-ink">Nada posicionado ainda.</span> {podeEditar ? "Use Editar mapa → + Adicionar ao mapa para posicionar estruturas e os itens da ata." : "A logística ainda não posicionou estruturas neste mapa."}
+              <span className="font-medium text-ink">Nada posicionado ainda.</span> {/* Quem edita o mapa é o administrador e, nos itens que pediram, as áreas; a logística não edita (auditoria 30/10, parte D N23). */}
+              {podeEditar
+                ? secoesEditaveis === null
+                  ? "Use Editar mapa → + Adicionar ao mapa para posicionar estruturas e os itens da ata."
+                  : "Use Editar mapa → + Posicionar itens da minha área para pôr no mapa o que a sua área pediu."
+                : "Ninguém posicionou estruturas neste mapa ainda."}
             </p>
           </div>
         )}

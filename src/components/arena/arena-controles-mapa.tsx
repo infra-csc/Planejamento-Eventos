@@ -4,7 +4,9 @@ import type { Arena, CategoriaPonto } from "@/domain/arena/tipos";
 import { CATEGORIAS, COR_PERCURSO, type Camada } from "@/domain/arena/categorias";
 import { cn } from "@/lib/cn";
 import type { MotorArena } from "./cena/motor";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Icone } from "@/components/ui/icons";
 import { Kbd, RotuloGrupo } from "@/components/ui/layout";
 import { Minimapa } from "./minimapa";
 import { BotaoMapa, cartao } from "./arena-botao-mapa";
@@ -27,6 +29,58 @@ const ATALHOS: Array<[string, string]> = [
   ["Ctrl Z", "Desfazer (edição)"],
   ["Esc", "Fechar painel ou parar de medir"],
 ];
+
+/**
+ * Painel de ajuda com papel de diálogo: o foco entra nele ao abrir (antes ficava no botão, e o leitor não
+ * chegava ao conteúdo; auditoria 28/10, nº 65). Esc fecha pelos atalhos do mapa.
+ */
+function useFocoAoAbrir<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    ref.current?.focus({ preventScroll: true });
+  }, []);
+  return ref;
+}
+
+function PainelFontes({ arena }: { arena: Arena }) {
+  const ref = useFocoAoAbrir<HTMLDivElement>();
+  return (
+    <div ref={ref} tabIndex={-1} role="dialog" aria-labelledby="fontes-titulo" className="pointer-events-auto max-w-[360px] rounded-cartao border border-line bg-surface px-[13px] py-[11px] shadow-popover outline-none animate-fade-up-rapido">
+      <span id="fontes-titulo" className="block [&>div]:mb-[5px]">
+        <RotuloGrupo>Fontes deste mapa</RotuloGrupo>
+      </span>
+      <ul className="m-0 list-none p-0 text-rotulo leading-[1.5] text-ink-2">
+        {arena.fonte.documentos.map((d) => (
+          <li key={d.nome} className="mb-1">
+            <span className="font-medium text-ink">{d.nome}</span> — {d.detalhe}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0 mt-1 text-rotulo leading-[1.5] text-muted">{arena.fonte.nota}</p>
+    </div>
+  );
+}
+
+function PainelAtalhos() {
+  const ref = useFocoAoAbrir<HTMLDivElement>();
+  return (
+    <div ref={ref} tabIndex={-1} role="dialog" aria-labelledby="atalhos-titulo" className="pointer-events-auto w-[290px] rounded-cartao border border-line bg-surface p-3 shadow-popover outline-none animate-fade-up-rapido">
+      <span id="atalhos-titulo" className="block [&>div]:mb-2">
+        <RotuloGrupo>Como navegar</RotuloGrupo>
+      </span>
+      <dl className="m-0 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-pequeno">
+        {ATALHOS.map(([tecla, acao]) => (
+          <div key={tecla} className="contents">
+            <dt className="whitespace-nowrap">
+              <Kbd>{tecla}</Kbd>
+            </dt>
+            <dd className="m-0 text-ink-2">{acao}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
 
 /** Aviso enquanto a cena 3D é montada. */
 export function CarregandoArena({ arena }: { arena: Arena }) {
@@ -73,38 +127,8 @@ export function ControlesCanto({
 }) {
   return (
     <div className={cn("pointer-events-none absolute z-10 flex flex-col items-end gap-2", direitaAberta && !estreito ? "right-[384px]" : "right-3", mostrarPlano ? "bottom-[132px]" : "bottom-3")}>
-      {fontesAbertas && (
-        <div role="dialog" aria-labelledby="fontes-titulo" className="pointer-events-auto max-w-[360px] rounded-cartao border border-line bg-surface px-[13px] py-[11px] shadow-popover animate-fade-up-rapido">
-          <span id="fontes-titulo" className="block [&>div]:mb-[5px]">
-            <RotuloGrupo>Fontes deste mapa</RotuloGrupo>
-          </span>
-          <ul className="m-0 list-none p-0 text-rotulo leading-[1.5] text-ink-2">
-            {arena.fonte.documentos.map((d) => (
-              <li key={d.nome} className="mb-1">
-                <span className="font-medium text-ink">{d.nome}</span> — {d.detalhe}
-              </li>
-            ))}
-          </ul>
-          <p className="m-0 mt-1 text-rotulo leading-[1.5] text-muted">{arena.fonte.nota}</p>
-        </div>
-      )}
-      {ajudaAberta && usar3D && (
-        <div role="dialog" aria-labelledby="atalhos-titulo" className="pointer-events-auto w-[290px] rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido">
-          <span id="atalhos-titulo" className="block [&>div]:mb-2">
-            <RotuloGrupo>Como navegar</RotuloGrupo>
-          </span>
-          <dl className="m-0 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-pequeno">
-            {ATALHOS.map(([tecla, acao]) => (
-              <div key={tecla} className="contents">
-                <dt className="whitespace-nowrap">
-                  <Kbd>{tecla}</Kbd>
-                </dt>
-                <dd className="m-0 text-ink-2">{acao}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
+      {fontesAbertas && <PainelFontes arena={arena} />}
+      {ajudaAberta && usar3D && <PainelAtalhos />}
       {usar3D && pronto && (
         <div className={cn("pointer-events-auto flex flex-col overflow-hidden", cartao)}>
           <BotaoMapa rotulo="Aproximar" atalho="+" onClick={() => motorRef.current?.aproximar(0.65)}>
@@ -170,13 +194,13 @@ export function LegendaMapa({
     <div className={cn("pointer-events-none absolute bottom-3 z-10 flex items-end gap-2", painelEsquerdoAberto && !estreito ? "left-[376px]" : "left-3", ((estreito && (direitaAberta || painelEsquerdoAberto)) || editando) && "hidden")}>
       {mostrarMinimapa && <Minimapa arena={arena} camadas={camadas} selecionado={selecionado} pegadaRef={pegadaRef} fundo={fundoMinimapa} onIr={(x, z) => motorRef.current?.irPara(x, z)} />}
       <div className={cn("pointer-events-auto max-w-[250px]", cartao)}>
-        <button type="button" aria-expanded={legendaAberta && largo} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-pequeno font-medium text-ink-2">
+        {/* A legenda abre em qualquer largura: abaixo de 1100 px o botão não abria nada e dizia sempre "fechada" (nº 65).
+            Seta pelo ícone do sistema, não "▲" (nº 117). */}
+        <button type="button" aria-expanded={legendaAberta} onClick={() => setLegendaAberta((v) => !v)} className="flex h-9 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-3 text-pequeno font-medium text-ink-2">
           Legenda
-          <span aria-hidden className={cn("text-micro text-muted transition-transform", legendaAberta && largo && "rotate-180")}>
-            ▲
-          </span>
+          <Icone nome="chevron-cima" className={cn("size-3.5 text-muted transition-transform", legendaAberta && "rotate-180")} />
         </button>
-        {legendaAberta && largo && (
+        {legendaAberta && (
           <div className="border-t border-line-soft px-3 pb-2.5 pt-2 text-pequeno text-ink-2">
             <p className="m-0 mb-1 flex items-center gap-2">
               <span aria-hidden className="block h-[3px] w-5 rounded-full" style={{ background: COR_PERCURSO }} />

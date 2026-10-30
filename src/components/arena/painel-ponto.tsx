@@ -129,7 +129,7 @@ export function PainelPonto({
             <p className="m-0 text-pequeno text-muted">Nenhuma linha da ata corresponde a este ponto.</p>
           ) : (
             <table className="w-full border-collapse text-pequeno">
-              <caption className="sr-only">Itens da ata de reunião de OS</caption>
+              <caption className="sr-only">Itens da ata da reunião de OS</caption>
               <thead>
                 <tr>
                   <th scope="col" className="border-b border-line-soft pb-1 text-left text-rotulo font-normal text-muted">

@@ -80,7 +80,7 @@ export async function trocarPlantaArenaAction(_prev: ActionResult, formData: For
   if (!slug.success) return { ok: false, erro: "Arena inválida." };
   const arquivo = arquivoDe(formData, "planta");
   if (!arquivo) return { ok: false, erro: "Escolha a imagem da planta (PNG, JPG ou WebP)." };
-  const r = await executar(() => trocarPlantaArena(usuario, slug.data, arquivo), "Planta atualizada.");
+  const r = await executar(() => trocarPlantaArena(usuario, slug.data, arquivo), "Planta atualizada");
   revalidatePath("/arena");
   revalidatePath(`/arena/${slug.data}`);
   return r;
@@ -90,7 +90,7 @@ export async function removerPlantaArenaAction(_prev: ActionResult, formData: Fo
   const usuario = await requireUsuario();
   const slug = slugSchema.safeParse(formData.get("slug"));
   if (!slug.success) return { ok: false, erro: "Arena inválida." };
-  const r = await executar(() => removerPlantaArena(usuario, slug.data), "Planta removida.");
+  const r = await executar(() => removerPlantaArena(usuario, slug.data), "Planta removida");
   revalidatePath("/arena");
   revalidatePath(`/arena/${slug.data}`);
   return r;
@@ -100,7 +100,7 @@ export async function excluirArenaAction(_prev: ActionResult, formData: FormData
   const usuario = await requireUsuario();
   const slug = slugSchema.safeParse(formData.get("slug"));
   if (!slug.success) return { ok: false, erro: "Arena inválida." };
-  const r = await executar(() => excluirArena(usuario, slug.data), "Arena excluída.");
+  const r = await executar(() => excluirArena(usuario, slug.data), "Arena excluída");
   revalidatePath("/arena");
   revalidatePath(`/arena/${slug.data}`);
   if (r.ok && r.dados?.eventoId) revalidatePath(`/eventos/${r.dados.eventoId}`);
@@ -130,7 +130,7 @@ export async function importarEntornoArenaAction(_prev: ActionResult, formData: 
   let r: ActionResult;
   try {
     const res = await importarEntornoArena(usuario, slug.data, { lat: coords[0], lon: coords[1], giro });
-    r = { ok: true, mensagem: res.predios || res.ruas ? `Entorno 3D importado: ${res.predios} prédios e ${res.ruas} trechos de rua.` : "O OpenStreetMap não tem prédios mapeados nesse lugar. Confira as coordenadas." };
+    r = { ok: true, mensagem: res.predios || res.ruas ? `Entorno 3D importado: ${res.predios} prédios e ${res.ruas} trechos de rua` : "O OpenStreetMap não tem prédios mapeados nesse lugar. Confira as coordenadas." };
   } catch (e) {
     r = tratarErro(e);
   }
@@ -143,7 +143,7 @@ export async function removerEntornoArenaAction(_prev: ActionResult, formData: F
   const usuario = await requireUsuario();
   const slug = slugSchema.safeParse(formData.get("slug"));
   if (!slug.success) return { ok: false, erro: "Arena inválida." };
-  const r = await executar(() => removerEntornoArena(usuario, slug.data), "Entorno 3D removido.");
+  const r = await executar(() => removerEntornoArena(usuario, slug.data), "Entorno 3D removido");
   revalidatePath("/arena");
   revalidatePath(`/arena/${slug.data}`);
   return r;
