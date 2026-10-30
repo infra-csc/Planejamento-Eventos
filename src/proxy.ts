@@ -56,5 +56,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // /api/anexos fica de fora: responde com a própria CSP (sandbox) e é validado na rota.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/anexos|.*\.(?:png|jpg|svg|ico|webp)$).*)"],
+  // "\\.": numa string comum, "\." vira "." (qualquer caractere), e todo caminho terminado em "ico" (/historico) pulava
+  // o proxy — sem CSP, sem o caminho no cabeçalho e sem o bloqueio da senha provisória (auditoria 30/10, parte D N4).
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|api/anexos|.*\\.(?:png|jpg|svg|ico|webp)$).*)"],
 };

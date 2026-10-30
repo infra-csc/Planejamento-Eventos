@@ -142,9 +142,12 @@ export function FormVeiculo({
   const escolherEvento = (id: string) => {
     limparErro();
     setEventoId(id);
-    // Destino da ida: o local do evento, enquanto ninguém digitou outro.
+    // Destino da ida: o local do evento, enquanto ninguém digitou outro. Trocar de evento troca também o destino que
+    // veio do evento anterior (antes ficava: o veículo do SUV Aurora saía com o endereço da corrida; auditoria 30/10, D N1).
     const e = eventos.find((x) => x.id === id);
-    if (e?.local && !ida.destino.trim()) mudaIda({ destino: e.local });
+    const anterior = eventos.find((x) => x.id === eventoId)?.local?.trim() ?? "";
+    const destinoAtual = ida.destino.trim();
+    if (!destinoAtual || (anterior && destinoAtual === anterior)) mudaIda({ destino: e?.local ?? "" });
   };
 
   const salvar = () => {
