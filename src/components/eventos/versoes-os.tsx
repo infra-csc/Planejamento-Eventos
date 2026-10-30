@@ -62,7 +62,8 @@ export function VersoesOs({ versoes }: { versoes: VersaoOsView[] }) {
               {v.resumo}
             </p>
             {!v.exibida && (
-              <Link href={v.base ? v.hrefLimpar : v.hrefComparar} scroll={false} className="relative z-10 shrink-0 text-pequeno text-accent no-underline hover:underline max-md:py-2" aria-label={v.base ? "Limpar comparação" : `Comparar com a v${v.numero}`}>
+              // Alvo de 24 px (40 no celular): era 18 px de altura (auditoria 28/10, nº 59 e 60).
+              <Link href={v.base ? v.hrefLimpar : v.hrefComparar} scroll={false} className="relative z-10 inline-flex min-h-6 shrink-0 items-center px-1 text-pequeno text-accent no-underline hover:underline max-md:min-h-10" aria-label={v.base ? "Limpar comparação" : `Comparar com a v${v.numero}`}>
                 {v.base ? "limpar" : "comparar"}
               </Link>
             )}

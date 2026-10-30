@@ -47,7 +47,8 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
             <Contagem n={n("mudou")} tipo="mudou" />
             <Contagem n={n("saiu")} tipo="saiu" />
           </div>
-          <div className="max-h-[420px] overflow-auto">
+          {/* Rola pelo teclado: região focável com nome (auditoria 28/10, nº 67). */}
+          <div className="max-h-[420px] overflow-auto" role="region" aria-label={titulo} tabIndex={0}>
             <table data-responsiva className="w-full border-collapse sm:min-w-[600px]">
               <CaptionOculta>{titulo}</CaptionOculta>
               <thead className="sticky top-0 z-[1]">

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventoItens, eventos, osVersoes, pecas, type OsConteudo, type OsGatilho, type Setor } from "@/server/db/schema";
@@ -167,9 +168,16 @@ export async function numeroOsAtual(ex: Executor, eventoId: string): Promise<num
   return Number(r?.v ?? 0);
 }
 
+/**
+ * Linhas ativas da ata lidas fora de transação, uma vez por requisição: a aba OS chamava a mesma leitura para o
+ * complemento, a OS ao vivo e a aba de itens (auditoria 28/10, nº 68). Só para páginas e rotas; quem grava usa
+ * `montarLinhasAta(tx, …)`.
+ */
+export const linhasAtivasDaRequisicao = cache(async (eventoId: string) => montarLinhasAta(await getDb(), eventoId));
+
 /** OS calculada agora a partir da ata (prévia antes do fechamento; versão atual gravada sem as visões novas). */
 export async function calcularOsAoVivo(eventoId: string) {
-  return calcularOsAtual(await getDb(), eventoId);
+  return calcularOS(await linhasAtivasDaRequisicao(eventoId));
 }
 
 /* ------------------------------------------------------------------ */
@@ -215,7 +223,7 @@ export async function complementoOs(eventoId: string) {
     orderBy: (t, { desc }) => [desc(t.numero)],
   });
   if (!enviada) return null;
-  const agora = await calcularOsAtual(db, eventoId);
+  const agora = calcularOS(await linhasAtivasDaRequisicao(eventoId));
   const diff = diffOS(enviada.conteudo, agora);
   return {
     numero: enviada.numero,

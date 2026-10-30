@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { obterLinhasAta } from "@/server/services/eventos";
+import { contarLinhasConferidas } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { toDateTimeLocal } from "@/lib/format";
 import { NaoEncontradoError } from "@/domain/errors";
@@ -17,9 +17,11 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
-  if (ev.status === "CANCELADO") redirect(`/eventos/${id}`);
-  // Adiar a reunião apaga as conferências: o diálogo avisa quantas.
-  const conferidas = ev.status === "EM_REUNIAO" ? (await obterLinhasAta(id)).filter((l) => l.conferidoEm).length : 0;
+  // Encerrado também volta para a visão geral: pela URL abria o formulário inteiro e só o salvar recusava (auditoria 30/10,
+  // B-35). Quem reabre é a gestão, pelo cabeçalho.
+  if (ev.status === "CANCELADO" || ev.status === "ENCERRADO") redirect(`/eventos/${id}`);
+  // Adiar a reunião apaga as conferências: o diálogo avisa quantas (contadas no banco, sem montar a ata; nº 146).
+  const conferidas = ev.status === "EM_REUNIAO" ? await contarLinhasConferidas(id) : 0;
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <h2 className="m-0 text-titulo font-semibold tracking-[-0.01em]">Editar evento</h2>

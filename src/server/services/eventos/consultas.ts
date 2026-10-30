@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { escopoRascunhos } from "../solicitacoes/escopo";
 import { ataVersoes, eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
@@ -223,6 +223,16 @@ export async function linhasAtaResumidas(eventoIds: string[]) {
     mapa.get(r.eventoId)?.push({ id: r.id, nome, quantidade: r.quantidade, destino: r.destino, areaNome: r.area?.nome ?? null, areaId: r.areaId });
   }
   return Object.fromEntries(mapa);
+}
+
+/** Linhas ativas já conferidas na reunião (o diálogo de adiar avisa quantas se perdem). Antes a tela montava a ata inteira para contar (auditoria 28/10, nº 146). */
+export async function contarLinhasConferidas(eventoId: string) {
+  const db = await getDb();
+  const [r] = await db
+    .select({ n: count() })
+    .from(eventoItens)
+    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), isNotNull(eventoItens.conferidoEm)));
+  return Number(r?.n ?? 0);
 }
 
 /** Itens de necessidades pré-reunião ainda sem resposta (bloqueiam o fechamento da ata). */

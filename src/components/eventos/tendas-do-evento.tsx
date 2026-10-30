@@ -141,9 +141,10 @@ function LinhaLocal({
                 {quem ? ` · ${quem}` : ""}
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-3 text-rotulo">
-                {!atual && <Link href={`/eventos/${eventoId}/itens/${linhas[0].id}`} className="link">abrir</Link>}
+                {/* 40 px no celular (auditoria 30/10, B-37). */}
+                {!atual && <Link href={`/eventos/${eventoId}/itens/${linhas[0].id}`} className="link max-md:inline-flex max-md:min-h-10 max-md:items-center">abrir</Link>}
                 {temDescricao && (
-                  <button type="button" aria-expanded={aberto} onClick={() => setAberto((v) => !v)} className="link cursor-pointer border-0 bg-transparent p-0 text-rotulo">
+                  <button type="button" aria-expanded={aberto} onClick={() => setAberto((v) => !v)} className="link cursor-pointer border-0 bg-transparent p-0 text-rotulo max-md:inline-flex max-md:min-h-10 max-md:items-center">
                     {aberto ? "Esconder pedido" : "Ver pedido"}
                   </button>
                 )}

@@ -282,7 +282,8 @@ function LocalTenda({
                     pedido <b className="numero font-semibold">{pedido}</b> {pedido === 1 ? "tenda" : "tendas"}
                   </span>
                 )}
-                {ajuste && <span className="truncate">{pedido !== null && pedido !== tendas ? "· " : ""}ajustado por {ajuste.por}</span>}
+                {/* Sem truncate: "ajustado por Marina Ca…" era cortado até a 1280 px (auditoria 28/10, nº 127). */}
+                {ajuste && <span>{pedido !== null && pedido !== tendas ? "· " : ""}ajustado por {ajuste.por}</span>}
               </span>
             )}
           </span>

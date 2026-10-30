@@ -198,7 +198,8 @@ export function MudancasPosAta({
           )}
         </div>
         {hrefOs && linhas.length > 0 && (
-          <Link href={hrefOs} className="link shrink-0 text-pequeno">
+          // 40 px no celular (auditoria 30/10, B-37).
+          <Link href={hrefOs} className="link shrink-0 text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
             Ver a diferença na OS
           </Link>
         )}

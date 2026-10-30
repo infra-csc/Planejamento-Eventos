@@ -88,15 +88,16 @@ function VincularModal({ linha, opcoes, podeCadastrar, onFechar }: { linha: { li
 
           {modo === "PECA" && (
             <div>
-              <Label>Peça do catálogo</Label>
-              <ComboBox value={pecaId} onChange={setPecaId} placeholder="Buscar por código ou nome" opcoes={opcoes.pecas.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo} · ${SETOR_LABEL[p.setor]}` }))} />
+              {/* Rótulo ligado ao campo: o nome lido era só o exemplo ("Buscar…"; auditoria 28/10, nº 64). */}
+              <Label htmlFor="vincular-peca">Peça do catálogo</Label>
+              <ComboBox id="vincular-peca" value={pecaId} onChange={setPecaId} placeholder="Buscar por código ou nome" opcoes={opcoes.pecas.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo} · ${SETOR_LABEL[p.setor]}` }))} />
               <p className="mb-0 mt-1.5 text-pequeno text-muted">Busca sem acento; várias palavras em qualquer ordem.</p>
             </div>
           )}
           {modo === "PROJETO" && (
             <div>
-              <Label>Projeto padrão</Label>
-              <ComboBox value={projetoId} onChange={setProjetoId} placeholder="Buscar projeto" opcoes={opcoes.projetos.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo}${p.categoria ? ` · ${p.categoria}` : ""}` }))} />
+              <Label htmlFor="vincular-projeto">Projeto padrão</Label>
+              <ComboBox id="vincular-projeto" value={projetoId} onChange={setProjetoId} placeholder="Buscar projeto" opcoes={opcoes.projetos.map((p) => ({ value: p.id, label: p.nome, descricao: `${p.codigo}${p.categoria ? ` · ${p.categoria}` : ""}` }))} />
             </div>
           )}
           {modo === "NOVA_PECA" && (
@@ -104,8 +105,8 @@ function VincularModal({ linha, opcoes, podeCadastrar, onFechar }: { linha: { li
               <Field label="Código" htmlFor="nova-codigo" error={campos.codigo}>
                 <Input id="nova-codigo" value={nova.codigo} onChange={(e) => setNova({ ...nova, codigo: e.target.value.toUpperCase() })} placeholder="Ex.: TOTEM-180" className="font-mono" />
               </Field>
-              <Field label="Setor" error={campos.setor ? "Escolha o setor." : undefined}>
-                <Select value={nova.setor} onValueChange={(v) => setNova({ ...nova, setor: v })} placeholder="Selecione" invalid={Boolean(campos.setor)} opcoes={SETORES.map((s) => ({ value: s, label: SETOR_LABEL[s] }))} />
+              <Field label="Setor" htmlFor="nova-setor" error={campos.setor ? "Escolha o setor." : undefined}>
+                <Select id="nova-setor" value={nova.setor} onValueChange={(v) => setNova({ ...nova, setor: v })} placeholder="Selecione" invalid={Boolean(campos.setor)} opcoes={SETORES.map((s) => ({ value: s, label: SETOR_LABEL[s] }))} />
               </Field>
               <Field label="Nome" htmlFor="nova-nome" error={campos.nome} className="sm:col-span-2">
                 <Input id="nova-nome" value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} />

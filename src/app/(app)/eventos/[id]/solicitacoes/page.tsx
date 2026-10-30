@@ -5,7 +5,7 @@ import { pode } from "@/domain/permissions";
 import { aguardaReuniao, podeResponder, podeResponderNaFase } from "@/domain/solicitacao";
 import { ButtonLink } from "@/components/ui/button";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
-import { ForaJanelaTag, SolicitacaoStatusBadge, TipoSolicitacaoTag } from "@/components/ui/badge";
+import { ForaJanelaTag, SolicitacaoStatusTexto } from "@/components/ui/badge";
 import { EmptyState, Section } from "@/components/ui/layout";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
@@ -86,22 +86,22 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                       <Codigo>{s.codigo}</Codigo>
                     </td>
                     <th scope="row" className="border-b border-line-row px-3 py-3 text-left font-normal">
+                      {/* Mesmo desenho da lista geral: uma informação por coluna, estado em ponto + texto, tipo e autor no title
+                          (antes selos cheios, Tag de tipo e "por fulano" embaixo do nome; auditoria 28/10, nº 36). */}
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:min-w-[220px]">
                         <Codigo className="text-rotulo text-ink-3 sm:hidden">{s.codigo}</Codigo>
-                        <span className="text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
-                        <TipoSolicitacaoTag tipo={s.tipo} />
+                        <span className="text-corpo font-medium text-ink" title={`${s.titulo || "sem título"} · ${s.tipo === "PRE_REUNIAO" ? "pré-reunião" : "alteração"} · por ${s.criadoPor.nome}`}>
+                          {s.titulo || "sem título"}
+                        </span>
                         {s.foraDaJanela && <ForaJanelaTag />}
                       </span>
-                      <span className="mt-0.5 block text-pequeno text-muted">
+                      {/* Colunas que somem na lista estreita descem para cá. */}
+                      <span className="mt-0.5 block text-pequeno text-muted xl:hidden">
                         <span className="lg:hidden">{s.area.nome} · </span>
-                        por {s.criadoPor.nome}
-                        <span className="xl:hidden">
-                          {" · "}
-                          <span className="numero">{textoItens(s)}</span>
-                        </span>
+                        <span className="numero">{textoItens(s)}</span>
                       </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
-                        <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                        <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                         {/* Sem prazo a mostrar ("—" das respondidas): no cartão do celular o traço solto só fazia ruído. */}
                         {(aguardaReuniao(s.tipo, s.evento.status) || pi.label !== "—") && (
                           <span className="numero inline-flex items-center gap-1.5 text-pequeno font-medium" style={{ color: COR_TOM[pi.tom] }}>
@@ -115,7 +115,7 @@ export default async function SolicitacoesEventoPage({ params }: { params: Promi
                       {textoItens(s)}
                     </td>
                     <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
-                      <SolicitacaoStatusBadge status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
+                      <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                     </td>
                     <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
                       {aguardaReuniao(s.tipo, s.evento.status) ? (

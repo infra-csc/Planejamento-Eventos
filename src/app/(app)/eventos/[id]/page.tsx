@@ -151,7 +151,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
     <Section
       titulo="Atividade"
       acoes={
-        <Link href={`/eventos/${id}/historico`} className="link text-pequeno">
+        // 40 px no celular (auditoria 30/10, B-37).
+        <Link href={`/eventos/${id}/historico`} className="link text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
           Ver tudo
         </Link>
       }

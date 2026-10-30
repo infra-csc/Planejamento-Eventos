@@ -21,11 +21,16 @@ export type OpcoesReferencia = {
 };
 
 type Tipo = "PROJETO" | "PECA" | "AVULSO";
+// Rótulos curtos: os três cabem numa linha a 375 px (antes quebravam em duas; auditoria 28/10, nº 133). "Fora do
+// catálogo", como no resto do app (antes "Item avulso"; nº 75). O campo abaixo diz o resto ("Projeto padrão", "Peça").
 const TIPOS: Array<[Tipo, string]> = [
-  ["PROJETO", "Projeto padrão"],
-  ["PECA", "Peça do catálogo"],
-  ["AVULSO", "Item avulso"],
+  ["PROJETO", "Projeto"],
+  ["PECA", "Peça"],
+  ["AVULSO", "Fora do catálogo"],
 ];
+
+/** "1 fechamento", "2 calhas": o rótulo da coluna é plural ("Fechamentos"); a frase segue o número (auditoria 30/10, B-13). */
+const porTendaTexto = (n: number, rotulo: string) => `${n} ${(n === 1 ? rotulo.replace(/s$/, "") : rotulo).toLowerCase()} por tenda`;
 
 /** `rotuloEnviar`: depois da ata o item entra na OS (a ata não muda) e o botão diz isso. */
 export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDone, rotuloEnviar = "Incluir na ata" }: { eventoId: string; opcoes: OpcoesReferencia; areas: Array<{ id: string; nome: string }>; exigeJustificativa: boolean; onDone: () => void; rotuloEnviar?: string }) {
@@ -57,7 +62,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
       <input type="hidden" name="referenciaTipo" value={tipo} />
       <div>
         <Label>{rotuloTipo}</Label>
-        <Pills rotulo={rotuloTipo} itens={TIPOS.map(([t, label]) => ({ label, ativo: tipo === t, onSelect: () => setTipo(t) }))} />
+        <Pills rotulo={rotuloTipo} className="!flex-nowrap" itens={TIPOS.map(([t, label]) => ({ label, ativo: tipo === t, onSelect: () => setTipo(t) }))} />
       </div>
 
       {tipo === "PROJETO" && (
@@ -92,7 +97,7 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         <div className="rounded-controle border border-line-soft bg-subtle p-3">
           <p className="m-0 mb-2 text-pequeno font-medium text-ink">
             Tenda {kit.tamanho} · totais do local
-            <span className="ml-1 font-normal text-ink-3">(padrão: {kit.papeis.map((p) => `${p.porTenda} ${p.rotulo.toLowerCase()} por tenda`).join(", ")})</span>
+            <span className="ml-1 font-normal text-ink-3">(padrão: {kit.papeis.map((p) => porTendaTexto(p.porTenda, p.rotulo)).join(", ")})</span>
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {kit.papeis.map((p) => (
@@ -109,7 +114,8 @@ export function LinhaAtaForm({ eventoId, opcoes, areas, exigeJustificativa, onDo
         <Select id="areaId" name="areaId" defaultValue="" opcoes={[{ value: "", label: "Logística (sem área)" }, ...areas.map((a) => ({ value: a.id, label: a.nome }))]} />
       </Field>
       {exigeJustificativa && (
-        <Field label="Justificativa" htmlFor="justificativa" error={campos?.justificativa}>
+        // Obrigatória no servidor: o "*" como nos outros diálogos depois da ata (auditoria 30/10, B-32).
+        <Field label="Justificativa" htmlFor="justificativa" error={campos?.justificativa} obrigatorio>
           <Textarea id="justificativa" name="justificativa" required placeholder="Por que esta linha entra fora de uma solicitação. Fica no histórico e a área é avisada." />
         </Field>
       )}

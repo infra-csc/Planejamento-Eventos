@@ -40,12 +40,13 @@ function rotular(acao: string, dadosDepois: unknown, perfil: Perfil | null): { t
     case "CANCELADA":
       return { titulo: "Solicitação cancelada", tom: "perigo" };
     case "REGISTRADO_NA_ATA":
-      return { titulo: "Entrou na ata (sem avaliação)", tom: "info" };
+      // "sem avaliação" soava como falha; o pedido entrou na ata e a resposta vem na reunião (auditoria 30/10, B-28).
+      return { titulo: "Entrou direto na ata (antes da resposta)", tom: "info" };
     case "ENTROU_NA_OS":
       return { titulo: "Entrou direto na OS (dentro da janela)", tom: "info" };
     case "RESPONDIDO": {
       // Dados antigos: registro automático na ata ficou com o nome de quem enviou.
-      if (perfil && !PERFIS_LOGISTICA.includes(perfil) && d.status === "ATENDIDO") return { titulo: "Entrou na ata (sem avaliação)", tom: "info" };
+      if (perfil && !PERFIS_LOGISTICA.includes(perfil) && d.status === "ATENDIDO") return { titulo: "Entrou direto na ata (antes da resposta)", tom: "info" };
       const st = typeof d.status === "string" ? d.status : null;
       return { titulo: `Respondido: ${st ? ITEM_STATUS_LABEL[st as keyof typeof ITEM_STATUS_LABEL].toLowerCase() : "resposta"}`, tom: st === "ATENDIDO" ? "ok" : st === "NAO_ATENDIDO" ? "perigo" : "atencao" };
     }

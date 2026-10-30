@@ -269,7 +269,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
               </div>
               <ListaDados
                 itens={[
-                  { label: "Respondido por", valor: naAta ? "entrou na ata sem avaliação" : (d.origem.respondidoPor ?? "—") },
+                  { label: "Respondido por", valor: naAta ? "entrou direto na ata (antes da resposta)" : (d.origem.respondidoPor ?? "—") },
                   { label: "Quando", valor: d.origem.respondidoEm ? diaMesHora(d.origem.respondidoEm) : "—" },
                   { label: "Conferido", valor: d.conferidoEm ? `${d.conferidoPor ?? ""} · ${diaMesHora(d.conferidoEm)}` : "ainda não" },
                 ]}

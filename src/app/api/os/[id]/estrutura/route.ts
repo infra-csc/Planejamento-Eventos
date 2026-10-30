@@ -34,16 +34,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
   if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS de estrutura");
   const { id } = await params;
-  let ev: Evento;
-  try {
-    ev = await obterEvento(usuario, id);
-  } catch (e) {
-    if (e instanceof NaoEncontradoError) return erroDownload(request, 404, "Evento não encontrado");
-    throw e;
-  }
+  // Evento e versões numa ida só (antes em série; auditoria 28/10, nº 147).
+  const [ev, versoes] = await Promise.all([
+    obterEvento(usuario, id).catch((e: unknown): Evento | null => {
+      if (e instanceof NaoEncontradoError) return null;
+      throw e;
+    }),
+    listarOsResumo(id),
+  ]);
+  if (!ev) return erroDownload(request, 404, "Evento não encontrado");
   // Mesma escolha de versão da rota /excel: ?v= pede uma versão; sem ela, a OS calculada da ata atual.
   const v = Number(new URL(request.url).searchParams.get("v"));
-  const versoes = await listarOsResumo(id);
   const pedida = Number.isInteger(v) && v > 0 ? versoes.find((x) => x.numero === v) : undefined;
   const gravado = pedida ? (await obterConteudosOs(id, [pedida.numero])).get(pedida.numero) : undefined;
   const ehAtual = pedida && versoes[0]?.numero === pedida.numero;

@@ -3,7 +3,7 @@ import { requirePermissao } from "@/server/auth/session";
 import { calcularOsAoVivo, complementoOs, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { EnvioOs } from "@/components/eventos/envio-os";
 import { obterEventoCache } from "@/server/cache";
-import { diffOS, resumoVersaoOs, type DiffLinha } from "@/domain/os";
+import { diffOS, RESUMO_SEM_MUDANCA, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export const metadata: Metadata = { title: "Ordem de serviço" };
 /** As exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
 function exportacoesOs(id: string, qs: string, previa = false): Exportacao[] {
   return [
-    { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e avulsos, com coluna de separação." },
+    { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e fora do catálogo, com coluna de separação." },
     { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "OS de estrutura", descricao: "Igual à planilha da cenografia: TOTAL, SOMATORIA e uma aba por projeto." },
     { tipo: "xlsx", href: `/api/os/${id}/marcenaria${qs}`, rotulo: "OS de marcenaria", descricao: "Igual à planilha da cenografia: seções, item, peças e quantidade." },
     { tipo: "imprimir", href: `/impressao/os/${id}${qs}`, rotulo: previa ? "Imprimir prévia" : "Imprimir", descricao: "Folha de separação com assinaturas, pronta para PDF." },
@@ -154,7 +154,9 @@ export default async function OsPage({ params, searchParams }: { params: Promise
       quando: diaMesHora(ver.geradaEm),
       autor: ver.geradaPor?.nome ?? "Sistema",
       descricao: ver.descricao,
-      resumo: ver.resumo ?? (c ? resumoVersaoOs(conteudo(ver.numero - 1), c) : ""),
+      // Versão sem mudança de peça (OS final ao encerrar, reabertura): diz que é igual à anterior, em vez de parecer
+      // uma OS nova (auditoria 30/10, B-12). Criar ou não essas versões é regra: fica como está.
+      resumo: ((r) => (r === RESUMO_SEM_MUDANCA && existe(ver.numero - 1) ? `igual à v${ver.numero - 1}: nenhuma quantidade mudou` : r))(ver.resumo ?? (c ? resumoVersaoOs(conteudo(ver.numero - 1), c) : "")),
       exibida: ver.id === exibida.id,
       base: ver.id === base?.id,
       atual: ver.id === atual.id,
@@ -221,19 +223,22 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           />
         )}
 
-        <DiffOs
-          titulo={tituloDiff}
-          sub={subDiff}
-          diff={diff}
-          vazio={existe(exibida.numero - 1) || base ? "Nenhuma quantidade de peça mudou." : "É a primeira versão: ainda não há outra para comparar. As próximas mostram aqui o que entrou, saiu ou mudou."}
-          acoes={
-            base && (
-              <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="ghost" size="sm" className="no-underline" scroll={false}>
-                Sair da comparação
-              </ButtonLink>
-            )
-          }
-        />
+        {/* Na primeira versão não há o que comparar: nada, em vez de um cartão inteiro dizendo isso (auditoria 28/10, nº 103). */}
+        {(existe(exibida.numero - 1) || base) && (
+          <DiffOs
+            titulo={tituloDiff}
+            sub={subDiff}
+            diff={diff}
+            vazio={exibida.gatilho === "ENCERRAMENTO" || exibida.gatilho === "REABERTURA" ? `Igual à v${exibida.numero - 1}: nenhuma quantidade de peça mudou.` : "Nenhuma quantidade de peça mudou."}
+            acoes={
+              base && (
+                <ButtonLink href={hrefCom(`/eventos/${id}/os`, paramsAtuais, { base: null })} variant="ghost" size="sm" className="no-underline" scroll={false}>
+                  Sair da comparação
+                </ButtonLink>
+              )
+            }
+          />
+        )}
 
         <OsVisoes
           os={os}

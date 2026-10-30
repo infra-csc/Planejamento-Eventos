@@ -103,7 +103,8 @@ export function PecasProjeto({
       <RodapeTabela
         direita={
           editavel && (
-            <Button variant="link" size="sm" onClick={() => abrir({ pecaId: null, codigo: "", nome: "", porUnidade: 0 })}>
+            // 40 px no celular: o link de botão não tem altura mínima (auditoria 30/10, B-37).
+            <Button variant="link" size="sm" className="max-md:min-h-10" onClick={() => abrir({ pecaId: null, codigo: "", nome: "", porUnidade: 0 })}>
               <Icone nome="mais" />
               Incluir peça
             </Button>

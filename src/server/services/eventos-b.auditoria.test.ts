@@ -12,7 +12,7 @@ import { getDb } from "@/server/db";
 import { eventoItens, historico, pecas, projetoItens, projetoVersoes, projetos } from "@/server/db/schema";
 import { criarPeca, enviarSolicitacao, eventoAberto, fecharAta, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { descricoesIguais } from "@/domain/descricoes-itens";
-import { contarAjustesPosAta, detalhesListaEventos, editarEvento, incluirLinhaAta, listarEventos, resumoAbasEvento, salvarDadosReuniao, transicionarEvento } from "./eventos";
+import { conferirLinha, contarAjustesPosAta, contarLinhasConferidas, detalhesListaEventos, editarEvento, incluirLinhaAta, listarEventos, resumoAbasEvento, salvarDadosReuniao, transicionarEvento } from "./eventos";
 import { ajustarTendasDoLocal, obterConferencia } from "./conferencia";
 import { salvarSeparacao } from "./separacao";
 
@@ -93,6 +93,17 @@ describe("auditoria parte B · servidor", () => {
     // A lista em si não traz mais esses campos (eram agregados de todas as solicitações e OS do banco).
     const linha = (await listarEventos(E.logistica)).find((e) => e.id === ev.id)!;
     expect("versaoOs" in linha).toBe(false);
+  });
+
+  it("nº 146 · a edição do evento conta as linhas conferidas no banco, sem montar a ata", async () => {
+    const ev = await novoEvento(E.logistica);
+    await incluirLinhaAta(E.logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId: (await criarPeca()).id, descricaoLivre: null, quantidade: 1, destino: null, areaId: null, justificativa: null });
+    await incluirLinhaAta(E.logistica, ev.id, { referenciaTipo: "PECA", projetoId: null, pecaId: (await criarPeca()).id, descricaoLivre: null, quantidade: 1, destino: null, areaId: null, justificativa: null });
+    await transicionarEvento(E.logistica, ev.id, "INICIAR_REUNIAO");
+    expect(await contarLinhasConferidas(ev.id)).toBe(0);
+    const [primeira] = await obterConferencia(ev.id);
+    await conferirLinha(E.logistica, ev.id, primeira.id, true);
+    expect(await contarLinhasConferidas(ev.id)).toBe(1);
   });
 
   it("nº 146 · a aba Ata conta os ajustes depois da ata sem ler o histórico inteiro, com a mesma conta da visão geral", async () => {

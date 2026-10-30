@@ -226,14 +226,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
   if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS");
   const { id } = await params;
-  // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
-  const ev = await obterEvento(usuario, id).catch((e: unknown) => {
-    if (e instanceof NaoEncontradoError) return null;
-    throw e;
-  });
+  // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro. Evento, versões e grupos de material
+  // numa ida só (antes em série; auditoria 28/10, nº 147).
+  const [ev, versoes, mapa] = await Promise.all([
+    obterEvento(usuario, id).catch((e: unknown) => {
+      if (e instanceof NaoEncontradoError) return null;
+      throw e;
+    }),
+    listarOsResumo(id),
+    mapaGruposPecas(),
+  ]);
   if (!ev) return erroDownload(request, 404, "Evento não encontrado");
   const v = Number(new URL(request.url).searchParams.get("v"));
-  const versoes = await listarOsResumo(id);
   const pedida = Number.isInteger(v) && v > 0 ? versoes.find((x) => x.numero === v) : undefined;
   const gravado = pedida ? (await obterConteudosOs(id, [pedida.numero])).get(pedida.numero) : undefined;
   // Sem versão pedida (ou versão atual gravada antes das visões novas): calcula da ata atual.
@@ -241,7 +245,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // O prisma comum são 2 grades, já somadas na grade: não sai como item próprio.
   const os = osParaLeitura(gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id));
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
-  const wb = montarPastaOs(ev, os, rotulo, usuario.nome, await mapaGruposPecas());
+  const wb = montarPastaOs(ev, os, rotulo, usuario.nome, mapa);
   const buffer = await wb.xlsx.writeBuffer();
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
