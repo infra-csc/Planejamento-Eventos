@@ -45,6 +45,8 @@ export type LinhaAtaView = {
   versao: number | null;
   versaoAtual: number | null;
   versaoDefasada: boolean;
+  /** Peças ajustadas uma a uma: a versão não se atualiza com um clique (auditoria 30/10, B-03). */
+  pecasAjustadas?: boolean;
   /** Primeira imagem do projeto padrão (miniatura na linha). */
   capaId?: string | null;
   /** Conferida na reunião de OS (ISO) e por quem. */
@@ -102,10 +104,18 @@ function BotaoAjustar({ nome, onClick, tenda }: { nome: string; onClick: () => v
 const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
 
 /** Projeto com versão nova na Biblioteca: quem ajusta atualiza a linha com um clique (fica no histórico). */
-export function BadgeVersao({ l, eventoId, podeAtualizar }: { l: Pick<LinhaAtaView, "id" | "nome" | "versao" | "versaoAtual">; eventoId: string; podeAtualizar: boolean }) {
+export function BadgeVersao({ l, eventoId, podeAtualizar }: { l: Pick<LinhaAtaView, "id" | "nome" | "versao" | "versaoAtual" | "pecasAjustadas">; eventoId: string; podeAtualizar: boolean }) {
   const [pendente, iniciar] = useTransition();
   const texto = `v${l.versao} · atualizar para v${l.versaoAtual}`;
   const cls = "ml-2 inline-flex h-[22px] items-center whitespace-nowrap rounded-chip border border-warning-border bg-warning-bg px-[7px] text-rotulo font-medium text-warning";
+  // Com peças ajustadas uma a uma o servidor recusa a atualização (apagaria os ajustes): o selo não é botão e diz
+  // por quê. Antes era um botão que sempre dava erro (auditoria 30/10, B-03).
+  if (podeAtualizar && l.pecasAjustadas)
+    return (
+      <span className={cls} title={`Existe a v${l.versaoAtual} na Biblioteca, mas as peças desta linha foram ajustadas uma a uma neste evento. Para usar a versão nova, inclua o projeto de novo e refaça os ajustes.`}>
+        {`v${l.versao} · existe v${l.versaoAtual} · peças ajustadas aqui`}
+      </span>
+    );
   if (!podeAtualizar) return <span className={cls}>{`v${l.versao} · existe v${l.versaoAtual}`}</span>;
   return (
     <button

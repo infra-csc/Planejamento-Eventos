@@ -200,7 +200,9 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     destino: linha.destino,
     area: linha.areaNome,
     capaId: linha.capaId ?? null,
-    origemLabel: linha.origemLabel,
+    // Pedido de outra área: sem o código e a situação ("SOL-0002 (parcial)"), como na visão geral e na ata
+    // (auditoria 30/10, B-05).
+    origemLabel: veTudo || !origem ? linha.origemLabel : "Pedido de área",
     conferidoEm: linha.conferidoEm ? linha.conferidoEm.toISOString() : null,
     conferidoPor: linha.conferidoPor ?? null,
     descricaoOriginal: linha.registro.descricaoLivre,

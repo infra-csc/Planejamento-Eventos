@@ -125,7 +125,7 @@ export function ListaItensEvento({
    */
   const celulaItem = ({ texto, title, so, recuo, tenda, ls, resumo, resumoMedio }: { texto: React.ReactNode; title: string; so?: "celular"; recuo?: boolean; tenda: string | null; ls: Linha[]; resumo: string; resumoMedio?: string }) => {
     const x = ls[0];
-    const versao = editavel && x.versaoDefasada ? <BadgeVersao l={{ id: x.id, nome: nomeExibido(x), versao: x.versao, versaoAtual: x.versaoAtual }} eventoId={eventoId} podeAtualizar /> : null;
+    const versao = editavel && x.versaoDefasada ? <BadgeVersao l={{ id: x.id, nome: nomeExibido(x), versao: x.versao, versaoAtual: x.versaoAtual, pecasAjustadas: x.pecasAjustadas }} eventoId={eventoId} podeAtualizar /> : null;
     // Fora do catálogo: "Vincular" junto do texto (é sobre o que o item é); a coluna de ações não alarga.
     const vincular = (onde: string) =>
       editavel && x.tipo === "AVULSO" && opcoes ? (

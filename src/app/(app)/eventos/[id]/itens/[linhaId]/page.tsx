@@ -238,7 +238,8 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
                   itens={[
                     { label: "Solicitante", valor: d.origem.solicitante, forte: true },
                     { label: "Área", valor: d.origem.area },
-                    { label: "Solicitação", valor: `${d.origem.codigo} · ${SOLICITACAO_TIPO_LABEL[d.origem.tipo].toLowerCase()}` },
+                    // Outra área: o código vem escondido (null); antes saía "Solicitação null · …" (auditoria 30/10, B-05).
+                    { label: "Solicitação", valor: d.origem.codigo ? `${d.origem.codigo} · ${SOLICITACAO_TIPO_LABEL[d.origem.tipo].toLowerCase()}` : SOLICITACAO_TIPO_LABEL[d.origem.tipo] },
                     { label: "Criada", valor: diaMesHora(d.origem.criadoEm) },
                     { label: "Enviada", valor: d.origem.enviadaEm ? diaMesHora(d.origem.enviadaEm) : "—" },
                     { label: "Pedido", valor: String(d.origem.quantidadeSolicitada), forte: true },

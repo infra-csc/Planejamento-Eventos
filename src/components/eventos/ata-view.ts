@@ -16,6 +16,7 @@ export function paraView(l: LinhaAtaDetalhe): LinhaAtaView {
     versao: l.versao,
     versaoAtual: l.versaoAtual,
     versaoDefasada: l.versaoDefasada,
+    pecasAjustadas: l.pecasAjustadas,
     capaId: l.capaId ?? null,
     conferidoEm: l.conferidoEm ? l.conferidoEm.toISOString() : null,
     conferidoPor: l.conferidoPor ?? null,

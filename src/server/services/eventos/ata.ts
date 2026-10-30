@@ -58,7 +58,19 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
     // Quem conferiu e quem incluiu direto (linha sem solicitação).
     nomesUsuarios(db, [...linhas.map((l) => l.registro.conferidoPorId), ...linhas.map((l) => l.registro.criadoPorId)]),
   ]);
-  const solicitantes = await nomesUsuarios(db, origens.map((o) => o.solicitanteId));
+  // Linha de projeto defasada com peças ajustadas uma a uma: "atualizar para vN" é recusado (apagaria os ajustes),
+  // então a tela mostra o selo sem botão (auditoria 30/10, B-03).
+  const defasadas = linhas.filter((l) => l.tipo === "PROJETO" && (l.registro.projetoVersao?.numero ?? 0) < (l.registro.projeto?.versaoAtual ?? 0)).map((l) => l.id);
+  const [solicitantes, ajustadas] = await Promise.all([
+    nomesUsuarios(db, origens.map((o) => o.solicitanteId)),
+    defasadas.length
+      ? db
+          .selectDistinct({ id: historico.entidadeId })
+          .from(historico)
+          .where(and(eq(historico.entidade, "evento_item"), eq(historico.acao, "PECA_PROJETO_AJUSTADA"), inArray(historico.entidadeId, defasadas)))
+          .then((rs) => new Set(rs.map((x) => x.id)))
+      : Promise.resolve(new Set<string>()),
+  ]);
   const mapa = new Map(origens.map((o) => [o.id, o]));
   const capaDe = new Map<string, string>();
   for (const c of capas) if (!capaDe.has(c.projetoId)) capaDe.set(c.projetoId, c.id);
@@ -86,6 +98,8 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
       versao,
       versaoAtual,
       versaoDefasada: l.tipo === "PROJETO" && versao != null && versaoAtual != null ? versao < versaoAtual : false,
+      /** Peças ajustadas uma a uma nesta linha: a versão não se atualiza com um clique. */
+      pecasAjustadas: ajustadas.has(l.id),
       capaId: l.registro.projetoId ? (capaDe.get(l.registro.projetoId) ?? null) : null,
       conferidoEm: l.registro.conferidoEm,
       /** Entrou depois do fechamento da ata (alteração atendida ou ajuste da logística). */

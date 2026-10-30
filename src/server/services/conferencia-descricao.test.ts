@@ -64,5 +64,9 @@ describe("editar descrição na conferência", () => {
     const restrito = await detalheLinha(E.requisitanteB, eventoId, l.id);
     expect(restrito.restrito).toBe(true);
     expect(restrito.origem?.descricoesPorUnidade).toBeNull();
+    // Código e situação do pedido de outra área ficam escondidos também no rótulo (auditoria 30/10, B-05).
+    expect(restrito.origem?.codigo).toBeNull();
+    expect(restrito.origemLabel).toBe("Pedido de área");
+    expect((await detalheLinha(E.requisitante, eventoId, l.id)).origemLabel).toMatch(/^SOL-/);
   });
 });

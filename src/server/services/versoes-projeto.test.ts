@@ -16,6 +16,7 @@ import { editarProjeto } from "./projetos";
 import { ajustarPecaDoProjeto } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
 import { atualizarProjetosDefasados } from "./eventos/versoes";
+import { obterLinhasAta } from "./eventos";
 
 let E: Elenco;
 beforeAll(async () => {
@@ -60,6 +61,9 @@ describe("projeto editado atualiza os eventos", { timeout: 60_000 }, () => {
     expect(r.atualizacao?.eventos).toEqual([]);
     expect(r.atualizacao?.pendentes).toEqual([{ evento: ev.codigo, projeto: p.nome }]);
     expect((await versaoDa(linha.id)).numero).toBe(1);
+    // A tela sabe que esta linha não atualiza com um clique (auditoria 30/10, B-03): o selo não é botão.
+    const naAta = (await obterLinhasAta(ev.id)).find((l) => l.id === linha.id)!;
+    expect(naAta).toMatchObject({ versaoDefasada: true, pecasAjustadas: true });
   });
 
   it("stand que passa a trazer tina e pallet: a linha antiga da regra desce; uma vez só ao subir", async () => {
