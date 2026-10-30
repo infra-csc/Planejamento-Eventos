@@ -328,7 +328,8 @@ export function ArenaExperiencia({
     document.body.style.overflow = "hidden";
     // Sem a Fullscreen API (iPhone), o resto da página continuava focável atrás do mapa (auditoria 28/10, nº 65):
     // fica inerte enquanto o mapa ocupa a tela. Menus e diálogos abertos depois entram no <body> e seguem usáveis.
-    const inertes = [...document.body.children].filter((c): c is HTMLElement => c !== el && c instanceof HTMLElement && !c.inert);
+    // A região dos avisos (aria-live, filha do <body>) continua viva: os toasts da edição seguem sendo anunciados.
+    const inertes = [...document.body.children].filter((c): c is HTMLElement => c !== el && c instanceof HTMLElement && !c.inert && !c.hasAttribute("aria-live"));
     for (const c of inertes) c.inert = true;
     motorRef.current?.redimensionar();
     return () => {
