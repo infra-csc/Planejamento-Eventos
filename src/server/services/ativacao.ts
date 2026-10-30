@@ -5,7 +5,7 @@ import { getDb } from "@/server/db";
 import { estoqueAnexos, estoqueItens, estoqueReformas, estoqueRetornos, historico, usuarios } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
-import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
+import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetorno, semDestinoNoRetorno, situacaoItem } from "@/domain/estoque";
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo } from "./projetos";
 import { diaBrasilia, registrarHistorico } from "./support";
@@ -115,7 +115,8 @@ export async function registrarRetorno(usuario: UsuarioAtual, eventoId: string, 
       const valores = { levou, voltaram: dados.voltaram, reforma: dados.reforma, perdidos: dados.perdidos, observacao, reformaId, registradoPorId: usuario.id, atualizadoEm: new Date() };
       if (antes) await tx.update(estoqueRetornos).set(valores).where(eq(estoqueRetornos.id, antes.id));
       else await tx.insert(estoqueRetornos).values({ ...valores, itemId: item.id, eventoId });
-      const partes = [`${dados.voltaram} voltaram`, dados.reforma ? `${dados.reforma} para reforma` : null, dados.perdidos ? `${dados.perdidos} perdidos` : null].filter(Boolean).join(", ");
+      const faltam = semDestinoNoRetorno({ levou, ...dados });
+      const partes = [`${dados.voltaram} ${dados.voltaram === 1 ? "voltou" : "voltaram"}`, dados.reforma ? `${dados.reforma} para reforma` : null, dados.perdidos ? `${dados.perdidos} ${dados.perdidos === 1 ? "perdido" : "perdidos"}` : null, faltam ? `${faltam} sem destino (contam como no galpão)` : null].filter(Boolean).join(", ");
       await registrarHistorico(tx, {
         eventoId,
         entidade: "estoque_item",
@@ -173,7 +174,14 @@ export async function abrirReforma(usuario: UsuarioAtual, dados: { itemId: strin
   return db.transaction(async (tx) => {
     const item = await tx.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, dados.itemId) });
     if (!item) throw new NaoEncontradoError("Item do estoque");
-    if (dados.quantidade > item.quantidade) throw new ValidacaoError(`O estoque de ${item.nome} tem ${item.quantidade}.`, { quantidade: `No máximo ${item.quantidade}.` });
+    // "Em posse" inclui o que saiu com a OS e ainda não voltou: só o que está no galpão vai para reforma. Antes
+    // dava para mandar as unidades de um evento em andamento, e o retorno delas falhava (auditoria 30/10, parte C N6).
+    const emEvento = (await situacaoDoEstoque(tx)).emEvento.get(item.id) ?? 0;
+    const noGalpao = Math.max(0, item.quantidade - emEvento);
+    if (dados.quantidade > noGalpao) {
+      const detalhe = emEvento ? ` (${emEvento} de ${item.quantidade} estão fora em evento)` : "";
+      throw new ValidacaoError(`${item.nome}: há ${noGalpao} no galpão${detalhe}.`, { quantidade: `No máximo ${noGalpao}.` });
+    }
     const [r] = await tx
       .insert(estoqueReformas)
       .values({ itemId: item.id, quantidade: dados.quantidade, motivo: textoOuNull(dados.motivo, 500), local: textoOuNull(dados.local, 120), previsao: dataOuNull(dados.previsao), criadoPorId: usuario.id })

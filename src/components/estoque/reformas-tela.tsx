@@ -18,7 +18,8 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
 
-type ItemOpcao = { id: string; nome: string; quantidade: number };
+/** `emEvento` e `reservado` limitam e avisam no "Enviar para reforma" (auditoria 30/10, parte C N6). */
+type ItemOpcao = { id: string; nome: string; quantidade: number; emEvento: number; reservado: number };
 type Modal = { tipo: "nova" } | { tipo: "editar"; r: ReformaTela } | { tipo: "concluir"; r: ReformaTela } | null;
 
 /** Reformas em andamento (com o que fazer em cada uma) e, embaixo, as concluídas. */
@@ -156,6 +157,9 @@ export function FormNova({ itens, itemFixo, onFechar }: { itens: ItemOpcao[]; it
   const [previsao, setPrevisao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const item = itens.find((i) => i.id === itemId);
+  // Só o que está no galpão: "em posse" inclui o que saiu com a OS e não voltou (auditoria 30/10, parte C N6).
+  const noGalpao = item ? Math.max(0, item.quantidade - item.emEvento) : 0;
+  const sobram = Math.max(0, noGalpao - quantidade);
   const salvar = () =>
     iniciar(async () => {
       if (!itemId) return setErro("Escolha o item.");
@@ -174,12 +178,18 @@ export function FormNova({ itens, itemFixo, onFechar }: { itens: ItemOpcao[]; it
       <div className="flex flex-col gap-3.5">
         {!itemFixo && (
           <Field label="Item" htmlFor="ref-item" obrigatorio>
-            <ComboBox id="ref-item" value={itemId} onChange={(v) => setItemId(v || null)} placeholder="Escolha o item" opcoes={itens.map((i) => ({ value: i.id, label: i.nome, descricao: `${i.quantidade} em posse` }))} />
+            <ComboBox id="ref-item" value={itemId} onChange={(v) => setItemId(v || null)} placeholder="Escolha o item" opcoes={itens.map((i) => ({ value: i.id, label: i.nome, descricao: i.emEvento ? `${i.quantidade - i.emEvento} no galpão` : `${i.quantidade} em posse` }))} />
           </Field>
         )}
-        <Field label="Quantidade" htmlFor="ref-qtd" hint={item ? `${item.quantidade} em posse` : undefined}>
-          <Stepper id="ref-qtd" valor={quantidade} min={1} max={item?.quantidade} onChange={setQuantidade} label="Quantidade para reforma" />
+        <Field label="Quantidade" htmlFor="ref-qtd" hint={item ? (item.emEvento ? `${noGalpao} no galpão (${item.emEvento} fora em evento)` : `${item.quantidade} em posse`) : undefined}>
+          <Stepper id="ref-qtd" valor={quantidade} min={1} max={item ? noGalpao : undefined} onChange={setQuantidade} label="Quantidade para reforma" />
         </Field>
+        {/* Reservado não bloqueia (a reforma pode voltar antes da montagem), mas avisa que vai faltar. */}
+        {item && item.reservado > 0 && quantidade > noGalpao - item.reservado && (
+          <p className="m-0 text-pequeno text-warning" role="status">
+            {item.reservado === 1 ? "1 unidade está reservada" : `${item.reservado} unidades estão reservadas`} para eventos que vão montar; com esta reforma {sobram === 1 ? "sobra 1" : `sobram ${sobram}`} no galpão.
+          </p>
+        )}
         <Field label="Motivo" htmlFor="ref-motivo" optional>
           <Textarea id="ref-motivo" value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} className="min-h-[64px]" placeholder="Ex.: tecido rasgado, haste torta" />
         </Field>

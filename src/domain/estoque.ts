@@ -66,6 +66,14 @@ export function problemaRetorno(r: DadosRetorno): string | null {
   return null;
 }
 
+/**
+ * Unidades que a OS levou e o retorno não classificou (nem boas, nem reforma, nem perdidas). Hoje elas continuam
+ * em posse e contam como disponíveis; o formulário e o histórico dizem isso (auditoria 30/10, parte C N7).
+ */
+export function semDestinoNoRetorno(r: Pick<DadosRetorno, "levou" | "voltaram" | "reforma" | "perdidos">): number {
+  return Math.max(0, r.levou - (r.voltaram + r.reforma + r.perdidos));
+}
+
 /** Concluir uma reforma: consertados voltam ao estoque, baixados saem; os dois somam o que estava em reforma. */
 export function problemaConclusao(quantidade: number, consertados: number, baixados: number): string | null {
   if (![consertados, baixados].every((v) => Number.isInteger(v) && v >= 0)) return "Use números inteiros, 0 ou mais.";

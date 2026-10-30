@@ -17,7 +17,7 @@ export default async function AtivacaoReformasPage() {
   return (
     <>
       <p className="mb-4 mt-0 max-w-[70ch] text-pequeno text-muted">Enquanto em reforma, o item não conta como disponível. Ao concluir, os consertados voltam ao estoque e os outros são baixados.</p>
-      <ReformasTela reformas={reformas} itens={itens.filter((i) => i.ativo && i.quantidade > 0).map((i) => ({ id: i.id, nome: i.nome, quantidade: i.quantidade }))} />
+      <ReformasTela reformas={reformas} itens={itens.filter((i) => i.ativo && i.quantidade - i.emEvento > 0).map((i) => ({ id: i.id, nome: i.nome, quantidade: i.quantidade, emEvento: i.emEvento, reservado: i.reservado }))} />
     </>
   );
 }

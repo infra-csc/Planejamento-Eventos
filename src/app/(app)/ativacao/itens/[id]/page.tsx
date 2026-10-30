@@ -65,7 +65,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
         description={item.observacao ?? undefined}
         actions={
           <>
-            <BotaoReformaItem item={{ id: item.id, nome: item.nome, quantidade: item.quantidade }} />
+            <BotaoReformaItem item={{ id: item.id, nome: item.nome, quantidade: item.quantidade, emEvento: situacao.emEvento, reservado: situacao.reservado }} />
             <BotaoEditarItemEstoque item={item} catalogo={catalogo} />
           </>
         }

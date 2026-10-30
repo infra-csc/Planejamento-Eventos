@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, estoqueItens, estoqueReformas, eventos, pecas } from "@/server/db/schema";
 import { DomainError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
-import { problemaConclusao, problemaRetorno, situacaoItem } from "@/domain/estoque";
+import { problemaConclusao, problemaRetorno, semDestinoNoRetorno, situacaoItem } from "@/domain/estoque";
 import { criarUsuario, dia, eventoAberto, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { abrirReforma, concluirReforma, listarReformas, listarRetornos, obterItemAtivacao, pedidosDoItem, registrarRetorno } from "./ativacao";
@@ -125,6 +125,23 @@ describe("módulo Ativação", { timeout: 60_000 }, () => {
     expect(p.at(-1)!.situacao).toBe("devolvido");
     const naLista = (await listarEstoque(ativacao)).find((i) => i.id === itemId)!;
     expect(naLista.eventos.map((e) => e.situacao)).toEqual(["fora"]);
+  });
+
+  it("reforma só leva o que está no galpão, não o que está fora em evento (auditoria 30/10, parte C N6)", async () => {
+    // 15 em posse, 10 fora no outro evento: no galpão há 5.
+    expect((await listarEstoque(ativacao)).find((i) => i.id === itemId)).toMatchObject({ quantidade: 15, emEvento: 10 });
+    await expect(abrirReforma(ativacao, { itemId, quantidade: 6 })).rejects.toThrow(/há 5 no galpão \(10 de 15 estão fora em evento\)/);
+    await abrirReforma(ativacao, { itemId, quantidade: 5, motivo: "costura" });
+    expect(await quantidade()).toBe(10);
+  });
+
+  it("retorno com soma menor que o levado registra no histórico as unidades sem destino (auditoria 30/10, parte C N7)", async () => {
+    expect(semDestinoNoRetorno({ levou: 10, voltaram: 1, reforma: 3, perdidos: 1 })).toBe(5);
+    expect(semDestinoNoRetorno({ levou: 10, voltaram: 12, reforma: 0, perdidos: 0 })).toBe(0);
+    const fora = (await listarRetornos(ativacao)).find((x) => x.situacao === "pendente")!;
+    await registrarRetorno(ativacao, fora.evento.id, [{ itemId, voltaram: 1, reforma: 3, perdidos: 1, observacao: "5 ficaram com o cliente" }]);
+    const d = await obterItemAtivacao(ativacao, itemId);
+    expect(d.historico[0].descricao).toMatch(/1 voltou, 3 para reforma, 1 perdido, 5 sem destino \(contam como no galpão\)/);
   });
 
   it("uma peça, um item; só a Ativação e o admin usam o módulo", async () => {

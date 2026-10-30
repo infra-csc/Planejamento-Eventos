@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { periodoCurto } from "@/lib/format";
-import { problemaRetorno } from "@/domain/estoque";
+import { problemaRetorno, semDestinoNoRetorno } from "@/domain/estoque";
 import { registrarRetornoAction } from "@/app/(app)/ativacao/actions";
 import type { EventoRetorno } from "@/server/services/ativacao";
 import { Button } from "@/components/ui/button";
@@ -209,6 +209,13 @@ function FormRetorno({ e, onFechar }: { e: EventoRetorno; onFechar: () => void }
                   <Input id={`ret-o-${k}`} aria-label={`Observação de ${l.nome}`} value={l.observacao} maxLength={500} onChange={(ev) => mudar(k, "observacao", ev.target.value)} />
                 </Field>
               </div>
+              {/* As que faltam não saem do estoque: sem o aviso, ficavam "em posse" e "disponíveis" sem ninguém
+                  perceber (auditoria 30/10, parte C N7). */}
+              {semDestinoNoRetorno(l) > 0 && (
+                <p className="m-0 mt-2 text-pequeno text-warning" role="status">
+                  {semDestinoNoRetorno(l) === 1 ? "1 unidade fica sem destino e continua contando como no galpão" : `${semDestinoNoRetorno(l)} unidades ficam sem destino e continuam contando como no galpão`}. Se não vão voltar, some em Perdidos; dá para corrigir o retorno se aparecerem.
+                </p>
+              )}
             </fieldset>
           );
         })}

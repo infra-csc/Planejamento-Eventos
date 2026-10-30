@@ -183,13 +183,24 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   const [valor, setValor] = useState(item.quantidade);
   const [estado, setEstado] = useState<"" | "salvando" | "salvo">("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendente = useRef<number | null>(null);
+  // Se a linha sai da tela (aba, busca, recarga da lista) com um "+" ainda esperando os 0,7 s, grava na hora.
+  // Antes a limpeza só cancelava e o número se perdia sem aviso (auditoria 30/10, parte C N4).
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
-  }, []);
+    if (pendente.current === null) return;
+    void ajustarQuantidadeEstoqueAction(item.id, pendente.current).then((r) => {
+      if (r.ok) router.refresh();
+      else toastErro(`${item.nome}: ${r.erro}`);
+    });
+  }, [item.id, item.nome, router]);
   const mudar = (v: number) => {
     setValor(v);
+    pendente.current = v;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
+      timer.current = null;
+      pendente.current = null;
       setEstado("salvando");
       const r = await ajustarQuantidadeEstoqueAction(item.id, v);
       if (!r.ok) {

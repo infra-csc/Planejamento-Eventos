@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
 
@@ -31,6 +32,9 @@ export function Stepper({
   disabled?: boolean;
   className?: string;
 }) {
+  // Campo apagado para digitar outro número: fica vazio sem avisar ninguém. Antes Number("") virava 0 e o
+  // estoque gravava 0 enquanto a pessoa pensava (auditoria 30/10, parte C N5). Ao sair vazio, volta o valor.
+  const [rascunho, setRascunho] = useState<string | null>(null);
   const fixar = (n: number) => Math.max(min, Math.min(max, Math.floor(Number.isFinite(n) ? n : min)));
   const sm = tamanho === "sm";
   // "Aumentar" sozinho se repete em cada linha da lista: com o rótulo, o leitor de tela diz de qual quantidade é.
@@ -51,12 +55,17 @@ export function Stepper({
         inputMode="numeric"
         min={min}
         max={max}
-        value={valor}
+        value={rascunho ?? valor}
         aria-label={label}
         autoFocus={autoFocus}
         disabled={disabled}
-        onChange={(e) => onChange(fixar(Number(e.target.value)))}
+        onChange={(e) => {
+          if (e.target.value.trim() === "") return setRascunho("");
+          setRascunho(null);
+          onChange(fixar(Number(e.target.value)));
+        }}
         onFocus={(e) => e.target.select()}
+        onBlur={() => setRascunho(null)}
         className={cn("numero border-0 bg-surface text-center text-corpo font-medium text-ink focus:outline-none max-md:h-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", sm ? "h-[30px] w-12" : "h-[34px] w-16")}
       />
       <button type="button" aria-label={`Aumentar${deQue}`} disabled={disabled || valor >= max} onClick={() => onChange(fixar(valor + 1))} className={btn}>
