@@ -4,6 +4,7 @@ import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { descricaoItem, listarFila, padraoTendaPorVersao } from "@/server/services/solicitacoes";
 import { obterSolicitacaoCache } from "@/server/cache";
 import { resumirAjustes } from "@/domain/os";
+import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { agruparItensPedido, agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import { pode, podeEditarSolicitacao } from "@/domain/permissions";
@@ -93,6 +94,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     justificativa: i.justificativa?.trim() || null,
     descricoes: i.descricoes ?? null,
     ajustes: tenda ? ajustesTenda(i) : resumirAjustes(i.ajustesBom),
+    // Peça que puxa outra (cocho → cavaletes): a resposta parcial não mexe na linha automática (auditoria 30/10, A N5).
+    acompanhante: (() => {
+      const codigo = i.peca?.codigo ?? i.eventoItem?.peca?.codigo;
+      const a = codigo ? ACOMPANHANTES.find((x) => x.bases.includes(codigo)) : undefined;
+      return a ? { codigo: a.acompanhante, fator: a.fator, texto: a.texto } : undefined;
+    })(),
     status: i.status,
     quantidadeAtendida: i.quantidadeAtendida,
     observacaoLogistica: i.observacaoLogistica,

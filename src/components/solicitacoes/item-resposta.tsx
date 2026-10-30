@@ -15,6 +15,7 @@ import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
 import { agruparDescricoes } from "@/domain/descricoes-itens";
 import { OBS_REGISTRADO_NA_ATA } from "@/domain/solicitacao";
+import { LIMITES } from "@/domain/constantes";
 import { agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
 
@@ -42,6 +43,8 @@ export type ItemParaResposta = {
   /** Quem pode responder/corrigir este item específico (fase do evento e perfil). */
   respondivel: boolean;
   corrigivel: boolean;
+  /** Peça que sempre leva outra (1 cocho = 2 cavaletes): a linha automática não acompanha a resposta. */
+  acompanhante?: { codigo: string; fator: number; texto: string };
   /** Pré-reunião com a ata aberta: mostra "Na ata · aguarda conferência" em vez de "Atendido". */
   aguardandoReuniao?: boolean;
 };
@@ -96,6 +99,17 @@ export function RespostaProvider({
 
   /* Trava síncrona: A A rápido ou Enter repetido não pode disparar duas respostas antes de `pendente` virar true. */
   const enviandoRef = useRef(false);
+  // Depois de responder, o foco volta ao item (o botão do painel some e o foco caía no <body>: quem responde pelo
+  // teclado voltava ao "Pular para o conteúdo" a cada item) — auditoria 30/10, parte A N8.
+  const focoAoTerminar = useRef<string | null>(null);
+  useEffect(() => {
+    if (pendente || !focoAoTerminar.current) return;
+    const id = focoAoTerminar.current;
+    focoAoTerminar.current = null;
+    const ativo = document.activeElement;
+    if (ativo && ativo !== document.body && ativo.isConnected) return;
+    document.querySelector<HTMLElement>(`[data-item-resposta="${CSS.escape(id)}"]`)?.focus();
+  }, [pendente]);
   const enviar = (item: ItemParaResposta, dados: DadosResposta) =>
     new Promise<boolean>((resolve) => {
       if (enviandoRef.current) {
@@ -103,6 +117,7 @@ export function RespostaProvider({
         return;
       }
       enviandoRef.current = true;
+      focoAoTerminar.current = item.id;
       iniciar(async () => {
         let r: Awaited<ReturnType<typeof responderItemAction>>;
         try {
@@ -208,13 +223,23 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const faixa = faixaParcial(item);
   const [qtd, setQtd] = useState<number>(corrigir && item.quantidadeAtendida ? item.quantidadeAtendida : Math.min(faixa.max, Math.max(faixa.min, item.quantidadeSolicitada - 1)));
   // A frase automática da pré-reunião não é motivo de ninguém: o campo começa vazio.
-  const [obs, setObs] = useState(corrigir && item.observacaoLogistica?.trim() !== OBS_REGISTRADO_NA_ATA ? (item.observacaoLogistica ?? "") : "");
+  const obsInicial = corrigir && item.observacaoLogistica?.trim() !== OBS_REGISTRADO_NA_ATA ? (item.observacaoLogistica ?? "") : "";
+  const [obs, setObs] = useState(obsInicial);
   const [pendencia, setPendencia] = useState(corrigir ? item.pendenciaCompra : modo === "PARCIAL");
   const [justificativa, setJustificativa] = useState("");
   const [erro, setErro] = useState<{ campo: "qtd" | "obs" | "justificativa"; msg: string } | null>(null);
   const idErro = (campo: "qtd" | "obs" | "justificativa") => `erro-resposta-${item.id}-${campo}`;
   const aria = (campo: "qtd" | "obs" | "justificativa") => (erro?.campo === campo ? { "aria-invalid": true, "aria-describedby": idErro(campo) } : {});
   const motivoObrigatorio = status !== "ATENDIDO";
+  // Quanto do item fica na ata com esta resposta (para o aviso do acompanhante).
+  const ficaNaAta = status === "PARCIAL" ? qtd : item.operacao === "ALTERAR_QUANTIDADE" ? (item.quantidadeAtual ?? 0) : 0;
+  // Corrigir para "Atendido" não leva junto o motivo do parcial/não atendido: o item ficava "Atendido 3 · Logística:
+  // Não há outro stand livre." (auditoria 30/10, parte A N3). Voltando à resposta antiga, o motivo volta.
+  const trocarStatus = (v: Exclude<ItemStatus, "EM_ANALISE">) => {
+    setStatus(v);
+    if (v === "ATENDIDO" && item.status !== "ATENDIDO" && obs === obsInicial) setObs("");
+    else if (v === item.status && !obs.trim()) setObs(obsInicial);
+  };
 
   const confirmar = async () => {
     if (pendente) return;
@@ -228,6 +253,16 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
     }
     if (corrigir && !justificativa.trim()) {
       setErro({ campo: "justificativa", msg: "Informe por que a resposta está sendo corrigida." });
+      return;
+    }
+    // Limite do servidor conferido aqui, no campo: antes 655 caracteres davam só o toast "Máximo de 500 caracteres",
+    // sem dizer qual campo (auditoria 30/10, parte A N7).
+    if (obs.trim().length > LIMITES.justificativa) {
+      setErro({ campo: "obs", msg: `${motivoObrigatorio ? "O motivo" : "A observação"} tem ${obs.trim().length} caracteres; o máximo é ${LIMITES.justificativa}.` });
+      return;
+    }
+    if (justificativa.trim().length > LIMITES.justificativa) {
+      setErro({ campo: "justificativa", msg: `A justificativa tem ${justificativa.trim().length} caracteres; o máximo é ${LIMITES.justificativa}.` });
       return;
     }
     setErro(null);
@@ -268,7 +303,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
     >
       <p className="mb-2.5 mt-0 text-pequeno font-medium text-ink">{tituloPainel}</p>
       <div className="flex flex-col gap-3">
-        {corrigir && <Pills rotulo="Nova resposta" itens={opcoes.map(([v, label]) => ({ label, ativo: status === v, onSelect: () => setStatus(v) }))} />}
+        {corrigir && <Pills rotulo="Nova resposta" itens={opcoes.map(([v, label]) => ({ label, ativo: status === v, onSelect: () => trocarStatus(v) }))} />}
         {status === "PARCIAL" && (
           <div>
             <Label htmlFor={`qtd-${item.id}`}>Quantidade atendida</Label>
@@ -312,6 +347,14 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
               </div>
             )}
           </div>
+        )}
+        {/* A linha automática do acompanhante (cavaletes do cocho…) não muda com esta resposta: antes a ata ficava
+            com Cocho 2 e Cavalete 6, e só a conferência acusava (auditoria 30/10, parte A N5). Recalcular sozinho é
+            decisão do time; por ora, o aviso. */}
+        {item.acompanhante && item.operacao !== "REMOVER" && status !== "ATENDIDO" && (
+          <p className="m-0 text-pequeno text-warning" role="status">
+            {item.acompanhante.texto}: com {ficaNaAta} na ata, a regra pede {ficaNaAta * item.acompanhante.fator}. A linha automática ({item.acompanhante.codigo}) não muda com esta resposta; ajuste-a também.
+          </p>
         )}
         {status !== "ATENDIDO" && !TELAS_INATIVAS.pendencias && <Checkbox id={`pendencia-${item.id}`} label="Gerar pendência de compra ou locação" checked={pendencia} onChange={setPendencia} />}
       </div>
@@ -600,7 +643,13 @@ export function ItemResposta({
                 <Numero valor={item.quantidadeSolicitada} className="font-semibold text-ink" />
               )}
             </span>
-            {!emAnalise && !naAta && item.operacao !== "REMOVER" && (
+            {/* Mudança de quantidade não atendida: a linha fica como estava. "Atendido 0" fazia pensar que a peça
+                tinha saído do evento (auditoria 30/10, parte A N4). */}
+            {!emAnalise && !naAta && item.operacao === "ALTERAR_QUANTIDADE" && item.status === "NAO_ATENDIDO" ? (
+              <span>
+                Fica <Numero valor={item.quantidadeAtual} className="font-semibold text-ink" /> (sem mudança)
+              </span>
+            ) : !emAnalise && !naAta && item.operacao !== "REMOVER" && (
               <span>
                 Atendido <Numero valor={item.quantidadeAtendida ?? 0} className={cn("font-semibold", item.status === "ATENDIDO" ? "text-success" : item.status === "PARCIAL" ? "text-warning" : "text-danger")} />
               </span>

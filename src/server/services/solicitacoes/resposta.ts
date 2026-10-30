@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, gt, inArray, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, historico, solicitacaoItens, solicitacoes, type ItemStatus } from "@/server/db/schema";
+import { eventoItens, historico, notificacoes, osVersoes, solicitacaoItens, solicitacoes, usuarios, type ItemStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
-import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import {
   calcularEfeitoLinha,
   ITEM_STATUS_LABEL,
@@ -86,10 +86,15 @@ export async function aplicarEfeito(tx: Executor, usuario: UsuarioAtual, s: { ev
   return { eventoItemGeradoId: item.operacao === "ADICIONAR" ? item.eventoItemGeradoId : (item.eventoItemId ?? null), quantidadeAnterior: efeito.quantidadeAnterior };
 }
 
-/** Texto do histórico de uma resposta: o mesmo na resposta item a item e no "atender tudo". */
-function descricaoResposta(codigo: string, desc: string, r: RespostaItem, quantidadeSolicitada: number, justificativaCorrecao: string | null) {
+/**
+ * Texto do histórico de uma resposta: o mesmo na resposta item a item e no "atender tudo".
+ * `fica`: mudança de quantidade não atendida, a linha continua com esse número. "(0 de 12)" fazia pensar que a
+ * peça tinha saído do evento (auditoria 30/10, parte A N4).
+ */
+function descricaoResposta(codigo: string, desc: string, r: RespostaItem, quantidadeSolicitada: number, justificativaCorrecao: string | null, fica: number | null = null) {
   const extras = [r.observacaoLogistica, justificativaCorrecao ? `correção: ${justificativaCorrecao}` : null].filter(Boolean);
-  return `${codigo} · ${desc}: ${ITEM_STATUS_LABEL[r.status].toLowerCase()} (${r.quantidadeAtendida} de ${quantidadeSolicitada})${extras.length ? ` — ${extras.join(" · ")}` : ""}`;
+  const numeros = fica !== null ? `fica ${fica}, pedido ${quantidadeSolicitada}` : `${r.quantidadeAtendida} de ${quantidadeSolicitada}`;
+  return `${codigo} · ${desc}: ${ITEM_STATUS_LABEL[r.status].toLowerCase()} (${numeros})${extras.length ? ` — ${extras.join(" · ")}` : ""}`;
 }
 
 /**
@@ -116,7 +121,13 @@ export async function responderNaTransacao(
   const correcao = item.status !== "EM_ANALISE";
   if (correcao) {
     if (!podeCorrigirResposta(s.status) && s.status !== "EM_ANALISE") throw new DomainError("Este item não pode ser corrigido.");
-    if (!justificativaCorrecao?.trim()) throw new ValidacaoError("Este item já foi respondido. Para corrigir, informe a justificativa.", { justificativa: "Obrigatória para corrigir uma resposta." });
+    if (!justificativaCorrecao?.trim()) {
+      // A tela só manda sem justificativa quando achava o item em análise (outra aba, outra pessoa). Antes vinha
+      // "Obrigatória para corrigir uma resposta.", sem dizer que alguém já tinha respondido (auditoria 30/10, parte A N9).
+      const quem = item.respondidoPorId ? await tx.query.usuarios.findFirst({ where: eq(usuarios.id, item.respondidoPorId), columns: { nome: true } }) : null;
+      const quando = item.respondidoEm ? ` às ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(item.respondidoEm)}` : "";
+      throw new DomainError(`Este item já foi respondido${quem ? ` por ${quem.nome}` : ""}${quando}. Atualize a página para ver a resposta.`);
+    }
   } else if (!podeResponder(s.status)) {
     throw new DomainError("A solicitação não está aguardando resposta.");
   }
@@ -146,12 +157,17 @@ export async function responderNaTransacao(
     .where(eq(solicitacoes.id, s.id));
 
   const desc = descricaoItem(item);
+  // Mudança de quantidade não atendida: o número com que a linha fica (lido depois do efeito, vale para a correção).
+  const fica =
+    item.operacao === "ALTERAR_QUANTIDADE" && r.status === "NAO_ATENDIDO" && item.eventoItemId
+      ? ((await tx.query.eventoItens.findFirst({ where: eq(eventoItens.id, item.eventoItemId), columns: { quantidade: true } }))?.quantidade ?? null)
+      : null;
   await registrarHistorico(tx, {
     eventoId: s.eventoId,
     entidade: "solicitacao_item",
     entidadeId: itemId,
     acao: correcao ? "RESPOSTA_CORRIGIDA" : "RESPONDIDO",
-    descricao: descricaoResposta(s.codigo, desc, r, item.quantidadeSolicitada, correcao ? (justificativaCorrecao ?? null) : null),
+    descricao: descricaoResposta(s.codigo, desc, r, item.quantidadeSolicitada, correcao ? (justificativaCorrecao ?? null) : null, fica),
     usuarioId: usuario.id,
     dadosAntes: correcao ? { status: item.status, quantidadeAtendida: item.quantidadeAtendida, observacaoLogistica: item.observacaoLogistica } : null,
     dadosDepois: r,
@@ -170,7 +186,7 @@ export async function responderNaTransacao(
       mensagem:
         r.status === "ATENDIDO"
           ? `Atendido integralmente (${r.quantidadeAtendida}).`
-          : `${r.quantidadeAtendida} de ${item.quantidadeSolicitada}. ${r.observacaoLogistica}${correcao ? " (resposta corrigida)" : ""}`,
+          : `${fica !== null ? `Fica ${fica} (sem mudança).` : `${r.quantidadeAtendida} de ${item.quantidadeSolicitada}.`} ${r.observacaoLogistica}${correcao ? " (resposta corrigida)" : ""}`,
       link: `/solicitacoes/${s.id}`,
     });
   }
@@ -410,9 +426,36 @@ export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
       descricao: `${s.codigo} · ${descricao}: resposta desfeita — voltou para análise`,
       usuarioId: usuario.id,
     });
-    if (s.tipo === "ALTERACAO") await gerarOsVersao(tx, s.eventoId, "CORRECAO_RESPOSTA", usuario.id, `${s.codigo} · ${descricao} — resposta desfeita`);
+    // Dentro da janela, desfazer apaga a versão da OS e o aviso que a resposta gerou, em vez de criar outros dois:
+    // antes a área recebia "atendido" e logo "voltou para análise", e a OS ganhava duas versões que se anulavam
+    // (auditoria 30/10, parte A N2). Só a versão que ainda é a última, não enviada ao carregamento.
+    const daResposta = (d: Date) => Math.abs(d.getTime() - ultimo.criadoEm.getTime()) < 5_000;
+    if (s.tipo === "ALTERACAO") {
+      const [ultimaOs] = await tx
+        .select({ id: osVersoes.id, gatilho: osVersoes.gatilho, geradaPorId: osVersoes.geradaPorId, geradaEm: osVersoes.geradaEm, enviadaEm: osVersoes.enviadaEm, descricao: osVersoes.descricao })
+        .from(osVersoes)
+        .where(eq(osVersoes.eventoId, s.eventoId))
+        .orderBy(desc(osVersoes.numero))
+        .limit(1);
+      if (ultimaOs && ultimaOs.gatilho === "RESPOSTA_SOLICITACAO" && ultimaOs.geradaPorId === usuario.id && !ultimaOs.enviadaEm && daResposta(ultimaOs.geradaEm) && ultimaOs.descricao?.startsWith(`${s.codigo} · ${descricao} — `)) {
+        await tx.delete(osVersoes).where(eq(osVersoes.id, ultimaOs.id));
+      }
+      // Com a versão da resposta apagada, a OS volta a ser igual à anterior e nada é gerado; senão, sai a versão do desfazer.
+      await gerarOsVersao(tx, s.eventoId, "CORRECAO_RESPOSTA", usuario.id, `${s.codigo} · ${descricao} — resposta desfeita`);
+    }
+    const avisos = (
+      await tx
+        .select({ id: notificacoes.id, usuarioId: notificacoes.usuarioId, lidaEm: notificacoes.lidaEm, criadoEm: notificacoes.criadoEm, titulo: notificacoes.titulo })
+        .from(notificacoes)
+        .where(and(eq(notificacoes.tipo, "ITEM_RESPONDIDO"), eq(notificacoes.link, `/solicitacoes/${s.id}`), gt(notificacoes.criadoEm, new Date(ultimo.criadoEm.getTime() - 5_000))))
+    ).filter((a) => daResposta(a.criadoEm) && a.titulo.startsWith(`${s.codigo}: ${descricao} — `));
+    const naoLidos = avisos.filter((a) => !a.lidaEm).map((a) => a.id);
+    if (naoLidos.length) await tx.delete(notificacoes).where(inArray(notificacoes.id, naoLidos));
+    // Quem já leu o "atendido" precisa saber que ele não vale mais; sem aviso da resposta achado, avisa todos (como antes).
+    const leram = avisos.filter((a) => a.lidaEm).map((a) => a.usuarioId);
+    const destinatarios = avisos.length ? leram : [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))];
     await notificar(tx, {
-      usuarioIds: [s.criadoPorId, ...(await usuariosDaArea(tx, s.areaId))],
+      usuarioIds: destinatarios,
       tipo: "ITEM_RESPONDIDO",
       titulo: `${s.codigo}: ${descricao} voltou para análise`,
       mensagem: "A logística desfez a resposta anterior. Uma nova resposta será enviada.",
