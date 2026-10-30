@@ -8,6 +8,8 @@ delete process.env.DATABASE_URL;
 
 import { SemPermissaoError } from "@/domain/errors";
 import { criarPeca, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
+import { idaVazia, voltaVazia } from "@/domain/carga-descarga";
+import { salvarVeiculoCarga } from "./carga-descarga";
 import { exportarHistoricoGeral, listarHistoricoGeral, resumoHistorico } from "./historico-geral";
 
 let E: Elenco;
@@ -64,6 +66,15 @@ describe("histórico geral", () => {
     const resumo = await resumoHistorico(E.admin);
     expect(hoje.total).toBe(resumo.hoje);
     expect(resumo.pessoas30).toBeGreaterThan(0);
+  });
+
+  it("para a Gestão, os números do topo não contam a carga que a lista esconde (auditoria 30/10, parte D N5)", async () => {
+    const ev = await novoEvento(E.logistica);
+    await salvarVeiculoCarga(E.logistica, { eventoId: ev.id, veiculo: { tipo: "truck", ident: "", ida: { ...idaVazia("Galpão"), inicioCarga: "2026-11-02T08:00" }, volta: { ...voltaVazia(), ativo: false } } });
+    const lista = await listarHistoricoGeral(E.gestao, { periodo: "hoje" });
+    const resumo = await resumoHistorico(E.gestao);
+    expect(resumo.hoje).toBe(lista.total);
+    expect((await resumoHistorico(E.admin)).hoje).toBeGreaterThan(resumo.hoje);
   });
 
   it("exporta tudo o que os filtros pegam, além da primeira página", async () => {

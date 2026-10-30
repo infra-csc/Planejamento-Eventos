@@ -156,6 +156,8 @@ export async function listarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHist
 /** Números do topo da tela: atividade de hoje, 7 e 30 dias, e quantas pessoas agiram em 30 dias. */
 export async function resumoHistorico(usuario: UsuarioAtual) {
   exigir(usuario, "historico.ver_tudo");
+  // Mesmo recorte da lista: sem a carga, a Gestão via "Hoje 41" e a lista mostrava 26 (auditoria 30/10, parte D N5).
+  const semCarga = !pode(usuario, "carga.ver");
   const db = await getDb();
   const hoje = hojeISO();
   const d7 = addDiasISO(hoje, -6);
@@ -167,7 +169,8 @@ export async function resumoHistorico(usuario: UsuarioAtual) {
       dias30: count(sql`case when ${desdeODia(d30)} then 1 end`),
       pessoas30: countDistinct(sql`case when ${desdeODia(d30)} then ${historico.usuarioId} end`),
     })
-    .from(historico);
+    .from(historico)
+    .where(semCarga ? ne(historico.entidade, "veiculo_carga") : undefined);
   return { hoje: Number(r.hoje), dias7: Number(r.dias7), dias30: Number(r.dias30), pessoas30: Number(r.pessoas30) };
 }
 
