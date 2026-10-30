@@ -19,6 +19,7 @@ import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabel
 import { LinhaLink } from "@/components/ui/linha-link";
 import { IndicadorLink } from "@/components/ui/indicador-link";
 import { Codigo } from "@/components/ui/numero";
+import { Icone } from "@/components/ui/icons";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 
 export const metadata: Metadata = { title: "Solicitações" };
@@ -135,6 +136,7 @@ export default async function SolicitacoesPage({
             )}
             {podeCriar && (
               <ButtonLink href="/solicitacoes/nova" variant="primary" size="lg" className="no-underline">
+                <Icone nome="mais" />
                 Nova solicitação
               </ButtonLink>
             )}

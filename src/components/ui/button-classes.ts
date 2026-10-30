@@ -73,6 +73,8 @@ export function buttonClasses({ variant = "secondary", size = "md", className }:
     tamanhos[size],
     variantes[variant],
     variant === "link" && "!h-auto !min-h-0 !px-0",
+    // Link solto no celular: área de toque de 40 px por um pseudo-elemento, sem mudar o desenho (auditoria 28/10 nº 59).
+    variant === "link" && "max-md:after:absolute max-md:after:-inset-x-1 max-md:after:-inset-y-[11px] max-md:after:content-['']",
     className,
   );
 }

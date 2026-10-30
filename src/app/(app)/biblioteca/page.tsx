@@ -90,11 +90,13 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     aba === "projetos"
       ? pode(usuario, "projeto.gerenciar") && (
           <ButtonLink href="/projetos/novo" variant="primary" size="lg" className="no-underline">
+            <Icone nome="mais" />
             Novo projeto
           </ButtonLink>
         )
       : pode(usuario, "catalogo.gerenciar") && (
           <ButtonLink href={hrefPeca("/catalogo/nova", voltaAqui)} variant="primary" size="lg" className="no-underline">
+            <Icone nome="mais" />
             Nova peça
           </ButtonLink>
         );
