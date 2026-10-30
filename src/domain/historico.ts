@@ -11,6 +11,9 @@ export const COR_HISTORICO: Record<TipoHistorico, string> = {
   ajuste: "var(--color-warning)",
 };
 
+/** Registros do histórico que são ajuste direto num item (quantidade, retirada, inclusão, peça, vínculo, versão). */
+export const ACOES_AJUSTE_ITEM = ["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"] as const;
+
 export function classificarHistorico(h: { entidade: string; acao: string; descricao: string }): { tipo: TipoHistorico; titulo: string; detalhe: string } {
   let tipo: TipoHistorico = "marco";
   if (h.entidade === "solicitacao_item") tipo = "resposta";
