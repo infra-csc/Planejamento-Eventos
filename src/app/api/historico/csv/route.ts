@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   });
 
   const linhas = [
-    ["Quando", "Quem", "Perfil", "Vendo como", "Categoria", "Ação", "Descrição", "Evento", "Entidade", "Id"].map(celula).join(";"),
+    ["Quando", "Quem", "Perfil", "Vendo como", "Categoria", "Ação", "Descrição", "Evento", "Tipo de registro", "Código interno"].map(celula).join(";"),
     ...itens.map((h) =>
       [
         formatarDataHora(h.em),
@@ -55,11 +55,15 @@ export async function GET(request: Request) {
     ),
   ];
   if (total > itens.length) linhas.push(celula(`Exportados ${itens.length} de ${total} registros: refine os filtros para ver o restante.`));
+  const hoje = hojeISO();
+  const dataArquivo = `${hoje.slice(8, 10)}-${hoje.slice(5, 7)}-${hoje.slice(0, 4)}`;
   const corpo = "﻿" + linhas.join("\r\n");
   return new NextResponse(corpo, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="historico-${hojeISO()}.csv"`,
+      // Mesmo padrão do modelo da carga ("Modelo carga e descarga 30-10-2026.xlsx"): nome legível e data DD-MM-AAAA
+      // (auditoria 28/10, nº 180). O ASCII em `filename` fica para navegador antigo; o acentuado vai em `filename*`.
+      "Content-Disposition": `attachment; filename="Historico ${dataArquivo}.csv"; filename*=UTF-8''${encodeURIComponent(`Histórico ${dataArquivo}.csv`)}`,
       "Cache-Control": "no-store",
     },
   });
