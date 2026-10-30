@@ -6,7 +6,9 @@ import { Skeleton, SkeletonLista } from "@/components/ui/layout";
 /** Esqueleto do Painel: cabeçalho, "precisa de você agora", fila + agenda e a faixa de métricas. */
 function EsqueletoPainel() {
   return (
-    <div aria-busy="true" aria-label="Carregando painel">
+    // role="status" + texto oculto: aria-label sem papel é proibido e não era anunciado (auditoria 28/10, nº 144).
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Carregando o painel…</span>
       <div className="mb-5 border-b border-line pb-4">
         <Skeleton className="h-3 w-48" />
         <Skeleton className="mt-2.5 h-6 w-full max-w-56" />
@@ -65,7 +67,8 @@ function EsqueletoPainel() {
 /** Esqueleto genérico (handoff §6): cabeçalho e um cartão de lista — telas sem esqueleto próprio. */
 function EsqueletoGenerico() {
   return (
-    <div aria-busy="true" aria-label="Carregando">
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Carregando…</span>
       <div className="mb-5 border-b border-line pb-4">
         <Skeleton className="h-6 w-full max-w-64" />
       </div>

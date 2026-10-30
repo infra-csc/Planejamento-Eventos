@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { notificacoes } from "@/server/db/schema";
@@ -24,14 +25,18 @@ export async function contarNotificacoes(usuario: UsuarioAtual) {
   return Number(r.n);
 }
 
-export async function contarNaoLidas(usuario: UsuarioAtual) {
+/**
+ * Uma contagem por requisição: o layout (sino) e a página /notificacoes pediam o mesmo número
+ * (o usuário vem do `getUsuarioAtual`, também em cache, então o argumento é o mesmo objeto). Auditoria 28/10, nº 148.
+ */
+export const contarNaoLidas = cache(async (usuario: UsuarioAtual) => {
   const db = await getDb();
   const [r] = await db
     .select({ n: count() })
     .from(notificacoes)
     .where(and(eq(notificacoes.usuarioId, usuario.id), isNull(notificacoes.lidaEm)));
   return Number(r.n);
-}
+});
 
 export async function marcarLida(usuario: UsuarioAtual, id: string) {
   const db = await getDb();

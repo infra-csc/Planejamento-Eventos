@@ -11,7 +11,7 @@ import { ESTADO_INICIAL } from "@/lib/action";
 
 const PERFIS_DEMO = [
   { nome: "Marina Castro", perfil: "Logística", email: "marina.castro@nortemkt.com.br" },
-  { nome: "Paulo Ribeiro", perfil: "Requisitante", email: "paulo.ribeiro@nortemkt.com.br" },
+  { nome: "Paulo Ribeiro", perfil: "Solicitante", email: "paulo.ribeiro@nortemkt.com.br" },
   { nome: "Helena Prado", perfil: "Gestão", email: "helena.prado@nortemkt.com.br" },
   { nome: "Bruno Tavares", perfil: "Cenografia", email: "bruno.tavares@nortemkt.com.br" },
   { nome: "Administrador do Sistema", perfil: "Administrador", email: "admin@nortemkt.com.br" },
