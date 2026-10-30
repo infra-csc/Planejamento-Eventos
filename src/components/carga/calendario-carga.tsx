@@ -161,6 +161,16 @@ export function CalendarioCarga({
   const totais = semanas.map(contar);
   const maxSemana = Math.max(1, ...totais.map((t) => t.carga + t.descarga + t.evento));
   const daSemana = contar(semana);
+  // Barra que recebe o Tab: a da semana escolhida; fora do gráfico (setas além do ano), a de hoje.
+  const barraNoTab = semanas.includes(semana) ? semanas.indexOf(semana) : semanas.indexOf(segundaDe(hoje));
+  const moverBarra = (e: React.KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const alvo = ({ ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: semanas.length - 1 } as Record<string, number>)[e.key];
+    if (alvo === undefined || alvo < 0 || alvo >= semanas.length) return;
+    e.preventDefault();
+    setBusca("");
+    setSemana(semanas[alvo]);
+    barrasRef.current?.querySelectorAll<HTMLButtonElement>("button")[alvo]?.focus();
+  };
   const dias = Array.from({ length: 7 }, (_, i) => somarDias(semana, i));
 
   // Busca: troca a semana pela linha do tempo do evento em todas as datas.
@@ -312,10 +322,11 @@ export function CalendarioCarga({
           </Button>
         </nav>
         <dl className="m-0 flex flex-wrap gap-x-5 gap-y-1" aria-label="Indicadores da semana">
-          {filtros.direcao !== "descarga" && <Kpi n={daSemana.carga} rotulo="↑ cargas" cls="text-info" />}
-          {filtros.direcao !== "carga" && <Kpi n={daSemana.descarga} rotulo="↓ descargas" cls="text-warning" />}
+          {/* Singular com 1 (antes "1 ↑ cargas · 1 eventos"; nº 83, conferido na auditoria 30/10, parte D). */}
+          {filtros.direcao !== "descarga" && <Kpi n={daSemana.carga} rotulo={daSemana.carga === 1 ? "↑ carga" : "↑ cargas"} cls="text-info" />}
+          {filtros.direcao !== "carga" && <Kpi n={daSemana.descarga} rotulo={daSemana.descarga === 1 ? "↓ descarga" : "↓ descargas"} cls="text-warning" />}
           <Kpi n={daSemana.veiculos.size} rotulo={daSemana.veiculos.size === 1 ? "veículo" : "veículos"} />
-          {filtros.eventos && <Kpi n={daSemana.evento} rotulo="eventos" cls="text-success" />}
+          {filtros.eventos && <Kpi n={daSemana.evento} rotulo={daSemana.evento === 1 ? "evento" : "eventos"} cls="text-success" />}
         </dl>
         {podeEditar && (
           <Button variant="primary" size="md" className="ml-auto" onClick={() => setModal({ tipo: "novo" })}>
@@ -414,7 +425,8 @@ export function CalendarioCarga({
           </span>
         </div>
         <div ref={barrasRef} className="relative overflow-x-auto pb-1">
-          <div className="flex h-[76px] w-full items-end gap-[3px]" style={{ minWidth: semanas.length * 17 }}>
+          {/* Uma parada de Tab só (a semana escolhida) e as setas trocam a semana: eram 45 paradas antes dos cartões (auditoria 30/10, parte D N10). */}
+          <div role="group" aria-label="Semanas do ano: use as setas para trocar de semana" className="flex h-[76px] w-full items-end gap-[3px]" style={{ minWidth: semanas.length * 17 }}>
             {semanas.map((w, i) => {
               const t = totais[i];
               const total = t.carga + t.descarga + t.evento;
@@ -425,6 +437,8 @@ export function CalendarioCarga({
                 <button
                   key={w}
                   type="button"
+                  tabIndex={i === barraNoTab ? 0 : -1}
+                  onKeyDown={(e) => moverBarra(e, i)}
                   onClick={() => {
                     setBusca("");
                     setSemana(w);
