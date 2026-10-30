@@ -52,8 +52,8 @@ versão v3) e teclas (`Kbd`). Nada abaixo de 11.5 px. Sem degraus de meio pixel.
 | Pequeno | `text-pequeno` | 13 / 18 | rótulo de campo, dica, descrição, metadado, pílula |
 | Corpo | `text-corpo` | 14 / 20 | texto padrão, células, controles, abas, itens de menu |
 | Destaque | `text-secao` / `text-destaque` | 15 / 22 | título de cartão (`Section`), ênfase pontual |
-| Título | `text-titulo` | 18 / 24 | título de diálogo e de tela de detalhe (`PageHeader tamanho="sm"`) |
-| Página | `text-pagina` | 24 / 30 | h1 (`PageHeader`) — um por tela |
+| Título | `text-titulo` | 18 / 24 | título de diálogo e de **toda** tela de detalhe de um registro — evento, solicitação, projeto, peça, item da Ativação, arena (`PageHeader tamanho="sm"`; decisão de 30/10, § 9) |
+| Página | `text-pagina` | 24 / 30 | h1 (`PageHeader`) das telas de módulo/lista (Painel, Eventos, Solicitações, Biblioteca…) — um por tela |
 | Métrica | `text-metrica` | 28 / 32 | número grande de painel (`Metric`) |
 
 Antes → depois (nomes mantidos): micro 10.5→11.5 · rotulo 11.5→12 · pequeno 12.5→13 · corpo 13.5→14 ·
@@ -114,7 +114,7 @@ conjunto; prefira `<Icone>` em código novo. Não desenhe `<svg>` à mão em pá
 | `primary` | **a** ação da tela/diálogo (Salvar, Enviar, Nova solicitação). No máximo **uma** por área visível. | vinho, texto branco; hover vinho escuro |
 | `secondary` | ações de apoio (Cancelar, Exportar, Responder em sequência) | branco com contorno |
 | `ghost` | ações terciárias, barras de ferramentas, "mais opções" | sem fundo; hover cinza |
-| `link` | ação dentro de uma frase ou rodapé ("Limpar", "Ver todas") | texto vinho, sublinha no hover |
+| `link` | ação dentro de uma frase ou rodapé ("Limpar", "Ver todas") | texto vinho, sublinha no hover (o `.link` de texto fica sempre sublinhado, § 7) |
 | `dark` | neutro de peso, para usos específicos (o antigo primary escuro) — ex.: ação forte ao lado de um primary | escuro, texto branco |
 | `danger` | confirmar ação destrutiva (dentro do diálogo) | laranja-queimado cheio |
 | `dangerOutline` | gatilho de ação destrutiva (abre a confirmação) | contorno laranja |
@@ -132,6 +132,16 @@ motivo no `title` e o leitor de tela anuncia o motivo; um clique (ou toque, no c
 mostra o motivo num toast. Prefira isso a um botão desabilitado mudo.
 
 `IconButton`/`IconLink` (redondo, só ícone, `label` obrigatório): 24/28 px no desktop, 40 px no celular.
+O `label` começa pelo texto que a pessoa vê (comando de voz, WCAG 2.5.3): botão com texto visível **não** leva
+`aria-label` diferente dele ("Editar todos os locais" não vira "Editar todas as tendas de…"); para dar contexto,
+acrescente depois do texto, em `sr-only`.
+
+- **Abre diálogo:** `<Button abreDialogo>` / `<IconButton abreDialogo>` põe `aria-haspopup="dialog"` — o leitor de tela
+  avisa antes do clique. Use em todo botão que abre um diálogo por estado (`DialogTrigger` já faz isso sozinho).
+- **Criar:** o botão de criação ("Novo evento", "Nova solicitação", "Novo item"…) é `primary`, `size="lg"` no
+  cabeçalho e leva `<Icone nome="mais" />` antes do texto — em todas as telas (decisão de 30/10, § 9).
+- **`link` no celular:** ganha área de toque de 40 px por um pseudo-elemento, sem mudar o desenho. O mesmo vale para
+  o `.link` solto (fora de frase, lista ou célula).
 
 ---
 
@@ -161,34 +171,57 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
 ## 5. Padrões de tela
 
 ### 5.1 Lista (referência: `/solicitacoes`, `/eventos`)
-1. `PageHeader title divisor actions` — ação principal (`primary`, `size="lg"`) à direita; secundárias antes dela.
+1. `PageHeader title divisor actions` — ação principal (`primary`, `size="lg"`, com "+" se cria) à direita; secundárias
+   antes dela. **Nunca** na barra de filtros. Tela com abas em que só uma aba tem a ação (Ativação › Estoque,
+   Carga › Calendário): a aba a manda para o cabeçalho com `<AcaoNoCabecalho>` (`ui/acao-cabecalho.tsx`). No celular
+   as ações ficam à esquerda, embaixo do título.
 2. Barra de filtros numa linha: `BuscaUrl` (com ícone e spinner), `FiltroEvento`/`Pills`; alertas curtos à direita (`sm:ml-auto`).
    No celular, `grid grid-cols-2 sm:flex …`: busca, evento e avisos com `col-span-2`; listas curtas (`FiltroSelectUrl`)
    aos pares, em vez de um campo de 40 px por linha antes da lista.
 3. Cartão (`rounded-cartao border border-line bg-surface overflow-hidden`) com `TabsNav` no topo (`className="mb-0 px-2 pt-1"`), contagem em cada aba.
 4. Tabela: `CaptionOculta`, `ThOrdenavel`/`Th`, linhas `LinhaLink` (linha inteira clicável), números com `numero` e alinhados à direita, código com `Codigo`.
-5. `Paginacao` no rodapé. Vazio: `EmptyState` dentro do cartão (título + 1 frase + ação).
+   Tabela larga que rola de lado fica num `TabelaRolavel rotulo="…"` (região com nome, entra no Tab).
+5. `Paginacao` no rodapé. Vazio: `EmptyState` dentro do cartão (título + 1 frase + ação) — nunca solto no fundo da página.
+
+**Navegação de seção × filtro.** Trocar de **seção** da página (Usuários/Áreas/Configurações; Estoque/Retornos/Reformas;
+abas do evento) é `TabsNav` logo abaixo do cabeçalho. `Pills` é só **filtro** ou modo de ver (período, leitura, tipo).
+Recorte da lista (Ativos/Inativos, situação) fica nas abas do topo do cartão.
+
+**Busca ou filtro sem resultado (uma regra para todas as listas).** As abas mostram a contagem **com** a busca e os
+filtros aplicados (ou nenhuma contagem) — nunca o total sem filtro ao lado de "Nada encontrado". Barra de filtros e
+abas continuam na tela. O vazio é `EmptyState icone="busca"` dentro do cartão: título `Nada encontrado para “termo”`
+(ou "Nada com estes filtros"), uma frase com a saída e a ação "Limpar busca"/"Limpar filtros". Painel lateral que
+depende de um item escolhido some, e a lista ocupa a largura.
 
 ### 5.2 Formulário
 - `Field label htmlFor hint error obrigatorio` + `Input`/`Textarea`/`Select`/`ComboBox`. Campos 34 px (40 no celular).
 - Rótulo acima (13 px), dica abaixo (13 px `muted`), erro abaixo com ícone (liga `aria-describedby`/`aria-invalid`).
+  Com erro, a dica continua (erro primeiro); `Stepper`, `ComboBox` e `Select` recebem o mesmo `aria-*` do `Field`.
+- Foco de campo: borda + anel de 1 px da marca (`FOCO_CAMPO` em `ui/field.tsx`); nunca só a troca de cor da borda.
 - Erro geral: `FormError` no fim, antes das ações. Ações no fim: `SubmitButton` (primary) e depois o secundário.
 - Uma coluna no celular; duas no máximo no desktop para campos curtos.
 
 ### 5.3 Diálogo
 - `DialogContent title description` (460 px padrão; `size` sm/md/lg). Botão fechar (X) no canto, último no Tab.
 - `DialogFooter`: escreva a **ação principal primeiro** no código — ela aparece **à direita**; secundárias à esquerda dela. No celular empilham (principal em cima).
-- Destrutivo: `ConfirmDialog danger` (botão `danger`) com justificativa quando fica registrado.
+- Botões do rodapé: **36 px** em todos os diálogos (o `DialogFooter` fixa a altura; no celular continuam com 40).
+- Destrutivo: `ConfirmDialog danger` (botão `danger`) com justificativa quando fica registrado. Abre com o foco em
+  "Cancelar". Motivo não obrigatório (`reasonRequired={false}`) aparece como "(opcional)". O toast de sucesso sai
+  quando a action responde, mesmo que a linha que abriu o diálogo suma da lista.
+- Campo de escolha (`ComboBox`) dentro do diálogo: Esc fecha só a lista; o segundo Esc fecha o diálogo.
 
 ### 5.4 Estados
 - **Vazio:** `EmptyState` — título diz o que não há; uma frase diz por quê/o que fazer; ação se houver.
   `compact` em cartões pequenos/painéis; `icone` opcional no tamanho normal (`busca` para busca sem resultado).
-- **Carregando (página):** `loading.tsx` com `Skeleton`; dentro de cartão, `SkeletonLista linhas={n}`.
+- **Carregando (página):** `loading.tsx` com `Skeleton` dentro de `<Carregando texto="Carregando …">` (avisa o leitor
+  de tela por `role="status"`; **não** use `aria-label` num `div` sem papel); dentro de cartão, `SkeletonLista linhas={n}`
+  (já anuncia, e fica calado dentro de outro `Carregando`). O esqueleto tem a forma da tela que chega (mesmas colunas).
   Skeleton com a altura do texto que substitui (h-3.5 corpo, h-3 pequeno, h-6 título).
 - **Carregando (navegação):** automático — ver § 6.
 - **Aviso:** `Aviso tom="info|warning|danger|success|neutro" titulo acoes` — ícone por tom; `Notice` é o apelido antigo.
-- **Toast:** `toastSucesso(msg)` (check), `toast(msg)` (info), `toastErro(msg)` (erro, `role=alert`);
-  opções `desfazer` (com Ctrl+Z) ou `acao: { rotulo, onClick }`. Pausa no hover/foco; até 3 empilhados.
+- **Toast:** `toastSucesso(msg)` (check), `toast(msg)` (info), `toastErro(msg)` (erro, região `role=alert` própria);
+  opções `desfazer` (com Ctrl+Z, 8 s) ou `acao: { rotulo, onClick }` (15 s). Pausa no hover/foco; até 3 empilhados.
+  Texto curto, sem ponto final (§ 10).
 
 ---
 
@@ -211,7 +244,19 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
   pílulas, abas, paginação, stepper, itens de menu/select/combobox, campos. Desktop mantém a densidade.
 - **Foco visível** em todo interativo: anel 2 px `accent` com folga 2 px (global, camada base); anel
   **interno** onde o contêiner rola ou recorta (abas, pílulas, paginação, itens de lista). Nunca `outline-none` sem substituto.
-- Abas com rolagem horizontal esmaecem a borda do lado com mais abas e centralizam a aba ativa.
+- Abas com rolagem horizontal esmaecem a borda do lado com mais abas, mostram uma seta nessa borda e centralizam a aba
+  ativa. `TabsControladas` (role=tab) é uma parada de Tab só; setas, Home e End trocam de aba.
+- **Links de texto** (`.link`) ficam sempre sublinhados (traço da marca a 40 %, cheio no hover): só a cor não separa o link
+  do texto em volta (WCAG 1.4.1).
+- **Tabela que rola de lado:** `TabelaRolavel rotulo="…"` — região com nome que entra no Tab, para rolar pelo teclado.
+- **Superfície escura** (`BannerEscuro`, `Section tom="dark"`): todo foco dentro dela usa o anel rosa (`accent-light`);
+  o vinho sobre o escuro dá 1,87:1.
+- **Texto e sinais em cinza claro:** `line-*` é só para linhas e bordas. "—" de valor vazio e texto esmaecido usam
+  `text-meta` (5,75:1), nunca `text-line-strong` (1,5:1) nem `opacity-60` sobre texto. Estado (inativo, escolhido, prazo)
+  nunca só pela cor: junte texto, ícone ou forma.
+- **Regiões vivas:** os toasts têm duas regiões fixas (`status` e `alert`); contagens que mudam no cliente (lista filtrada,
+  opções do `ComboBox`) são anunciadas por uma região `aria-live` que já existia antes do texto.
+- **Gatilho de diálogo:** `abreDialogo` (§ 3).
 - Tabela com versão de celular própria (colunas que somem ou descem para a célula do nome) marca `data-responsiva`;
   sem isso, abaixo de 1024 px toda tabela ganha `min-width: 640px` e rola de lado (`globals.css`).
 - Lista ao lado de um painel (conferência com os dados da reunião) escolhe as colunas pela **largura da lista**
@@ -245,6 +290,9 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
 | `on-dark-2` / `on-dark-3` | `dark` | 8.67 / 7.19 |
 | branco (toast) | `dark` | 17.33 |
 | borda de campo `line-control` | branco | 3.30 (≥ 3) |
+| anel de foco de campo (`accent`, 2 px com a borda) | branco | 8.35 (≥ 3) |
+| `meta` ("—" de valor vazio) | branco / `subtle` | 5.75 / 5.43 |
+| ✗ `line-strong` como texto ou borda de caixa de seleção | branco | 1.50 — **não use** para texto nem controle |
 
 ---
 
@@ -258,3 +306,75 @@ Mapeamentos atuais: evento Aberto → info; solicitação Enviada → info; "Na 
 6. `DialogFooter` com a ação principal primeiro no código; `toastSucesso` para confirmações.
 7. `EmptyState` com título + uma frase + ação; `SkeletonLista` nos carregamentos de cartão.
 8. `motivoDesabilitado` nos botões desabilitados que hoje não dizem por quê.
+9. `abreDialogo` nos gatilhos de diálogo que ainda ficam em outro componente (o diálogo mora num filho e o botão
+   chama `onEditar`/`onAbrir`); os do mesmo componente já foram marcados em 30/10.
+10. Telas com busca: a regra única do vazio (§ 5.1) — Biblioteca (contagem sem filtro nas abas), Eventos (abas sem
+    contagem) e Histórico (abas e filtros que somem).
+
+---
+
+## 9. Decisões registradas
+
+| Data | Tema | Decisão | Por quê |
+|---|---|---|---|
+| 30/10 | Título de tela de detalhe (auditoria 28/10 nº 51: 24 × 18 px) | **18 px** (`PageHeader tamanho="sm"`) em toda tela de detalhe de registro, inclusive evento, projeto e item da Ativação. 24 px só em telas de módulo/lista. | O design system já dizia 18; o mesmo nível tinha dois tamanhos. O handoff pedia 25 só para o evento — vale a regra única. |
+| 30/10 | Navegação de seção (nº 53) | Seção da página = `TabsNav`; pílula só para filtro. Admin passou de pílulas para abas. | Mesma função com dois componentes, e o Admin empilhava pílulas e abas. |
+| 30/10 | Lugar da ação principal (nº 54) | Sempre no `PageHeader`; ação de uma aba vai por `AcaoNoCabecalho`. | Ativação e Carga punham "Novo…" na barra de filtros. |
+| 30/10 | "+" nos botões de criar (nº 115) | Todo botão de criação leva o "+". | 4 telas com e 4 sem. |
+| 30/10 | Rodapé de diálogo (nº 132) | Um tamanho: 36 px (`lg`). | Formulários em 34 e confirmações em 36. |
+| 30/10 | Link de texto (nº 62) | Sempre sublinhado, discreto. | Contraste 1,06:1 entre link e texto (WCAG 1.4.1). |
+| **pendente** | Menu lateral claro × escuro do handoff (nº 56) | **Não decidido — não trocar o tema.** Hoje o menu é claro; o handoff e `docs/02-entregaveis.md` falam em "barra lateral escura". A equipe decide; depois registrar aqui, no design-log, e atualizar o entregável. | O relatório pede decidir antes de mexer, sem recomendar um lado. |
+| **pendente** | Acentos nas planilhas Excel no modelo da cenografia (nº 84) | **Não mudar** até a cenografia confirmar ("ATA DE REUNIAO", "RESPONSAVEL PELA O.S", "SOMATORIA" copiam a planilha deles). As outras exportações seguem o glossário (§ 10). | Recomendado acentuar, só depois de confirmar com a equipe. |
+
+---
+
+## 10. Textos
+
+### 10.1 Glossário — um termo para cada coisa
+
+Fonte: auditoria de textos de 28/10 (§ 5). Ao escrever um texto novo, use a coluna "Usar".
+
+| Conceito | Usar | Evitar |
+|---|---|---|
+| Item que a área descreveu à mão, sem peça/projeto | **fora do catálogo** ("item fora do catálogo") | item avulso, avulsos, outro item (só como atalho da busca), materiais fora **de** catálogo |
+| Peça do catálogo pedida sem projeto | **peça solta** / "soltas" | — |
+| Lista de peças de um projeto padrão | **lista de peças** | BOM, lista de materiais |
+| Tirar do uso sem apagar | **inativar / inativo / reativar** | desabilitar, desativar (para usuário e área: **desativar acesso** / inativa) |
+| Ligar item fora do catálogo ou do estoque a uma peça | **vincular / vinculado** | ligar, ligado, ligue |
+| Perfil de quem pede | **Solicitante** | Requisitante (nome interno do perfil, não aparece na tela) |
+| Pedido de uma área | **solicitação** (listas, filtros, títulos); "pedido" só em frase corrida ("quem pediu", "pedido da área") | "Nenhum pedido na ata" numa aba de solicitações |
+| Pedido antes da reunião | **necessidade pré-reunião** | — |
+| Pedido depois da ata | **alteração pós-ata** | — |
+| O que a logística faz na reunião | **conferir / conferência** | consolidar, consolidação (só na tela desligada "Demanda de peças") |
+| Agrupar projetos na Biblioteca | **grupo da biblioteca** (o nome costuma ser a prova) | grupo de prova, "nome do evento" |
+| Evento de corrida (marca) | **prova** | — |
+| Fases do evento | **Em preparação · Em reunião · Aberto a alterações · Encerrado · Realizado · Cancelado** (abas e selos com os mesmos nomes) | "Preparação", "Aberto", "Realizados" só nas abas |
+| Linha da ata vinda de solicitação | **Pedido da área** / **Pedido de outra área** | Pedido de área, Solicitação da área |
+| Linha incluída sem solicitação | **Incluída pela logística** | — |
+| Ordem de serviço | **OS** na tela; **Ordem de serviço** por extenso; "O.S." só no modelo da cenografia | Ordem de Serviço, O.S, O.S. |
+| Remover algo | **Remover** (botão); "tirar" em frase corrida | "Tirar" sozinho em botão |
+| Tentar outra vez | **tente de novo** | tente novamente |
+| Encaminhar ao admin | **fale com o administrador** | peça ao administrador ("peça" é objeto neste app) |
+| Portal de entrada | **Portal NORTE** | portal Norte, Norte Mkt |
+| Voltar ao início | **Ir para o painel** | Ir para o Painel, Voltar para o painel |
+| Imprimir | **Imprimir ou salvar em PDF** | Imprimir / salvar PDF |
+
+### 10.2 Estilo
+
+- **Toast:** frase curta, **sem ponto final** ("Área atualizada", "Peça reativada"); o nome do objeto depois de dois-pontos
+  quando a concordância complica ("Atendido: Tenda 3×3 m", não "Tenda 3×3 m atendido").
+- **Mensagem de erro:** diz o que aconteceu e o que fazer, impessoal ("Não foi possível ler a imagem. Envie outra foto.",
+  nunca "Não consegui…" nem "Tentaremos…"). Sem nome de variável, código cru ou JSON na tela. Sem "Dados inválidos." solto:
+  "Não foi possível salvar. Atualize a página e tente de novo."
+- **Aspas curvas** “ ” em texto de tela, toast, histórico e aviso; nunca aspas retas.
+- **Plural pelo número:** "1 evento", "2 eventos"; nunca "item(ns)", "projeto(s)" nem "1 eventos". Concordância: "Falta
+  conferir 3 linhas" (o verbo concorda com "conferir").
+- **Botão = verbo + objeto** quando o verbo sozinho não diz o resultado ("Remover peça", "Liberar para solicitações",
+  "Enviar para reforma"); o `aria-label` começa pelo mesmo texto.
+- **Caixa:** frase normal, só a inicial em maiúscula ("Ordem de serviço", "Fora da janela"); CAIXA-ALTA só em
+  sobretítulo e cabeçalho de tabela (`text-micro`), nunca em texto de aviso ou histórico.
+- **Demonstrativo:** "estes filtros" (o que está na tela).
+- **Hora:** "às 14h" em frase; "14:00" em campo, tabela e selo.
+- **"e/ou":** não use; "o grupo, a categoria ou os dois".
+- **Nome de arquivo exportado:** "TIPO CÓDIGO NOME vN.xlsx" (ex.: `OS EVT-0001 Night Run v3.xlsx`, `Histórico 28-10-2026.csv`);
+  as duas planilhas no modelo da cenografia mantêm o nome que a equipe espera (pendente, § 9).
