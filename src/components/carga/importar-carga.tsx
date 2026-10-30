@@ -155,9 +155,11 @@ function DialogImportar({ onFechar }: { onFechar: () => void }) {
               </span>
             </div>
             {comErro.length > 0 && <p className="m-0 text-pequeno text-ink-2">As linhas com erro ficam de fora. Corrija na planilha e envie de novo: o que já entrou não duplica.</p>}
+            {/* Linha com erro não tem veículo: o motivo ocupa as três últimas colunas (antes cortado a 768). No celular cada
+                linha vira um cartão com o número e a situação primeiro (antes o erro ficava fora da tela a 375; auditoria 30/10, parte D N9). */}
             <div className="max-h-[52vh] overflow-auto rounded-controle border border-line">
-              <table className="w-full border-collapse text-left text-pequeno">
-                <thead className="sticky top-0 z-[1] bg-subtle">
+              <table className="w-full border-collapse text-left text-pequeno max-md:block">
+                <thead className="sticky top-0 z-[1] bg-subtle max-md:hidden">
                   <tr className="text-rotulo uppercase tracking-[0.04em] text-muted">
                     <th className="px-3 py-2 font-medium">Linha</th>
                     <th className="px-3 py-2 font-medium">Evento</th>
@@ -166,66 +168,76 @@ function DialogImportar({ onFechar }: { onFechar: () => void }) {
                     <th className="px-3 py-2 font-medium">Situação</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {ordenadas.map((l) => (
-                    <tr key={l.linha} className={cn("border-t border-line-row align-top", l.erros.length > 0 && "bg-danger-bg/40")}>
-                      <td className="numero px-3 py-2 text-muted">{l.linha}</td>
-                      <td className="px-3 py-2">
-                        {l.evento ? (
+                <tbody className="max-md:block">
+                  {ordenadas.map((l) => {
+                    const situacao = l.erros.length ? (
+                      <ul className="m-0 flex list-none flex-col gap-1 p-0 text-danger">
+                        {l.erros.map((e) => (
+                          <li key={e} className="flex gap-1">
+                            <Icone nome="erro" className="mt-px size-4 shrink-0" />
+                            {e}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : l.novos === 0 ? (
+                      <span className="text-ink-3">Já cadastrado: não entra de novo</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-success">
+                        <Icone nome="check-circulo" className="size-4" />
+                        {l.novos === 1 ? "Entra" : `Entram ${l.novos}`}
+                        {l.jaExistiam > 0 && (
+                          <span className="text-ink-3">
+                            {" "}
+                            ({l.jaExistiam} já existia
+                            {l.jaExistiam > 1 ? "m" : ""})
+                          </span>
+                        )}
+                      </span>
+                    );
+                    return (
+                      <tr key={l.linha} className={cn("border-t border-line-row align-top max-md:flex max-md:flex-col max-md:gap-1 max-md:px-3 max-md:py-2.5 max-md:first:border-t-0", l.erros.length > 0 && "bg-danger-bg/40")}>
+                        <td className="numero px-3 py-2 text-muted max-md:p-0">
+                          <span className="md:hidden">Linha </span>
+                          {l.linha}
+                        </td>
+                        <td className={cn("px-3 py-2 max-md:order-1 max-md:p-0", !l.evento && "max-md:hidden")}>
+                          {l.evento ? (
+                            <>
+                              <span className="block font-medium text-ink">{l.evento.nome}</span>
+                              <span className="numero text-rotulo text-muted">{l.evento.codigo}</span>
+                            </>
+                          ) : (
+                            <span className="text-meta">—</span>
+                          )}
+                        </td>
+                        {l.veiculo ? (
                           <>
-                            <span className="block font-medium text-ink">{l.evento.nome}</span>
-                            <span className="numero text-rotulo text-muted">{l.evento.codigo}</span>
+                            <td className="px-3 py-2 max-md:order-2 max-md:p-0">
+                              <span className="flex flex-wrap items-center gap-1.5">
+                                <IconeVeiculo tipo={l.veiculo.tipo} className="text-ink-3" />
+                                <span className="font-medium text-ink">
+                                  {TIPO_VEICULO_LABEL[l.veiculo.tipo]}
+                                  {l.quantidade > 1 && <span className="numero"> ×{l.quantidade}</span>}
+                                </span>
+                                {l.veiculo.ident && <span className="text-ink-3">· {l.veiculo.ident}</span>}
+                                {[...new Set([...l.veiculo.ida.tags, ...l.veiculo.volta.tags])].map((t) => (
+                                  <TagCargaChip key={t} tag={t} />
+                                ))}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 max-md:order-3 max-md:p-0 md:min-w-[260px]">
+                              <ResumoTrechos v={{ ...l.veiculo, id: "", eventoId: "", atualizadoEm: "", atualizadoPor: null, criadoPor: null }} />
+                            </td>
+                            <td className="px-3 py-2 max-md:p-0 md:min-w-[160px]">{situacao}</td>
                           </>
                         ) : (
-                          <span className="text-meta">—</span>
+                          <td colSpan={3} className="px-3 py-2 max-md:p-0">
+                            {situacao}
+                          </td>
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {l.veiculo ? (
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <IconeVeiculo tipo={l.veiculo.tipo} className="text-ink-3" />
-                            <span className="font-medium text-ink">
-                              {TIPO_VEICULO_LABEL[l.veiculo.tipo]}
-                              {l.quantidade > 1 && <span className="numero"> ×{l.quantidade}</span>}
-                            </span>
-                            {l.veiculo.ident && <span className="text-ink-3">· {l.veiculo.ident}</span>}
-                            {[...new Set([...l.veiculo.ida.tags, ...l.veiculo.volta.tags])].map((t) => (
-                              <TagCargaChip key={t} tag={t} />
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="text-meta">—</span>
-                        )}
-                      </td>
-                      <td className="min-w-[260px] px-3 py-2">{l.veiculo ? <ResumoTrechos v={{ ...l.veiculo, id: "", eventoId: "", atualizadoEm: "", atualizadoPor: null, criadoPor: null }} /> : <span className="text-meta">—</span>}</td>
-                      <td className="min-w-[200px] px-3 py-2">
-                        {l.erros.length ? (
-                          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-danger">
-                            {l.erros.map((e) => (
-                              <li key={e} className="flex gap-1">
-                                <Icone nome="erro" className="mt-px size-4 shrink-0" />
-                                {e}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : l.novos === 0 ? (
-                          <span className="text-ink-3">Já cadastrado: não entra de novo</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-success">
-                            <Icone nome="check-circulo" className="size-4" />
-                            {l.novos === 1 ? "Entra" : `Entram ${l.novos}`}
-                            {l.jaExistiam > 0 && (
-                              <span className="text-ink-3">
-                                {" "}
-                                ({l.jaExistiam} já existia
-                                {l.jaExistiam > 1 ? "m" : ""})
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
