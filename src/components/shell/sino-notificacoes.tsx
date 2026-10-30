@@ -31,11 +31,11 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
 
   const carregar = () => iniciar(async () => setLista(await notificacoesRecentesAction()));
 
+  // Carrega fora do atualizador de estado: dentro dele (que o React pode chamar duas vezes) a 2ª abertura
+  // entrava em laço ("Maximum update depth exceeded") e o sino só voltava recarregando a página (auditoria 30/10).
   const alternar = () => {
-    setAberto((v) => {
-      if (!v) carregar();
-      return !v;
-    });
+    if (!aberto) carregar();
+    setAberto(!aberto);
   };
 
   // Fecha ao clicar fora ou apertar Esc (o Esc devolve o foco ao sino).
@@ -110,7 +110,7 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
       </button>
 
       {aberto && (
-        <div ref={painelRef} role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+8px)] z-[var(--z-popover)] flex max-h-[min(560px,calc(100dvh-90px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-cartao border border-line-strong bg-surface shadow-popover animate-fade-up-rapido">
+        <div ref={painelRef} role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+8px)] z-[var(--z-popover)] flex max-h-[min(560px,calc(100dvh-90px))] w-[min(420px,calc(100vw-24px))] flex-col max-md:fixed max-md:inset-x-3 max-md:top-[calc(var(--altura-cabecalho)+8px)] max-md:w-auto overflow-hidden rounded-cartao border border-line-strong bg-surface shadow-popover animate-fade-up-rapido">
           <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-2.5">
             <span ref={tituloRef} tabIndex={-1} className="text-corpo font-semibold text-ink focus:outline-none">
               Notificações
