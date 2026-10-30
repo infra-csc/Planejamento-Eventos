@@ -55,8 +55,7 @@ export function Stepper({
     <div
       className={cn(
         // Foco: borda + anel da marca, como os outros campos (auditoria 28/10 nº 135).
-        "inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-[border-color,box-shadow] duration-150 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent",
-        (invalido === true || invalido === "true") && "border-danger-input",
+        "inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-[border-color,box-shadow] duration-150 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent has-[input[aria-invalid=true]]:border-danger-input",
         disabled && "opacity-60",
         className,
       )}
