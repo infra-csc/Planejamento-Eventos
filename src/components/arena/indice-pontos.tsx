@@ -55,7 +55,8 @@ export function IndicePontos({
                       className={cn(
                         "flex w-full cursor-pointer items-baseline gap-2 rounded-controle border-0 bg-transparent px-2 py-1.5 text-left hover:bg-subtle",
                         p.id === selecionado && "bg-accent-bg hover:bg-accent-bg",
-                        oculta && "opacity-60",
+                        // Camada oculta: fundo cinza e texto esmaecido com contraste, sem opacity-60 (~2,5:1; auditoria 28/10, nº 139).
+                        oculta && "bg-subtle/60 [&_span]:!text-muted",
                       )}
                     >
                       <span className="numero w-12 shrink-0 text-rotulo text-meta">{p.legenda?.split(" ")[0] ?? "—"}</span>

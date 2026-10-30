@@ -155,11 +155,15 @@ export function AcoesVeiculo({ v, podeEditar, evento, onEditar, onFeito, nomeEve
       </Button>
     </div>
   ) : (
+    // Ordem Editar, Duplicar, Excluir: no rodapé do diálogo (do primário ao destrutivo) e no celular, em que o primeiro
+    // botão fica no topo — antes era o "Excluir" (auditoria 30/10, parte D N21).
     <>
-      <Button variant="dangerOutline" size={tamanho} onClick={() => setConfirmar(true)} className="sm:mr-auto">
-        <Icone nome="lixeira" />
-        Excluir
-      </Button>
+      {!evento?.cancelado && (
+        <Button variant="primary" size={tamanho} onClick={onEditar}>
+          <Icone nome="lapis" />
+          Editar
+        </Button>
+      )}
       {evento?.ativo !== false && (
         <Button
           variant="secondary"
@@ -179,12 +183,10 @@ export function AcoesVeiculo({ v, podeEditar, evento, onEditar, onFeito, nomeEve
           Duplicar
         </Button>
       )}
-      {!evento?.cancelado && (
-        <Button variant="primary" size={tamanho} onClick={onEditar}>
-          <Icone nome="lapis" />
-          Editar
-        </Button>
-      )}
+      <Button variant="dangerOutline" size={tamanho} onClick={() => setConfirmar(true)} className="sm:mr-auto">
+        <Icone nome="lixeira" />
+        Excluir
+      </Button>
     </>
   );
 }

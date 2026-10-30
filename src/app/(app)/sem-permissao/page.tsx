@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/button";
 import { BotaoVoltar } from "@/components/ui/botao-voltar";
 import { Icone } from "@/components/ui/icons";
+import { DefinirTrilha } from "@/components/shell/trilha";
 
 export const metadata: Metadata = { title: "Sem permissão" };
 
@@ -21,6 +22,8 @@ export default async function SemPermissaoPage({ searchParams }: { searchParams:
   const m = motivo && Object.hasOwn(MOTIVOS, motivo) ? MOTIVOS[motivo as keyof typeof MOTIVOS] : null;
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-14 text-center sm:py-20">
+      {/* Trilha, aba e título com o mesmo nome (a trilha dizia "Sem acesso"; auditoria 28/10, nº 173). */}
+      <DefinirTrilha itens={[{ label: "Painel", href: "/" }, { label: "Sem permissão" }]} />
       <span aria-hidden className="mb-4 grid size-11 place-items-center rounded-full bg-neutral-bg text-ink-3">
         <Icone nome="escudo" tamanho={20} />
       </span>

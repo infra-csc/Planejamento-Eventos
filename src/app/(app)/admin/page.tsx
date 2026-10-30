@@ -125,7 +125,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           areas={pag.itens}
           vazio={
             areas.length === 0
-              ? { titulo: "Nenhuma área cadastrada", descricao: "Todas as áreas ativas participam de qualquer evento." }
+              ? // A regra "todas participam" fica só na nota da barra; aqui, o próximo passo (auditoria 28/10, nº 183).
+                { titulo: "Nenhuma área cadastrada", descricao: "Crie a primeira área em “Nova área”." }
               : termo
                 ? { titulo: `Nada encontrado para “${termo}”`, descricao: "Confira a grafia do nome da área.", acao: limparBusca }
                 : { titulo: situacao === "INATIVOS" ? "Nenhuma área inativa" : "Nenhuma área ativa" }
@@ -141,7 +142,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Administração" divisor actions={acao} />
+      <PageHeader title="Administração" actions={acao} />
 
       {/*
         Seção da página em abas, como Ativação, Carga e o evento; pílula fica só para filtro. Antes eram pílulas com

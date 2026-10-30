@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { cache } from "react";
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
@@ -321,6 +322,13 @@ export async function lerPlantaEnviada(arquivo: File): Promise<{ mime: MimePlant
   const bytes = Buffer.from(await arquivo.arrayBuffer());
   const mime = detectarMimeImagem(bytes);
   if (!mime) throw new ValidacaoError("A planta precisa ser uma imagem PNG, JPG ou WebP.", { planta: "Use PNG, JPG ou WebP." });
+  // A assinatura bate só nos primeiros bytes: um PNG com o cabeçalho e lixo depois passava e o mapa ficava com
+  // a imagem quebrada (auditoria 30/10, parte D N24). Decodifica a imagem inteira antes de gravar.
+  const legivel = await sharp(bytes)
+    .stats()
+    .then((s) => s.channels.length > 0)
+    .catch(() => false);
+  if (!legivel) throw new ValidacaoError("Não foi possível ler a imagem da planta. Abra e salve de novo como PNG, JPG ou WebP.", { planta: "Imagem corrompida ou incompleta." });
   return { mime, bytes };
 }
 

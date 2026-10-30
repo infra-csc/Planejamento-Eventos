@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { requirePermissao } from "@/server/auth/session";
 import { listarHistoricoGeral, resumoHistorico, type RegistroHistorico } from "@/server/services/historico-geral";
-import { CATEGORIAS, CATEGORIAS_HISTORICO, PERIODOS_HISTORICO, diferencas, ehCategoria, ehPeriodo, hrefHistorico, rotuloAcao, type PeriodoHistorico } from "@/domain/historico-geral";
+import { CATEGORIAS, CATEGORIAS_HISTORICO, ORDEM_PERIODOS, PERIODOS_HISTORICO, diferencas, ehCategoria, ehPeriodo, hrefHistorico, rotuloAcao, type PeriodoHistorico } from "@/domain/historico-geral";
 import { PERFIL_LABEL } from "@/domain/permissions";
 import { addDiasISO, diaMes, diaSemanaCurto, formatarDataHora, hojeISO, hora, isoSP, tempoRelativo } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
@@ -74,7 +74,7 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
 
       {/* Filtros: período, texto, evento e pessoa numa barra só. */}
       <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <Pills rotulo="Período" itens={(Object.keys(PERIODOS_HISTORICO) as PeriodoHistorico[]).map((p) => ({ label: PERIODOS_HISTORICO[p].rotulo, href: hrefCom("/historico", params, { periodo: p === "30" ? null : p, pagina: null }), ativo: periodo === p }))} />
+        <Pills rotulo="Período" itens={ORDEM_PERIODOS.map((p) => ({ label: PERIODOS_HISTORICO[p].rotulo, href: hrefCom("/historico", params, { periodo: p === "30" ? null : p, pagina: null }), ativo: periodo === p }))} />
         <BuscaUrl placeholder="Buscar no registro" ariaLabel="Buscar no histórico" largura={240} />
         {lista.eventos.length > 0 && <FiltroEvento eventos={lista.eventos.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: e.n }))} rotuloOculto fluido />}
         {lista.pessoas.length > 0 && <FiltroPessoa pessoas={lista.pessoas.map((p) => ({ id: p.id, nome: p.nome, perfil: PERFIL_LABEL[p.perfil], n: p.n }))} />}
@@ -174,7 +174,7 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
           <Tag tom={TOM_CATEGORIA(h.categoria)}>{cat}</Tag>
           <span className="font-medium">{rotuloAcao(h.acao)}</span>
         </div>
-        <p className="m-0 mt-1 whitespace-pre-line text-ink-2">{href ? <Link href={href} className="text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">{h.descricao}</Link> : h.descricao}</p>
+        <p className="m-0 mt-1 whitespace-pre-line text-ink-2">{href ? <Link href={href} className="inline-block min-h-6 py-[3px] text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">{h.descricao}</Link> : h.descricao}</p>
         {dif.length > 0 && (
           <details className="mt-1 text-rotulo">
             <summary className="cursor-pointer list-none text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
@@ -266,7 +266,7 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
     return (
       <li key={x.id} className="text-ink-2">
         {href ? (
-          <Link href={href} className="text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">
+          <Link href={href} className="inline-block min-h-6 py-[3px] text-ink-2 no-underline decoration-line-strong underline-offset-2 hover:text-accent hover:underline">
             {x.descricao}
           </Link>
         ) : (

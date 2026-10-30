@@ -16,21 +16,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ArenaPage({ params }: { params: Promise<{ slug: string }> }) {
   const usuario = await requirePermissao("arena.ver");
   const { slug } = await params;
-  const carregada = await obterArenaBase(slug);
-  if (!carregada) notFound();
-  const base = carregada.arena;
-  // Planta importada + posições editadas pela logística (arrastadas ou itens que não tinham lugar).
+  // Arena, posições e seções editáveis não dependem umas das outras: as três leituras correm juntas
+  // (antes uma esperava a outra; auditoria 28/10, nº 147).
   // Se a tabela de posições ainda não existir (migração pendente), a arena abre com a planta original
   // e o erro fica no log, em vez de derrubar a página inteira.
-  const posicoes = await listarPosicoesArena(slug).catch((e: unknown) => {
-    console.error("Arena: não foi possível ler as posições editadas (rode `npm run db:migrate`).", e);
-    return [];
-  });
-  const arena = aplicarPosicoes(base, posicoes);
+  const [carregada, posicoes, secoes] = await Promise.all([
+    obterArenaBase(slug),
+    listarPosicoesArena(slug).catch((e: unknown) => {
+      console.error("Arena: não foi possível ler as posições editadas (rode `npm run db:migrate`).", e);
+      return [];
+    }),
+    // Administrador mexe em tudo; numa arena de evento, cada área posiciona os itens que pediu.
+    secoesEditaveisArena(usuario),
+  ]);
+  if (!carregada) notFound();
+  // Planta importada + posições editadas (arrastadas ou itens que não tinham lugar).
+  const arena = aplicarPosicoes(carregada.arena, posicoes);
   // A versão na URL troca quando a planta muda: o cache do navegador (5 min) não mostra a imagem antiga.
   const plantaImagemUrl = carregada.temPlanta ? `/api/arenas/${slug}/planta?v=${carregada.versao ?? 0}` : undefined;
-  // Administrador mexe em tudo; numa arena de evento, cada área posiciona os itens que pediu.
-  const secoes = await secoesEditaveisArena(usuario);
   const podeEditar = pode(usuario, "arena.editar") || (carregada.origem === "evento" && (secoes?.length ?? 0) > 0);
   return <ArenaExperiencia arena={arena} podeEditar={podeEditar} secoesEditaveis={secoes} editadas={posicoes.map((p) => p.chave)} plantaImagemUrl={plantaImagemUrl} />;
 }

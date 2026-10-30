@@ -7,9 +7,24 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/field";
 import { Aviso } from "@/components/ui/layout";
+import { toastSucesso } from "@/components/ui/toast";
+import type { ActionResult } from "@/lib/action";
 import { excluirArenaAction, importarEntornoArenaAction, removerEntornoArenaAction, removerPlantaArenaAction, trocarPlantaArenaAction } from "./arenas-actions";
 
 type Dialogo = "planta" | "remover-planta" | "entorno" | "remover-entorno" | "excluir" | null;
+
+/**
+ * Excluir a arena tira a linha da lista na mesma resposta (revalidação): o diálogo sumia antes de mostrar o aviso,
+ * e nada dizia que deu certo (auditoria 30/10, parte D N25). O aviso sai aqui, assim que a action responde.
+ */
+async function excluirComAviso(prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const r = await excluirArenaAction(prev, formData);
+  if (r.ok) {
+    toastSucesso(r.mensagem ?? "Arena excluída");
+    return { ...r, mensagem: undefined };
+  }
+  return r;
+}
 
 /** Menu da linha de uma arena de evento no índice: planta (trocar/remover), entorno 3D e exclusão. */
 export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno = 0 }: { slug: string; nome: string; temPlanta: boolean; geo?: { lat: number; lon: number; giro: number } | null; prediosEntorno?: number }) {
@@ -53,7 +68,8 @@ export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno =
           onOpenChange={fechar}
           title={temPlanta ? "Trocar planta" : "Enviar planta"}
           description={nome}
-          confirmLabel="Enviar"
+          // O botão diz o que faz (auditoria 28/10, nº 161).
+          confirmLabel={temPlanta ? "Trocar planta" : "Enviar planta"}
           action={trocarPlantaArenaAction}
           hidden={{ slug }}
         >
@@ -94,7 +110,8 @@ export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno =
           <Field label="Giro da planta" htmlFor="entorno-giro" hint="0 se o norte está para cima na imagem. Se a planta está deitada, o ângulo que leva o leste para a direita (ex.: 90 ou -90)." optional>
             <Input id="entorno-giro" name="giro" type="number" step="0.5" min={-180} max={180} defaultValue={geo?.giro ?? 0} className="numero !w-28" />
           </Field>
-          <Aviso>Prédios e ruas importados antes são substituídos; os itens do mapa não mudam. Dados © colaboradores do OpenStreetMap.</Aviso>
+          {/* A importação levou 34 s na auditoria (30/10, parte D): avisa antes, para ninguém fechar achando que travou. */}
+          <Aviso>A importação pode levar até 1 minuto. Prédios e ruas importados antes são substituídos; os itens do mapa não mudam. Dados © colaboradores do OpenStreetMap.</Aviso>
         </ConfirmDialog>
       )}
       {aberto === "remover-entorno" && (
@@ -108,7 +125,7 @@ export function ArenaAcoes({ slug, nome, temPlanta, geo = null, prediosEntorno =
           description={`${nome}: o mapa, a planta e todas as posições marcadas nele saem de vez. O evento e a ata não mudam.`}
           confirmLabel="Excluir arena"
           danger
-          action={excluirArenaAction}
+          action={excluirComAviso}
           hidden={{ slug }}
         />
       )}

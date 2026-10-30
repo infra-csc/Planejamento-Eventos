@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/field";
 import { IconeLapis } from "@/components/ui/icons";
 import { Kbd } from "@/components/ui/layout";
 import { IconeImprimir, IconeRegua } from "./icones";
-import { PASSO_GIRO, type EdicaoArena, type FormEdicao } from "./use-edicao-arena";
+import { PASSO_GIRO, PASSO_MOVER, type EdicaoArena, type FormEdicao } from "./use-edicao-arena";
 
 /**
  * O que a logística mais acrescenta no mapa: obstáculos do terreno e apoios simples.
@@ -63,7 +63,7 @@ export function BarraEdicao({
   abrirSemPosicao: () => void;
   setFontesAbertas: (aberto: boolean) => void;
 }) {
-  const { editando, alternarEdicao, menuItens, setMenuItens, colocando, setColocando, pilha, salvando, desfazer, pontoSelecionadoEdicao, idsEditados, setConfirmarRestaurar, formEdicao, setFormEdicao, confirmarFormEdicao } = edicao;
+  const { editando, alternarEdicao, menuItens, setMenuItens, colocando, setColocando, colocarNoCentro, pilha, salvando, desfazer, pontoSelecionadoEdicao, idsEditados, setConfirmarRestaurar, formEdicao, setFormEdicao, confirmarFormEdicao } = edicao;
   return (
     // Celular: os botões quebram em mais de uma linha e a frase de contexto vai para baixo (numa linha só, Medir e o menu sumiam).
     <div className="relative mb-3 flex h-12 items-center gap-2 rounded-cartao border border-line bg-surface px-3 max-sm:h-auto max-sm:flex-wrap max-sm:py-2">
@@ -114,7 +114,8 @@ export function BarraEdicao({
                 </>
               ) : medida.a ? (
                 <>
-                  Clique no segundo ponto{pontaMedida && <span className="tabular-nums"> · {distanciaPrecisa(distancia(medida.a, pontaMedida))}</span>}
+                  {/* A distância até o cursor muda a cada quadro: fora da região viva, senão o leitor fala sem parar (auditoria 28/10, nº 137). */}
+                  Clique no segundo ponto{pontaMedida && <span aria-hidden className="tabular-nums"> · {distanciaPrecisa(distancia(medida.a, pontaMedida))}</span>}
                 </>
               ) : (
                 "Régua: clique no primeiro ponto, no chão ou num pino"
@@ -128,6 +129,10 @@ export function BarraEdicao({
             <span className="min-w-0 truncate">
               Clique no mapa onde fica <span className="font-medium text-ink">{colocando.nome}</span>
             </span>
+            {/* Sem mouse: põe no centro e depois acerta com os botões de mover (auditoria 28/10, nº 15 / A-P1-3). */}
+            <Button size="xs" className="shrink-0" onClick={colocarNoCentro}>
+              Pôr no centro
+            </Button>
             <Button size="xs" className="shrink-0" onClick={() => setColocando(null)}>
               Cancelar <Kbd>Esc</Kbd>
             </Button>
@@ -135,12 +140,13 @@ export function BarraEdicao({
         ) : editando && pontoSelecionadoEdicao ? (
           <>
             <span className="min-w-0 truncate">
-              <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span> · arraste para mover
+              <span className="font-medium text-ink">{pontoSelecionadoEdicao.nome}</span> · arraste ou use as setas de mover
               {descreverGiro(pontoSelecionadoEdicao.rotacao) && <span className="tabular-nums"> · girado {descreverGiro(pontoSelecionadoEdicao.rotacao)}</span>}
             </span>
           </>
         ) : editando ? (
-          <span className="min-w-0 truncate">{salvando ? "Salvando…" : "Arraste um ponto para mover, ou use “Adicionar ao mapa”."}</span>
+          // A dica cita o botão que a pessoa tem: a área vê "Posicionar itens da minha área" (auditoria 30/10, parte D N23).
+          <span className="min-w-0 truncate">{salvando ? "Salvando…" : administra ? "Arraste um ponto para mover, ou use “Adicionar ao mapa”." : "Arraste um ponto da sua área para mover, ou use “Posicionar itens da minha área”."}</span>
         ) : (
           <span className="min-w-0 truncate">{idsEditados.size > 0 ? `${idsEditados.size} ${idsEditados.size === 1 ? "ponto ajustado" : "pontos ajustados"} em relação à planta original.` : "Planta original do evento."}</span>
         )}
@@ -189,10 +195,12 @@ export function BarraEdicao({
           </p>
           <p className="mb-2.5 ml-7 mt-0.5 text-rotulo text-muted">Escolha e depois clique no lugar. Dá para arrastar para acertar.</p>
           <div className="ml-7 flex flex-wrap gap-1.5">
-            {ATALHOS_ITEM.map((a) => (
+            {ATALHOS_ITEM.map((a, i) => (
               <Button
                 key={a.nome}
                 size="sm"
+                // O painel tem papel de diálogo: o foco entra nele ao abrir (auditoria 28/10, nº 65).
+                autoFocus={i === 0}
                 onClick={() => {
                   setMenuItens(false);
                   setFormEdicao(null);
@@ -238,6 +246,10 @@ export function BarraEdicao({
             e.preventDefault();
             confirmarFormEdicao();
           }}
+          // Esc fecha o "Renomear"/"Item novo", como os outros painéis do mapa (auditoria 28/10, nº 65).
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setFormEdicao(null);
+          }}
         >
           <span className="min-w-[220px] flex-1">
             <Input autoFocus aria-label="Nome do item" value={formEdicao.nome} onChange={(e) => setFormEdicao({ ...formEdicao, nome: e.target.value })} placeholder="Ex.: Árvore baixa em cima do acesso" className="w-full" />
@@ -265,12 +277,14 @@ export function AcoesPontoEdicao({
   ponto,
   pontoEditado,
   girar,
+  mover,
   setFormEdicao,
   excluirDoMapa,
 }: {
   ponto: PontoArena;
   pontoEditado: PontoArena | null | undefined;
   girar: (delta: number) => void;
+  mover: (dx: number, dz: number) => void;
   setFormEdicao: (form: FormEdicao | null) => void;
   excluirDoMapa: (p: PontoArena) => void;
 }) {
@@ -283,6 +297,21 @@ export function AcoesPontoEdicao({
       <Button size="xs" className="shrink-0" aria-label="Girar 15° no sentido horário" title="Girar 15° no sentido horário (E)" aria-keyshortcuts="E" onClick={() => girar(-PASSO_GIRO)}>
         ↻ 15°
       </Button>
+      {/* Mover sem arrastar: 1 m por toque, norte para cima na planta (auditoria 28/10, nº 15 / A-P1-3). */}
+      <span role="group" aria-label={`Mover ${PASSO_MOVER} m`} className="flex shrink-0 items-center gap-0.5">
+        <Button size="xs" aria-label={`Mover ${PASSO_MOVER} m para o norte`} title={`Mover ${PASSO_MOVER} m para o norte`} onClick={() => mover(0, -PASSO_MOVER)}>
+          ↑
+        </Button>
+        <Button size="xs" aria-label={`Mover ${PASSO_MOVER} m para o sul`} title={`Mover ${PASSO_MOVER} m para o sul`} onClick={() => mover(0, PASSO_MOVER)}>
+          ↓
+        </Button>
+        <Button size="xs" aria-label={`Mover ${PASSO_MOVER} m para o oeste`} title={`Mover ${PASSO_MOVER} m para o oeste`} onClick={() => mover(-PASSO_MOVER, 0)}>
+          ←
+        </Button>
+        <Button size="xs" aria-label={`Mover ${PASSO_MOVER} m para o leste`} title={`Mover ${PASSO_MOVER} m para o leste`} onClick={() => mover(PASSO_MOVER, 0)}>
+          →
+        </Button>
+      </span>
       <Button size="xs" className="shrink-0" onClick={() => setFormEdicao({ modo: "info", nome: ponto.nome, categoria: ponto.categoria })}>
         Renomear
       </Button>

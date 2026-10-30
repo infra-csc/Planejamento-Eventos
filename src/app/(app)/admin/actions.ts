@@ -12,6 +12,9 @@ import { invalidarDados, TAGS_DADOS, type TagDados } from "@/server/cache-dados"
  * (contadores do menu e do sino inclusos) e limpa o cache de navegação do cliente. Revalidar "/" com
  * "layout" também derrubava o cache de dados de todas as páginas; aqui só as tags que mudaram.
  */
+/** Só com payload malformado (tela desatualizada ou adulterada): diz o que fazer (auditoria 28/10, nº 177). */
+const ERRO_PAYLOAD = "Não foi possível salvar. Atualize a página e tente de novo.";
+
 function revalidarAdmin(...tags: TagDados[]) {
   revalidatePath("/admin");
   invalidarDados(...tags);
@@ -19,17 +22,17 @@ function revalidarAdmin(...tags: TagDados[]) {
 
 export async function salvarUsuarioAction(payload: { id?: string | null; nome: string; email: string; perfil: string; areaId: string | null; ativo: boolean }) {
   const usuario = await requireUsuario();
-  type Resultado = { nome: string; linkAcesso: string | null; criado: boolean };
-  if (payload.id != null && typeof payload.id !== "string") return { ok: false, erro: "Dados inválidos." } as ActionResult<Resultado>;
+  type Resultado = { id: string; nome: string; linkAcesso: string | null; criado: boolean };
+  if (payload.id != null && typeof payload.id !== "string") return { ok: false, erro: ERRO_PAYLOAD } as ActionResult<Resultado>;
   try {
     const d = usuarioSchema.parse({ ...payload, areaId: payload.areaId ?? undefined, senha: undefined });
     let resultado: Resultado;
     if (payload.id) {
       await editarUsuario(usuario, payload.id, d);
-      resultado = { nome: d.nome, linkAcesso: null, criado: false };
+      resultado = { id: payload.id, nome: d.nome, linkAcesso: null, criado: false };
     } else {
       const u = await criarUsuario(usuario, d);
-      resultado = { nome: u.nome, linkAcesso: u.linkAcesso, criado: true };
+      resultado = { id: u.id, nome: u.nome, linkAcesso: u.linkAcesso, criado: true };
     }
     revalidarAdmin();
     return { ok: true, dados: resultado } as ActionResult<typeof resultado>;
@@ -40,7 +43,7 @@ export async function salvarUsuarioAction(payload: { id?: string | null; nome: s
 
 export async function alternarAtivoUsuarioAction(id: string, ativo: boolean) {
   const usuario = await requireUsuario();
-  if (typeof id !== "string" || typeof ativo !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof id !== "string" || typeof ativo !== "boolean") return { ok: false, erro: ERRO_PAYLOAD } as const;
   const r = await executar(() => alterarAtivoUsuario(usuario, id, ativo));
   revalidarAdmin();
   return r;
@@ -48,7 +51,7 @@ export async function alternarAtivoUsuarioAction(id: string, ativo: boolean) {
 
 export async function gerarLinkAcessoAction(id: string) {
   const usuario = await requireUsuario();
-  if (typeof id !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof id !== "string") return { ok: false, erro: ERRO_PAYLOAD } as const;
   return executar(() => gerarNovoLinkAcesso(usuario, id));
 }
 

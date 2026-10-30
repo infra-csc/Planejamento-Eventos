@@ -36,8 +36,15 @@ export type RegistroHistorico = {
   solicitacaoId: string | null;
 };
 
-/** Início do dia em São Paulo, como condição SQL sobre `criado_em`. */
-const desdeODia = (dia: string) => sql`(${historico.criadoEm} at time zone 'America/Sao_Paulo')::date >= ${dia}::date`;
+/**
+ * Início do dia em São Paulo, como condição SQL sobre `criado_em`. A conversão fica do lado do valor
+ * (meia-noite de SP vira um instante), não da coluna: o banco compara direto com `criado_em` em vez de
+ * converter a tabela inteira a cada leitura (auditoria 28/10, nº 71 / D-P2-6).
+ */
+const desdeODia = (dia: string) => sql`${historico.criadoEm} >= (${dia}::date::timestamp at time zone 'America/Sao_Paulo')`;
+
+/** `%`, `_` e `\` digitados na busca valem como texto, não como curinga do ilike (auditoria 30/10, parte D N15). */
+const escaparLike = (t: string) => t.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 function condicoes(f: FiltrosHistorico, ignorar: "categoria" | "evento" | "usuario" | null = null): SQL[] {
   const c: SQL[] = [];
@@ -49,10 +56,66 @@ function condicoes(f: FiltrosHistorico, ignorar: "categoria" | "evento" | "usuar
   // Carga e descarga é tela da logística: quem não tem acesso a ela não vê os registros dela.
   if (f.semCarga) c.push(ne(historico.entidade, "veiculo_carga"));
   const q = f.busca?.trim();
-  if (q) c.push(sql`(${historico.descricao} ilike ${`%${q}%`} or ${historico.acao} ilike ${`%${q}%`})`);
+  if (q) {
+    const padrao = `%${escaparLike(q)}%`;
+    c.push(sql`(${historico.descricao} ilike ${padrao} or ${historico.acao} ilike ${padrao})`);
+  }
   return c;
 }
 const juntar = (c: SQL[]) => (c.length ? and(...c) : undefined);
+
+type Db = Awaited<ReturnType<typeof getDb>>;
+
+/** Registros de uma página (ou do CSV), com autor, evento e a solicitação dona do item de solicitação. */
+async function lerRegistros(db: Db, where: SQL | undefined, limite: number, desde: number): Promise<RegistroHistorico[]> {
+  const rows = await db
+    .select({
+      id: historico.id,
+      em: historico.criadoEm,
+      entidade: historico.entidade,
+      entidadeId: historico.entidadeId,
+      acao: historico.acao,
+      descricao: historico.descricao,
+      dadosAntes: historico.dadosAntes,
+      dadosDepois: historico.dadosDepois,
+      verComo: historico.verComo,
+      eventoId: historico.eventoId,
+      eventoCodigo: eventos.codigo,
+      eventoNome: eventos.nome,
+      autorId: usuarios.id,
+      autorNome: usuarios.nome,
+      autorPerfil: usuarios.perfil,
+    })
+    .from(historico)
+    .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
+    .leftJoin(eventos, eq(historico.eventoId, eventos.id))
+    .where(where)
+    .orderBy(desc(historico.criadoEm), desc(historico.id))
+    .limit(limite)
+    .offset(desde);
+
+  // Link do item de solicitação precisa da solicitação dona.
+  const itemIds = rows.filter((r) => r.entidade === "solicitacao_item").map((r) => r.entidadeId);
+  const donos = itemIds.length ? await db.select({ id: solicitacaoItens.id, solicitacaoId: solicitacaoItens.solicitacaoId }).from(solicitacaoItens).where(inArray(solicitacaoItens.id, itemIds)) : [];
+  const donoDe = new Map(donos.map((d) => [d.id, d.solicitacaoId]));
+
+  return rows.map((r) => ({
+    id: r.id,
+    em: r.em,
+    entidade: r.entidade,
+    entidadeId: r.entidadeId,
+    categoria: categoriaDe(r.entidade),
+    acao: r.acao,
+    descricao: r.descricao,
+    dadosAntes: r.dadosAntes,
+    dadosDepois: r.dadosDepois,
+    verComo: r.verComo,
+    eventoId: r.eventoId,
+    evento: r.eventoCodigo && r.eventoNome ? { codigo: r.eventoCodigo, nome: r.eventoNome } : null,
+    autor: r.autorId && r.autorNome && r.autorPerfil ? { id: r.autorId, nome: r.autorNome, perfil: r.autorPerfil } : null,
+    solicitacaoId: r.entidade === "solicitacao_item" ? (donoDe.get(r.entidadeId) ?? null) : null,
+  }));
+}
 
 /**
  * Log geral do sistema, para logística, gestão e administração: tudo que o app registrou, com
@@ -64,36 +127,12 @@ export async function listarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHist
   f = { ...f, semCarga: !pode(usuario, "carga.ver") };
   const db = await getDb();
   const porPagina = Math.min(200, Math.max(10, f.porPagina ?? 50));
-  const pagina = Math.max(1, f.pagina ?? 1);
+  const pedida = Math.max(1, f.pagina ?? 1);
   const where = juntar(condicoes(f));
 
-  const [[{ total }], rows, porEntidade, pessoas, eventosLista] = await Promise.all([
+  const [[{ total }], primeira, porEntidade, pessoas, eventosLista] = await Promise.all([
     db.select({ total: count() }).from(historico).where(where),
-    db
-      .select({
-        id: historico.id,
-        em: historico.criadoEm,
-        entidade: historico.entidade,
-        entidadeId: historico.entidadeId,
-        acao: historico.acao,
-        descricao: historico.descricao,
-        dadosAntes: historico.dadosAntes,
-        dadosDepois: historico.dadosDepois,
-        verComo: historico.verComo,
-        eventoId: historico.eventoId,
-        eventoCodigo: eventos.codigo,
-        eventoNome: eventos.nome,
-        autorId: usuarios.id,
-        autorNome: usuarios.nome,
-        autorPerfil: usuarios.perfil,
-      })
-      .from(historico)
-      .leftJoin(usuarios, eq(historico.usuarioId, usuarios.id))
-      .leftJoin(eventos, eq(historico.eventoId, eventos.id))
-      .where(where)
-      .orderBy(desc(historico.criadoEm), desc(historico.id))
-      .limit(porPagina)
-      .offset((pagina - 1) * porPagina),
+    lerRegistros(db, where, porPagina, (pedida - 1) * porPagina),
     // Facetas: cada uma ignora o próprio filtro, para as contagens mostrarem o que dá para escolher.
     db.select({ entidade: historico.entidade, n: count() }).from(historico).where(juntar(condicoes(f, "categoria"))).groupBy(historico.entidade),
     db
@@ -112,10 +151,12 @@ export async function listarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHist
       .orderBy(desc(count()), eventos.codigo),
   ]);
 
-  // Link do item de solicitação precisa da solicitação dona.
-  const itemIds = rows.filter((r) => r.entidade === "solicitacao_item").map((r) => r.entidadeId);
-  const donos = itemIds.length ? await db.select({ id: solicitacaoItens.id, solicitacaoId: solicitacaoItens.solicitacaoId }).from(solicitacaoItens).where(inArray(solicitacaoItens.id, itemIds)) : [];
-  const donoDe = new Map(donos.map((d) => [d.id, d.solicitacaoId]));
+  const totalN = Number(total);
+  const paginas = Math.max(1, Math.ceil(totalN / porPagina));
+  // Página além da última (?pagina=999, link antigo depois de filtrar): mostra a última em vez de
+  // "Mostrando 49901 a 741" com a tabela vazia (auditoria 30/10, parte D N16). Só aqui lê de novo.
+  const pagina = Math.min(pedida, paginas);
+  const itens = pagina === pedida ? primeira : await lerRegistros(db, where, porPagina, (pagina - 1) * porPagina);
 
   const porCategoria = Object.fromEntries(CATEGORIAS.map((c) => [c, 0])) as Record<CategoriaHistorico, number>;
   for (const r of porEntidade) {
@@ -123,30 +164,12 @@ export async function listarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHist
     if (c) porCategoria[c] += Number(r.n);
   }
 
-  const itens: RegistroHistorico[] = rows.map((r) => ({
-    id: r.id,
-    em: r.em,
-    entidade: r.entidade,
-    entidadeId: r.entidadeId,
-    categoria: categoriaDe(r.entidade),
-    acao: r.acao,
-    descricao: r.descricao,
-    dadosAntes: r.dadosAntes,
-    dadosDepois: r.dadosDepois,
-    verComo: r.verComo,
-    eventoId: r.eventoId,
-    evento: r.eventoCodigo && r.eventoNome ? { codigo: r.eventoCodigo, nome: r.eventoNome } : null,
-    autor: r.autorId && r.autorNome && r.autorPerfil ? { id: r.autorId, nome: r.autorNome, perfil: r.autorPerfil } : null,
-    solicitacaoId: r.entidade === "solicitacao_item" ? (donoDe.get(r.entidadeId) ?? null) : null,
-  }));
-
-  const totalN = Number(total);
   return {
     itens,
     total: totalN,
     pagina,
     porPagina,
-    paginas: Math.max(1, Math.ceil(totalN / porPagina)),
+    paginas,
     porCategoria,
     pessoas: pessoas.map((p) => ({ ...p, n: Number(p.n) })),
     eventos: eventosLista.map((e) => ({ ...e, n: Number(e.n) })),
@@ -166,18 +189,23 @@ export async function resumoHistorico(usuario: UsuarioAtual) {
     .select({
       hoje: count(sql`case when ${desdeODia(hoje)} then 1 end`),
       dias7: count(sql`case when ${desdeODia(d7)} then 1 end`),
-      dias30: count(sql`case when ${desdeODia(d30)} then 1 end`),
-      pessoas30: countDistinct(sql`case when ${desdeODia(d30)} then ${historico.usuarioId} end`),
+      dias30: count(),
+      pessoas30: countDistinct(historico.usuarioId),
     })
     .from(historico)
-    .where(semCarga ? ne(historico.entidade, "veiculo_carga") : undefined);
+    // Todos os números cabem nos últimos 30 dias: lê só esse trecho, não a tabela inteira (nº 71).
+    .where(and(desdeODia(d30), semCarga ? ne(historico.entidade, "veiculo_carga") : undefined));
   return { hoje: Number(r.hoje), dias7: Number(r.dias7), dias30: Number(r.dias30), pessoas30: Number(r.pessoas30) };
 }
 
-/** Mesma lista, sem paginação (até `limite` registros), para exportar. */
+/**
+ * Mesma lista, sem paginação (até `limite` registros), para exportar: uma contagem e uma leitura
+ * com limite, em vez de chamar a listagem página a página (até 151 consultas; auditoria 28/10, nº 71).
+ */
 export async function exportarHistoricoGeral(usuario: UsuarioAtual, f: FiltrosHistorico, limite = 5000) {
-  const tudo = await listarHistoricoGeral(usuario, { ...f, pagina: 1, porPagina: 200 });
-  const itens = [...tudo.itens];
-  for (let p = 2; p <= tudo.paginas && itens.length < limite; p++) itens.push(...(await listarHistoricoGeral(usuario, { ...f, pagina: p, porPagina: 200 })).itens);
-  return { itens: itens.slice(0, limite), total: tudo.total };
+  exigir(usuario, "historico.ver_tudo");
+  const where = juntar(condicoes({ ...f, semCarga: !pode(usuario, "carga.ver") }));
+  const db = await getDb();
+  const [[{ total }], itens] = await Promise.all([db.select({ total: count() }).from(historico).where(where), lerRegistros(db, where, limite, 0)]);
+  return { itens, total: Number(total) };
 }

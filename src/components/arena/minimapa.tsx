@@ -39,8 +39,10 @@ export function Minimapa({
         width={216}
         height={Math.round((216 * h) / w)}
         className="block cursor-crosshair"
-        role="img"
-        aria-label="Minimapa: clique para levar a câmera até o local"
+        // Atalho só de mouse (o teclado move a câmera pelas setas): fora da árvore de acessibilidade, em vez de uma
+        // imagem que responde a clique sem papel de botão (auditoria 28/10, nº 142).
+        aria-hidden
+        focusable="false"
         onClick={(e) => {
           const svg = svgRef.current;
           const m = svg?.getScreenCTM();

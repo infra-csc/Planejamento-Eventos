@@ -144,6 +144,10 @@ na coluna `ver_como` e a descrição termina com "(pelo administrador, vendo com
 - Limites: login por e-mail+IP (8 falhas/15 min), por e-mail de qualquer IP (20/15 min) e por IP
   (40/15 min); troca da própria senha 5 tentativas/15 min por usuário; redefinições e links de
   acesso 30/hora por administrador. Contagem e registro são atômicos (trava por chave no Postgres).
+- O IP desses limites vem do `x-forwarded-for`: o valor que o proxy da frente acrescentou (o último, com
+  um proxy só, como no Replit). Com outro proxy ou CDN na frente, defina `PROXIES_CONFIAVEIS` com o número
+  de proxies; senão o cliente consegue escolher o próprio "IP" e escapar do limite por IP (o limite por
+  e-mail continua valendo).
 
 ## 6. Segurança HTTP
 

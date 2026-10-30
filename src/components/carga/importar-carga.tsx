@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
+import { CaptionOculta } from "@/components/ui/tabela";
 import { toastSucesso } from "@/components/ui/toast";
 import { importarCargaAction, previaImportacaoCargaAction } from "@/app/(app)/carga-descarga/actions";
 import { TIPO_VEICULO_LABEL } from "@/domain/carga-descarga";
@@ -26,7 +27,7 @@ export function ImportarCarga() {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-cartao border border-dashed border-line-strong bg-surface px-cartao py-2.5">
       <p className="m-0 min-w-0 flex-1 basis-60 text-pequeno text-ink-2">
-        <b className="font-semibold text-ink">Muitos veículos?</b> Preencha o modelo e suba todos de uma vez.
+        <b className="font-semibold text-ink">Muitos veículos?</b> Preencha o modelo e envie todos de uma vez.
       </p>
       <a href={MODELO} className="inline-flex items-center gap-1.5 text-pequeno font-medium text-accent no-underline hover:underline" download>
         <Icone nome="download" />
@@ -159,6 +160,8 @@ function DialogImportar({ onFechar }: { onFechar: () => void }) {
                 linha vira um cartão com o número e a situação primeiro (antes o erro ficava fora da tela a 375; auditoria 30/10, parte D N9). */}
             <div className="max-h-[52vh] overflow-auto rounded-controle border border-line">
               <table className="w-full border-collapse text-left text-pequeno max-md:block">
+                {/* Legenda para o leitor de tela (auditoria 28/10, nº 140). */}
+                <CaptionOculta>Conferência da planilha, linha a linha: as com erro primeiro</CaptionOculta>
                 <thead className="sticky top-0 z-[1] bg-subtle max-md:hidden">
                   <tr className="text-rotulo uppercase tracking-[0.04em] text-muted">
                     <th className="px-3 py-2 font-medium">Linha</th>

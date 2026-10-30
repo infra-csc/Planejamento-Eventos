@@ -154,7 +154,10 @@ export function FormVeiculo({
     limparErro();
     if (!eventoId) {
       setCampoErro("evento");
-      return setErro("Escolha o evento.");
+      setErro("Escolha o evento.");
+      // O foco ia ficar no botão: leva ao campo do erro (auditoria 30/10, parte D N20).
+      document.getElementById("vc-evento")?.focus();
+      return;
     }
     const dados = normalizarVeiculo({ tipo, ident, ida, volta });
     const problema = validarVeiculo(dados);
@@ -197,18 +200,29 @@ export function FormVeiculo({
             <p id="vc-tipo-rotulo" className="m-0 mb-1.5 text-pequeno font-medium text-ink-2">
               Tipo <span className="text-danger" aria-hidden>*</span>
             </p>
+            {/* Grupo de rádio de verdade: uma parada de Tab (o escolhido) e as setas trocam (auditoria 28/10, nº 66). */}
             <div role="radiogroup" aria-labelledby="vc-tipo-rotulo" className="inline-flex rounded-controle border border-line-control bg-surface p-0.5">
-              {TIPOS_VEICULO.map((t) => (
+              {TIPOS_VEICULO.map((t, i) => (
                 <button
                   key={t}
                   type="button"
                   role="radio"
-                  id={t === "carreta" ? "vc-tipo" : undefined}
+                  id={t === tipo ? "vc-tipo" : undefined}
                   aria-checked={tipo === t}
+                  tabIndex={tipo === t ? 0 : -1}
                   onClick={() => setTipo(t)}
+                  onKeyDown={(e) => {
+                    const passo = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+                    if (!passo) return;
+                    e.preventDefault();
+                    const proximo = TIPOS_VEICULO[(i + passo + TIPOS_VEICULO.length) % TIPOS_VEICULO.length];
+                    setTipo(proximo);
+                    (e.currentTarget.parentElement?.children[TIPOS_VEICULO.indexOf(proximo)] as HTMLElement | undefined)?.focus();
+                  }}
                   className={cn(
                     "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[5px] border-0 px-2.5 text-pequeno transition-colors focus-visible:outline-2 focus-visible:outline-accent max-md:h-10",
-                    tipo === t ? "bg-selected font-medium text-ink shadow-pill" : "bg-transparent text-ink-3 hover:text-ink",
+                    // Escolhido também pela borda e pelo peso, não só pelo fundo (1,07:1; auditoria 28/10, nº 138).
+                    tipo === t ? "bg-selected font-semibold text-ink shadow-pill ring-1 ring-inset ring-ink-3" : "bg-transparent text-ink-3 hover:text-ink",
                   )}
                 >
                   <IconeVeiculo tipo={t} />

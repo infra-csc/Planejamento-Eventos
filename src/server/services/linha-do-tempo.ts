@@ -211,7 +211,8 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     areaId: linha.registro.areaId,
     origem: origem
       ? {
-          solicitacaoId: origem.solicitacaoId,
+          // Id da solicitação de outra área não sai no payload: não abria nada, mas não precisa ir (endurecimento E7).
+          solicitacaoId: veTudo ? origem.solicitacaoId : null,
           codigo: veTudo ? origem.codigo : null,
           titulo: veTudo ? origem.titulo : null,
           tipo: origem.tipo,

@@ -38,6 +38,13 @@ export function cookieSeguro() {
 /** Troca de senha obrigatória, exceto no modo demonstração (onde a senha do seed é pública de propósito). */
 const exigeTroca = (trocarSenha: boolean) => trocarSenha && !exibirDemo();
 
+/**
+ * Mesma frase para senha errada, e-mail inexistente e conta desativada: não revela se a conta existe nem se a senha
+ * bateu. A pista para conta desativada (auditoria 28/10, nº 46) mudaria o texto da tela de login, que fica como está
+ * até o time decidir.
+ */
+const ERRO_LOGIN = "E-mail ou senha inválidos.";
+
 export async function autenticar(email: string, senha: string): Promise<{ ok: true; usuario: UsuarioAtual } | { ok: false; erro: string }> {
   const chave = email.trim().toLowerCase();
   const ip = await ipCliente();
@@ -62,7 +69,7 @@ export async function autenticar(email: string, senha: string): Promise<{ ok: tr
   const senhaOk = await verificarSenha(senha, u?.senhaHash ?? (await obterHashFicticio()));
   if (!u || !u.ativo || !senhaOk) {
     await registrarAcessoDiario(db, { usuarioId: u?.id ?? null, nome: u?.nome ?? null, sucesso: false }).catch(() => undefined);
-    return { ok: false, erro: "E-mail ou senha inválidos." };
+    return { ok: false, erro: ERRO_LOGIN };
   }
   // Login certo não conta como falha: desfaz a reserva desta tentativa e zera as falhas deste e-mail neste IP.
   await liberarTentativas(tentativa.ids);
@@ -71,7 +78,7 @@ export async function autenticar(email: string, senha: string): Promise<{ ok: tr
   const marcarTroca = senha === SENHA_DEMO && !exibirDemo() && !u.trocarSenha;
   if (marcarTroca) await db.update(usuarios).set({ trocarSenha: true }).where(eq(usuarios.id, u.id));
   const usuario = await abrirSessaoUsuario(u.id);
-  if (!usuario) return { ok: false, erro: "E-mail ou senha inválidos." };
+  if (!usuario) return { ok: false, erro: ERRO_LOGIN };
   return { ok: true, usuario };
 }
 

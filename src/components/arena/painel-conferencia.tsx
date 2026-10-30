@@ -40,7 +40,7 @@ export function PainelConferencia({
               Conferência planta × ata
             </h2>
             <p role="status" className="m-0 mt-0.5 text-pequeno text-warning">
-              As duas fontes do evento discordam em {n} {n === 1 ? "ponto" : "pontos"}. Confirme antes de fechar a carga.
+              As duas fontes do evento discordam em {n} {n === 1 ? "ponto" : "pontos"}. Confirme antes de liberar a carga.
             </p>
           </div>
           <IconButton label="Fechar conferência" onClick={onFechar} className="text-warning">

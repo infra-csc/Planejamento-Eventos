@@ -67,14 +67,14 @@ describe("GET /api/anexos/[id]", { timeout: 30_000 }, () => {
     }
   });
 
-  it("200 com o original, isolado (nosniff + CSP sandbox) e cache imutável", async () => {
+  it("200 com o original, isolado (nosniff + CSP sandbox) e cache curto (E3)", async () => {
     await entrar(E.requisitante.id);
     const r = await chamar(imagemId);
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("image/png");
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
     expect(r.headers.get("content-security-policy")).toContain("sandbox");
-    expect(r.headers.get("cache-control")).toContain("immutable");
+    expect(r.headers.get("cache-control")).toBe("private, max-age=300");
     expect(r.headers.get("content-disposition")).toContain(encodeURIComponent("planta do palco.png"));
     expect(Buffer.from(await r.arrayBuffer()).equals(png)).toBe(true);
   });

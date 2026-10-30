@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ARENA_ECO_RUN_SP_2026 } from "../../../scripts/dados/arena-eco-run-sp-2026";
-import { ataDoEvento, copiarLayout, detectarMimeImagem, gerarSlugArena, layoutEmBranco, montarBaseArena } from "./arenas";
+import { ValidacaoError } from "@/domain/errors";
+import { pngMinimo } from "@/test/apoio";
+import { ataDoEvento, copiarLayout, detectarMimeImagem, gerarSlugArena, layoutEmBranco, lerPlantaEnviada, montarBaseArena } from "./arenas";
 
 describe("gerarSlugArena", () => {
   it("tira acento, põe em minúsculas e troca o resto por hífen", () => {
@@ -20,6 +22,16 @@ describe("gerarSlugArena", () => {
 
   it("nome sem letras vira 'arena'", () => {
     expect(gerarSlugArena("!!!", [])).toBe("arena");
+  });
+});
+
+describe("lerPlantaEnviada", () => {
+  it("recusa o PNG só com o cabeçalho e lixo depois (auditoria 30/10, parte D N24); aceita a imagem de verdade", async () => {
+    const cabecalho = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const corrompido = new File([new Uint8Array([...cabecalho, ...new TextEncoder().encode("lixo depois do cabeçalho")])], "planta.png", { type: "image/png" });
+    await expect(lerPlantaEnviada(corrompido)).rejects.toBeInstanceOf(ValidacaoError);
+    const boa = new File([new Uint8Array(await pngMinimo(32, 24))], "planta.png", { type: "image/png" });
+    await expect(lerPlantaEnviada(boa)).resolves.toMatchObject({ mime: "image/png" });
   });
 });
 

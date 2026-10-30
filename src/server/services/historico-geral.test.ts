@@ -77,6 +77,21 @@ describe("histórico geral", () => {
     expect((await resumoHistorico(E.admin)).hoje).toBeGreaterThan(resumo.hoje);
   });
 
+  it("% e _ na busca são texto, não curinga (auditoria 30/10, parte D N15)", async () => {
+    const tudo = await listarHistoricoGeral(E.admin, { periodo: "tudo" });
+    const pct = await listarHistoricoGeral(E.admin, { periodo: "tudo", busca: "%" });
+    const sub = await listarHistoricoGeral(E.admin, { periodo: "tudo", busca: "_" });
+    expect(pct.total).toBeLessThan(tudo.total);
+    expect(pct.itens.every((h) => h.descricao.includes("%") || h.acao.includes("%"))).toBe(true);
+    expect(sub.itens.every((h) => h.descricao.includes("_") || h.acao.includes("_"))).toBe(true);
+  });
+
+  it("página além da última mostra a última (auditoria 30/10, parte D N16)", async () => {
+    const r = await listarHistoricoGeral(E.admin, { periodo: "tudo", porPagina: 10, pagina: 999 });
+    expect(r.pagina).toBe(r.paginas);
+    expect(r.itens.length).toBeGreaterThan(0);
+  });
+
   it("exporta tudo o que os filtros pegam, além da primeira página", async () => {
     const lista = await listarHistoricoGeral(E.admin, { periodo: "tudo", porPagina: 10 });
     const exp = await exportarHistoricoGeral(E.admin, { periodo: "tudo" });

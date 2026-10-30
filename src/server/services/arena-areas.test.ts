@@ -9,6 +9,7 @@ delete process.env.DATABASE_URL;
 
 import { SemPermissaoError } from "@/domain/errors";
 import { migrarBanco, montarElenco, novoEvento, unico, type Elenco } from "@/test/apoio";
+import { incluirLinhaAta } from "./eventos/ata";
 import { criarArena } from "./arenas";
 import { listarPosicoesArena, removerPosicaoArena, salvarPosicaoArena, secoesEditaveisArena } from "./arena";
 
@@ -19,6 +20,12 @@ beforeAll(async () => {
   await migrarBanco();
   E = await montarElenco();
   const ev = await novoEvento(E.logistica);
+  // Os pontos de área materializam linhas da ata do evento: cada item usado abaixo está na ata.
+  const linha = (descricao: string, areaId: string) =>
+    incluirLinhaAta(E.logistica, ev.id, { referenciaTipo: "AVULSO", projetoId: null, pecaId: null, descricaoLivre: descricao, quantidade: 1, destino: null, areaId, justificativa: null });
+  await linha("Tenda 3×3 m", E.areas.a.id);
+  await linha("Estande 9×6 m", E.areas.b.id);
+  await linha("Balcão", E.areas.b.id);
   slug = (await criarArena(E.admin, { eventoId: ev.id, nome: unico("Arena"), partida: { tipo: "branco", largura: 60, profundidade: 40 } }, null)).slug;
 }, 120_000);
 
@@ -49,6 +56,15 @@ describe("mapa 3D por área", () => {
     await expect(salvarPosicaoArena(E.requisitante, slug, { ...daB, itemAta: `${E.areas.a.nome}|x` })).rejects.toBeInstanceOf(SemPermissaoError);
     await expect(salvarPosicaoArena(E.requisitante, slug, { chave: "novo:livre:poste", tipo: "NOVO", x: 1, z: 1, nome: "Poste", itemAta: null })).rejects.toBeInstanceOf(SemPermissaoError);
     await expect(salvarPosicaoArena(E.requisitante, slug, { chave: "p-12", tipo: "MOVER", x: 1, z: 1 })).rejects.toBeInstanceOf(SemPermissaoError);
+  });
+
+  it("a área não cria ponto de item que não está na ata desta arena (nº 93 / SEC-06)", async () => {
+    // Item inventado, com a seção da própria área: antes passava (só o prefixo era conferido).
+    await expect(salvarPosicaoArena(E.requisitante, slug, itemDa(E.areas.a.nome, "Nome inventado"))).rejects.toBeInstanceOf(SemPermissaoError);
+    // Item real, mas com outra chave (vários pontos para o mesmo item): também não.
+    const real = itemDa(E.areas.a.nome, "Tenda 3×3 m");
+    await expect(salvarPosicaoArena(E.requisitante, slug, { ...real, chave: "novo:ata:outra-chave" })).rejects.toBeInstanceOf(SemPermissaoError);
+    expect((await listarPosicoesArena(slug)).some((p) => p.nome === "Nome inventado")).toBe(false);
   });
 
   it("o administrador mexe no item de qualquer área", async () => {

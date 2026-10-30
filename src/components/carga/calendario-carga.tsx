@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { AcaoNoCabecalho } from "@/components/ui/acao-cabecalho";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
@@ -33,9 +32,11 @@ import {
   type TipoOperacao,
 } from "@/domain/carga-descarga";
 import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-descarga";
+import { usePedidoNovo } from "@/components/admin/novo-via-url";
 import { COR_TAG, ContagemVeiculos, IconeVeiculo, TagCargaChip } from "./base";
 import { DetalheVeiculo, TrechosVeiculo } from "./detalhe-veiculo";
 import { FormVeiculo } from "./form-veiculo";
+import { useFocoDeVolta } from "./use-foco-de-volta";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -56,7 +57,8 @@ type Modal =
 /** Zonas do dia: ↑ carga (azul), evento (verde) e ↓ descarga (laranja, fundo próprio e borda tracejada). */
 const ZONAS = [
   { chave: "carga", titulo: "↑ Carga", tipos: ["cargaGalpao", "cargaDestino"] as TipoOperacao[], cls: "border-l-info", tituloCls: "text-info", fundo: "" },
-  { chave: "evento", titulo: "Evento", tipos: ["evento"] as TipoOperacao[], cls: "border-l-success", tituloCls: "text-success", fundo: "" },
+  // Evento em tinta neutra: verde no DS quer dizer "concluído" (auditoria 28/10, nº 126).
+  { chave: "evento", titulo: "Evento", tipos: ["evento"] as TipoOperacao[], cls: "border-l-ink-3", tituloCls: "text-ink-2", fundo: "" },
   { chave: "descarga", titulo: "↓ Descarga", tipos: ["descDestino", "descGalpao"] as TipoOperacao[], cls: "border-l-warning", tituloCls: "text-warning", fundo: "rounded-controle border border-dashed border-warning-border bg-warning-bg-suave" },
 ] as const;
 
@@ -85,7 +87,23 @@ export function CalendarioCarga({
   const [filtros, setFiltros] = useState<FiltrosCarga>(FILTROS_PADRAO);
   const [semana, setSemana] = useState(segundaDe(hoje));
   const [busca, setBusca] = useState("");
-  const [modal, setModal] = useState<Modal | null>(null);
+  const [modal, setModalBruto] = useState<Modal | null>(null);
+  // Fechar (inclusive depois de salvar a edição) devolve o foco ao cartão que abriu (auditoria 30/10, parte D N20).
+  const foco = useFocoDeVolta();
+  const setModal = (m: Modal | null) => {
+    if (m) foco.guardar();
+    else foco.devolver();
+    setModalBruto(m);
+  };
+  // "Novo veículo" fica no cabeçalho da página (padrão de lista, auditoria 28/10, nº 54) e pede pela URL (?novo=1).
+  const limparPedidoNovo = usePedidoNovo(() => {
+    // Chamado durante a renderização (inclusive no servidor): sem guardar foco aqui.
+    if (podeEditar) setModalBruto({ tipo: "novo" });
+  });
+  const fecharModal = () => {
+    setModal(null);
+    limparPedidoNovo();
+  };
 
   // Filtros salvos por pessoa (neste navegador). Lidos depois da hidratação: o servidor não tem o armazenamento.
   useEffect(() => {
@@ -263,7 +281,7 @@ export function CalendarioCarga({
     const tipos = o.origem === "cadastro" ? veiculos.filter((v) => v.eventoId === o.eventoId).map((v) => v.tipo) : [];
     return (
       <li key={o.chave}>
-        <button type="button" onClick={() => abrir(o)} title={o.origem === "planilha" ? "Da planilha 2026" : undefined} className={cn(cardCls, o.origem === "planilha" ? "border-dotted border-line-strong" : "border-success-border bg-success-bg/40")}>
+        <button type="button" onClick={() => abrir(o)} title={o.origem === "planilha" ? "Da planilha 2026" : undefined} className={cn(cardCls, o.origem === "planilha" ? "border-dotted border-line-strong" : "border-line-strong bg-subtle/60")}>
           <span className="block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
           {seCancelado(o.eventoId)}
           {tipos.length > 0 && <ContagemVeiculos tipos={tipos} className="mt-1" />}
@@ -326,17 +344,10 @@ export function CalendarioCarga({
           {/* Singular com 1 (antes "1 ↑ cargas · 1 eventos"; nº 83, conferido na auditoria 30/10, parte D). */}
           {filtros.direcao !== "descarga" && <Kpi n={daSemana.carga} rotulo={daSemana.carga === 1 ? "↑ carga" : "↑ cargas"} cls="text-info" />}
           {filtros.direcao !== "carga" && <Kpi n={daSemana.descarga} rotulo={daSemana.descarga === 1 ? "↓ descarga" : "↓ descargas"} cls="text-warning" />}
-          <Kpi n={daSemana.veiculos.size} rotulo={daSemana.veiculos.size === 1 ? "veículo" : "veículos"} />
-          {filtros.eventos && <Kpi n={daSemana.evento} rotulo={daSemana.evento === 1 ? "evento" : "eventos"} cls="text-success" />}
+          {/* Semana só com a planilha: "0 veículos" ao lado de "15 cargas" parecia erro (auditoria 28/10, nº 111). */}
+          <Kpi n={daSemana.veiculos.size} rotulo={daSemana.veiculos.size === 0 ? "veículos cadastrados" : daSemana.veiculos.size === 1 ? "veículo" : "veículos"} />
+          {filtros.eventos && <Kpi n={daSemana.evento} rotulo={daSemana.evento === 1 ? "evento" : "eventos"} />}
         </dl>
-        {podeEditar && (
-          <AcaoNoCabecalho>
-            <Button variant="primary" size="lg" abreDialogo onClick={() => setModal({ tipo: "novo" })}>
-              <Icone nome="mais" />
-              Novo veículo
-            </Button>
-          </AcaoNoCabecalho>
-        )}
       </div>
 
       {/* Filtros (salvos por pessoa). */}
@@ -386,7 +397,7 @@ export function CalendarioCarga({
                   title={TAG_CARGA_DICA[t]}
                   onClick={() => mudarFiltros({ tags: ligada ? filtros.tags.filter((x) => x !== t) : [...filtros.tags, t] })}
                   className={cn(
-                    "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-chip border px-2 text-pequeno transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent max-md:h-9",
+                    "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-chip border px-2 text-pequeno transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent max-md:h-10",
                     ligada ? "border-ink-3 bg-selected font-medium text-ink" : "border-line-control bg-surface text-ink-2 hover:border-line-strong",
                   )}
                 >
@@ -404,13 +415,14 @@ export function CalendarioCarga({
               ["planilha", "Planilha 2026", "Itens da planilha antiga (somem quando o evento é cadastrado)"],
             ] as const
           ).map(([k, rotulo, dica]) => (
-            <label key={k} title={dica} className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-9">
+            <label key={k} title={dica} className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-10">
               <input type="checkbox" checked={filtros[k]} onChange={(e) => mudarFiltros({ [k]: e.target.checked })} className="size-4 accent-[var(--color-accent)]" />
               {rotulo}
             </label>
           ))}
-          {(filtros.tags.length > 0 || filtros.direcao !== "tudo" || filtros.soGalpao || !filtros.eventos) && (
-            <Button variant="link" size="sm" onClick={() => mudarFiltros({ ...FILTROS_PADRAO, ver: filtros.ver, planilha: filtros.planilha })}>
+          {/* "Planilha 2026" desligada também é filtro: o botão sumia e não a religava (auditoria 30/10, parte D N28). */}
+          {(filtros.tags.length > 0 || filtros.direcao !== "tudo" || filtros.soGalpao || !filtros.eventos || filtros.planilha !== FILTROS_PADRAO.planilha) && (
+            <Button variant="link" size="sm" onClick={() => mudarFiltros({ ...FILTROS_PADRAO, ver: filtros.ver })}>
               Limpar filtros
             </Button>
           )}
@@ -424,18 +436,22 @@ export function CalendarioCarga({
           <span className="flex gap-3 text-rotulo text-muted">
             <Legenda cor="bg-info" rotulo="carga" />
             <Legenda cor="bg-warning" rotulo="descarga" />
-            <Legenda cor="bg-success" rotulo="evento" />
+            <Legenda cor="bg-ink-3" rotulo="evento" />
           </span>
         </div>
         <div ref={barrasRef} className="relative overflow-x-auto pb-1">
           {/* Uma parada de Tab só (a semana escolhida) e as setas trocam a semana: eram 45 paradas antes dos cartões (auditoria 30/10, parte D N10). */}
-          <div role="group" aria-label="Semanas do ano: use as setas para trocar de semana" className="flex h-[76px] w-full items-end gap-[3px]" style={{ minWidth: semanas.length * 17 }}>
+          {/* Cada barra com 24 px de largura (alvo mínimo, auditoria 28/10, nº 60): no desktop estreito a faixa rola. */}
+          <div role="group" aria-label="Semanas do ano: use as setas para trocar de semana" className="flex h-[80px] w-full items-end" style={{ minWidth: semanas.length * 24 }}>
             {semanas.map((w, i) => {
               const t = totais[i];
               const total = t.carga + t.descarga + t.evento;
               const sel = w === semana;
               const agora = w === segundaDe(hoje);
               const primeiraDoMes = Number(w.slice(8, 10)) <= 7 || i === 0;
+              // "hoje" e o mês na barra vizinha se sobrepunham ("hojenov", auditoria 28/10, nº 52): perto de hoje, só "hoje".
+              const vizinhaDeHoje = semanas[i - 1] === segundaDe(hoje) || semanas[i + 1] === segundaDe(hoje);
+              const rotuloBarra = agora ? "hoje" : primeiraDoMes && !vizinhaDeHoje ? MESES[Number(w.slice(5, 7)) - 1] : "";
               return (
                 <button
                   key={w}
@@ -447,16 +463,17 @@ export function CalendarioCarga({
                     setSemana(w);
                   }}
                   title={`${diaMesTexto(w)} – ${diaMesTexto(somarDias(w, 6))}: ${qtd(t.carga, "carga", "cargas")}, ${qtd(t.descarga, "descarga", "descargas")}, ${qtd(t.evento, "evento", "eventos")}`}
-                  aria-label={`Semana de ${diaMesTexto(w)}: ${qtd(t.carga, "carga", "cargas")}, ${qtd(t.descarga, "descarga", "descargas")}, ${qtd(t.evento, "evento", "eventos")}`}
+                  // O nome lido começa pelo texto visível da barra ("nov", "hoje"; auditoria 28/10, nº 61).
+                  aria-label={`${rotuloBarra ? `${rotuloBarra}, ` : ""}semana de ${diaMesTexto(w)}: ${qtd(t.carga, "carga", "cargas")}, ${qtd(t.descarga, "descarga", "descargas")}, ${qtd(t.evento, "evento", "eventos")}`}
                   aria-current={sel ? "true" : undefined}
-                  className={cn("group flex h-full min-w-[14px] flex-1 cursor-pointer flex-col items-center justify-end gap-0.5 rounded-[3px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent", sel && "bg-selected")}
+                  className={cn("group flex h-full min-w-[24px] flex-1 cursor-pointer flex-col items-center justify-end gap-0.5 rounded-[3px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent", sel && "bg-selected")}
                 >
                   <span className={cn("flex w-[calc(100%-4px)] max-w-6 flex-col-reverse overflow-hidden rounded-[2px]", total === 0 && "h-px bg-line")} style={{ height: total ? `${(total / maxSemana) * 54}px` : undefined }}>
                     <span className="block bg-info" style={{ flexGrow: t.carga }} />
                     <span className="block bg-warning" style={{ flexGrow: t.descarga }} />
-                    <span className="block bg-success" style={{ flexGrow: t.evento }} />
+                    <span className="block bg-ink-3" style={{ flexGrow: t.evento }} />
                   </span>
-                  <span className={cn("h-3 text-[9px] leading-3", agora ? "font-semibold text-accent" : "text-meta")}>{agora ? "hoje" : primeiraDoMes ? MESES[Number(w.slice(5, 7)) - 1] : ""}</span>
+                  <span className={cn("h-4 whitespace-nowrap text-rotulo leading-4", agora ? "font-semibold text-accent" : "text-muted")}>{rotuloBarra}</span>
                 </button>
               );
             })}
@@ -482,12 +499,12 @@ export function CalendarioCarga({
                       setBusca("");
                     }}
                     title="Ir para a semana"
-                    className={cn("grid w-full cursor-pointer grid-cols-[88px_150px_minmax(0,1fr)] items-center gap-3 border-0 border-b border-line-row bg-transparent px-cartao py-2 text-left transition-colors hover:bg-subtle max-md:grid-cols-[72px_minmax(0,1fr)]", o.data < hoje && "opacity-60")}
+                    className={cn("grid w-full cursor-pointer grid-cols-[88px_150px_minmax(0,1fr)] items-center gap-3 border-0 border-b border-line-row bg-transparent px-cartao py-2 text-left transition-colors hover:bg-subtle max-md:grid-cols-[72px_minmax(0,1fr)]", o.data < hoje && "bg-subtle/60")}
                   >
                     <span className="numero text-pequeno text-ink-2">
                       {diaSemana(o.data)} {diaMesTexto(o.data)}
                     </span>
-                    <span className={cn("text-pequeno font-medium max-md:hidden", d.direcao === "carga" ? "text-info" : d.direcao === "descarga" ? "text-warning" : "text-success")}>
+                    <span className={cn("text-pequeno font-medium max-md:hidden", d.direcao === "carga" ? "text-info" : d.direcao === "descarga" ? "text-warning" : "text-ink-2")}>
                       {d.direcao === "carga" ? "↑ " : d.direcao === "descarga" ? "↓ " : ""}
                       {d.rotulo}
                     </span>
@@ -559,10 +576,10 @@ export function CalendarioCarga({
         </div>
       )}
 
-      <Dialog open={modal !== null} onOpenChange={(o) => !o && setModal(null)}>
-        {modal?.tipo === "novo" && <FormVeiculo eventos={eventos} eventoFixo={modal.eventoId} onFechar={() => setModal(null)} />}
-        {modal?.tipo === "editar" && modalVeiculo && <FormVeiculo eventos={eventos} inicial={modalVeiculo} onFechar={() => setModal(null)} />}
-        {modal?.tipo === "veiculo" && modalVeiculo && <DetalheVeiculo v={modalVeiculo} evento={porId.get(modalVeiculo.eventoId)} podeEditar={podeEditar} onEditar={() => setModal({ tipo: "editar", id: modalVeiculo.id })} onFechar={() => setModal(null)} />}
+      <Dialog open={modal !== null} onOpenChange={(o) => !o && fecharModal()}>
+        {modal?.tipo === "novo" && podeEditar && <FormVeiculo eventos={eventos} eventoFixo={modal.eventoId} onFechar={fecharModal} />}
+        {modal?.tipo === "editar" && modalVeiculo && <FormVeiculo eventos={eventos} inicial={modalVeiculo} onFechar={fecharModal} />}
+        {modal?.tipo === "veiculo" && modalVeiculo && <DetalheVeiculo v={modalVeiculo} evento={porId.get(modalVeiculo.eventoId)} podeEditar={podeEditar} onEditar={() => setModal({ tipo: "editar", id: modalVeiculo.id })} onFechar={fecharModal} />}
         {modal?.tipo === "grupo" && (
           <DialogContent title={modal.titulo} description={`${OPERACAO[modal.operacao].rotulo} · ${diaSemana(modal.data)} ${diaMesTexto(modal.data)} · ${modal.ids.length} veículos`} width={760}>
             <ul className="-mx-5 m-0 list-none divide-y divide-line-row border-y border-line-row p-0">

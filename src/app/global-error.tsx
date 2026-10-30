@@ -34,6 +34,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
               {/* <a> de propósito: recarrega o documento inteiro, que é o que resolve um erro no layout raiz. */}
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/" className={buttonClasses({ variant: "secondary", size: "lg", className: "no-underline" })}>
+                {/* Mesmo texto das outras páginas de erro (auditoria 28/10, nº 174). */}
                 Ir para o painel
               </a>
             </div>

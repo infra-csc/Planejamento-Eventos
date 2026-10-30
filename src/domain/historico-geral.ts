@@ -27,6 +27,8 @@ export function ehCategoria(v: string | undefined): v is CategoriaHistorico {
 
 export const PERIODOS_HISTORICO = { hoje: { rotulo: "Hoje", dias: 0 }, "7": { rotulo: "7 dias", dias: 6 }, "30": { rotulo: "30 dias", dias: 29 }, tudo: { rotulo: "Tudo", dias: null } } as const;
 export type PeriodoHistorico = keyof typeof PERIODOS_HISTORICO;
+/** Ordem das pílulas: `Object.keys` põe as chaves numéricas ("7", "30") antes de "hoje" (auditoria 30/10, parte D N17). */
+export const ORDEM_PERIODOS: readonly PeriodoHistorico[] = ["hoje", "7", "30", "tudo"];
 export function ehPeriodo(v: string | undefined): v is PeriodoHistorico {
   return Boolean(v) && v! in PERIODOS_HISTORICO;
 }
@@ -131,13 +133,33 @@ export function hrefHistorico(h: { entidade: string; entidadeId: string; eventoI
 
 export type Diferenca = { campo: string; antes: string | null; depois: string | null };
 
-const texto = (v: unknown): string | null => {
+const cortar = (s: string) => (s.length > 120 ? `${s.slice(0, 117)}…` : s);
+
+/** Valor simples em texto; objeto e lista viram "campo: valor · …" em vez de JSON cru. */
+const simples = (v: unknown): string | null => {
   if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "string") return v.length > 120 ? `${v.slice(0, 117)}…` : v;
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "sim" : "não";
   if (v instanceof Date) return v.toISOString();
-  const s = JSON.stringify(v);
-  return s.length > 120 ? `${s.slice(0, 117)}…` : s;
+  if (Array.isArray(v)) {
+    const partes = v.map(simples).filter((x): x is string => x !== null);
+    return partes.length ? partes.join(", ") : null;
+  }
+  if (typeof v === "object") {
+    // Ida/volta do veículo de carga e afins: só os campos preenchidos (auditoria 30/10, parte D N18).
+    const partes = Object.entries(v as Record<string, unknown>)
+      .map(([k, x]) => [k, simples(x)] as const)
+      .filter(([, x]) => x !== null)
+      .map(([k, x]) => `${k}: ${x}`);
+    return partes.length ? partes.join(" · ") : null;
+  }
+  return String(v);
+};
+
+const texto = (v: unknown): string | null => {
+  const s = simples(v);
+  return s === null ? null : cortar(s);
 };
 
 /**

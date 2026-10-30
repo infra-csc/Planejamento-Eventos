@@ -102,6 +102,20 @@ describe("limite de tentativas atômico", () => {
   });
 });
 
+describe("mensagem do login (auditoria 28/10, nº 46)", () => {
+  it("conta desativada com a senha certa, senha errada e e-mail inexistente recebem a mesma frase (a tela de login não muda)", async () => {
+    req.headers.set("x-forwarded-for", "10.7.7.7");
+    await criarUsuario("desativado@teste.local", "senha-certa-3", { ativo: false });
+    await criarUsuario("ativo@teste.local", "senha-certa-4");
+    const desativado = await autenticar("desativado@teste.local", "senha-certa-3");
+    const errada = await autenticar("ativo@teste.local", "senha-errada");
+    const inexistente = await autenticar("ninguem@teste.local", "qualquer");
+    expect(desativado).toEqual(errada);
+    expect(errada).toEqual(inexistente);
+    expect(desativado).toMatchObject({ ok: false, erro: "E-mail ou senha inválidos." });
+  });
+});
+
 describe("sessão", () => {
   it("expira por inatividade e renova com o uso (no máximo 1×/hora)", async () => {
     const u = await criarUsuario("sessao@teste.local", "senha-da-sessao");

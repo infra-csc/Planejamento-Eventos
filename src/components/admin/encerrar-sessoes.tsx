@@ -14,7 +14,7 @@ export function EncerrarSessoes({ outras }: { outras: number }) {
     iniciar(async () => {
       const r = await encerrarOutrasSessoesAction();
       if (r.ok) {
-        toast(r.mensagem ?? "Outras sessões encerradas.");
+        toast(r.mensagem ?? "Outras sessões encerradas"); // toast sem ponto final (auditoria 28/10, nº 150)
         router.refresh();
       } else toastErro(r.erro);
     });

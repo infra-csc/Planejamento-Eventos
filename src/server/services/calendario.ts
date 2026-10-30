@@ -74,7 +74,18 @@ export async function listarCalendario(usuario: UsuarioAtual, inicio: string, fi
         dia: diaReuniao,
         hora: hora(e.dataReuniao),
         titulo: `Reunião de OS · ${e.nome}`,
-        detalhe: e.status === "EM_REUNIAO" ? (diaReuniao < isoSP(new Date()) ? "reunião aberta · ata por fechar" : "acontecendo agora") : aberta ? "áreas enviam necessidades até aqui" : "ata fechada",
+        // Reunião que já passou sem ser iniciada: a grade marca "!" e o texto dizia "áreas enviam necessidades até
+        // aqui", como se ainda estivesse por vir (auditoria 30/10, parte D N22).
+        detalhe:
+          e.status === "EM_REUNIAO"
+            ? diaReuniao < isoSP(new Date())
+              ? "reunião aberta · ata por fechar"
+              : "acontecendo agora"
+            : e.status === "PREPARACAO" && e.dataReuniao.getTime() < Date.now()
+              ? "reunião não iniciada"
+              : aberta
+                ? "áreas enviam necessidades até aqui"
+                : "ata fechada",
         href: conferir && aberta ? `/conferencia/${e.id}` : `/eventos/${e.id}/ata`,
         evento,
       });

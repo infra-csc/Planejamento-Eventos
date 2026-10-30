@@ -123,9 +123,10 @@ export function BarraFerramentasMapa({
             aria-controls="arena-busca-lista"
             aria-autocomplete="list"
             aria-activedescendant={opcaoAtiva ? `arena-opcao-${opcaoAtiva.id}` : undefined}
-            className="pl-9 pr-10 shadow-pill [@media(hover:none)]:pr-3"
+            className="pl-9 pr-10 shadow-pill max-md:pr-3 [@media(hover:none)]:pr-3"
           />
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 [@media(hover:none)]:hidden">
+          {/* O atalho "/" não existe no celular: some abaixo de md também (auditoria 30/10, parte D N23). */}
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 max-md:hidden [@media(hover:none)]:hidden">
             <Kbd>/</Kbd>
           </span>
           {buscaAberta && (

@@ -285,7 +285,8 @@ export function Plano2D({
                 }
                 role="button"
                 tabIndex={0}
-                aria-label={`${p.nome}, ${p.tipo}${qtd ? `, quantidade${qtd.replace(" ×", "")}` : ""}${divergente ? ", com divergência entre planta e ata" : ""}`}
+                // O nome lido começa pelo texto visível do rótulo ("Palco × 3"; auditoria 28/10, nº 61).
+                aria-label={`${p.nome}${qtd ?? ""}, ${p.tipo}${divergente ? ", com divergência entre planta e ata" : ""}`}
                 aria-pressed={ativo}
                 className="cursor-pointer outline-none [&:focus-visible>circle:last-of-type]:stroke-[var(--color-accent)]"
                 onPointerEnter={() => setPassando(p.id)}
@@ -322,10 +323,11 @@ export function Plano2D({
                 )}
                 <circle r={apagado ? 4 : divergente ? 7 : ativo ? 8 : 5.5} fill={cor} stroke="#fff" strokeWidth={ativo || emFoco ? 3 : 2} />
                 {rotulo && (
-                  <text x={divergente ? 16 : 9} y={4} fontSize={11} fontFamily="var(--font-geist), Arial, sans-serif" fontWeight={ativo || emFoco || p.id === passando ? 600 : 500} fill="#2a1418" paintOrder="stroke" stroke="#f7f5f2" strokeWidth={3}>
+                  <text x={divergente ? 16 : 9} y={4} fontSize={12} fontFamily="var(--font-geist), Arial, sans-serif" fontWeight={ativo || emFoco || p.id === passando ? 600 : 500} fill="#2a1418" paintOrder="stroke" stroke="#f7f5f2" strokeWidth={3}>
                     {p.nome}
                     {qtd && (
-                      <tspan className="font-mono" fontSize={10} fontWeight={400} fillOpacity={0.62}>
+                      // Quantidade não é código: número tabular em 12 px, sem fonte mono (auditoria 28/10, nº 117).
+                      <tspan className="numero" fontSize={12} fontWeight={400} fillOpacity={0.7}>
                         {qtd}
                       </tspan>
                     )}
@@ -372,7 +374,7 @@ export function Plano2D({
         <button type="button" aria-label="Afastar" title="Afastar" onClick={() => zoom(1 / 1.4)} className="grid size-9 cursor-pointer place-items-center border-0 border-b border-line-soft bg-transparent text-ink-2 hover:bg-subtle hover:text-ink">
           <Icone nome="menos" tamanho={20} />
         </button>
-        <button type="button" aria-label="Enquadrar a arena" title="Enquadrar a arena" onClick={() => setVista({ s: 1, x: 0, y: 0 })} className="grid h-9 cursor-pointer place-items-center border-0 bg-transparent px-2 text-rotulo font-medium text-ink-2 hover:bg-subtle hover:text-ink">
+        <button type="button" aria-label="Tudo: enquadrar a arena" title="Enquadrar a arena" onClick={() => setVista({ s: 1, x: 0, y: 0 })} className="grid h-9 cursor-pointer place-items-center border-0 bg-transparent px-2 text-rotulo font-medium text-ink-2 hover:bg-subtle hover:text-ink">
           Tudo
         </button>
       </div>
