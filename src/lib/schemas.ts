@@ -136,7 +136,7 @@ export const pecaSchema = z.object({
   /** "1" quando a pessoa marcou "De uma prova": aí a prova é obrigatória. */
   deProva: z.string().optional(),
 }).superRefine((v, ctx) => {
-  if (v.deProva === "1" && !v.grupoEvento) ctx.addIssue({ code: "custom", path: ["grupoEvento"], message: "Escolha a prova (ou marque “Do galpão”)." });
+  if (v.deProva === "1" && !v.grupoEvento) ctx.addIssue({ code: "custom", path: ["grupoEvento"], message: "Escolha o grupo (ou marque “Do galpão”)." });
 }).transform((v) => {
   // "deProva" e "temDisponivel" só servem ao formulário; o serviço não recebe.
   const { deProva: _deProva, temDisponivel, disponivelEmSolicitacoes, ...dados } = v;
@@ -153,7 +153,7 @@ export const projetoSchema = z.object({
   disponivelEmSolicitacoes: z.boolean().default(true),
   itens: z
     .array(z.object({ pecaId: z.string().min(1), quantidade: inteiroPositivo }))
-    .min(1, "Adicione ao menos uma peça à lista de materiais"),
+    .min(1, "Adicione ao menos uma peça à lista de peças"),
 });
 
 export const usuarioSchema = z.object({

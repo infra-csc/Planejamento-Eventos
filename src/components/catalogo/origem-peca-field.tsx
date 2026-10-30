@@ -45,16 +45,17 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
     <div className="flex flex-col gap-3">
       <div role="radiogroup" aria-label="Origem da peça" className="flex flex-col gap-2 sm:flex-row">
         {opcao(!deProva, "Do galpão", "Acervo de uso geral, serve para qualquer evento.", () => setDeProva(false))}
-        {opcao(deProva, "De uma prova", "Feita para um evento específico (ex.: com a marca da prova).", () => setDeProva(true))}
+        {/* Um nome para o agrupamento: "grupo da biblioteca", com a prova como exemplo (auditoria 28/10, nº 79). */}
+        {opcao(deProva, "De um grupo (prova)", "Feita para um evento específico (ex.: com a marca da prova).", () => setDeProva(true))}
       </div>
       {deProva && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Prova" htmlFor="provaEscolhida" obrigatorio error={escolha === NOVA ? null : erro} hint="As mesmas provas dos grupos de projetos da Biblioteca.">
+          <Field label="Grupo da biblioteca" htmlFor="provaEscolhida" obrigatorio error={escolha === NOVA ? null : erro} hint="Os mesmos grupos dos projetos da Biblioteca (ex.: a prova).">
             <Select
               id="provaEscolhida"
               value={escolha}
-              placeholder="Escolha a prova"
-              opcoes={[...grupos.map((g) => ({ value: g.id, label: g.nome })), { value: NOVA, label: "Nova prova…", descricao: "Digite o nome" }]}
+              placeholder="Escolha o grupo"
+              opcoes={[...grupos.map((g) => ({ value: g.id, label: g.nome })), { value: NOVA, label: "Criar grupo…", descricao: "Escreva o nome do grupo (ex.: a prova)" }]}
               onValueChange={(v) => {
                 setEscolha(v);
                 if (v === NOVA) setNome("");
@@ -62,7 +63,7 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
             />
           </Field>
           {escolha === NOVA && (
-            <Field label="Nome da prova" htmlFor="provaNome" obrigatorio error={erro} hint="Um nome que já existe é reaproveitado.">
+            <Field label="Nome do grupo" htmlFor="provaNome" obrigatorio error={erro} hint="Um nome que já existe é reaproveitado.">
               <Input id="provaNome" value={nome} maxLength={120} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Bota Pra Correr RJ" autoComplete="off" />
             </Field>
           )}

@@ -9,7 +9,7 @@ import { historico, pecas, projetoGrupos, projetos } from "@/server/db/schema";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { criarPeca, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import { criarProjeto, listarProjetos } from "./projetos";
-import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, organizarProjetosEmLote } from "./biblioteca-lote";
+import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, LoteBloqueadoError, organizarProjetosEmLote, reativarBibliotecaEmLote } from "./biblioteca-lote";
 
 let E: Elenco;
 beforeAll(async () => {
@@ -53,13 +53,24 @@ describe("desabilitar em lote", () => {
     const usada = await criarPeca();
     const livre = await criarPeca();
     const p = await projeto("Projeto que bloqueia lote", usada.id);
-    await expect(desabilitarBibliotecaEmLote(E.logistica, "pecas", [livre.id, usada.id])).rejects.toThrow("Nenhum item foi desabilitado");
+    await expect(desabilitarBibliotecaEmLote(E.logistica, "pecas", [livre.id, usada.id])).rejects.toThrow("Nenhum item foi inativado");
     const db = await getDb();
     const rows = await db.select().from(pecas).where(inArray(pecas.id, [livre.id, usada.id]));
     expect(rows.every((p) => p.ativo)).toBe(true);
     expect((await db.select().from(historico).where(inArray(historico.entidadeId, [livre.id, usada.id]))).filter((l) => l.acao === "INATIVADA")).toHaveLength(0);
+    // O erro traz os projetos que prendem a peça, para a tela listar com link (auditoria 30/10, parte C N12).
+    const erro = await desabilitarBibliotecaEmLote(E.logistica, "pecas", [livre.id, usada.id]).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(LoteBloqueadoError);
+    expect((erro as LoteBloqueadoError).projetos).toEqual([{ id: p.id, codigo: p.codigo, nome: p.nome }]);
     await desabilitarBibliotecaEmLote(E.cenografia, "projetos", [p.id]);
     expect(await desabilitarBibliotecaEmLote(E.logistica, "pecas", [livre.id, usada.id])).toEqual({ alterados: 2, jaInativos: 0 });
+
+    // Reativar em lote (parte C N27): o projeto com peça inativa prende o lote inteiro; reativadas as peças, volta.
+    await expect(reativarBibliotecaEmLote(E.cenografia, "projetos", [p.id])).rejects.toThrow(/Nenhum item foi reativado/);
+    expect(await reativarBibliotecaEmLote(E.logistica, "pecas", [livre.id, usada.id])).toEqual({ alterados: 2, jaAtivos: 0 });
+    expect(await reativarBibliotecaEmLote(E.cenografia, "projetos", [p.id])).toEqual({ alterados: 1, jaAtivos: 0 });
+    expect(await reativarBibliotecaEmLote(E.cenografia, "projetos", [p.id])).toEqual({ alterados: 0, jaAtivos: 1 });
+    await expect(reativarBibliotecaEmLote(E.requisitante, "pecas", [livre.id])).rejects.toBeInstanceOf(DomainError);
   });
 
   it("IDs ausentes não deixam alterações parciais", async () => {

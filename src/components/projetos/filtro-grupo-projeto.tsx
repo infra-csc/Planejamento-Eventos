@@ -4,9 +4,10 @@ import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select } from "@/components/ui/select";
 import { useSinalizarNavegacao } from "@/components/ui/navegacao";
+import { cn } from "@/lib/cn";
 import type { GrupoProjetoOpcao } from "./grupo-projeto-field";
 
-export function FiltroGrupoProjeto({ grupos }: { grupos: GrupoProjetoOpcao[] }) {
+export function FiltroGrupoProjeto({ grupos, className }: { grupos: GrupoProjetoOpcao[]; className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -23,7 +24,7 @@ export function FiltroGrupoProjeto({ grupos }: { grupos: GrupoProjetoOpcao[] }) 
     iniciar(() => router.push(s ? `${pathname}?${s}` : pathname, { scroll: false }));
   };
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto" aria-busy={pendente || undefined}>
+    <div className={cn("flex w-full min-w-0 items-center gap-2 sm:w-auto", className)} aria-busy={pendente || undefined}>
       <label htmlFor="filtro-grupo-projeto" className="sr-only">Filtrar por grupo da biblioteca</label>
       <Select
         id="filtro-grupo-projeto"
@@ -31,7 +32,7 @@ export function FiltroGrupoProjeto({ grupos }: { grupos: GrupoProjetoOpcao[] }) 
         value={valor}
         onValueChange={ir}
         ordenarAlfabetico={false}
-        className="w-full min-w-[190px] sm:w-[230px]"
+        className="w-full sm:w-[230px] sm:min-w-[190px]"
         opcoes={[
           { value: "", label: "Todos os grupos" },
           { value: "padrao", label: "Padrão" },

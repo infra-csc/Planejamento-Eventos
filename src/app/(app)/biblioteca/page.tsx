@@ -31,7 +31,7 @@ import { Codigo, Numero } from "@/components/ui/numero";
 import { EditarProjetoModal } from "@/components/projetos/editar-projeto-modal";
 import { RolarAoSelecionar } from "@/components/biblioteca/rolar-ao-selecionar";
 import { PecaAtivoBotao } from "@/components/catalogo/peca-ativo-botao";
-import { combinaBusca } from "@/lib/busca";
+import { combinaBusca, normalizarBusca } from "@/lib/busca";
 import { BarraSelecaoLote, CheckboxSelecaoLote, CheckboxSelecionarPagina, SelecaoEmLote } from "@/components/biblioteca/selecao-em-lote";
 import { FiltroGrupoProjeto } from "@/components/projetos/filtro-grupo-projeto";
 import { FiltroAlteracao, FiltroSituacao } from "@/components/biblioteca/filtros-biblioteca";
@@ -67,7 +67,9 @@ function SetaAbrir({ ativo }: { ativo?: boolean }) {
   return <Icone nome="chevron-direita" className={cn("inline-block align-middle", ativo && "text-accent")} />;
 }
 
-const barraCls = "mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center";
+// Celular: grade de 2 colunas (busca e evento na linha toda, listas curtas aos pares), como em /solicitacoes; antes era
+// um filtro por linha, 6 linhas antes da lista (auditoria 28/10, nº 41).
+const barraCls = "mb-4 grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center";
 const cartaoCls = "overflow-hidden rounded-cartao border border-line bg-surface";
 
 export default async function BibliotecaPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -100,13 +102,15 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         );
 
   const cabecalho = <PageHeader title="Biblioteca" divisor actions={acoes} />;
-  const abas = <Abas aba={aba} nProjetos={projetos.length} nPecas={pecasTodas.length} nFora={foraCatalogo ? foraCatalogo.length : null} />;
+  // A aba aberta conta o que a lista mostra (busca e filtros); as outras, o que se vê ao clicar nelas. Antes a aba
+  // dizia "435" e a lista "Nada encontrado" (auditoria 28/10, nº 57).
+  const abasCom = (n: { projetos?: number; pecas?: number; fora?: number } = {}) => <Abas aba={aba} nProjetos={n.projetos ?? projetos.filter((p) => p.ativo).length} nPecas={n.pecas ?? pecasTodas.length} nFora={foraCatalogo ? (n.fora ?? foraCatalogo.length) : null} />;
 
   // O que está esperando alguém: itens descritos à mão que ainda não somam peças na OS.
   // Quem não vê a aba "Fora do catálogo" não precisa do atalho; quem vê já tem a contagem nela.
   const atalhoFora =
     foraCatalogo && foraCatalogo.length > 0 && aba !== "fora" && !podeVincular ? (
-      <Link href="/biblioteca?aba=fora" className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline sm:ml-auto">
+      <Link href="/biblioteca?aba=fora" className="col-span-2 inline-flex items-center gap-1.5 text-pequeno font-medium text-warning no-underline hover:underline max-md:min-h-10 sm:ml-auto">
         <span aria-hidden className="block size-1.5 animate-pulse-dot rounded-full bg-warning" />
         {foraCatalogo.length} {foraCatalogo.length === 1 ? "item fora do catálogo" : "itens fora do catálogo"}
       </Link>
@@ -122,12 +126,12 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {cabecalho}
         {foraCatalogo.length > 0 && (
           <div className={barraCls}>
-            <BuscaUrl largura={320} key="busca-fora" placeholder="Buscar por item, evento ou área" ariaLabel="Buscar item fora do catálogo" />
+            <BuscaUrl largura={320} key="busca-fora" placeholder="Buscar por item, evento ou área" ariaLabel="Buscar item fora do catálogo" className="col-span-2" />
           </div>
         )}
         <div className={cartaoCls}>
           <ContagemAoVivo oculto n={pag.total} singular="item fora do catálogo" plural="itens fora do catálogo" complemento={busca ? `busca “${busca}”` : null} />
-          {abas}
+          {abasCom({ fora: pag.total })}
           {foraCatalogo.length > 0 && (
             <p className="m-0 border-b border-line-soft px-cartao py-2.5 text-pequeno text-muted">Itens que as áreas descreveram à mão. Enquanto não viram peça ou projeto do catálogo, não somam peças na OS: a separação é manual. Vincule a algo que já existe ou cadastre a peça.</p>
           )}
@@ -155,7 +159,12 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     const ordenadosAlteracao = alteracao?.recentesPrimeiro ? [...filtrados].sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime()) : filtrados;
     const noGrupo = grupoId === "padrao" ? ordenadosAlteracao.filter((p) => !p.grupoId) : grupoId ? ordenadosAlteracao.filter((p) => p.grupoId === grupoId) : ordenadosAlteracao;
     const noEvento = eventoId ? noGrupo.filter((p) => uso.get(p.id)?.eventos.some((e) => e.id === eventoId)) : noGrupo;
-    const encontrados = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""} ${p.grupo?.nome ?? ""}`, termo)) : noEvento;
+    // Com busca, o nome (ou código) exato vem primeiro e é ele que abre no painel; sem exato, o painel só abre com um
+    // resultado ou com o clique. Antes abria o 1º em ordem alfabética e a pessoa duplicou o projeto errado (nº 40).
+    const alvoExato = busca ? normalizarBusca(busca).trim() : "";
+    const ehExato = (p: { nome: string; codigo: string }) => Boolean(alvoExato) && (normalizarBusca(p.nome).trim() === alvoExato || normalizarBusca(p.codigo).trim() === alvoExato);
+    const combinam = termo ? noEvento.filter((p) => combinaBusca(`${p.codigo} ${p.nome} ${p.categoria ?? ""} ${p.descricao ?? ""} ${p.grupo?.nome ?? ""}`, termo)) : noEvento;
+    const encontrados = alvoExato ? [...combinam.filter(ehExato), ...combinam.filter((p) => !ehExato(p))] : combinam;
     const semProjetoNoGrupo = Boolean(grupoId && noGrupo.length === 0);
     const semProjetoNoEvento = Boolean(eventoId && noGrupo.length > 0 && noEvento.length === 0);
     const filtroExtraAtivo = Boolean(alteracao || situacaoAlterada(sp.situacao, pode(usuario, "projeto.gerenciar")));
@@ -163,7 +172,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     const soInativosOcultos = !busca && !filtroExtraAtivo && situacao === "ativos" && noEvento.length === 0 && projetos.length > 0 && !semProjetoNoGrupo && !semProjetoNoEvento;
     const pag = paginar(encontrados, sp.pagina, 12);
     const params = { q: sp.q, pagina: sp.pagina, evento: sp.evento, grupo: sp.grupo, ...filtrosExtra };
-    const selecionado = encontrados.find((p) => p.id === sp.p) ?? pag.itens[0];
+    const selecionado = encontrados.find((p) => p.id === sp.p) ?? (busca ? (encontrados.find(ehExato) ?? (encontrados.length === 1 ? encontrados[0] : undefined)) : pag.itens[0]);
     const detalhe = selecionado ? await obterProjeto(usuario, selecionado.id) : null;
     // Eventos para o filtro: os que têm algum projeto na ata, do mais recente para o mais antigo.
     const eventosFiltro = [...new Map([...uso.values()].flatMap((u) => u.eventos).map((e) => [e.id, e])).values()].sort((a, b) => b.dataInicio.localeCompare(a.dataInicio)).map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: projetos.filter((p) => uso.get(p.id)?.eventos.some((x) => x.id === e.id)).length }));
@@ -185,32 +194,35 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
         {cabecalho}
         {(projetos.length > 0 || atalhoFora) && (
           <div className={barraCls}>
-            {projetos.length > 0 && <BuscaUrl largura={360} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" />}
-            {projetos.length > 0 && <FiltroGrupoProjeto grupos={gruposProjeto} />}
-            {projetos.length > 0 && <FiltroAlteracao key={chaveAlteracao} />}
+            {projetos.length > 0 && <BuscaUrl largura={360} key="busca-projetos" placeholder="Buscar por código, nome ou categoria" ariaLabel="Buscar projeto padrão" className="col-span-2" />}
+            {/* Evento com largura fixa: fluido, "Todos os eventos" esticava 1.040 px numa linha só (nº 41). */}
+            {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto className="col-span-2" />}
+            {projetos.length > 0 && <FiltroGrupoProjeto grupos={gruposProjeto} className={pode(usuario, "projeto.gerenciar") ? undefined : "col-span-2"} />}
             {projetos.length > 0 && pode(usuario, "projeto.gerenciar") && <FiltroSituacao />}
+            {projetos.length > 0 && <FiltroAlteracao key={chaveAlteracao} className={pode(usuario, "projeto.gerenciar") ? undefined : "col-span-2"} />}
             {pode(usuario, "projeto.gerenciar") && <GerenciarGrupos grupos={await listarGruposComUso(usuario)} />}
-            {eventosFiltro.length > 0 && <FiltroEvento eventos={eventosFiltro} rotuloOculto fluido />}
             {atalhoFora}
           </div>
         )}
         {projetos.length === 0 ? (
           <div className={cartaoCls}>
-            {abas}
+            {abasCom()}
             <EmptyState title="Nenhum projeto padrão cadastrado" description="A cenografia cadastra os projetos com sua lista de peças." />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-start">
+          // Sem painel (busca sem resultado ou sem exato), a lista ocupa a largura toda: antes sobravam 350 px vazios (nº 125).
+          <div className={cn("grid grid-cols-1 gap-5 lg:items-start", detalhe && "lg:grid-cols-[minmax(0,1fr)_330px]")}>
             <div className={cartaoCls}>
               <SelecaoEmLote
-                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.grupo ?? "", chaveAlteracao, sp.situacao ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+                key={JSON.stringify(["projetos", sp.q ?? "", sp.evento ?? "", sp.grupo ?? "", chaveAlteracao, sp.situacao ?? "", sp.pagina ?? "", pag.itens.map((p) => p.id)])}
                 tipo="projetos"
+                modoReativar={situacao === "inativos"}
                 gerencia={pode(usuario, "projeto.gerenciar")}
                 organizacao={{ grupos: gruposProjeto, categorias: [...new Set(projetos.map((x) => x.categoria).filter(Boolean))] }}
                 itens={pag.itens.map((p) => ({ id: p.id, nome: p.nome, ativo: p.ativo }))}
               >
               <ContagemAoVivo oculto n={pag.total} singular="projeto" plural="projetos" complemento={[busca ? `busca “${busca}”` : null, eventoFiltrado ? `no evento ${eventoFiltrado.codigo}` : null, grupoId === "padrao" ? "grupo Padrão" : gruposProjeto.find((g) => g.id === grupoId)?.nome ? `grupo ${gruposProjeto.find((g) => g.id === grupoId)!.nome}` : null, alteracao?.descricao ?? null, situacao === "inativos" ? "só inativos" : pode(usuario, "projeto.gerenciar") && !situacao ? "ativos e inativos" : null].filter(Boolean).join(", ") || null} />
-              {abas}
+              {abasCom({ projetos: pag.total })}
               {pag.total > 0 && <BarraSelecaoLote gerencia={pode(usuario, "projeto.gerenciar")} />}
               {eventoFiltrado && (
                 <p className="m-0 border-b border-line-soft bg-subtle px-cartao py-2 text-pequeno text-ink-2">
@@ -336,11 +348,11 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                         />
                       )}
                       {pode(usuario, "projeto.gerenciar") && (
-                        <Link href={`/projetos/novo?de=${detalhe.id}`} className="link text-pequeno">
+                        <Link href={`/projetos/novo?de=${detalhe.id}`} className="link text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
                           Duplicar
                         </Link>
                       )}
-                      <Link href={`/projetos/${detalhe.id}`} className="link text-pequeno">
+                      <Link href={`/projetos/${detalhe.id}`} className="link text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
                         Abrir
                       </Link>
                     </span>
@@ -411,7 +423,8 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                   {(detalhe.versaoAtual > 1 || detalhe.usosDefasados.length > 0) && (
                     <p className="m-0 border-t border-line-soft bg-subtle px-cartao py-3 text-pequeno text-ink-3">
                       {detalhe.versaoAtual > 1 && atual.observacao ? `A v${detalhe.versaoAtual}: ${atual.observacao} ` : ""}
-                      {detalhe.versaoAtual > 1 ? `Eventos que ainda usam versões anteriores aparecem marcados na ata.` : ""}
+                      {/* O texto dizia "aparecem marcados na ata", mas salvar a versão nova já atualiza os eventos (parte C N2). */}
+                      {detalhe.versaoAtual > 1 ? `A versão nova vale nos eventos que usam o projeto; fica na anterior só onde a logística ajustou peças uma a uma.` : ""}
                       {detalhe.usosDefasados.length > 0 && <span className="mt-1 block text-warning">Em versão anterior: {detalhe.usosDefasados.map((u) => `${u.codigo} (v${u.versao})`).join(", ")}.</span>}
                     </p>
                   )}
@@ -538,9 +551,10 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
     <>
       {cabecalho}
       <div className={barraCls}>
-        <BuscaUrl largura={240} key="busca-pecas" placeholder="Buscar peça, família ou prova" ariaLabel="Buscar peça do catálogo por código, nome, família ou prova" />
+        {/* 300 px: com 240 o texto de exemplo cortava em "família ou p" (parte C N26). */}
+        <BuscaUrl largura={300} key="busca-pecas" placeholder="Buscar peça, família ou prova" ariaLabel="Buscar peça do catálogo por código, nome, família ou prova" className="col-span-2" />
         {/* Celular: os setores rolam de lado numa linha só, em vez de quebrar a trilha. */}
-        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <div className="col-span-2 -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pills
           rotulo="Filtrar por setor"
           className="max-md:flex-nowrap"
@@ -557,13 +571,14 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
       </div>
       <div className={cartaoCls}>
         <SelecaoEmLote
-          key={JSON.stringify(["pecas", sp.q ?? "", sp.setor ?? "", chaveAlteracao, sp.situacao ?? "", sp.ordem ?? "", sp.dir ?? "", sp.pagina ?? "", pag.itens.map((p) => [p.id, p.ativo])])}
+          key={JSON.stringify(["pecas", sp.q ?? "", sp.setor ?? "", chaveAlteracao, sp.situacao ?? "", sp.ordem ?? "", sp.dir ?? "", sp.pagina ?? "", pag.itens.map((p) => p.id)])}
           tipo="pecas"
+          modoReativar={situacaoPecas === "inativos"}
           gerencia={gerencia}
           itens={pag.itens.map((p) => ({ id: p.id, nome: `${p.codigo} · ${p.nome}`, ativo: p.ativo }))}
         >
         <ContagemAoVivo oculto n={pag.total} singular="peça" plural="peças" complemento={[setor ? SETOR_LABEL[setor] : null, busca ? `busca “${busca}”` : null, alteracao?.descricao.replace(/^alterados/, "alteradas") ?? null, situacaoPecas === "inativos" ? "só inativas" : gerencia && !situacaoPecas ? "ativas e inativas" : null].filter(Boolean).join(" · ")} />
-        {abas}
+        {abasCom({ pecas: pag.total })}
         {pag.total > 0 && <BarraSelecaoLote gerencia={gerencia} />}
         {pag.total === 0 ? (
           <EmptyState

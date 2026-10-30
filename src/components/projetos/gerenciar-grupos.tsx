@@ -15,7 +15,7 @@ const contagem = (g: GrupoComUso) =>
   g.projetos + g.pecas === 0 ? "vazio" : [g.projetos ? `${g.projetos} ${g.projetos === 1 ? "projeto" : "projetos"}` : null, g.pecas ? `${g.pecas} ${g.pecas === 1 ? "peça" : "peças"}` : null].filter(Boolean).join(" · ");
 
 /**
- * Grupos de prova da Biblioteca (cenografia e admin): lista com o que cada um tem e excluir. Ao excluir, os
+ * Grupos da Biblioteca (cenografia e admin): lista com o que cada um tem e excluir. Ao excluir, os
  * projetos e as peças do grupo passam para Padrão; nada mais é apagado. A confirmação fica na própria linha.
  */
 export function GerenciarGrupos({ grupos }: { grupos: GrupoComUso[] }) {
@@ -28,7 +28,7 @@ export function GerenciarGrupos({ grupos }: { grupos: GrupoComUso[] }) {
       const r = await excluirGrupoProjetoAction(g.id);
       if (!r.ok) return toastErro(r.erro);
       setConfirmando(null);
-      toastSucesso(`Grupo "${g.nome}" excluído${g.projetos + g.pecas ? ": o que tinha nele passou para Padrão" : ""}`);
+      toastSucesso(`Grupo “${g.nome}” excluído${g.projetos + g.pecas ? ": o que tinha nele passou para Padrão" : ""}`);
       router.refresh();
     });
   return (
@@ -39,11 +39,11 @@ export function GerenciarGrupos({ grupos }: { grupos: GrupoComUso[] }) {
         if (!o) setConfirmando(null);
       }}
     >
-      <Button variant="secondary" size="md" onClick={() => setAberto(true)}>
+      <Button variant="secondary" size="md" aria-haspopup="dialog" onClick={() => setAberto(true)}>
         <Icone nome="camadas" />
         Grupos
       </Button>
-      <DialogContent title="Grupos de prova" description="Excluir um grupo não apaga projetos nem peças: o que estava nele passa para Padrão." width={520}>
+      <DialogContent title="Grupos da biblioteca" description="Excluir um grupo não apaga projetos nem peças: o que estava nele passa para Padrão." width={520}>
         {grupos.length === 0 ? (
           <p className="m-0 text-corpo text-muted">Nenhum grupo cadastrado.</p>
         ) : (

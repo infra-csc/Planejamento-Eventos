@@ -58,7 +58,7 @@ export async function excluirGrupoProjeto(usuario: UsuarioAtual, grupoId: string
       entidade: "projeto_grupo",
       entidadeId: grupoId,
       acao: "GRUPO_EXCLUIDO",
-      descricao: `Grupo "${g.nome}" excluído: ${movidosProj.length} ${movidosProj.length === 1 ? "projeto" : "projetos"} e ${movidasPecas.length} ${movidasPecas.length === 1 ? "peça" : "peças"} passaram para Padrão.`,
+      descricao: `Grupo “${g.nome}” excluído: ${movidosProj.length} ${movidosProj.length === 1 ? "projeto" : "projetos"} e ${movidasPecas.length} ${movidasPecas.length === 1 ? "peça" : "peças"} passaram para Padrão.`,
       usuarioId: usuario.id,
       dadosAntes: { nome: g.nome, projetos: movidosProj.map((p) => p.codigo), pecas: movidasPecas.map((p) => p.codigo) },
     });
@@ -153,7 +153,7 @@ export async function obterProjeto(usuario: UsuarioAtual, id: string) {
 }
 
 async function validarItens(itens: DadosProjeto["itens"]) {
-  if (itens.length === 0) throw new ValidacaoError("Adicione ao menos uma peça à lista de materiais.");
+  if (itens.length === 0) throw new ValidacaoError("Adicione ao menos uma peça à lista de peças.");
   const ids = itens.map((i) => i.pecaId);
   if (new Set(ids).size !== ids.length) throw new ValidacaoError("Há peças repetidas na lista. Some as quantidades em uma linha só.");
   const db = await getDb();
@@ -163,7 +163,8 @@ async function validarItens(itens: DadosProjeto["itens"]) {
     // Diz qual peça: a mensagem genérica deixava a pessoa procurando a linha (auditoria 30/10, parte C N8).
     if (!p) throw new ValidacaoError("Uma das peças da lista não existe mais no catálogo. Remova a linha e salve de novo.", { itens: "Uma peça da lista não existe mais no catálogo." });
     if (!p.ativo) throw new ValidacaoError(`A peça ${p.codigo} (${p.nome}) está inativa no catálogo. Remova-a da lista ou reative a peça.`, { itens: `${p.codigo} (${p.nome}) está inativa no catálogo.` });
-    if (!p.permiteEmProjeto) throw new ValidacaoError(`"${p.nome}" não pode entrar em BOM: é sempre lançada como item avulso.`);
+    // Sem "BOM": o app chama de lista de peças (auditoria 28/10, nº 73).
+    if (!p.permiteEmProjeto) throw new ValidacaoError(`“${p.nome}” não entra na lista de peças de projeto: é sempre pedida solta, com destino.`);
     if (!Number.isInteger(i.quantidade) || i.quantidade <= 0) throw new ValidacaoError("Quantidades devem ser inteiros maiores que zero.");
   }
 }
@@ -224,7 +225,7 @@ export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: Da
       entidade: "projeto",
       entidadeId: id,
       acao: bomMudou ? "NOVA_VERSAO" : "EDITADO",
-      descricao: bomMudou ? `${p.nome}: nova versão v${novaVersao}${dados.observacaoVersao ? ` — ${dados.observacaoVersao}` : ""}` : `${p.nome}: dados alterados (sem mudança no BOM).`,
+      descricao: bomMudou ? `${p.nome}: nova versão v${novaVersao}${dados.observacaoVersao ? ` — ${dados.observacaoVersao}` : ""}` : `${p.nome}: dados alterados (sem mudança na lista de peças).`,
       usuarioId: usuario.id,
       dadosAntes: bomMudou ? { itens: atual.itens.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })), grupoId: p.grupoId } : grupoId !== p.grupoId ? { grupoId: p.grupoId } : null,
       dadosDepois: bomMudou ? { itens: dados.itens, grupoId } : grupoId !== p.grupoId ? { grupoId } : null,
@@ -325,7 +326,7 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
     if (valor !== conteudo) await apagarArquivo(valor);
     throw e;
   }
-  await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo "${file.name}" adicionado.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo “${file.name}” adicionado.`, usuarioId: usuario.id });
   return a;
 }
 
@@ -339,7 +340,7 @@ export async function removerAnexo(usuario: UsuarioAtual, anexoId: string) {
   if (!a) throw new NaoEncontradoError("Anexo");
   await db.delete(anexos).where(eq(anexos.id, anexoId));
   await apagarArquivo(a.inicio);
-  await registrarHistorico(db, { entidade: "projeto", entidadeId: a.projetoId, acao: "ANEXO_REMOVIDO", descricao: `Anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "projeto", entidadeId: a.projetoId, acao: "ANEXO_REMOVIDO", descricao: `Anexo “${a.nomeArquivo}” removido.`, usuarioId: usuario.id });
   return a.projetoId;
 }
 

@@ -10,6 +10,7 @@ import { toastErro, toastSucesso } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/action";
 import { alterarAtivoPecaAction, impactoInativacaoPecaAction } from "@/app/(app)/catalogo/actions";
 import type { ImpactoInativacaoPeca } from "@/server/services/catalogo";
+import { pedirFocoNaLista } from "@/components/biblioteca/selecao-em-lote";
 
 type ItemImpacto = ImpactoInativacaoPeca["pedidos"][number];
 
@@ -59,6 +60,8 @@ export function PecaAtivoBotao({ id, ativo, nome, size = "sm" }: { id: string; a
     const r = await alterarAtivoPecaAction(prev, fd);
     if (!r.ok) return r;
     toastSucesso(`${ativo ? "Peça inativada" : "Peça reativada"}: ${nome}`);
+    // Na lista, a linha pode sair do filtro: o foco volta à lista em vez de cair no topo da página (parte C N20).
+    pedirFocoNaLista(id);
     return { ...r, mensagem: undefined };
   };
 
