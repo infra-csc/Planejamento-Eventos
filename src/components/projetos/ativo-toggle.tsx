@@ -9,7 +9,7 @@ export function AtivoToggle({ id, ativo }: { id: string; ativo: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>
+      <Button abreDialogo variant="ghost" onClick={() => setOpen(true)}>
         {ativo ? "Inativar" : "Reativar"}
       </Button>
       {open && (

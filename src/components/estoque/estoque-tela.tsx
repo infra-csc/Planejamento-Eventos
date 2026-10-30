@@ -287,7 +287,7 @@ export function BotaoEditarItemEstoque({ item, catalogo }: { item: ItemEditavel;
   const categorias = [...new Set([...CATEGORIAS_ESTOQUE, item.categoria])];
   return (
     <>
-      <Button variant="secondary" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" onClick={() => setAberto(true)}>
         <Icone nome="lapis" />
         Editar item
       </Button>

@@ -604,7 +604,7 @@ export function CalendarioCarga({
                         <span className="text-corpo font-medium text-ink">{TIPO_VEICULO_LABEL[v.tipo]}</span>
                         {v.ident && <span className="text-pequeno text-ink-3">· {v.ident}</span>}
                         {podeEditar && !ev.cancelado && (
-                          <Button variant="ghost" size="xs" className="ml-auto" onClick={() => setModal({ tipo: "editar", id: v.id })}>
+                          <Button abreDialogo variant="ghost" size="xs" className="ml-auto" onClick={() => setModal({ tipo: "editar", id: v.id })}>
                             <Icone nome="lapis" />
                             Editar
                           </Button>
@@ -620,7 +620,7 @@ export function CalendarioCarga({
                       <Codigo>{ev.codigo}</Codigo> · abrir a carga do evento
                     </Link>
                     {podeEditar && ev.ativo && (
-                      <Button variant="secondary" size="md" onClick={() => setModal({ tipo: "novo", eventoId: ev.id })}>
+                      <Button abreDialogo variant="secondary" size="md" onClick={() => setModal({ tipo: "novo", eventoId: ev.id })}>
                         <Icone nome="mais" />
                         Veículo neste evento
                       </Button>

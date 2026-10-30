@@ -57,12 +57,12 @@ export function AcoesLinhaEvento({
       {extra}
       {tamanho === "md" ? (
         <>
-          <Button variant="secondary" size="md" onClick={() => setModo("editar")} aria-label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`}>
+          <Button abreDialogo variant="secondary" size="md" onClick={() => setModo("editar")} aria-label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`}>
             <Icone nome="lapis" className="size-3.5" />
             {aDefinir && !tenda ? "Definir" : tenda ? "Editar tendas" : "Editar quantidade"}
           </Button>
           {!semRemover && (
-            <Button variant="dangerOutline" size="md" onClick={() => setModo("remover")} aria-label={`Remover ${linha.nome}`} title="Remover do evento">
+            <Button abreDialogo variant="dangerOutline" size="md" onClick={() => setModo("remover")} aria-label={`Remover ${linha.nome}`} title="Remover do evento">
               <Icone nome="lixeira" className="size-3.5" />
               Remover
             </Button>
@@ -70,14 +70,14 @@ export function AcoesLinhaEvento({
         </>
       ) : (
         <>
-          <IconButton label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`} onClick={() => setModo("editar")}>
+          <IconButton abreDialogo label={tenda ? `Editar tendas de ${linha.nome}` : `${aDefinir ? "Definir" : "Editar"} quantidade de ${linha.nome}`} onClick={() => setModo("editar")}>
             <Icone nome="lapis" />
           </IconButton>
           {/* Sem lixeira, o lugar fica reservado: o lápis não muda de coluna entre uma linha e outra. */}
           {semRemover ? (
             <span aria-hidden className="size-7 shrink-0 max-md:size-10" />
           ) : (
-            <IconButton label={`Remover ${linha.nome}`} onClick={() => setModo("remover")} className="hover:text-danger">
+            <IconButton abreDialogo label={`Remover ${linha.nome}`} onClick={() => setModo("remover")} className="hover:text-danger">
               <Icone nome="lixeira" />
             </IconButton>
           )}
@@ -209,14 +209,14 @@ export function EditarTendasDoItem({ eventoId, nome, locais, ataFechada, tamanho
   return (
     <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {tamanho === "sm" ? (
-        <Button variant="secondary" size="sm" onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
+        <Button abreDialogo variant="secondary" size="sm" onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
           <Icone nome="lapis" className="size-3.5" />
           Editar todos os locais
         </Button>
       ) : (
         // Na lista: o mesmo lápis das linhas de cada local, na mesma coluna (a lixeira não existe no total).
         <>
-          <IconButton label={`Editar todas as tendas de ${nome}`} onClick={() => setAberto(true)}>
+          <IconButton abreDialogo label={`Editar todas as tendas de ${nome}`} onClick={() => setAberto(true)}>
             <Icone nome="lapis" />
           </IconButton>
           <span aria-hidden className="size-7 shrink-0 max-md:size-10" />
@@ -358,7 +358,7 @@ export function IncluirItemEvento({ eventoId, ataFechada, opcoes, areas }: { eve
   const [aberto, setAberto] = useState(false);
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" size="sm" onClick={() => setAberto(true)}>
         <Icone nome="mais" />
         Incluir item
       </Button>

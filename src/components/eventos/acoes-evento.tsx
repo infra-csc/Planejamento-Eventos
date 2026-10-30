@@ -48,7 +48,7 @@ export function AcoesEvento({
       chave: "iniciar",
       principal: true,
       render: (v) => (
-        <Button key="iniciar" variant={v} size="lg" onClick={() => setAcao("INICIAR_REUNIAO")}>
+        <Button abreDialogo key="iniciar" variant={v} size="lg" onClick={() => setAcao("INICIAR_REUNIAO")}>
           {TRANSICOES_EVENTO.INICIAR_REUNIAO.label}
         </Button>
       ),
@@ -72,7 +72,7 @@ export function AcoesEvento({
       chave: "encerrar",
       principal: !bloqueio,
       render: (v) => (
-        <Button key="encerrar" variant={bloqueio ? "secondary" : v} size="lg" disabled={Boolean(bloqueio)} motivoDesabilitado={bloqueio ?? undefined} onClick={() => setAcao("ENCERRAR")}>
+        <Button abreDialogo key="encerrar" variant={bloqueio ? "secondary" : v} size="lg" disabled={Boolean(bloqueio)} motivoDesabilitado={bloqueio ?? undefined} onClick={() => setAcao("ENCERRAR")}>
           {TRANSICOES_EVENTO.ENCERRAR.label}
         </Button>
       ),
@@ -94,7 +94,7 @@ export function AcoesEvento({
       chave: "reabrir",
       principal: false,
       render: () => (
-        <Button key="reabrir" variant="secondary" size="lg" onClick={() => setAcao("REABRIR")}>
+        <Button abreDialogo key="reabrir" variant="secondary" size="lg" onClick={() => setAcao("REABRIR")}>
           {TRANSICOES_EVENTO.REABRIR.label}
         </Button>
       ),

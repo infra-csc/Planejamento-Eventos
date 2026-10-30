@@ -63,7 +63,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
               <ImagemZoom src={`/api/anexos/${a.id}`} alt={a.nomeArquivo} className="aspect-[4/3] w-full overflow-hidden rounded-controle border border-line" />
               <figcaption className="mt-1 truncate text-rotulo text-muted">{a.nomeArquivo}</figcaption>
               {podeGerenciar && (
-                <IconButton label={`Remover ${a.nomeArquivo}`} onClick={() => setRemover(a)} className="absolute right-1.5 top-1.5 border-line bg-surface/95 text-danger shadow-pill sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                <IconButton abreDialogo label={`Remover ${a.nomeArquivo}`} onClick={() => setRemover(a)} className="absolute right-1.5 top-1.5 border-line bg-surface/95 text-danger shadow-pill sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                   <Icone nome="lixeira" />
                 </IconButton>
               )}
@@ -80,7 +80,7 @@ export function AnexosManager({ projetoId, anexos, podeGerenciar }: { projetoId:
                 <span className="truncate">{a.nomeArquivo}</span> <span className="numero shrink-0 text-rotulo text-muted">{tamanho(a.tamanho)}</span>
               </a>
               {podeGerenciar && (
-                <IconButton label={`Remover ${a.nomeArquivo}`} className="hover:text-danger" onClick={() => setRemover(a)}>
+                <IconButton abreDialogo label={`Remover ${a.nomeArquivo}`} className="hover:text-danger" onClick={() => setRemover(a)}>
                   <Icone nome="lixeira" />
                 </IconButton>
               )}

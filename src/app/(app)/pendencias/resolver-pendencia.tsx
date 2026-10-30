@@ -11,7 +11,7 @@ export function ResolverPendencia({ itemId, codigo, descricao, faltante }: { ite
   const [aberto, setAberto] = useState(false);
   return (
     <>
-      <Button variant="secondary" size="xs" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" size="xs" onClick={() => setAberto(true)}>
         <Icone nome="check" />
         Marcar como resolvida
       </Button>
