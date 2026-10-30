@@ -62,8 +62,9 @@ export function EventosSolicitante({ eventos }: { eventos: EventoLinha[] }) {
               <tr className="bg-subtle">
                 <Th>Evento</Th>
                 <Th className="hidden @lg:table-cell @lg:w-[150px]">Situação</Th>
-                <Th className="hidden @lg:table-cell @lg:w-[32%]">Próximo</Th>
-                <Th alinhar="right" className="w-[76px]">
+                {/* Mais espaço para o nome do evento, que cortava com colunas sobrando (auditoria 28/10, nº 28). */}
+                <Th className="hidden @lg:table-cell @lg:w-[26%]">Próximo</Th>
+                <Th alinhar="right" className="w-[64px]">
                   Itens<span className="sr-only"> da sua área</span>
                 </Th>
               </tr>
@@ -75,7 +76,7 @@ export function EventosSolicitante({ eventos }: { eventos: EventoLinha[] }) {
                 return (
                   <LinhaLink key={e.id} href={`/eventos/${e.id}`} rotulo={`Abrir ${e.nome}`}>
                     <th scope="row" className="max-w-0 border-b border-line-row py-2.5 pl-cartao pr-3 text-left font-normal">
-                      <span className="block truncate text-corpo font-medium text-ink" title={`${e.codigo} · ${e.nome}${e.local ? ` · ${e.local}` : ""}`}>
+                      <span className="line-clamp-2 break-words text-corpo font-medium text-ink" title={`${e.codigo} · ${e.nome}${e.local ? ` · ${e.local}` : ""}`}>
                         {e.nome}
                       </span>
                       {/* Celular: fase e próximo marco descem para baixo do nome. */}
@@ -107,14 +108,16 @@ export function EventosSolicitante({ eventos }: { eventos: EventoLinha[] }) {
 }
 
 function LinhaMudanca({ m }: { m: Mudanca }) {
+  const contexto = [m.eventoNome, m.area, m.autor, tempoRelativo(m.quando)].filter(Boolean).join(" · ");
   return (
     <Link href={m.href} className="block border-b border-line-row px-cartao py-2.5 no-underline transition-colors duration-150 last:border-b-0 hover:bg-subtle">
       <span className="line-clamp-2 text-corpo text-ink">{m.texto}</span>
-      {/* O tipo vai em palavra (não só na cor), no começo da linha de contexto. */}
-      <span className="mt-0.5 block truncate text-pequeno text-muted">
+      {/* O tipo vai em palavra (não só na cor), no começo da linha de contexto. Cortada, a linha inteira fica no
+          title e, no celular (sem title), desce para 2 linhas (auditoria 28/10, nº 128). */}
+      <span className="mt-0.5 block text-pequeno text-muted max-md:line-clamp-2 md:truncate" title={`${ROTULO_MUDANCA(m)} · ${contexto}`}>
         <span className={cn("font-medium", COR_MUDANCA(m))}>{ROTULO_MUDANCA(m)}</span>
         {" · "}
-        {[m.eventoNome, m.area, m.autor, tempoRelativo(m.quando)].filter(Boolean).join(" · ")}
+        {contexto}
       </span>
     </Link>
   );

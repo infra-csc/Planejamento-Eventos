@@ -31,11 +31,11 @@ const TOM_ICONE: Record<TomAgora, string> = {
  * um cartão só. Antes eram cartões de 90–110 px com um link de texto repetindo o destino ("Ver eventos") e
  * deixavam um cartão órfão na segunda fileira. Sem nada pendente, uma linha dizendo isso.
  */
-export function Agora({ acoes, vazio }: { acoes: AcaoAgora[]; vazio: { titulo: string; descricao: string } }) {
+export function Agora({ acoes, vazio, titulo = "Precisa de você agora" }: { acoes: AcaoAgora[]; vazio: { titulo: string; descricao: string }; titulo?: string }) {
   return (
     <section aria-labelledby="painel-agora" className="mb-5">
       <h2 id="painel-agora" className="m-0 mb-2 text-secao font-semibold tracking-[-0.01em] text-ink">
-        Precisa de você agora
+        {titulo}
       </h2>
       {acoes.length === 0 ? (
         <p className="m-0 flex items-center gap-2.5 rounded-cartao border border-line bg-surface px-cartao py-3 text-corpo text-ink">
