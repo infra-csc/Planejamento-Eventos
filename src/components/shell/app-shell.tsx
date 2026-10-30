@@ -20,6 +20,7 @@ import { SinoNotificacoes } from "./sino-notificacoes";
 import { Trilha } from "./trilha";
 import { BuscaGlobal, abrirBuscaGlobal } from "./busca-global";
 import { BarraNavegacao } from "./barra-navegacao";
+import { focarConteudoSePerdido } from "./foco";
 
 export type NavItem = { href: string; label: string; contagem?: number | null; secao?: string; ativoEm?: string[]; exato?: boolean };
 
@@ -151,6 +152,15 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
     setMenuAberto(false);
     abrirBuscaGlobal(botaoMenuRef.current);
   };
+  // Navegou (inclusive por uma ação que redireciona: enviar, excluir, atender tudo no modo fila) e o foco se perdeu
+  // com a página antiga: vai para o conteúdo novo, não para o começo do documento (auditoria 30/10, parte A N8).
+  // Na primeira carga não mexe: o Tab começa no "Pular para o conteúdo".
+  const rotaAnterior = useRef(pathname);
+  useEffect(() => {
+    if (rotaAnterior.current === pathname) return;
+    rotaAnterior.current = pathname;
+    focarConteudoSePerdido();
+  }, [pathname]);
   // No desktop a sidebar pode ficar recolhida (só ícones); a preferência fica no navegador.
   const [recolhido, setRecolhido] = useState(false);
   useEffect(() => {

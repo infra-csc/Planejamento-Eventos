@@ -15,6 +15,7 @@ import { hrefCom } from "@/lib/url";
 import { cn } from "@/lib/cn";
 import { destinoInterno } from "@/lib/destino";
 import { BotaoNotificacao } from "./botao-notificacao";
+import { FocoAposEnvio } from "./foco-apos-envio";
 
 export const metadata: Metadata = { title: "Notificações" };
 
@@ -84,6 +85,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
         actions={
           naoLidas > 0 && (
             <form action={marcarTodasAction}>
+              <FocoAposEnvio />
               <SubmitButton variant="secondary" size="lg">
                 <Icone nome="check" />
                 Marcar todas como lidas
