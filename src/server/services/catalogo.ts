@@ -67,16 +67,19 @@ export async function listarPecas(usuario: UsuarioAtual, filtro: FiltroPecas = {
 export async function obterPeca(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "catalogo.ver");
   const db = await getDb();
-  const p = await db.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } });
+  // As três leituras correm juntas (antes uma esperava a outra; auditoria 28/10, nº 147).
+  const [p, anexos, usos] = await Promise.all([
+    db.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } }),
+    db.select({ id: pecaAnexos.id, tipo: pecaAnexos.tipo, nomeArquivo: pecaAnexos.nomeArquivo, tamanho: pecaAnexos.tamanho }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, id)).orderBy(asc(pecaAnexos.criadoEm)),
+    // projetos ativos que usam a peça (na versão atual)
+    db
+      .select({ id: projetos.id, nome: projetos.nome, codigo: projetos.codigo, quantidade: projetoItens.quantidade })
+      .from(projetoItens)
+      .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+      .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
+      .where(and(eq(projetoItens.pecaId, id), eq(projetos.ativo, true))),
+  ]);
   if (!p) throw new NaoEncontradoError("Peça");
-  const anexos = await db.select({ id: pecaAnexos.id, tipo: pecaAnexos.tipo, nomeArquivo: pecaAnexos.nomeArquivo, tamanho: pecaAnexos.tamanho }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, id)).orderBy(asc(pecaAnexos.criadoEm));
-  // projetos ativos que usam a peça (na versão atual)
-  const usos = await db
-    .select({ id: projetos.id, nome: projetos.nome, codigo: projetos.codigo, quantidade: projetoItens.quantidade })
-    .from(projetoItens)
-    .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
-    .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
-    .where(and(eq(projetoItens.pecaId, id), eq(projetos.ativo, true)));
   const { grupo, ...resto } = p;
   return { ...resto, prova: grupo?.nome ?? null, anexos, usos };
 }
@@ -142,7 +145,8 @@ export async function alterarAtivoPeca(usuario: UsuarioAtual, id: string, ativo:
   exigir(usuario, "catalogo.gerenciar");
   const peca = await obterPeca(usuario, id);
   if (!ativo && peca.usos.length > 0) {
-    throw new DomainError(`A peça está no BOM de ${peca.usos.length} projeto(s) ativo(s): ${peca.usos.map((u) => u.nome).join(", ")}. Remova-a dos projetos antes de inativar.`);
+    // "lista de peças" e plural de verdade, no lugar de "BOM de 2 projeto(s) ativo(s)" (auditoria 28/10, nº 73).
+    throw new DomainError(`A peça está na lista de peças de ${peca.usos.length === 1 ? "1 projeto ativo" : `${peca.usos.length} projetos ativos`}: ${peca.usos.map((u) => u.nome).join(", ")}. Tire a peça desses projetos antes de inativá-la.`);
   }
   const db = await getDb();
   await db.update(pecas).set({ ativo }).where(eq(pecas.id, id));
@@ -225,10 +229,10 @@ const LADO_MAX = 2000;
 export async function adicionarAnexoPeca(usuario: UsuarioAtual, pecaId: string, file: File) {
   exigir(usuario, "catalogo.gerenciar");
   if (file.size === 0) throw new ValidacaoError("Arquivo vazio.");
-  if (file.size > LIMITE_ANEXO_PECA) throw new ValidacaoError(`"${file.name}" passa de 8 MB.`);
+  if (file.size > LIMITE_ANEXO_PECA) throw new ValidacaoError(`“${file.name}” passa de 8 MB.`);
   const original = Buffer.from(await file.arrayBuffer());
   const mime = detectarMimeAnexo(new Uint8Array(original));
-  if (!mime) throw new ValidacaoError(`"${file.name}" não é foto (PNG, JPG, WEBP) nem PDF.`);
+  if (!mime) throw new ValidacaoError(`“${file.name}” não é foto (PNG, JPG, WEBP) nem PDF.`);
   const db = await getDb();
   const p = await db.query.pecas.findFirst({ where: eq(pecas.id, pecaId), columns: { id: true, codigo: true } });
   if (!p) throw new NaoEncontradoError("Peça");
@@ -243,7 +247,7 @@ export async function adicionarAnexoPeca(usuario: UsuarioAtual, pecaId: string, 
         .jpeg({ quality: 82, mozjpeg: true })
         .toBuffer()
         .catch(() => {
-          throw new ValidacaoError(`Não consegui ler a imagem "${file.name}". Envie outra foto.`);
+          throw new ValidacaoError(`Não foi possível ler a imagem “${file.name}”. Envie outra foto.`);
         });
   const nome = pdf ? file.name.slice(0, 160) : file.name.replace(/\.[^.]+$/, "").slice(0, 150) + ".jpg";
   const valor = await gravarArquivo(`pecas/${pecaId}/${randomUUID()}`, conteudo);
@@ -252,7 +256,7 @@ export async function adicionarAnexoPeca(usuario: UsuarioAtual, pecaId: string, 
       .insert(pecaAnexos)
       .values({ pecaId, tipo: pdf ? "PDF" : "IMAGEM", nomeArquivo: nome, mime: pdf ? mime : "image/jpeg", tamanho: conteudo.byteLength, conteudo: valor, criadoPorId: usuario.id })
       .returning({ id: pecaAnexos.id });
-    await registrarHistorico(db, { entidade: "peca", entidadeId: pecaId, acao: "ANEXO_ADICIONADO", descricao: `Peça ${p.codigo}: ${pdf ? "anexo" : "foto"} "${nome}" incluído.`, usuarioId: usuario.id });
+    await registrarHistorico(db, { entidade: "peca", entidadeId: pecaId, acao: "ANEXO_ADICIONADO", descricao: `Peça ${p.codigo}: ${pdf ? `anexo “${nome}” incluído` : `foto “${nome}” incluída`}.`, usuarioId: usuario.id });
     return a;
   } catch (e) {
     if (valor !== conteudo) await apagarArquivo(valor);
@@ -267,7 +271,7 @@ export async function removerAnexoPeca(usuario: UsuarioAtual, anexoId: string) {
   if (!a) throw new NaoEncontradoError("Anexo");
   await db.delete(pecaAnexos).where(eq(pecaAnexos.id, anexoId));
   await apagarArquivo(a.inicio);
-  await registrarHistorico(db, { entidade: "peca", entidadeId: a.pecaId, acao: "ANEXO_REMOVIDO", descricao: `Anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "peca", entidadeId: a.pecaId, acao: "ANEXO_REMOVIDO", descricao: `Anexo “${a.nomeArquivo}” removido.`, usuarioId: usuario.id });
   return a.pecaId;
 }
 

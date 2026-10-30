@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireUsuario } from "@/server/auth/session";
 import { exigir } from "@/server/auth/autorizacao";
 import { listarPecas } from "@/server/services/catalogo";
-import { executar, type ActionResult } from "@/lib/action";
+import { executar, tratarErro, type ActionResult } from "@/lib/action";
 import type { PecaOpcao } from "@/components/projetos/projeto-form";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
-import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, organizarProjetosEmLote, type OrganizacaoProjetos } from "@/server/services/biblioteca-lote";
+import { desabilitarBibliotecaEmLote, disponibilizarBibliotecaEmLote, LoteBloqueadoError, organizarProjetosEmLote, reativarBibliotecaEmLote, type OrganizacaoProjetos, type ProjetoBloqueio } from "@/server/services/biblioteca-lote";
 import { excluirGrupoProjeto } from "@/server/services/projetos";
 
 /**
@@ -23,18 +23,49 @@ export async function pecasParaProjetoAction(): Promise<ActionResult<PecaOpcao[]
   });
 }
 
-export async function desabilitarBibliotecaEmLoteAction(formData: FormData): Promise<ActionResult<{ alterados: number; jaInativos: number }>> {
-  const usuario = await requireUsuario();
-  const resultado = await executar(() => desabilitarBibliotecaEmLote(usuario, formData.get("tipo"), formData.getAll("ids")));
-  if (!resultado.ok) return resultado;
+/** Lote recusado porque alguns itens prendem os outros: a tela lista os projetos com link (parte C N12). */
+export type ResultadoLoteBloqueado = { ok: false; erro: string; projetos: ProjetoBloqueio[] };
+
+/** Erro de lote com a lista de projetos, ou o tratamento padrão. */
+async function executarLote<T>(fn: () => Promise<T>): Promise<ActionResult<T> | ResultadoLoteBloqueado> {
+  try {
+    return { ok: true, dados: await fn() };
+  } catch (e) {
+    if (e instanceof LoteBloqueadoError) return { ok: false, erro: e.message, projetos: e.projetos };
+    return tratarErro(e);
+  }
+}
+
+const revalidarLote = () => {
   revalidatePath("/biblioteca");
   revalidatePath("/projetos", "layout");
   revalidatePath("/catalogo", "layout");
   invalidarDados(TAGS_DADOS.projetos, TAGS_DADOS.catalogo);
+};
+
+/** "Inativar selecionados" (era "Desabilitar"; auditoria 28/10, nº 76). */
+export async function desabilitarBibliotecaEmLoteAction(formData: FormData): Promise<ActionResult<{ alterados: number; jaInativos: number }> | ResultadoLoteBloqueado> {
+  const usuario = await requireUsuario();
+  const resultado = await executarLote(() => desabilitarBibliotecaEmLote(usuario, formData.get("tipo"), formData.getAll("ids")));
+  if (!resultado.ok) return resultado;
+  revalidarLote();
   const n = resultado.dados?.alterados ?? 0;
   return {
     ...resultado,
-    mensagem: n ? `${n} ${n === 1 ? "item desabilitado" : "itens desabilitados"}.` : "Os itens selecionados já estavam desabilitados.",
+    mensagem: n ? `${n} ${n === 1 ? "item inativado" : "itens inativados"}.` : "Os itens selecionados já estavam inativos.",
+  };
+}
+
+/** "Reativar selecionados", no filtro "Só inativos" (auditoria 30/10, parte C N27). */
+export async function reativarBibliotecaEmLoteAction(formData: FormData): Promise<ActionResult<{ alterados: number; jaAtivos: number }> | ResultadoLoteBloqueado> {
+  const usuario = await requireUsuario();
+  const resultado = await executarLote(() => reativarBibliotecaEmLote(usuario, formData.get("tipo"), formData.getAll("ids")));
+  if (!resultado.ok) return resultado;
+  revalidarLote();
+  const n = resultado.dados?.alterados ?? 0;
+  return {
+    ...resultado,
+    mensagem: n ? `${n} ${n === 1 ? "item reativado" : "itens reativados"}.` : "Os itens selecionados já estavam ativos.",
   };
 }
 
@@ -66,10 +97,10 @@ export async function organizarProjetosEmLoteAction(formData: FormData): Promise
   };
 }
 
-/** Exclui um grupo de prova; os projetos e as peças dele passam para Padrão. */
+/** Exclui um grupo da biblioteca; os projetos e as peças dele passam para Padrão. */
 export async function excluirGrupoProjetoAction(grupoId: string): Promise<ActionResult<{ nome: string; projetos: number; pecas: number }>> {
   const usuario = await requireUsuario();
-  if (typeof grupoId !== "string" || !grupoId) return { ok: false, erro: "Dados inválidos." };
+  if (typeof grupoId !== "string" || !grupoId) return { ok: false, erro: "Não foi possível concluir. Atualize a página e tente de novo." };
   const r = await executar(() => excluirGrupoProjeto(usuario, grupoId));
   if (!r.ok) return r;
   revalidatePath("/biblioteca");

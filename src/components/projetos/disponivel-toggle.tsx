@@ -23,7 +23,8 @@ export function DisponivelToggle({ id, disponivel }: { id: string; disponivel: b
               ? "O projeto continua na biblioteca, mas deixa de aparecer nas listas de seleção das solicitações. Eventos existentes mantêm suas linhas."
               : "O projeto volta a aparecer nas listas de seleção das solicitações."
           }
-          confirmLabel={disponivel ? "Tirar" : "Liberar"}
+          // O botão diz o que faz, não só "Tirar"/"Liberar" (auditoria 28/10, nº 161).
+          confirmLabel={disponivel ? "Tirar das solicitações" : "Liberar nas solicitações"}
           action={alterarDisponivelProjetoAction}
           hidden={{ id, disponivel: String(!disponivel) }}
         />

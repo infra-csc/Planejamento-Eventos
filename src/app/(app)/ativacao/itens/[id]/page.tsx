@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { podeGerenciarEstoque } from "@/domain/estoque";
 import { requireUsuario } from "@/server/auth/session";
 import { NaoEncontradoError } from "@/domain/errors";
-import { obterItemAtivacao } from "@/server/services/ativacao";
+import { obterItemAtivacaoCache } from "@/app/(app)/ativacao/consultas";
 import { diaMes, diaMesHora, formatarData, periodoCurto } from "@/lib/format";
 import { adicionarAnexoEstoqueAction, removerAnexoEstoqueAction } from "@/app/(app)/ativacao/actions";
 import { PageHeader, Section, Metric, MetricStrip } from "@/components/ui/layout";
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const usuario = await requireUsuario();
   if (!podeGerenciarEstoque(usuario)) redirect("/sem-permissao");
   const { id } = await params;
-  const d = await obterItemAtivacao(usuario, id).catch(() => null);
+  const d = await obterItemAtivacaoCache(usuario, id).catch(() => null);
   return { title: d ? `Ativação · ${d.item.nome}` : "Ativação" };
 }
 
@@ -32,7 +32,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
   const { id } = await params;
   // Catálogo para o "Editar item" (mesma consulta da lista do estoque), em paralelo com o item.
   const [d, catalogo] = await Promise.all([
-    obterItemAtivacao(usuario, id).catch((e) => {
+    obterItemAtivacaoCache(usuario, id).catch((e) => {
       if (e instanceof NaoEncontradoError) notFound();
       throw e;
     }),
@@ -95,9 +95,9 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       {/* A frase de apoio de cada seção só aparece quando há o que explicar: vazia, a seção dizia a mesma coisa
           duas vezes ("Nada em reforma agora." em cima de "Este item nunca foi para reforma."). */}
-      <Section titulo="Eventos" sub={d.eventos.length ? "Com OS que leva o item e retorno ainda não registrado." : undefined}>
+      <Section titulo="Eventos" sub={d.eventos.length ? "Pedido na ata ou na OS, até o retorno ser registrado." : undefined}>
         {d.eventos.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento com OS leva este item agora." : "Ligue o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."}</p>
+          <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento pede ou leva este item agora." : "Vincule o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."}</p>
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
             {d.eventos.map((e) => (
@@ -109,7 +109,9 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
                   <Codigo>{e.evento.codigo}</Codigo> · <span className="numero">{periodoCurto(e.evento.dataMontagem, e.evento.dataDesmontagem)}</span>
                 </span>
                 <span className="numero ml-auto font-semibold">{e.levou}</span>
-                <Tag tom={e.saiu ? "warning" : "info"}>{e.saiu ? "fora · retorno pendente" : "reservado"}</Tag>
+                {/* "pedido · ata aberta": a aba "Em eventos" do estoque já contava o pedido e a página não o mostrava
+                    (auditoria 30/10, parte C N25). Só a OS tira do estoque; o pedido não muda os números acima. */}
+                <Tag tom={e.situacao === "fora" ? "warning" : e.situacao === "na OS" ? "info" : "muted"}>{e.situacao === "fora" ? "fora · retorno pendente" : e.situacao === "na OS" ? "reservado" : "pedido · ata aberta"}</Tag>
               </li>
             ))}
           </ul>
@@ -128,8 +130,11 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
           <p className="m-0 px-cartao py-4 text-pequeno text-muted">Este item nunca foi para reforma.</p>
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
-            {d.reformas.map((r) => (
-              <li key={r.id} className="px-cartao py-2.5 text-pequeno">
+            {d.reformas.map((r) => {
+              const fotosConcluida = r.status === "CONCLUIDA" ? anexosReforma.filter((a) => a.reformaId === r.id) : [];
+              return (
+              <li key={r.id} className="text-pequeno">
+                <div className="px-cartao py-2.5">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <b className="numero text-corpo font-semibold">{r.quantidade}</b>
                   <span className="text-ink-2">{r.motivo || "sem motivo informado"}</span>
@@ -142,25 +147,33 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
                   {r.local && ` · em ${r.local}`}
                   {r.previsao && ` · previsão ${formatarData(r.previsao)}`}
                 </span>
+                </div>
+                {/* Concluída, a reforma continua com as fotos do estrago e os orçamentos: antes sumiam da página
+                    (auditoria 30/10, parte C N24). */}
+                {fotosConcluida.length > 0 && <AnexosPeca pecaId={item.id} anexos={fotosConcluida} podeGerenciar={false} urlBase="/api/ativacao/anexos" />}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
-        {reformasAbertas.length > 0 && (
-          <div className="border-t border-line-soft">
-            <p className="m-0 px-cartao pt-3 text-pequeno font-medium text-ink-2">Fotos do estrago e orçamentos da reforma em andamento</p>
+        {reformasAbertas.map((r) => (
+          <div key={r.id} className="border-t border-line-soft">
+            <p className="m-0 px-cartao pt-3 text-pequeno font-medium text-ink-2">
+              Fotos do estrago e orçamentos da reforma em andamento{reformasAbertas.length > 1 ? ` (${r.quantidade} · ${r.motivo || "sem motivo informado"})` : ""}
+            </p>
+            {/* Cada reforma com as suas fotos: com duas abertas, as fotos de todas iam para a primeira. */}
             <AnexosPeca
               pecaId={item.id}
-              anexos={anexosReforma}
+              anexos={anexosReforma.filter((a) => a.reformaId === r.id)}
               podeGerenciar
               urlBase="/api/ativacao/anexos"
-              campos={{ itemId: item.id, reformaId: reformasAbertas[0].id }}
+              campos={{ itemId: item.id, reformaId: r.id }}
               adicionar={adicionarAnexoEstoqueAction}
               remover={removerAnexoEstoqueAction}
               vazio="Nenhuma foto da reforma ainda."
             />
           </div>
-        )}
+        ))}
       </Section>
 
       <Section titulo="Retornos">
@@ -174,9 +187,9 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
                   <Codigo>{r.evento.codigo}</Codigo> {r.evento.nome}
                 </span>
                 <span className="text-ink-2">
-                  levou {r.levou} · <span className="text-success">{r.voltaram} voltaram</span>
+                  levou {r.levou} · <span className="text-success">{r.voltaram} {r.voltaram === 1 ? "voltou" : "voltaram"}</span>
                   {r.reforma > 0 && <span className="text-warning"> · {r.reforma} para reforma</span>}
-                  {r.perdidos > 0 && <span className="text-danger"> · {r.perdidos} perdidos</span>}
+                  {r.perdidos > 0 && <span className="text-danger"> · {r.perdidos} {r.perdidos === 1 ? "perdido" : "perdidos"}</span>}
                 </span>
                 <span className="ml-auto text-rotulo text-muted">
                   {r.por ?? "—"} · {diaMesHora(r.em)}

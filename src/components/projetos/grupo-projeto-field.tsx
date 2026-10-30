@@ -10,9 +10,12 @@ export type GrupoProjetoOpcao = { id: string; nome: string };
 export function GrupoProjetoField({
   grupos,
   valor,
+  erro,
 }: {
   grupos: GrupoProjetoOpcao[];
   valor?: string | null;
+  /** "Criar grupo…" sem nome (auditoria 30/10, parte C N18). */
+  erro?: string | null;
 }) {
   const existing = useMemo(() => grupos.find((g) => g.nome === valor), [grupos, valor]);
   const [selection, setSelection] = useState(existing?.id ?? (valor ? "__novo__" : ""));
@@ -40,12 +43,13 @@ export function GrupoProjetoField({
       </Field>
       {selection === "__novo__" && (
         <div className="mt-3 max-w-xl">
-          <Field label="Nome do grupo" htmlFor="grupoNome" hint="Até 120 caracteres. Um nome já existente será reutilizado.">
+          <Field label="Nome do grupo" htmlFor="grupoNome" obrigatorio error={erro} hint="Até 120 caracteres. Um nome já existente será reutilizado.">
             <Input id="grupoNome" value={nome} maxLength={120} required onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Feira de Inverno 2025" autoComplete="off" />
           </Field>
         </div>
       )}
       <input type="hidden" name="grupoEvento" value={submittedName} />
+      {selection === "__novo__" && <input type="hidden" name="grupoNovo" value="1" />}
     </div>
   );
 }

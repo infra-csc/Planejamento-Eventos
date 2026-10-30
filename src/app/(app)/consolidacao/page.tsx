@@ -23,7 +23,8 @@ import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
 
-export const metadata: Metadata = { title: "Demanda de peças" };
+// Desligada, a aba do navegador não diz "Demanda de peças" numa página "não encontrado" (auditoria 28/10, nº 58).
+export const metadata: Metadata = { title: TELAS_INATIVAS.consolidacao ? "Não encontrado" : "Demanda de peças" };
 
 const JANELAS = [15, 30, 60] as const;
 const POR_PAGINA = 25;

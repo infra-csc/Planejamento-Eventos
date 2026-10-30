@@ -14,7 +14,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Codigo, Data, Numero } from "@/components/ui/numero";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
-import { AnexosManager } from "@/components/projetos/anexos-manager";
+import { AnexosProjeto } from "@/components/projetos/anexos-projeto";
 import { AtivoToggle } from "@/components/projetos/ativo-toggle";
 import { DisponivelToggle } from "@/components/projetos/disponivel-toggle";
 
@@ -209,7 +209,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
 
           <div id="anexos" className="alvo-ancora">
             <Section titulo="Fotos e desenhos" sub="Render, modulação e PDF técnico do projeto. Até 8 MB por arquivo.">
-              <AnexosManager projetoId={p.id} anexos={p.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))} podeGerenciar={gerencia} />
+              <AnexosProjeto projetoId={p.id} anexos={p.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))} podeGerenciar={gerencia} />
             </Section>
           </div>
         </div>
@@ -252,7 +252,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
             ) : (
               <ol className="m-0 list-none px-cartao py-2">
                 {historico.slice(0, 8).map((h) => (
-                  <li key={h.id} className="py-1.5">
+                  // Nome de arquivo longo sem espaço quebra dentro do cartão (auditoria 30/10, parte C N17).
+                  <li key={h.id} className="py-1.5 [overflow-wrap:anywhere]">
                     <p className="m-0 text-pequeno text-ink">{h.descricao}</p>
                     <p className="m-0 text-rotulo text-meta">
                       {h.usuario?.nome ?? "Sistema"} · <Data valor={h.criadoEm} hora />

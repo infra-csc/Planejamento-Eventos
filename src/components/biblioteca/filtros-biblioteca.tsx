@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { useSinalizarNavegacao } from "@/components/ui/navegacao";
 import { OPCOES_ALTERACAO } from "@/lib/filtro-alteracao";
+import { cn } from "@/lib/cn";
 
 /** Troca parâmetros da URL, volta para a 1ª página e fecha o detalhe aberto. */
 function useFiltroUrl() {
@@ -30,7 +31,7 @@ function useFiltroUrl() {
 }
 
 /** Filtro pela data da última alteração do cadastro (atalhos ou período de/até). */
-export function FiltroAlteracao() {
+export function FiltroAlteracao({ className }: { className?: string } = {}) {
   const { sp, pendente, aplicar } = useFiltroUrl();
   const atual = sp.get("alterado") ?? "";
   const [escolha, setEscolha] = useState(atual);
@@ -40,13 +41,14 @@ export function FiltroAlteracao() {
   const periodoMudou = de !== (sp.get("alteradoDe") ?? "") || ate !== (sp.get("alteradoAte") ?? "") || atual !== "periodo";
 
   return (
-    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto" aria-busy={pendente || undefined}>
+    // Com período, ocupa a linha toda no celular (as duas datas não cabem em meia coluna).
+    <div className={cn("flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto", periodo && "col-span-2", className)} aria-busy={pendente || undefined}>
       <Select
         id="filtro-alteracao"
         aria-label="Filtrar por data de alteração"
         value={escolha}
         ordenarAlfabetico={false}
-        className="w-full min-w-[190px] sm:w-[250px]"
+        className="w-full sm:w-[250px] sm:min-w-[190px]"
         onValueChange={(v) => {
           setEscolha(v);
           if (v !== "periodo") aplicar({ alterado: v || null, alteradoDe: null, alteradoAte: null });
@@ -85,7 +87,7 @@ export function FiltroSituacao({ feminino = false }: { feminino?: boolean }) {
         aria-label="Filtrar por situação"
         value={sp.get("situacao") === "todos" || sp.get("situacao") === "inativos" ? sp.get("situacao")! : ""}
         ordenarAlfabetico={false}
-        className="w-full min-w-[170px] sm:w-[190px]"
+        className="w-full sm:w-[190px] sm:min-w-[170px]"
         onValueChange={(v) => aplicar({ situacao: v || null })}
         opcoes={[
           { value: "", label: `Só ativ${sufixo}` },

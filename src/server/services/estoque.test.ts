@@ -71,5 +71,19 @@ describe("estoque da Ativação", { timeout: 60_000 }, () => {
     const depois = await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, item.id) });
     expect(depois).toMatchObject({ quantidade: 90, comprar: 10, observacao: "2 rasgados" });
     await expect(salvarItemEstoque(E.admin, { nome: "Puff Cubo", categoria: "Ativação", quantidade: 1, comprar: null, observacao: null, pecaId: null })).rejects.toThrow(/Já existe/);
+    // Sem diferenciar maiúsculas (auditoria 30/10, parte C N21).
+    await expect(salvarItemEstoque(E.admin, { nome: "puff cubo", categoria: "Ativação", quantidade: 1, comprar: null, observacao: null, pecaId: null })).rejects.toThrow(/Já existe/);
+  });
+
+  it("o \"+/−\" não grava por cima de um número que mudou depois que a tela abriu (auditoria 28/10, nº 98; 30/10, parte C N1)", async () => {
+    const db = await getDb();
+    const item = (await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.nome, "Puff Cubo") }))!;
+    // A tela mostrava 90; alguém mudou para 40 pelo "Editar item" (ou um retorno tirou); o "+" da tela antiga pedia 91.
+    await ajustarQuantidadeEstoque(E.admin, item.id, 40, 90);
+    await expect(ajustarQuantidadeEstoque(E.admin, item.id, 91, 90)).rejects.toThrow(/mudou para 40/);
+    expect((await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, item.id) }))?.quantidade).toBe(40);
+    // Com o número de agora, grava.
+    await ajustarQuantidadeEstoque(E.admin, item.id, 41, 40);
+    expect((await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, item.id) }))?.quantidade).toBe(41);
   });
 });

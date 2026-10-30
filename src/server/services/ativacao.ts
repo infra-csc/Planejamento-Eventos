@@ -9,7 +9,7 @@ import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetor
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo } from "./projetos";
 import { diaBrasilia, registrarHistorico } from "./support";
-import { saidasPelaOs, situacaoDoEstoque } from "./ativacao-situacao";
+import { saidasPelaOs, situacaoCompletaDoEstoque, situacaoDoEstoque } from "./ativacao-situacao";
 
 export { capasDosItens, situacaoDoEstoque, type SaidaItem } from "./ativacao-situacao";
 
@@ -22,7 +22,8 @@ export { capasDosItens, situacaoDoEstoque, type SaidaItem } from "./ativacao-sit
  */
 
 function exigirAtivacao(usuario: UsuarioAtual) {
-  if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O módulo é da Ativação e do administrador.");
+  // Diz a quem recorrer (auditoria 28/10, nº 176).
+  if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("Só a Ativação e o administrador mexem no estoque. Se precisar, fale com o administrador.");
 }
 
 /* ------------------------------------------------------------------ */
@@ -90,7 +91,8 @@ export async function registrarRetorno(usuario: UsuarioAtual, eventoId: string, 
       if (levou === undefined) throw new DomainError("Um dos itens não está na OS deste evento.");
       const observacao = dados.observacao?.trim() || null;
       const erro = problemaRetorno({ levou, voltaram: dados.voltaram, reforma: dados.reforma, perdidos: dados.perdidos, observacao });
-      const item = await tx.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, dados.itemId) });
+      // Linha travada até o fim: retorno, reforma e "+/−" ao mesmo tempo não gravam um por cima do outro (nº 98).
+      const [item] = await tx.select().from(estoqueItens).where(eq(estoqueItens.id, dados.itemId)).for("update");
       if (!item) throw new NaoEncontradoError("Item do estoque");
       if (erro) throw new ValidacaoError(`${item.nome}: ${erro}`);
       const antes = await tx.query.estoqueRetornos.findFirst({ where: and(eq(estoqueRetornos.itemId, dados.itemId), eq(estoqueRetornos.eventoId, eventoId)) });
@@ -163,6 +165,14 @@ export async function listarReformas(usuario: UsuarioAtual) {
 
 export type ReformaTela = Awaited<ReturnType<typeof listarReformas>>[number];
 
+/** Só quantas reformas estão abertas (contador da aba): o layout lia todas, com item, evento e anexos (nº 145). */
+export async function contarReformasAbertas(usuario: UsuarioAtual) {
+  exigirAtivacao(usuario);
+  const db = await getDb();
+  const [{ n }] = await db.select({ n: count() }).from(estoqueReformas).where(eq(estoqueReformas.status, "ABERTA"));
+  return Number(n);
+}
+
 const textoOuNull = (s: string | null | undefined, max: number) => s?.trim().slice(0, max) || null;
 const dataOuNull = (s: string | null | undefined) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null);
 
@@ -172,11 +182,11 @@ export async function abrirReforma(usuario: UsuarioAtual, dados: { itemId: strin
   if (!Number.isInteger(dados.quantidade) || dados.quantidade <= 0) throw new ValidacaoError("Quantidade para reforma: um número inteiro maior que zero.", { quantidade: "Maior que zero." });
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const item = await tx.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, dados.itemId) });
+    const [item] = await tx.select().from(estoqueItens).where(eq(estoqueItens.id, dados.itemId)).for("update");
     if (!item) throw new NaoEncontradoError("Item do estoque");
     // "Em posse" inclui o que saiu com a OS e ainda não voltou: só o que está no galpão vai para reforma. Antes
     // dava para mandar as unidades de um evento em andamento, e o retorno delas falhava (auditoria 30/10, parte C N6).
-    const emEvento = (await situacaoDoEstoque(tx)).emEvento.get(item.id) ?? 0;
+    const emEvento = (await situacaoDoEstoque(tx, item.id)).emEvento.get(item.id) ?? 0;
     const noGalpao = Math.max(0, item.quantidade - emEvento);
     if (dados.quantidade > noGalpao) {
       const detalhe = emEvento ? ` (${emEvento} de ${item.quantidade} estão fora em evento)` : "";
@@ -216,6 +226,9 @@ export async function concluirReforma(usuario: UsuarioAtual, id: string, consert
   exigirAtivacao(usuario);
   const db = await getDb();
   return db.transaction(async (tx) => {
+    // Reforma e item travados: concluir duas vezes ao mesmo tempo, ou junto com um "+/−", não soma por cima (nº 98).
+    const [ref] = await tx.select({ id: estoqueReformas.id, itemId: estoqueReformas.itemId }).from(estoqueReformas).where(eq(estoqueReformas.id, id)).for("update");
+    if (ref) await tx.select({ id: estoqueItens.id }).from(estoqueItens).where(eq(estoqueItens.id, ref.itemId)).for("update");
     const r = await tx.query.estoqueReformas.findFirst({ where: eq(estoqueReformas.id, id), with: { item: true } });
     if (!r) throw new NaoEncontradoError("Reforma");
     if (r.status !== "ABERTA") throw new DomainError("Esta reforma já foi concluída.");
@@ -228,7 +241,7 @@ export async function concluirReforma(usuario: UsuarioAtual, id: string, consert
       entidade: "estoque_item",
       entidadeId: r.itemId,
       acao: "ESTOQUE_REFORMA_CONCLUIDA",
-      descricao: `Ativação · ${r.item.nome}: reforma concluída — ${consertados} de volta ao estoque${baixados ? `, ${baixados} baixados` : ""}`,
+      descricao: `Ativação · ${r.item.nome}: reforma concluída — ${consertados} de volta ao estoque${baixados ? `, ${baixados} ${baixados === 1 ? "baixado" : "baixados"}` : ""}`,
       usuarioId: usuario.id,
       dadosAntes: { quantidade: r.item.quantidade },
       dadosDepois: { quantidade: r.item.quantidade + consertados, consertados, baixados },
@@ -247,9 +260,11 @@ export async function obterItemAtivacao(usuario: UsuarioAtual, itemId: string) {
   const db = await getDb();
   const item = await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, itemId), with: { peca: { columns: { id: true, codigo: true, nome: true } } } });
   if (!item) throw new NaoEncontradoError("Item do estoque");
-  const hoje = diaBrasilia();
-  const [saidas, retornos, reformas, anexos, hist, sit] = await Promise.all([
-    saidasPelaOs(db, { itemId }),
+  // Situação e eventos só deste item, com a mesma conta da lista do estoque: antes calculava o estoque inteiro e lia
+  // as saídas de novo (auditoria 28/10, nº 45). Os eventos incluem o pedido com a ata aberta, que a aba "Em eventos"
+  // da lista já contava e a página não mostrava (auditoria 30/10, parte C N25).
+  const [sit, retornos, reformas, anexos, hist] = await Promise.all([
+    situacaoCompletaDoEstoque(db, itemId),
     db.query.estoqueRetornos.findMany({ where: eq(estoqueRetornos.itemId, itemId), with: { evento: { columns: { id: true, codigo: true, nome: true } }, registradoPor: { columns: { nome: true } } }, orderBy: [desc(estoqueRetornos.atualizadoEm)] }),
     db.query.estoqueReformas.findMany({ where: eq(estoqueReformas.itemId, itemId), with: { evento: { columns: { id: true, codigo: true, nome: true } } }, orderBy: [desc(estoqueReformas.criadoEm)] }),
     db.select({ id: estoqueAnexos.id, tipo: estoqueAnexos.tipo, nomeArquivo: estoqueAnexos.nomeArquivo, tamanho: estoqueAnexos.tamanho, reformaId: estoqueAnexos.reformaId }).from(estoqueAnexos).where(eq(estoqueAnexos.itemId, itemId)).orderBy(asc(estoqueAnexos.criadoEm)),
@@ -260,12 +275,13 @@ export async function obterItemAtivacao(usuario: UsuarioAtual, itemId: string) {
       .where(and(eq(historico.entidade, "estoque_item"), eq(historico.entidadeId, itemId)))
       .orderBy(desc(historico.criadoEm))
       .limit(30),
-    situacaoDoEstoque(db),
   ]);
-  const voltou = new Set(retornos.map((r) => r.eventoId));
-  const eventosDoItem = saidas
-    .map((s) => ({ evento: s.evento, levou: s.itens[0]?.levou ?? 0, retornou: voltou.has(s.evento.id), saiu: s.evento.dataMontagem <= hoje }))
-    .filter((e) => !e.retornou);
+  const eventosDoItem = (sit.eventos.get(itemId) ?? []).map((e) => ({
+    evento: { id: e.eventoId, codigo: e.codigo, nome: e.nome, dataMontagem: e.dataMontagem, dataDesmontagem: e.dataDesmontagem },
+    levou: e.quantidade,
+    situacao: e.situacao,
+    saiu: e.situacao === "fora",
+  }));
   return {
     item: { id: item.id, nome: item.nome, categoria: item.categoria, quantidade: item.quantidade, comprar: item.comprar, observacao: item.observacao, ativo: item.ativo, peca: item.peca, pecaId: item.pecaId },
     situacao: { ...situacaoItem(item.quantidade, sit.emEvento.get(itemId) ?? 0, sit.emReforma.get(itemId) ?? 0), reservado: sit.reservado.get(itemId) ?? 0 },
@@ -291,10 +307,10 @@ const LADO_MAX = 2000;
 export async function adicionarAnexoEstoque(usuario: UsuarioAtual, itemId: string, file: File, reformaId?: string | null) {
   exigirAtivacao(usuario);
   if (file.size === 0) throw new ValidacaoError("Arquivo vazio.");
-  if (file.size > LIMITE_ANEXO) throw new ValidacaoError(`"${file.name}" passa de 8 MB.`);
+  if (file.size > LIMITE_ANEXO) throw new ValidacaoError(`“${file.name}” passa de 8 MB.`);
   const original = Buffer.from(await file.arrayBuffer());
   const mime = detectarMimeAnexo(new Uint8Array(original));
-  if (!mime) throw new ValidacaoError(`"${file.name}" não é foto (PNG, JPG, WEBP) nem PDF.`);
+  if (!mime) throw new ValidacaoError(`“${file.name}” não é foto (PNG, JPG, WEBP) nem PDF.`);
   const db = await getDb();
   const item = await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, itemId), columns: { id: true, nome: true } });
   if (!item) throw new NaoEncontradoError("Item do estoque");
@@ -313,7 +329,7 @@ export async function adicionarAnexoEstoque(usuario: UsuarioAtual, itemId: strin
         .jpeg({ quality: 82, mozjpeg: true })
         .toBuffer()
         .catch(() => {
-          throw new ValidacaoError(`Não consegui ler a imagem "${file.name}". Envie outra foto.`);
+          throw new ValidacaoError(`Não foi possível ler a imagem “${file.name}”. Envie outra foto.`);
         });
   const nome = pdf ? file.name.slice(0, 160) : file.name.replace(/\.[^.]+$/, "").slice(0, 150) + ".jpg";
   const valor = await gravarArquivo(`estoque/${itemId}/${randomUUID()}`, conteudo);
@@ -322,7 +338,7 @@ export async function adicionarAnexoEstoque(usuario: UsuarioAtual, itemId: strin
       .insert(estoqueAnexos)
       .values({ itemId, reformaId: reformaId ?? null, tipo: pdf ? "PDF" : "IMAGEM", nomeArquivo: nome, mime: pdf ? mime : "image/jpeg", tamanho: conteudo.byteLength, conteudo: valor, criadoPorId: usuario.id })
       .returning({ id: estoqueAnexos.id });
-    await registrarHistorico(db, { entidade: "estoque_item", entidadeId: itemId, acao: "ANEXO_ADICIONADO", descricao: `Ativação · ${item.nome}: ${pdf ? "anexo" : "foto"} "${nome}" incluído${reformaId ? " (reforma)" : ""}.`, usuarioId: usuario.id });
+    await registrarHistorico(db, { entidade: "estoque_item", entidadeId: itemId, acao: "ANEXO_ADICIONADO", descricao: `Ativação · ${item.nome}: ${pdf ? `anexo “${nome}” incluído` : `foto “${nome}” incluída`}${reformaId ? " (reforma)" : ""}.`, usuarioId: usuario.id });
     return a;
   } catch (e) {
     if (valor !== conteudo) await apagarArquivo(valor);
@@ -337,7 +353,7 @@ export async function removerAnexoEstoque(usuario: UsuarioAtual, anexoId: string
   if (!a) throw new NaoEncontradoError("Anexo");
   await db.delete(estoqueAnexos).where(eq(estoqueAnexos.id, anexoId));
   await apagarArquivo(a.inicio);
-  await registrarHistorico(db, { entidade: "estoque_item", entidadeId: a.itemId, acao: "ANEXO_REMOVIDO", descricao: `Ativação: anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "estoque_item", entidadeId: a.itemId, acao: "ANEXO_REMOVIDO", descricao: `Ativação: anexo “${a.nomeArquivo}” removido.`, usuarioId: usuario.id });
   return a.itemId;
 }
 

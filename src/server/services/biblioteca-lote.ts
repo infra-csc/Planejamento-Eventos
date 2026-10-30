@@ -16,7 +16,25 @@ function idsSelecionados(selecao: unknown) {
   return [...new Set((selecao as string[]).map((id) => id.trim()))].sort();
 }
 
-/** A seleção não junta cadastros: cada item continua com o próprio histórico. */
+/** Projeto que impede o lote, com link na tela (antes a lista vinha num parágrafo corrido; parte C N12). */
+export type ProjetoBloqueio = { id: string; codigo: string; nome: string };
+
+/**
+ * O lote não foi feito porque alguns itens prendem os outros (peça em projeto ativo; projeto com peça inativa): a
+ * mensagem resume e `projetos` traz os projetos para a tela listar com link.
+ */
+export class LoteBloqueadoError extends DomainError {
+  constructor(
+    message: string,
+    readonly projetos: ProjetoBloqueio[],
+  ) {
+    super(message, "REGRA");
+  }
+}
+
+const listaCurta = (nomes: string[]) => `${nomes.slice(0, 8).join("; ")}${nomes.length > 8 ? "; …" : ""}`;
+
+/** Inativa em lote ("Inativar", como no resto do app; auditoria 28/10, nº 76). Cada item continua com o próprio histórico. */
 export async function desabilitarBibliotecaEmLote(usuario: UsuarioAtual, tipo: unknown, selecao: unknown) {
   if (tipo !== "projetos" && tipo !== "pecas") throw new ValidacaoError("Escolha projetos ou peças da biblioteca.");
   exigir(usuario, tipo === "projetos" ? "projeto.gerenciar" : "catalogo.gerenciar");
@@ -43,15 +61,15 @@ export async function desabilitarBibliotecaEmLote(usuario: UsuarioAtual, tipo: u
     const ativos = rows.filter((p) => p.ativo);
     if (ativos.length) {
       // Mesma regra da inativação individual: peças no BOM atual de projetos ativos não podem sair.
-      const usos = await tx.selectDistinct({ pecaId: projetoItens.pecaId, nomeProjeto: projetos.nome })
+      const usos = await tx.selectDistinct({ pecaId: projetoItens.pecaId, projetoId: projetos.id, codigoProjeto: projetos.codigo, nomeProjeto: projetos.nome })
         .from(projetoItens)
         .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
         .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
         .where(and(inArray(projetoItens.pecaId, ativos.map((p) => p.id)), eq(projetos.ativo, true)));
       if (usos.length) {
         const nomes = ativos.filter((p) => usos.some((u) => u.pecaId === p.id)).map((p) => `${p.codigo} · ${p.nome}`);
-        const projetosUsando = [...new Set(usos.map((u) => u.nomeProjeto))];
-        throw new DomainError(`Nenhum item foi desabilitado. Peças usadas em projetos ativos: ${nomes.slice(0, 8).join("; ")}${nomes.length > 8 ? "; …" : ""}. Projetos: ${projetosUsando.slice(0, 8).join("; ")}${projetosUsando.length > 8 ? "; …" : ""}. Remova as peças desses projetos ou desabilite os projetos primeiro.`);
+        const projetosUsando = [...new Map(usos.map((u) => [u.projetoId, { id: u.projetoId, codigo: u.codigoProjeto, nome: u.nomeProjeto }])).values()];
+        throw new LoteBloqueadoError(`Nenhum item foi inativado. ${nomes.length === 1 ? "Esta peça está" : "Estas peças estão"} em projetos ativos: ${listaCurta(nomes)}. Tire as peças desses projetos (nova versão) ou inative os projetos primeiro.`, projetosUsando);
       }
       await tx.update(pecas).set({ ativo: false }).where(inArray(pecas.id, ativos.map((p) => p.id)));
       for (const p of ativos) {
@@ -63,6 +81,53 @@ export async function desabilitarBibliotecaEmLote(usuario: UsuarioAtual, tipo: u
       }
     }
     return { alterados: ativos.length, jaInativos: rows.length - ativos.length };
+  });
+}
+
+/**
+ * Reativa em lote (filtro "Só inativos"): antes eram 20 diálogos para 20 itens (auditoria 30/10, parte C N27). Mesmas
+ * regras do reativar de um em um: projeto só volta se todas as peças da versão atual estiverem ativas; se algum não
+ * puder, nada muda e a tela lista quais.
+ */
+export async function reativarBibliotecaEmLote(usuario: UsuarioAtual, tipo: unknown, selecao: unknown) {
+  if (tipo !== "projetos" && tipo !== "pecas") throw new ValidacaoError("Escolha projetos ou peças da biblioteca.");
+  exigir(usuario, tipo === "projetos" ? "projeto.gerenciar" : "catalogo.gerenciar");
+  const ids = idsSelecionados(selecao);
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    if (tipo === "projetos") {
+      const rows = await tx.select().from(projetos).where(inArray(projetos.id, ids)).for("update");
+      if (rows.length !== ids.length) throw new NaoEncontradoError("Um dos projetos selecionados");
+      const inativos = rows.filter((p) => !p.ativo);
+      if (inativos.length) {
+        const comPecaInativa = await tx
+          .selectDistinct({ projetoId: projetos.id, codigo: projetos.codigo, nome: projetos.nome })
+          .from(projetoItens)
+          .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+          .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
+          .innerJoin(pecas, eq(projetoItens.pecaId, pecas.id))
+          .where(and(inArray(projetos.id, inativos.map((p) => p.id)), eq(pecas.ativo, false)));
+        if (comPecaInativa.length) {
+          const bloqueio = comPecaInativa.map((p) => ({ id: p.projetoId, codigo: p.codigo, nome: p.nome }));
+          throw new LoteBloqueadoError(`Nenhum item foi reativado. ${bloqueio.length === 1 ? "Este projeto tem" : "Estes projetos têm"} peça inativa no catálogo: ${listaCurta(bloqueio.map((p) => `${p.codigo} · ${p.nome}`))}. Reative as peças ou tire-as do projeto antes.`, bloqueio);
+        }
+        await tx.update(projetos).set({ ativo: true }).where(inArray(projetos.id, inativos.map((p) => p.id)));
+        for (const p of inativos) {
+          await registrarHistorico(tx, { entidade: "projeto", entidadeId: p.id, acao: "REATIVADO", descricao: `Projeto ${p.nome} reativado em lote.`, usuarioId: usuario.id, dadosAntes: { ativo: false }, dadosDepois: { ativo: true } });
+        }
+      }
+      return { alterados: inativos.length, jaAtivos: rows.length - inativos.length };
+    }
+    const rows = await tx.select().from(pecas).where(inArray(pecas.id, ids)).for("update");
+    if (rows.length !== ids.length) throw new NaoEncontradoError("Uma das peças selecionadas");
+    const inativas = rows.filter((p) => !p.ativo);
+    if (inativas.length) {
+      await tx.update(pecas).set({ ativo: true }).where(inArray(pecas.id, inativas.map((p) => p.id)));
+      for (const p of inativas) {
+        await registrarHistorico(tx, { entidade: "peca", entidadeId: p.id, acao: "REATIVADA", descricao: `Peça ${p.codigo} reativada em lote.`, usuarioId: usuario.id, dadosAntes: { ativo: false }, dadosDepois: { ativo: true } });
+      }
+    }
+    return { alterados: inativas.length, jaAtivos: rows.length - inativas.length };
   });
 }
 
@@ -104,7 +169,7 @@ export async function organizarProjetosEmLote(usuario: UsuarioAtual, selecao: un
       ].filter(Boolean);
       await registrarHistorico(tx, {
         entidade: "projeto", entidadeId: p.id, acao: "EDITADO",
-        descricao: `${p.nome}: ${partes.join(" e ")} em lote (sem mudança no BOM).`, usuarioId: usuario.id,
+        descricao: `${p.nome}: ${partes.join(" e ")} em lote (sem mudança na lista de peças).`, usuarioId: usuario.id,
         dadosAntes: { ...(mudaGrupo ? { grupoId: p.grupoId } : {}), ...(mudaCategoria ? { categoria: p.categoria } : {}) },
         dadosDepois: { ...(mudaGrupo ? { grupoId } : {}), ...(mudaCategoria ? { categoria } : {}) },
       });

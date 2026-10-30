@@ -21,10 +21,13 @@ export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; it
   const ligados = await ex
     .select({ id: estoqueItens.id, nome: estoqueItens.nome, pecaId: estoqueItens.pecaId })
     .from(estoqueItens)
-    .where(and(eq(estoqueItens.ativo, true), sql`${estoqueItens.pecaId} is not null`, ...(filtro.itemId ? [eq(estoqueItens.id, filtro.itemId)] : [])))
+    .where(and(eq(estoqueItens.ativo, true), sql`${estoqueItens.pecaId} is not null`))
     .orderBy(asc(estoqueItens.nome));
   const itemDaPeca = new Map<string, { id: string; nome: string }>();
   for (const l of ligados) if (l.pecaId && !itemDaPeca.has(l.pecaId)) itemDaPeca.set(l.pecaId, { id: l.id, nome: l.nome });
+  // Com `itemId`, o dono de cada peça sai de todos os itens ligados (como na lista) e só depois se filtra: a página do
+  // item e a lista do estoque não discordam quando dois itens apontam para a mesma peça.
+  if (filtro.itemId) for (const [pecaId, item] of itemDaPeca) if (item.id !== filtro.itemId) itemDaPeca.delete(pecaId);
   if (!itemDaPeca.size) return [] as Array<{ evento: EventoComOs; itens: SaidaItem[] }>;
 
   const evs: EventoComOs[] = await ex
@@ -58,56 +61,63 @@ export async function saidasPelaOs(ex: Executor, filtro: { eventoId?: string; it
 
 /** Em que pé está o item num evento: pedido (ata ainda aberta), na OS (vai sair na montagem) ou fora (saiu e não voltou). */
 export type SituacaoNoEvento = "pedido" | "na OS" | "fora";
-export type EventoDoItem = { eventoId: string; codigo: string; nome: string; quantidade: number; situacao: SituacaoNoEvento; dataMontagem: string };
+export type EventoDoItem = { eventoId: string; codigo: string; nome: string; quantidade: number; situacao: SituacaoNoEvento; dataMontagem: string; dataDesmontagem: string };
+
+/** Eventos que a lista do estoque olha: com pedido (ata aberta) e com OS. */
+const STATUS_COM_PEDIDO = ["PREPARACAO", "EM_REUNIAO", ...STATUS_COM_OS] as const;
+
+/**
+ * Por item: quanto está fora agora (saiu na montagem e não voltou), quanto está reservado (vai sair), quanto está em
+ * reforma e em que eventos está pedido ou em uso. Uma leitura só das saídas, dos retornos e das reformas: antes a lista
+ * do estoque lia tudo duas vezes (situação e eventos) e a página de um item calculava o estoque inteiro (auditoria
+ * 28/10, D-P2-1 e D-P2-3, nº 45). Com `itemId`, só aquele item, com o mesmo resultado que ele tem na lista.
+ */
+export async function situacaoCompletaDoEstoque(ex?: Executor, itemId?: string) {
+  const db = ex ?? (await getDb());
+  const hoje = diaBrasilia();
+  const [saidas, retornos, reformas] = await Promise.all([
+    saidasPelaOs(db, { status: STATUS_COM_PEDIDO, ...(itemId ? { itemId } : {}) }),
+    db.select({ itemId: estoqueRetornos.itemId, eventoId: estoqueRetornos.eventoId }).from(estoqueRetornos).where(itemId ? eq(estoqueRetornos.itemId, itemId) : undefined),
+    db
+      .select({ itemId: estoqueReformas.itemId, n: sql<number>`sum(${estoqueReformas.quantidade})::int` })
+      .from(estoqueReformas)
+      .where(and(eq(estoqueReformas.status, "ABERTA"), ...(itemId ? [eq(estoqueReformas.itemId, itemId)] : [])))
+      .groupBy(estoqueReformas.itemId),
+  ]);
+  const voltou = new Set(retornos.map((r) => `${r.itemId}|${r.eventoId}`));
+  const emEvento = new Map<string, number>();
+  const reservado = new Map<string, number>();
+  const eventos = new Map<string, EventoDoItem[]>();
+  for (const s of saidas) {
+    const ataAberta = s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO";
+    for (const i of s.itens) {
+      if (voltou.has(`${i.itemId}|${s.evento.id}`)) continue;
+      // Só a OS (ata fechada) tira do estoque: fora a partir da montagem, reservado antes.
+      if (!ataAberta) {
+        const alvo = s.evento.dataMontagem <= hoje ? emEvento : reservado;
+        alvo.set(i.itemId, (alvo.get(i.itemId) ?? 0) + i.levou);
+      }
+      // Pedido de evento que já desmontou sem a ata fechar não entra (evento parado).
+      if (ataAberta && s.evento.dataDesmontagem < hoje) continue;
+      const situacao: SituacaoNoEvento = ataAberta ? "pedido" : s.evento.dataMontagem > hoje ? "na OS" : "fora";
+      eventos.set(i.itemId, [...(eventos.get(i.itemId) ?? []), { eventoId: s.evento.id, codigo: s.evento.codigo, nome: s.evento.nome, quantidade: i.levou, situacao, dataMontagem: s.evento.dataMontagem, dataDesmontagem: s.evento.dataDesmontagem }]);
+    }
+  }
+  return { emEvento, reservado, emReforma: new Map(reformas.map((r) => [r.itemId, Number(r.n)])), eventos };
+}
 
 /**
  * Por item do estoque ligado a uma peça: os eventos que o levam e ainda não devolveram (para a lista mostrar onde ele
  * está pedido ou em uso). Pedido de evento que já desmontou sem a ata fechar não entra (evento parado).
  */
 export async function eventosDosItens(ex?: Executor): Promise<Map<string, EventoDoItem[]>> {
-  const db = ex ?? (await getDb());
-  const hoje = diaBrasilia();
-  const [saidas, retornos] = await Promise.all([
-    saidasPelaOs(db, { status: ["PREPARACAO", "EM_REUNIAO", ...STATUS_COM_OS] }),
-    db.select({ itemId: estoqueRetornos.itemId, eventoId: estoqueRetornos.eventoId }).from(estoqueRetornos),
-  ]);
-  const voltou = new Set(retornos.map((r) => `${r.itemId}|${r.eventoId}`));
-  const out = new Map<string, EventoDoItem[]>();
-  for (const s of saidas) {
-    const ataAberta = s.evento.status === "PREPARACAO" || s.evento.status === "EM_REUNIAO";
-    if (ataAberta && s.evento.dataDesmontagem < hoje) continue;
-    for (const i of s.itens) {
-      if (voltou.has(`${i.itemId}|${s.evento.id}`)) continue;
-      const situacao: SituacaoNoEvento = ataAberta ? "pedido" : s.evento.dataMontagem > hoje ? "na OS" : "fora";
-      out.set(i.itemId, [...(out.get(i.itemId) ?? []), { eventoId: s.evento.id, codigo: s.evento.codigo, nome: s.evento.nome, quantidade: i.levou, situacao, dataMontagem: s.evento.dataMontagem }]);
-    }
-  }
-  return out;
+  return (await situacaoCompletaDoEstoque(ex)).eventos;
 }
 
-/** Por item: quanto está fora agora (saiu na montagem e não voltou) e quanto está em reforma. */
-export async function situacaoDoEstoque(ex?: Executor) {
-  const db = ex ?? (await getDb());
-  const hoje = diaBrasilia();
-  const [saidas, retornos, reformas] = await Promise.all([
-    saidasPelaOs(db),
-    db.select({ itemId: estoqueRetornos.itemId, eventoId: estoqueRetornos.eventoId }).from(estoqueRetornos),
-    db
-      .select({ itemId: estoqueReformas.itemId, n: sql<number>`sum(${estoqueReformas.quantidade})::int` })
-      .from(estoqueReformas)
-      .where(eq(estoqueReformas.status, "ABERTA"))
-      .groupBy(estoqueReformas.itemId),
-  ]);
-  const voltou = new Set(retornos.map((r) => `${r.itemId}|${r.eventoId}`));
-  const emEvento = new Map<string, number>();
-  const reservado = new Map<string, number>();
-  for (const s of saidas)
-    for (const i of s.itens) {
-      if (voltou.has(`${i.itemId}|${s.evento.id}`)) continue;
-      const alvo = s.evento.dataMontagem <= hoje ? emEvento : reservado;
-      alvo.set(i.itemId, (alvo.get(i.itemId) ?? 0) + i.levou);
-    }
-  return { emEvento, reservado, emReforma: new Map(reformas.map((r) => [r.itemId, Number(r.n)])) };
+/** Por item: quanto está fora agora (saiu na montagem e não voltou), reservado e em reforma. Com `itemId`, só ele. */
+export async function situacaoDoEstoque(ex?: Executor, itemId?: string) {
+  const { emEvento, reservado, emReforma } = await situacaoCompletaDoEstoque(ex, itemId);
+  return { emEvento, reservado, emReforma };
 }
 
 

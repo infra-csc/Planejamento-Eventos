@@ -1,7 +1,8 @@
 "use client";
 
 import { ActionForm } from "@/components/ui/action-form";
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { salvarProjetoAction } from "@/app/(app)/projetos/actions";
 import { Checkbox, Field, FormError, Input, Textarea } from "@/components/ui/field";
 import { ComboBox } from "@/components/ui/combobox";
@@ -9,10 +10,12 @@ import { Button, ButtonLink, SubmitButton } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Aviso, EmptyState, Section } from "@/components/ui/layout";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import { toastSucesso } from "@/components/ui/toast";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { SETOR_LABEL } from "@/domain/os";
-import { ESTADO_INICIAL } from "@/lib/action";
+import { ESTADO_INICIAL, type ActionResult } from "@/lib/action";
 import { cn } from "@/lib/cn";
 import type { Setor } from "@/server/db/schema";
 import { GrupoProjetoField, type GrupoProjetoOpcao } from "./grupo-projeto-field";
@@ -33,6 +36,8 @@ export function ProjetoForm({
   cancelarHref,
   onCancelar,
   voltarPara,
+  usos = [],
+  onSalvo,
 }: {
   valores: {
     id?: string;
@@ -56,8 +61,25 @@ export function ProjetoForm({
   onCancelar?: () => void;
   /** Para onde ir depois de salvar (padrão: página do projeto). */
   voltarPara?: string;
+  /** Eventos que usam o projeto (código e situação): a versão nova muda todos; com a ata fechada sai OS nova. */
+  usos?: Array<{ codigo: string; status: string }>;
+  /** Depois de salvar (o modal da Biblioteca fecha). */
+  onSalvo?: () => void;
 }) {
-  const [state, action] = useActionState(salvarProjetoAction, ESTADO_INICIAL);
+  const [state, action] = useActionState(salvarProjetoAction, ESTADO_INICIAL as ActionResult<{ destino: string }>);
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [confirmarOs, setConfirmarOs] = useState(false);
+  // Salvou: toast com o que aconteceu ("Projeto salvo como v3 · 5 eventos atualizados") e só então navega (parte C N19).
+  const visto = useRef(state);
+  useEffect(() => {
+    if (visto.current === state) return;
+    visto.current = state;
+    if (!state.ok || !state.dados?.destino) return;
+    if (state.mensagem) toastSucesso(state.mensagem);
+    onSalvo?.();
+    router.push(state.dados.destino, { scroll: !onSalvo });
+  }, [state, onSalvo, router]);
   const [itens, setItens] = useState<Linha[]>(() => valores.itens.map(({ pecaId, quantidade }) => ({ pecaId, quantidade })));
   // Peça da versão salva que não está mais entre as ativas: antes virava "Peça fora do catálogo" e o salvar falhava
   // sem dizer qual era (auditoria 30/10, parte C N8).
@@ -83,6 +105,12 @@ export function ProjetoForm({
     return k(itens) !== k(valores.itens);
   }, [itens, valores.itens]);
   const totalUnidades = itens.reduce((a, i) => a + i.quantidade, 0);
+  // O que salvar a versão nova muda, com os eventos por nome: antes de 20/10 os eventos ficavam na versão anterior, e
+  // o texto da tela continuou dizendo isso (auditoria 30/10, parte C N2). Encerrado não muda.
+  const atualizaveis = usos.filter((u) => u.status === "PREPARACAO" || u.status === "EM_REUNIAO" || u.status === "ABERTO");
+  const comOsNova = atualizaveis.filter((u) => u.status === "ABERTO");
+  const codigos = (l: typeof usos) => `${l.slice(0, 6).map((u) => u.codigo).join(", ")}${l.length > 6 ? ` e mais ${l.length - 6}` : ""}`;
+  const pedeConfirmacao = Boolean(valores.id && bomMudou && comOsNova.length);
 
   const adicionar = () => {
     if (!novaPeca || novaQtd <= 0) return;
@@ -94,7 +122,8 @@ export function ProjetoForm({
   };
 
   return (
-    <ActionForm action={action} noValidate className="flex flex-col gap-5">
+    // Celular: o campo em foco não fica escondido atrás da barra fixa do rodapé (auditoria 28/10, nº 30).
+    <ActionForm ref={formRef} action={action} noValidate className="flex flex-col gap-5 max-md:[&_:is(input,textarea,button)]:scroll-mb-28">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
       {voltarPara && <input type="hidden" name="voltarPara" value={voltarPara} />}
       <input type="hidden" name="itens" value={JSON.stringify(itens)} />
@@ -107,8 +136,9 @@ export function ProjetoForm({
 
       <Section titulo="Identificação" sub="Nome e categoria aparecem na biblioteca e na escolha de projetos das solicitações.">
         <div className="grid gap-4 px-cartao py-4 sm:grid-cols-2">
+          {/* Sem foco automático: pulava o cabeçalho e a trilha da página (auditoria 28/10, nº 141). */}
           <Field label="Nome" htmlFor="nome" error={c?.nome} obrigatorio hint="Único na biblioteca. Variação de um projeto: mesmo nome + o que muda.">
-            <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required autoFocus placeholder="Ex.: Pórtico boca de 6 m com orelha" />
+            <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required placeholder="Ex.: Pórtico boca de 6 m com orelha" />
           </Field>
           <Field label="Categoria" htmlFor="categoria" optional hint="Agrupa na biblioteca e na busca da solicitação.">
             <Input id="categoria" name="categoria" defaultValue={valores.categoria ?? ""} list="categorias" placeholder="Ex.: Pórtico" />
@@ -121,7 +151,7 @@ export function ProjetoForm({
           <Field label="Descrição" htmlFor="descricao" optional hint="Aparece para quem pede: medidas, para que serve, o que vai junto (lona, LED, contrapeso)." className="sm:col-span-2">
             <Textarea id="descricao" name="descricao" defaultValue={valores.descricao ?? ""} rows={3} />
           </Field>
-          <GrupoProjetoField grupos={grupos} valor={valores.grupoEvento} />
+          <GrupoProjetoField grupos={grupos} valor={valores.grupoEvento} erro={c?.grupoNome} />
           <div className="sm:col-span-2">
             <Checkbox
               id="disponivel"
@@ -227,8 +257,13 @@ export function ProjetoForm({
       </Section>
 
       {valores.id && bomMudou && (
-        <Section titulo={`Nova versão (v${(valores.versaoAtual ?? 1) + 1})`} sub="A lista de peças mudou. Ao salvar, os eventos que usam este projeto passam para a versão nova (com a ata fechada, sai nova versão da OS e quem pediu é avisado). Fica na versão anterior só o evento em que a logística ajustou peças uma a uma.">
+        <Section titulo={`Nova versão (v${(valores.versaoAtual ?? 1) + 1})`} sub="A lista de peças mudou. Fica na versão anterior só o evento em que a logística ajustou peças uma a uma.">
           <div className="px-cartao py-4">
+            <p className="m-0 mb-3 text-pequeno text-ink-2" role="status">
+              {atualizaveis.length === 0
+                ? "Nenhum evento em andamento usa este projeto: só a biblioteca muda."
+                : `Ao salvar, ${atualizaveis.length === 1 ? "1 evento passa" : `${atualizaveis.length} eventos passam`} para a versão nova (${codigos(atualizaveis)}).${comOsNova.length ? ` ${comOsNova.length === 1 ? "1 tem" : `${comOsNova.length} têm`} a ata fechada (${codigos(comOsNova)}): sai nova versão da OS e quem pediu é avisado.` : ""}`}
+            </p>
             <Field label="O que mudou" htmlFor="observacaoVersao" optional hint="Aparece no histórico de versões e na ata dos eventos que usam o projeto.">
               <Input id="observacaoVersao" name="observacaoVersao" placeholder="Ex.: incluída sapata de base; parafusos ajustados para 140" />
             </Field>
@@ -242,9 +277,16 @@ export function ProjetoForm({
       {/* Na página, a lista de peças passa de uma tela no celular: salvar fica fixo no rodapé (como no evento).
           No modal, o rodapé do próprio modal já fica à vista. */}
       <div className={cn("flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center", !onCancelar && "max-md:sticky max-md:bottom-0 max-md:z-10 max-sm:-mx-4 sm:max-md:-mx-5 max-md:border-line max-md:bg-page/95 max-sm:px-4 sm:max-md:px-5 max-md:py-3 max-md:backdrop-blur-sm max-md:flex-row max-md:items-center")}>
-        <SubmitButton size="lg" className={onCancelar ? "max-sm:w-full" : "max-md:flex-1"}>
-          {valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}
-        </SubmitButton>
+        {pedeConfirmacao ? (
+          // Com evento de ata fechada, confirma antes: salvar gera OS nova e avisa as áreas (parte C N2).
+          <Button size="lg" variant="primary" aria-haspopup="dialog" className={onCancelar ? "max-sm:w-full" : "max-md:flex-1"} onClick={() => setConfirmarOs(true)}>
+            Salvar como nova versão
+          </Button>
+        ) : (
+          <SubmitButton size="lg" className={onCancelar ? "max-sm:w-full" : "max-md:flex-1"}>
+            {valores.id ? (bomMudou ? "Salvar como nova versão" : "Salvar") : "Criar projeto"}
+          </SubmitButton>
+        )}
         {onCancelar ? (
           <Button variant="secondary" size="lg" className="max-sm:w-full" onClick={onCancelar}>
             Cancelar
@@ -255,6 +297,31 @@ export function ProjetoForm({
           </ButtonLink>
         )}
       </div>
+      {pedeConfirmacao && (
+        <Dialog open={confirmarOs} onOpenChange={setConfirmarOs}>
+          <DialogContent title={`Salvar a v${(valores.versaoAtual ?? 1) + 1} e gerar OS nova?`} description="A versão nova vale já nos eventos que usam o projeto." width={500}>
+            <p className="m-0 text-corpo text-ink-2">
+              {comOsNova.length === 1 ? "O evento" : `Os ${comOsNova.length} eventos`} com a ata fechada ({codigos(comOsNova)}) {comOsNova.length === 1 ? "ganha" : "ganham"} nova versão da OS, e as áreas que pediram algo neles são avisadas.
+              {atualizaveis.length > comOsNova.length && ` ${atualizaveis.length - comOsNova.length === 1 ? "Outro evento" : `Outros ${atualizaveis.length - comOsNova.length} eventos`}, antes da ata, também ${atualizaveis.length - comOsNova.length === 1 ? "passa" : "passam"} para a versão nova.`}
+            </p>
+            <DialogFooter>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => {
+                  setConfirmarOs(false);
+                  formRef.current?.requestSubmit();
+                }}
+              >
+                Salvar e gerar OS nova
+              </Button>
+              <Button variant="secondary" size="lg" onClick={() => setConfirmarOs(false)}>
+                Cancelar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </ActionForm>
   );
 }

@@ -17,9 +17,10 @@ import { Icone } from "@/components/ui/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
-import { AcaoNoCabecalho } from "@/components/ui/acao-cabecalho";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { CaptionOculta } from "@/components/ui/tabela";
 import { BotaoPedidosItem } from "./pedidos-item";
+import { aoPedirNovoItem } from "./novo-item-estoque";
 
 export type ItemEstoqueTela = {
   id: string;
@@ -61,6 +62,9 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
   const [categoria, setCategoria] = useState<string>("Todas");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [editando, setEditando] = useState<ItemEstoqueTela | "novo" | null>(null);
+  const abas = useRef<HTMLDivElement>(null);
+  // "Novo item" mora no cabeçalho da página (layout das abas), como nas outras listas (auditoria 28/10, nº 54).
+  useEffect(() => aoPedirNovoItem(() => setEditando("novo")), []);
 
   const categorias = useMemo(() => [...new Set([...CATEGORIAS_ESTOQUE, ...itens.map((i) => i.categoria)])], [itens]);
   const ativos = itens.filter((i) => i.ativo);
@@ -83,11 +87,26 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
     ["todos", "Todos"],
     ["sem", "Sem estoque"],
     ["comprar", "A comprar"],
-    ["ligados", "Ligados ao catálogo"],
+    ["ligados", "Vinculados ao catálogo"],
     ["evento", "Em eventos"],
     ["reforma", "Em reforma"],
     ["inativos", "Inativos"],
   ];
+  // Celular: as abas com 0 somem (a ativa fica), em vez de 7 abas em 4 linhas empurrando a lista (nº 43).
+  const visivelNoCelular = (f: Filtro) => f === "todos" || f === filtro || contar(f) > 0;
+  // Setas, Home e End andam entre as abas; só a ativa fica no Tab (padrão de abas, auditoria 28/10, nº 66).
+  const teclaAbas = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const botoes = [...(abas.current?.querySelectorAll<HTMLButtonElement>("[role=tab]") ?? [])].filter((b) => b.offsetParent !== null);
+    const atual = botoes.indexOf(document.activeElement as HTMLButtonElement);
+    if (atual < 0) return;
+    const proximo = e.key === "ArrowRight" ? atual + 1 : e.key === "ArrowLeft" ? atual - 1 : e.key === "Home" ? 0 : e.key === "End" ? botoes.length - 1 : null;
+    if (proximo === null) return;
+    e.preventDefault();
+    const alvo = botoes[(proximo + botoes.length) % botoes.length];
+    alvo.focus();
+    alvo.click();
+  };
+  const inativos = filtro === "inativos";
 
   return (
     <>
@@ -99,24 +118,19 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
         <div className="w-full sm:w-[180px]">
           <Select value={categoria} onValueChange={setCategoria} aria-label="Categoria" ordenarAlfabetico={false} opcoes={[{ value: "Todas", label: "Todas as categorias" }, ...categorias.map((c) => ({ value: c, label: c }))]} />
         </div>
-        <AcaoNoCabecalho>
-          <Button variant="primary" size="lg" abreDialogo onClick={() => setEditando("novo")}>
-            <Icone nome="mais" />
-            Novo item
-          </Button>
-        </AcaoNoCabecalho>
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
-        <div role="tablist" aria-label="Filtro do estoque" className="flex flex-wrap gap-1 border-b border-line-soft px-2 pt-1">
+        <div ref={abas} role="tablist" aria-label="Filtro do estoque" onKeyDown={teclaAbas} className="flex flex-wrap gap-1 border-b border-line-soft px-2 pt-1">
           {FILTROS.map(([f, rotulo]) => (
             <button
               key={f}
               role="tab"
               aria-selected={filtro === f}
+              tabIndex={filtro === f ? 0 : -1}
               type="button"
               onClick={() => setFiltro(f)}
-              className={cn("-mb-px inline-flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 py-2.5 text-pequeno", filtro === f ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink")}
+              className={cn("-mb-px inline-flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 py-2.5 text-pequeno max-md:min-h-10", filtro === f ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink", !visivelNoCelular(f) && "max-sm:hidden")}
             >
               {rotulo}
               <span className="numero rounded-chip bg-control px-1.5 text-rotulo text-ink-3">{contar(f)}</span>
@@ -130,6 +144,8 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
             {/* Celular: item, quantidade e editar cabem em 375 px (sem data-responsiva a tabela ganhava 640 px e o
                 stepper, que é a ação da tela, ficava fora da vista, só rolando a tabela de lado). */}
             <table data-responsiva className="w-full border-collapse max-sm:table-fixed max-sm:[overflow-wrap:anywhere] sm:min-w-[640px] xl:min-w-[820px]">
+              {/* Legenda para o leitor de tela (auditoria 28/10, nº 140). */}
+              <CaptionOculta>{`Estoque da Ativação: ${FILTROS.find(([f]) => f === filtro)?.[1] ?? "Todos"}`}</CaptionOculta>
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
@@ -156,8 +172,16 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
             </table>
           </div>
         )}
-        <p className="m-0 border-t border-line-soft px-cartao py-2.5 text-rotulo text-muted">
-          <Numero valor={visiveis.length} /> de <Numero valor={ativos.length} /> itens ativos · <Numero valor={ativos.reduce((t, i) => t + i.quantidade, 0)} /> unidades em posse
+        {/* Contagem viva: quem usa leitor de tela ouve quantos itens ficaram ao buscar ou trocar de aba (nº 137). Na aba
+            Inativos, conta os inativos (antes dizia "1 de 245 itens ativos" mostrando um inativo; parte C N23). */}
+        <p aria-live="polite" aria-atomic="true" className="m-0 border-t border-line-soft px-cartao py-2.5 text-rotulo text-muted">
+          {inativos ? (
+            <>
+              <Numero valor={visiveis.length} /> de <Numero valor={contar("inativos")} /> {contar("inativos") === 1 ? "item inativo" : "itens inativos"}
+            </>
+          ) : (
+            <>
+          <Numero valor={visiveis.length} /> de <Numero valor={ativos.length} /> {ativos.length === 1 ? "item ativo" : "itens ativos"} · <Numero valor={ativos.reduce((t, i) => t + i.quantidade, 0)} /> unidades em posse
           {ativos.some((i) => i.emEvento) && (
             <>
               {" · "}
@@ -168,6 +192,8 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
             <>
               {" · "}
               <Numero valor={ativos.reduce((t, i) => t + i.emReforma, 0)} /> em reforma
+            </>
+          )}
             </>
           )}
         </p>
@@ -187,15 +213,34 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
   const [estado, setEstado] = useState<"" | "salvando" | "salvo">("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendente = useRef<number | null>(null);
+  // O último número que o servidor confirmou: vai junto como "esperado", e o servidor recusa se o estoque mudou nesse
+  // meio-tempo (outra pessoa, outra aba, um retorno) em vez de gravar por cima (auditoria 28/10, nº 98).
+  const base = useRef(item.quantidade);
+  // Gravou: toast com "Desfazer" (com Ctrl+Z), porque o "+/−" grava sozinho e um toque perdido ao rolar no celular
+  // mudava o estoque sem volta (auditoria 28/10, nº 42). Um toast por item: o seguinte substitui o anterior.
+  const avisarGravado = (de: number, para: number) =>
+    toastSucesso(`${item.nome}: ${de} → ${para}`, {
+      grupo: `estoque-${item.id}`,
+      desfazer: async () => {
+        const r = await ajustarQuantidadeEstoqueAction(item.id, de, para);
+        if (!r.ok) toastErro(r.erro);
+        router.refresh();
+      },
+    });
   // Se a linha sai da tela (aba, busca, recarga da lista) com um "+" ainda esperando os 0,7 s, grava na hora.
   // Antes a limpeza só cancelava e o número se perdia sem aviso (auditoria 30/10, parte C N4).
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
     if (pendente.current === null) return;
-    void ajustarQuantidadeEstoqueAction(item.id, pendente.current).then((r) => {
-      if (r.ok) router.refresh();
-      else toastErro(`${item.nome}: ${r.erro}`);
+    const de = base.current;
+    const para = pendente.current;
+    void ajustarQuantidadeEstoqueAction(item.id, para, de).then((r) => {
+      if (r.ok) {
+        if (de !== para) avisarGravado(de, para);
+        router.refresh();
+      } else toastErro(`${item.nome}: ${r.erro}`);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na saída da linha; avisarGravado depende das mesmas chaves
   }, [item.id, item.nome, router]);
   const mudar = (v: number) => {
     setValor(v);
@@ -204,15 +249,20 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
     timer.current = setTimeout(async () => {
       timer.current = null;
       pendente.current = null;
+      const de = base.current;
       setEstado("salvando");
-      const r = await ajustarQuantidadeEstoqueAction(item.id, v);
+      const r = await ajustarQuantidadeEstoqueAction(item.id, v, de);
       if (!r.ok) {
         toastErro(r.erro);
-        setValor(item.quantidade);
+        setValor(base.current);
         setEstado("");
+        // O número mudou fora daqui: a lista volta com o valor de agora.
+        router.refresh();
         return;
       }
+      base.current = v;
       setEstado("salvo");
+      if (de !== v) avisarGravado(de, v);
       router.refresh();
     }, 700);
   };
@@ -224,9 +274,12 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
             mostra 0 (em atenção). */}
         <span className="block min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <Link href={`/ativacao/itens/${item.id}`} className="text-corpo font-medium text-ink no-underline hover:underline">
+          {/* No celular o nome é o alvo de toque da linha: 40 px de altura em vez de 20 (auditoria 28/10, nº 59). */}
+          <Link href={`/ativacao/itens/${item.id}`} className="text-corpo font-medium text-ink no-underline hover:underline max-md:inline-flex max-md:min-h-10 max-md:items-center">
             {item.nome}
           </Link>
+          {/* Inativo também em texto, não só pela cor cinza (nº 138). */}
+          {!item.ativo && <Tag tom="neutral">inativo</Tag>}
           {item.capaId && (
             // eslint-disable-next-line @next/next/no-img-element -- miniatura já reduzida pela rota de anexos
             <img src={`/api/ativacao/anexos/${item.capaId}?w=160`} alt="" loading="lazy" decoding="async" className="size-6 shrink-0 rounded-chip border border-line bg-white object-cover max-sm:hidden" />
@@ -259,12 +312,12 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         </div>
       </td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">
-        {item.emEvento ? <span className="font-medium text-info">{item.emEvento}</span> : <span className="text-line-strong">—</span>}
+        {item.emEvento ? <span className="font-medium text-info">{item.emEvento}</span> : <span className="text-meta">—</span>}
         {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} {item.reservado === 1 ? "reservado" : "reservados"}</span>}
       </td>
-      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-meta">—</span>}</td>
       <td className={cn("numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell", valor - item.emEvento <= 0 && "text-warning")}>{Math.max(0, valor - item.emEvento)}</td>
-      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
+      <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-meta">—</span>}</td>
       <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-0 max-sm:pr-2">
         {/* Só o lápis, como nas outras listas: "Editar" escrito em 244 linhas. */}
         <IconButton label={`Editar ${item.nome}`} onClick={onEditar}>
@@ -324,7 +377,7 @@ function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { i
     });
 
   return (
-    <DialogContent title={item ? `Editar ${item.nome}` : "Novo item no estoque"} description="Ligado a uma peça do catálogo, o item aparece na solicitação com quanto ainda tem no período do evento." width={520}>
+    <DialogContent title={item ? `Editar ${item.nome}` : "Novo item no estoque"} description="Vinculado a uma peça do catálogo, o item aparece na solicitação com quanto ainda tem no período do evento." width={520}>
       <div className="flex flex-col gap-3.5">
         <Field label="Nome" htmlFor="estoque-nome" obrigatorio error={erros.nome}>
           <Input id="estoque-nome" value={nome} maxLength={160} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Capa de puff - Preta" autoFocus />
@@ -348,7 +401,7 @@ function FormItem({ item, categorias, catalogo, categoriaPadrao, onFechar }: { i
             <ComboBox id="estoque-peca" value={pecaId} onChange={(v) => setPecaId(v || null)} placeholder="Nenhuma — só no estoque" className="min-w-0 flex-1" opcoes={catalogo.map((p) => ({ value: p.id, label: p.nome, descricao: p.codigo }))} />
             {pecaId && (
               <Button variant="link" size="sm" onClick={() => setPecaId(null)}>
-                Tirar
+                Tirar a peça
               </Button>
             )}
           </div>

@@ -25,6 +25,7 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
       type="button"
       role="radio"
       aria-checked={ativo}
+      tabIndex={ativo ? 0 : -1}
       onClick={onClick}
       className={cn(
         "flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-controle border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
@@ -43,18 +44,31 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Origem da peça" className="flex flex-col gap-2 sm:flex-row">
+      {/* Setas trocam a opção e só a escolhida fica no Tab, como um grupo de rádio (auditoria 28/10, nº 66). */}
+      <div
+        role="radiogroup"
+        aria-label="Origem da peça"
+        className="flex flex-col gap-2 sm:flex-row"
+        onKeyDown={(e) => {
+          if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+          e.preventDefault();
+          setDeProva((v) => !v);
+          const botoes = e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]");
+          requestAnimationFrame(() => botoes[deProva ? 0 : 1]?.focus());
+        }}
+      >
         {opcao(!deProva, "Do galpão", "Acervo de uso geral, serve para qualquer evento.", () => setDeProva(false))}
-        {opcao(deProva, "De uma prova", "Feita para um evento específico (ex.: com a marca da prova).", () => setDeProva(true))}
+        {/* Um nome para o agrupamento: "grupo da biblioteca", com a prova como exemplo (auditoria 28/10, nº 79). */}
+        {opcao(deProva, "De um grupo (prova)", "Feita para um evento específico (ex.: com a marca da prova).", () => setDeProva(true))}
       </div>
       {deProva && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Prova" htmlFor="provaEscolhida" obrigatorio error={escolha === NOVA ? null : erro} hint="As mesmas provas dos grupos de projetos da Biblioteca.">
+          <Field label="Grupo da biblioteca" htmlFor="provaEscolhida" obrigatorio error={escolha === NOVA ? null : erro} hint="Os mesmos grupos dos projetos da Biblioteca (ex.: a prova).">
             <Select
               id="provaEscolhida"
               value={escolha}
-              placeholder="Escolha a prova"
-              opcoes={[...grupos.map((g) => ({ value: g.id, label: g.nome })), { value: NOVA, label: "Nova prova…", descricao: "Digite o nome" }]}
+              placeholder="Escolha o grupo"
+              opcoes={[...grupos.map((g) => ({ value: g.id, label: g.nome })), { value: NOVA, label: "Criar grupo…", descricao: "Escreva o nome do grupo (ex.: a prova)" }]}
               onValueChange={(v) => {
                 setEscolha(v);
                 if (v === NOVA) setNome("");
@@ -62,7 +76,7 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
             />
           </Field>
           {escolha === NOVA && (
-            <Field label="Nome da prova" htmlFor="provaNome" obrigatorio error={erro} hint="Um nome que já existe é reaproveitado.">
+            <Field label="Nome do grupo" htmlFor="provaNome" obrigatorio error={erro} hint="Um nome que já existe é reaproveitado.">
               <Input id="provaNome" value={nome} maxLength={120} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Bota Pra Correr RJ" autoComplete="off" />
             </Field>
           )}

@@ -58,7 +58,7 @@ export async function excluirGrupoProjeto(usuario: UsuarioAtual, grupoId: string
       entidade: "projeto_grupo",
       entidadeId: grupoId,
       acao: "GRUPO_EXCLUIDO",
-      descricao: `Grupo "${g.nome}" excluído: ${movidosProj.length} ${movidosProj.length === 1 ? "projeto" : "projetos"} e ${movidasPecas.length} ${movidasPecas.length === 1 ? "peça" : "peças"} passaram para Padrão.`,
+      descricao: `Grupo “${g.nome}” excluído: ${movidosProj.length} ${movidosProj.length === 1 ? "projeto" : "projetos"} e ${movidasPecas.length} ${movidasPecas.length === 1 ? "peça" : "peças"} passaram para Padrão.`,
       usuarioId: usuario.id,
       dadosAntes: { nome: g.nome, projetos: movidosProj.map((p) => p.codigo), pecas: movidasPecas.map((p) => p.codigo) },
     });
@@ -75,7 +75,7 @@ export async function resolverGrupoProjeto(tx: ProjetoTx | Executor, usuario: Us
     .onConflictDoNothing({ target: projetoGrupos.nomeNormalizado }).returning({ id: projetoGrupos.id });
   if (criado) return criado.id;
   const existente = await tx.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.nomeNormalizado, grupo.nomeNormalizado) });
-  if (!existente) throw new ValidacaoError("Não foi possível selecionar o grupo. Tente novamente.");
+  if (!existente) throw new ValidacaoError("Não foi possível selecionar o grupo. Tente de novo.");
   return existente.id;
 }
 
@@ -136,7 +136,9 @@ export async function obterProjeto(usuario: UsuarioAtual, id: string) {
         grupo: { columns: { id: true, nome: true } },
         criadoPor: { columns: { id: true, nome: true } },
         anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true, tamanho: true, criadoEm: true }, orderBy: [asc(anexos.criadoEm)] },
-        versoes: { with: { itens: { with: { peca: true } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
+        // Só o que as telas mostram da peça (código, nome, setor, unidade, situação): antes ia a peça inteira em cada
+        // linha de cada versão (auditoria 28/10, nº 146).
+        versoes: { with: { itens: { with: { peca: { columns: { id: true, codigo: true, nome: true, setor: true, unidade: true, ativo: true } } } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
       },
     }),
     // eventos não encerrados que usam versões antigas (MEL-02)
@@ -153,7 +155,7 @@ export async function obterProjeto(usuario: UsuarioAtual, id: string) {
 }
 
 async function validarItens(itens: DadosProjeto["itens"]) {
-  if (itens.length === 0) throw new ValidacaoError("Adicione ao menos uma peça à lista de materiais.");
+  if (itens.length === 0) throw new ValidacaoError("Adicione ao menos uma peça à lista de peças.");
   const ids = itens.map((i) => i.pecaId);
   if (new Set(ids).size !== ids.length) throw new ValidacaoError("Há peças repetidas na lista. Some as quantidades em uma linha só.");
   const db = await getDb();
@@ -163,7 +165,8 @@ async function validarItens(itens: DadosProjeto["itens"]) {
     // Diz qual peça: a mensagem genérica deixava a pessoa procurando a linha (auditoria 30/10, parte C N8).
     if (!p) throw new ValidacaoError("Uma das peças da lista não existe mais no catálogo. Remova a linha e salve de novo.", { itens: "Uma peça da lista não existe mais no catálogo." });
     if (!p.ativo) throw new ValidacaoError(`A peça ${p.codigo} (${p.nome}) está inativa no catálogo. Remova-a da lista ou reative a peça.`, { itens: `${p.codigo} (${p.nome}) está inativa no catálogo.` });
-    if (!p.permiteEmProjeto) throw new ValidacaoError(`"${p.nome}" não pode entrar em BOM: é sempre lançada como item avulso.`);
+    // Sem "BOM": o app chama de lista de peças (auditoria 28/10, nº 73).
+    if (!p.permiteEmProjeto) throw new ValidacaoError(`“${p.nome}” não entra na lista de peças de projeto: é sempre pedida solta, com destino.`);
     if (!Number.isInteger(i.quantidade) || i.quantidade <= 0) throw new ValidacaoError("Quantidades devem ser inteiros maiores que zero.");
   }
 }
@@ -224,7 +227,7 @@ export async function editarProjeto(usuario: UsuarioAtual, id: string, dados: Da
       entidade: "projeto",
       entidadeId: id,
       acao: bomMudou ? "NOVA_VERSAO" : "EDITADO",
-      descricao: bomMudou ? `${p.nome}: nova versão v${novaVersao}${dados.observacaoVersao ? ` — ${dados.observacaoVersao}` : ""}` : `${p.nome}: dados alterados (sem mudança no BOM).`,
+      descricao: bomMudou ? `${p.nome}: nova versão v${novaVersao}${dados.observacaoVersao ? ` — ${dados.observacaoVersao}` : ""}` : `${p.nome}: dados alterados (sem mudança na lista de peças).`,
       usuarioId: usuario.id,
       dadosAntes: bomMudou ? { itens: atual.itens.map((i) => ({ pecaId: i.pecaId, quantidade: i.quantidade })), grupoId: p.grupoId } : grupoId !== p.grupoId ? { grupoId: p.grupoId } : null,
       dadosDepois: bomMudou ? { itens: dados.itens, grupoId } : grupoId !== p.grupoId ? { grupoId } : null,
@@ -310,6 +313,17 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
   const mime = detectarMimeAnexo(new Uint8Array(conteudo));
   const tipo = mime ? MIMES[mime] : undefined;
   if (!mime || !tipo) throw new ValidacaoError("Formato não suportado. Use PNG, JPG, WEBP ou PDF (o conteúdo do arquivo não corresponde a nenhum deles).");
+  // A foto precisa abrir de verdade: um JPEG corrompido passava pela assinatura e ficava quebrado na galeria e como
+  // capa (a peça e a Ativação já recusavam; auditoria 30/10, parte C N14). Import tardio: o sharp não vai para quem
+  // só importa este módulo sem enviar foto.
+  if (tipo === "IMAGEM") {
+    const sharp = (await import("sharp")).default;
+    await sharp(conteudo)
+      .stats()
+      .catch(() => {
+        throw new ValidacaoError(`Não foi possível ler a imagem “${file.name}”. Envie outra foto.`);
+      });
+  }
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");
@@ -325,7 +339,7 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
     if (valor !== conteudo) await apagarArquivo(valor);
     throw e;
   }
-  await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo "${file.name}" adicionado.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "projeto", entidadeId: projetoId, acao: "ANEXO_ADICIONADO", descricao: `${p.nome}: anexo “${file.name}” adicionado.`, usuarioId: usuario.id });
   return a;
 }
 
@@ -339,7 +353,7 @@ export async function removerAnexo(usuario: UsuarioAtual, anexoId: string) {
   if (!a) throw new NaoEncontradoError("Anexo");
   await db.delete(anexos).where(eq(anexos.id, anexoId));
   await apagarArquivo(a.inicio);
-  await registrarHistorico(db, { entidade: "projeto", entidadeId: a.projetoId, acao: "ANEXO_REMOVIDO", descricao: `Anexo "${a.nomeArquivo}" removido.`, usuarioId: usuario.id });
+  await registrarHistorico(db, { entidade: "projeto", entidadeId: a.projetoId, acao: "ANEXO_REMOVIDO", descricao: `Anexo “${a.nomeArquivo}” removido.`, usuarioId: usuario.id });
   return a.projetoId;
 }
 

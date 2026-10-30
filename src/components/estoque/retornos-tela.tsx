@@ -17,6 +17,8 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { CaptionOculta } from "@/components/ui/tabela";
+import { useFocoAposAtualizar } from "./foco-apos-atualizar";
 
 const SITUACAO: Record<EventoRetorno["situacao"], { rotulo: string; tom: "warning" | "info" | "success" }> = {
   pendente: { rotulo: "Retorno pendente", tom: "warning" },
@@ -33,18 +35,22 @@ export function RetornosTela({ eventos }: { eventos: EventoRetorno[] }) {
   const [verRegistrados, setVerRegistrados] = useState(false);
   const abertos = eventos.filter((e) => e.situacao !== "registrado");
   const registrados = eventos.filter((e) => e.situacao === "registrado");
+  const pedirFoco = useFocoAposAtualizar(eventos);
 
+  // Vazio dentro do cartão, como nas outras listas (auditoria 28/10, nº 119).
   if (!eventos.length)
     return (
-      <EmptyState
-        icone="caixa"
-        title="Nenhum evento leva itens do estoque"
-        description="Os itens saem com a OS quando estão ligados a uma peça do catálogo (no Estoque, em Editar › Peça do catálogo) e o evento tem a ata fechada."
-      />
+      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+        <EmptyState
+          icone="caixa"
+          title="Nenhum evento leva itens do estoque"
+          description="Os itens saem com a OS quando estão vinculados a uma peça do catálogo (no Estoque, em Editar item › Peça do catálogo) e o evento tem a ata fechada."
+        />
+      </div>
     );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div id="retornos-lista" tabIndex={-1} className="flex flex-col gap-4 focus:outline-none">
       {abertos.length === 0 && <p className="m-0 rounded-cartao border border-line bg-surface px-cartao py-4 text-corpo text-ink-2">Todos os retornos estão registrados.</p>}
       {abertos.map((e) => (
         <CartaoEvento key={e.evento.id} e={e} onRegistrar={() => setRegistrando(e)} />
@@ -65,7 +71,7 @@ export function RetornosTela({ eventos }: { eventos: EventoRetorno[] }) {
         </div>
       )}
       <Dialog open={registrando !== null} onOpenChange={(v) => !v && setRegistrando(null)}>
-        {registrando && <FormRetorno key={registrando.evento.id} e={registrando} onFechar={() => setRegistrando(null)} />}
+        {registrando && <FormRetorno key={registrando.evento.id} e={registrando} onFechar={() => setRegistrando(null)} onRegistrado={() => pedirFoco([`[data-retorno-evento="${registrando.evento.id}"] button`, `[data-retorno-evento="${registrando.evento.id}"]`, "#retornos-lista"])} />}
       </Dialog>
     </div>
   );
@@ -75,7 +81,7 @@ function CartaoEvento({ e, onRegistrar }: { e: EventoRetorno; onRegistrar: () =>
   const s = SITUACAO[e.situacao];
   const corrigir = e.itens.some((i) => i.retorno);
   return (
-    <section className="overflow-hidden rounded-cartao border border-line bg-surface" aria-label={`${e.evento.codigo} ${e.evento.nome}: ${s.rotulo}`}>
+    <section data-retorno-evento={e.evento.id} tabIndex={-1} className="overflow-hidden rounded-cartao border border-line bg-surface focus:outline-none" aria-label={`${e.evento.codigo} ${e.evento.nome}: ${s.rotulo}`}>
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft px-cartao py-3">
         <div className="min-w-0 flex-1">
           <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -100,6 +106,7 @@ function CartaoEvento({ e, onRegistrar }: { e: EventoRetorno; onRegistrar: () =>
       <div className="overflow-x-auto">
         {/* Larguras fixas: as colunas de números ficam alinhadas de um evento para o outro. */}
         <table className="w-full min-w-[560px] table-fixed border-collapse">
+          <CaptionOculta>{`Itens do estoque no ${e.evento.codigo}: levou, voltaram, reforma e perdidos`}</CaptionOculta>
           <thead>
             <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
               <th className="px-3 py-2 pl-cartao">Item</th>
@@ -122,8 +129,8 @@ function CartaoEvento({ e, onRegistrar }: { e: EventoRetorno; onRegistrar: () =>
                 {i.retorno ? (
                   <>
                     <td className="numero px-3 py-2 text-right text-corpo text-success">{i.retorno.voltaram}</td>
-                    <td className={cn("numero px-3 py-2 text-right text-corpo", i.retorno.reforma ? "text-warning" : "text-line-strong")}>{i.retorno.reforma || "—"}</td>
-                    <td className={cn("numero px-3 py-2 pr-cartao text-right text-corpo", i.retorno.perdidos ? "text-danger" : "text-line-strong")}>{i.retorno.perdidos || "—"}</td>
+                    <td className={cn("numero px-3 py-2 text-right text-corpo", i.retorno.reforma ? "text-warning" : "text-meta")}>{i.retorno.reforma || "—"}</td>
+                    <td className={cn("numero px-3 py-2 pr-cartao text-right text-corpo", i.retorno.perdidos ? "text-danger" : "text-meta")}>{i.retorno.perdidos || "—"}</td>
                   </>
                 ) : (
                   <td colSpan={3} className="px-3 py-2 pr-cartao text-right text-pequeno text-ink-3">
@@ -142,7 +149,7 @@ function CartaoEvento({ e, onRegistrar }: { e: EventoRetorno; onRegistrar: () =>
 type Linha = { itemId: string; nome: string; levou: number; voltaram: number; reforma: number; perdidos: number; observacao: string; travada: boolean };
 
 /** Um formulário para todos os itens do evento: começa com "voltaram = levou" (o caso comum é voltar tudo). */
-function FormRetorno({ e, onFechar }: { e: EventoRetorno; onFechar: () => void }) {
+function FormRetorno({ e, onFechar, onRegistrado }: { e: EventoRetorno; onFechar: () => void; onRegistrado: () => void }) {
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
   const [linhas, setLinhas] = useState<Linha[]>(() =>
@@ -179,6 +186,7 @@ function FormRetorno({ e, onFechar }: { e: EventoRetorno; onFechar: () => void }
         return;
       }
       toastSucesso(`Retorno do ${e.evento.codigo} registrado`);
+      onRegistrado();
       onFechar();
       router.refresh();
     });

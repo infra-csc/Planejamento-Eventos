@@ -87,16 +87,18 @@ export function OrganizarProjetosDialog({
         if (!r.ok) {
           setErro(r.erro);
           setCampos(r.campos ?? {});
-          toastErro(r.erro);
+          // O erro fica no diálogo (sem toast por cima do botão) e o foco vai ao campo que falta (parte C N12 e N20).
+          if (r.campos?.grupoNome) requestAnimationFrame(() => document.getElementById("lote-grupo-nome")?.focus());
+          else if (r.campos?.categoria) requestAnimationFrame(() => document.getElementById("lote-categoria")?.focus());
           return;
         }
         const sem = r.dados?.semMudanca ?? 0;
-        toastSucesso(`${r.mensagem ?? "Projetos atualizados."}${sem && r.dados?.alterados ? ` ${sem} ${sem === 1 ? "já estava assim" : "já estavam assim"}.` : ""}`);
+        toastSucesso(`${r.mensagem ?? "Projetos atualizados"}${sem && r.dados?.alterados ? ` ${sem} ${sem === 1 ? "já estava assim" : "já estavam assim"}.` : ""}`);
         limpar();
         onConcluido();
         router.refresh();
       } catch {
-        const mensagem = "Não foi possível atualizar os projetos. Verifique sua conexão e tente novamente.";
+        const mensagem = "Não foi possível atualizar os projetos. Verifique sua conexão e tente de novo.";
         setErro(mensagem);
         toastErro(mensagem);
       } finally {
@@ -110,7 +112,7 @@ export function OrganizarProjetosDialog({
     <Dialog open={aberto} onOpenChange={(a) => (a ? undefined : fechar())}>
       <DialogContent
         title={`Organizar ${n} ${n === 1 ? "projeto" : "projetos"}`}
-        description="Mude o grupo e/ou a categoria de todos os selecionados de uma vez."
+        description="Mude o grupo, a categoria ou os dois em todos os selecionados de uma vez."
         width={560}
         className={ocupado ? "[&>button[aria-label='Fechar']]:pointer-events-none [&>button[aria-label='Fechar']]:opacity-40" : undefined}
       >
@@ -136,7 +138,7 @@ export function OrganizarProjetosDialog({
                   { value: MANTER, label: "Manter como está", descricao: "Cada projeto continua no grupo atual" },
                   { value: PADRAO, label: "Padrão", descricao: "Tirar do grupo" },
                   ...opcoes.grupos.map((g) => ({ value: `g:${g.id}`, label: g.nome })),
-                  { value: NOVO, label: "Criar grupo…", descricao: "Escreva o nome do evento" },
+                  { value: NOVO, label: "Criar grupo…", descricao: "Escreva o nome do grupo (ex.: a prova)" },
                 ]}
               />
             </Field>

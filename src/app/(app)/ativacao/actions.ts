@@ -44,11 +44,12 @@ export async function salvarItemEstoqueAction(dados: z.infer<typeof itemSchema>)
   );
 }
 
-export async function ajustarQuantidadeEstoqueAction(itemId: string, quantidade: number) {
+/** `esperado`: o número que a tela mostrava; se o estoque mudou nesse meio-tempo, recusa em vez de gravar por cima. */
+export async function ajustarQuantidadeEstoqueAction(itemId: string, quantidade: number, esperado?: number) {
   const usuario = await requireUsuario();
   return executar(
     async () => {
-      const r = await ajustarQuantidadeEstoque(usuario, id.parse(itemId), inteiro.parse(quantidade));
+      const r = await ajustarQuantidadeEstoque(usuario, id.parse(itemId), inteiro.parse(quantidade), esperado === undefined ? undefined : inteiro.parse(esperado));
       revalidar();
       return r;
     },
@@ -134,8 +135,8 @@ export async function adicionarAnexoEstoqueAction(form: FormData) {
 
 export async function removerAnexoEstoqueAction(anexoId: string) {
   const usuario = await requireUsuario();
-  if (typeof anexoId !== "string" || !anexoId) return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => removerAnexoEstoque(usuario, anexoId), "Arquivo removido.");
+  if (typeof anexoId !== "string" || !anexoId) return { ok: false, erro: "Não foi possível concluir. Atualize a página e tente de novo." } as const;
+  const r = await executar(() => removerAnexoEstoque(usuario, anexoId), "Arquivo removido");
   revalidar();
   return r;
 }

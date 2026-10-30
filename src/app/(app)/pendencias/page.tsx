@@ -17,7 +17,8 @@ import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th } from "@/components/ui/tabela";
 import { ResolverPendencia } from "./resolver-pendencia";
 
-export const metadata: Metadata = { title: "Pendências de compra" };
+// Desligada, a aba do navegador não diz "Pendências de compra" numa página "não encontrado" (auditoria 28/10, nº 58).
+export const metadata: Metadata = { title: TELAS_INATIVAS.pendencias ? "Não encontrado" : "Pendências de compra" };
 
 const POR_PAGINA = 25;
 
@@ -100,7 +101,7 @@ export default async function PendenciasPage({ searchParams }: { searchParams: P
         {total === 0 ? (
           <EmptyState
             icone={busca ? "busca" : aba === "abertas" && !eventoId ? "check-circulo" : "caixa"}
-            title={busca ? `Nada encontrado para “${busca}”` : eventoId ? "Nenhuma neste evento" : vazio[aba][0]}
+            title={busca ? `Nada encontrado para “${busca}”` : eventoId ? (aba === "resolvidas" ? "Nenhuma pendência resolvida neste evento" : "Nenhuma pendência neste evento") : vazio[aba][0]}
             description={busca ? "Confira o código da solicitação ou tente outra palavra do item." : eventoId ? undefined : vazio[aba][1]}
             action={
               limpar ? (

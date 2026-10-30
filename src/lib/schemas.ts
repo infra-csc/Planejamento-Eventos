@@ -113,8 +113,12 @@ export const ataAlterarQuantidadeSchema = z.object({
   justificativa: textoOpcional(LIMITES.justificativa),
 });
 
+/** Nome ou código que termina no separador que o "Duplicar" deixa para completar ("— ", "-"). */
+const SEPARADOR_NO_FIM = /[-–—]$/;
+
 export const pecaSchema = z.object({
-  codigo: texto(LIMITES.codigoPeca).transform((v) => v.toUpperCase()),
+  // Duplicar pré-preenche "CÓDIGO-": salvar sem completar gravava "QAC-43469-" (auditoria 30/10, parte C N13).
+  codigo: texto(LIMITES.codigoPeca).refine((v) => !SEPARADOR_NO_FIM.test(v), "Complete o código depois do “-” (ex.: PUFF-02).").transform((v) => v.toUpperCase()),
   nome: texto(LIMITES.nome),
   setor: z.enum(SETORES),
   familia: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
@@ -136,7 +140,7 @@ export const pecaSchema = z.object({
   /** "1" quando a pessoa marcou "De uma prova": aí a prova é obrigatória. */
   deProva: z.string().optional(),
 }).superRefine((v, ctx) => {
-  if (v.deProva === "1" && !v.grupoEvento) ctx.addIssue({ code: "custom", path: ["grupoEvento"], message: "Escolha a prova (ou marque “Do galpão”)." });
+  if (v.deProva === "1" && !v.grupoEvento) ctx.addIssue({ code: "custom", path: ["grupoEvento"], message: "Escolha o grupo (ou marque “Do galpão”)." });
 }).transform((v) => {
   // "deProva" e "temDisponivel" só servem ao formulário; o serviço não recebe.
   const { deProva: _deProva, temDisponivel, disponivelEmSolicitacoes, ...dados } = v;
@@ -145,7 +149,8 @@ export const pecaSchema = z.object({
 });
 
 export const projetoSchema = z.object({
-  nome: texto(LIMITES.nome),
+  // Duplicar pré-preenche "Nome — ": salvar sem completar gravava "Projeto X —" (auditoria 30/10, parte C N13).
+  nome: texto(LIMITES.nome).refine((v) => !SEPARADOR_NO_FIM.test(v), "Complete o nome: diga o que muda depois do “—”."),
   grupoEvento: textoOpcional(120).optional(),
   categoria: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
   descricao: textoOpcional(1000),
@@ -153,7 +158,7 @@ export const projetoSchema = z.object({
   disponivelEmSolicitacoes: z.boolean().default(true),
   itens: z
     .array(z.object({ pecaId: z.string().min(1), quantidade: inteiroPositivo }))
-    .min(1, "Adicione ao menos uma peça à lista de materiais"),
+    .min(1, "Adicione ao menos uma peça à lista de peças"),
 });
 
 export const usuarioSchema = z.object({
