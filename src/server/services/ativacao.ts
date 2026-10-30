@@ -165,6 +165,14 @@ export async function listarReformas(usuario: UsuarioAtual) {
 
 export type ReformaTela = Awaited<ReturnType<typeof listarReformas>>[number];
 
+/** Só quantas reformas estão abertas (contador da aba): o layout lia todas, com item, evento e anexos (nº 145). */
+export async function contarReformasAbertas(usuario: UsuarioAtual) {
+  exigirAtivacao(usuario);
+  const db = await getDb();
+  const [{ n }] = await db.select({ n: count() }).from(estoqueReformas).where(eq(estoqueReformas.status, "ABERTA"));
+  return Number(n);
+}
+
 const textoOuNull = (s: string | null | undefined, max: number) => s?.trim().slice(0, max) || null;
 const dataOuNull = (s: string | null | undefined) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null);
 
