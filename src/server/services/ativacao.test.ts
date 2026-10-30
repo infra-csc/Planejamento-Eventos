@@ -156,7 +156,7 @@ describe("módulo Ativação", { timeout: 60_000 }, () => {
   });
 
   it("uma peça, um item; só a Ativação e o admin usam o módulo", async () => {
-    await expect(salvarItemEstoque(ativacao, { nome: "Puff duplicado", categoria: "Ativação", quantidade: 1, comprar: null, observacao: null, pecaId })).rejects.toThrow(/já está ligada/);
+    await expect(salvarItemEstoque(ativacao, { nome: "Puff duplicado", categoria: "Ativação", quantidade: 1, comprar: null, observacao: null, pecaId })).rejects.toThrow(/já está vinculada/);
     await expect(listarRetornos(E.logistica)).rejects.toBeInstanceOf(SemPermissaoError);
     await expect(abrirReforma(E.requisitante, { itemId, quantidade: 1 })).rejects.toBeInstanceOf(SemPermissaoError);
     expect(await listarRetornos(E.admin)).not.toHaveLength(0);

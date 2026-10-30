@@ -17,6 +17,8 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
+import { CaptionOculta } from "@/components/ui/tabela";
+import { useFocoAposAtualizar } from "./foco-apos-atualizar";
 
 /** `emEvento` e `reservado` limitam e avisam no "Enviar para reforma" (auditoria 30/10, parte C N6). */
 type ItemOpcao = { id: string; nome: string; quantidade: number; emEvento: number; reservado: number };
@@ -24,6 +26,7 @@ type Modal = { tipo: "nova" } | { tipo: "editar"; r: ReformaTela } | { tipo: "co
 
 /** Reformas em andamento (com o que fazer em cada uma) e, embaixo, as concluídas. */
 export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; itens: ItemOpcao[] }) {
+  const pedirFoco = useFocoAposAtualizar(reformas);
   const [modal, setModal] = useState<Modal>(null);
   const [verConcluidas, setVerConcluidas] = useState(false);
   const abertas = reformas.filter((r) => r.status === "ABERTA");
@@ -46,12 +49,13 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-cartao border border-line bg-surface">
+      <div id="reformas-lista" tabIndex={-1} className="overflow-hidden rounded-cartao border border-line bg-surface focus:outline-none">
         {abertas.length === 0 ? (
           <EmptyState compact title="Nada em reforma" description="O que voltar danificado de um evento entra aqui pelo registro de retorno. Para separar um item do estoque, use Enviar para reforma." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse">
+              <CaptionOculta>Reformas em andamento</CaptionOculta>
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
@@ -86,9 +90,9 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
                         </span>
                       </td>
                       <td className="numero px-3 py-2.5 text-right text-corpo font-semibold text-warning">{r.quantidade}</td>
-                      <td className="px-3 py-2.5 text-pequeno text-ink-2">{r.motivo || <span className="text-line-strong">—</span>}</td>
-                      <td className="px-3 py-2.5 text-pequeno text-ink-2">{r.local || <span className="text-line-strong">—</span>}</td>
-                      <td className="px-3 py-2.5 text-pequeno">{r.previsao ? <span className={atrasada ? "font-medium text-danger" : "text-ink-2"}>{formatarData(r.previsao)}{atrasada ? " · atrasada" : ""}</span> : <span className="text-line-strong">—</span>}</td>
+                      <td className="px-3 py-2.5 text-pequeno text-ink-2">{r.motivo || <span className="text-meta">—</span>}</td>
+                      <td className="px-3 py-2.5 text-pequeno text-ink-2">{r.local || <span className="text-meta">—</span>}</td>
+                      <td className="px-3 py-2.5 text-pequeno">{r.previsao ? <span className={atrasada ? "font-medium text-danger" : "text-ink-2"}>{formatarData(r.previsao)}{atrasada ? " · atrasada" : ""}</span> : <span className="text-meta">—</span>}</td>
                       <td className="px-3 py-2.5 pr-cartao text-right">
                         <span className="inline-flex gap-1.5">
                           <Button variant="ghost" size="xs" onClick={() => setModal({ tipo: "editar", r })}>
@@ -140,7 +144,7 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
       <Dialog open={modal !== null} onOpenChange={(v) => !v && setModal(null)}>
         {modal?.tipo === "nova" && <FormNova itens={itens} onFechar={() => setModal(null)} />}
         {modal?.tipo === "editar" && <FormEditar key={modal.r.id} r={modal.r} onFechar={() => setModal(null)} />}
-        {modal?.tipo === "concluir" && <FormConcluir key={modal.r.id} r={modal.r} onFechar={() => setModal(null)} />}
+        {modal?.tipo === "concluir" && <FormConcluir key={modal.r.id} r={modal.r} onFechar={() => setModal(null)} onConcluida={() => pedirFoco(["#reformas-lista"])} />}
       </Dialog>
     </div>
   );
@@ -257,7 +261,7 @@ function FormEditar({ r, onFechar }: { r: ReformaTela; onFechar: () => void }) {
 }
 
 /** Concluir: começa com tudo consertado; o que não tem conserto vai para baixados. */
-function FormConcluir({ r, onFechar }: { r: ReformaTela; onFechar: () => void }) {
+function FormConcluir({ r, onFechar, onConcluida }: { r: ReformaTela; onFechar: () => void; onConcluida: () => void }) {
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
   const [consertados, setConsertados] = useState(r.quantidade);
@@ -268,6 +272,7 @@ function FormConcluir({ r, onFechar }: { r: ReformaTela; onFechar: () => void })
       const x = await concluirReformaAction(r.id, consertados, baixados);
       if (!x.ok) return toastErro(x.erro);
       toastSucesso(`${consertados} ${r.item.nome} de volta ao estoque`);
+      onConcluida();
       onFechar();
       router.refresh();
     });

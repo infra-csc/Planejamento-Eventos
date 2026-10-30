@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { configuracoes, estoqueItens, eventoItens, eventos, pecas, type BomSnapshotLinha } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
@@ -9,7 +9,8 @@ import { registrarHistorico } from "./support";
 import { capasDosItens, situacaoCompletaDoEstoque, situacaoDoEstoque } from "./ativacao-situacao";
 
 function exigirEstoque(usuario: UsuarioAtual) {
-  if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("O estoque é da Ativação e do administrador.");
+  // Diz a quem recorrer (auditoria 28/10, nº 176).
+  if (!podeGerenciarEstoque(usuario)) throw new SemPermissaoError("Só a Ativação e o administrador mexem no estoque. Se precisar, fale com o administrador.");
 }
 
 /** Itens do estoque com a peça ligada (código e nome), em ordem de categoria e nome. */
@@ -57,12 +58,14 @@ export async function salvarItemEstoque(usuario: UsuarioAtual, dados: DadosItemE
   if (!Number.isInteger(dados.quantidade) || dados.quantidade < 0) throw new ValidacaoError("Quantidade inválida.", { quantidade: "Use um número inteiro, 0 ou mais." });
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const repetido = await tx.query.estoqueItens.findFirst({ where: and(eq(estoqueItens.nome, nome), dados.id ? ne(estoqueItens.id, dados.id) : undefined) });
+    // Sem diferenciar maiúsculas: "puff cubo" ao lado de "Puff Cubo" era aceito (auditoria 30/10, parte C N21).
+    const repetido = await tx.query.estoqueItens.findFirst({ where: and(sql`lower(${estoqueItens.nome}) = ${nome.toLowerCase()}`, dados.id ? ne(estoqueItens.id, dados.id) : undefined) });
     if (repetido) throw new ValidacaoError("Já existe um item com esse nome.", { nome: "Já existe um item com esse nome." });
     // Uma peça do catálogo, um item: a OS que leva a peça tira do estoque daquele item (saída e retorno).
     if (dados.pecaId) {
       const outro = await tx.query.estoqueItens.findFirst({ where: and(eq(estoqueItens.pecaId, dados.pecaId), eq(estoqueItens.ativo, true), dados.id ? ne(estoqueItens.id, dados.id) : undefined), columns: { nome: true } });
-      if (outro) throw new ValidacaoError(`Essa peça já está ligada a “${outro.nome}”.`, { pecaId: `Já ligada a “${outro.nome}”.` });
+      // "vincular", como no resto do app (auditoria 28/10, nº 77).
+      if (outro) throw new ValidacaoError(`Essa peça já está vinculada a “${outro.nome}”.`, { pecaId: `Já vinculada a “${outro.nome}”.` });
     }
     const valores = {
       nome,
@@ -76,7 +79,8 @@ export async function salvarItemEstoque(usuario: UsuarioAtual, dados: DadosItemE
       atualizadoEm: new Date(),
     };
     if (dados.id) {
-      const antes = await tx.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, dados.id) });
+      // Linha travada até o fim da transação: duas gravações ao mesmo tempo não se atropelam (auditoria 28/10, nº 98).
+      const [antes] = await tx.select().from(estoqueItens).where(eq(estoqueItens.id, dados.id)).for("update");
       if (!antes) throw new NaoEncontradoError("Item do estoque");
       await tx.update(estoqueItens).set(valores).where(eq(estoqueItens.id, dados.id));
       const mudou = antes.quantidade !== valores.quantidade ? `${antes.quantidade} → ${valores.quantidade}` : null;
@@ -97,15 +101,20 @@ export async function salvarItemEstoque(usuario: UsuarioAtual, dados: DadosItemE
   });
 }
 
-/** Só a quantidade (o "−/+" da tela), com histórico. */
-export async function ajustarQuantidadeEstoque(usuario: UsuarioAtual, id: string, quantidade: number) {
+/**
+ * Só a quantidade (o "−/+" da tela), com histórico. `esperado`: o número que a tela mostrava antes do clique; se o
+ * estoque mudou nesse meio-tempo (outra pessoa, outra aba, um retorno ou uma reforma), recusa em vez de gravar por
+ * cima (auditoria 28/10, nº 98, e 30/10, parte C N1).
+ */
+export async function ajustarQuantidadeEstoque(usuario: UsuarioAtual, id: string, quantidade: number, esperado?: number) {
   exigirEstoque(usuario);
   if (!Number.isInteger(quantidade) || quantidade < 0) throw new ValidacaoError("Quantidade inválida.");
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const antes = await tx.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, id) });
+    const [antes] = await tx.select().from(estoqueItens).where(eq(estoqueItens.id, id)).for("update");
     if (!antes) throw new NaoEncontradoError("Item do estoque");
     if (antes.quantidade === quantidade) return { id };
+    if (esperado !== undefined && antes.quantidade !== esperado) throw new ValidacaoError(`${antes.nome}: a quantidade mudou para ${antes.quantidade} enquanto você editava (outra pessoa, outra aba, um retorno ou uma reforma). Confira e ajuste de novo.`);
     await tx.update(estoqueItens).set({ quantidade, atualizadoPorId: usuario.id, atualizadoEm: new Date() }).where(eq(estoqueItens.id, id));
     await registrarHistorico(tx, {
       entidade: "estoque_item",

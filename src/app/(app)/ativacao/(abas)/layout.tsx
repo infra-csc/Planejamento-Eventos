@@ -4,6 +4,7 @@ import { podeGerenciarEstoque } from "@/domain/estoque";
 import { listarReformasCache, listarRetornosCache } from "@/app/(app)/ativacao/consultas";
 import { PageHeader } from "@/components/ui/layout";
 import { TabsNav } from "@/components/ui/tabs-nav";
+import { BotaoNovoItemEstoque } from "@/components/estoque/novo-item-estoque";
 
 /** Título do módulo e as abas Estoque, Retornos (pendentes) e Reformas (em andamento). A página do item fica fora. */
 export default async function AbasAtivacaoLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +16,7 @@ export default async function AbasAtivacaoLayout({ children }: { children: React
   const abertas = reformas.filter((r) => r.status === "ABERTA").length;
   return (
     <>
-      <PageHeader title="Ativação" description="Estoque da área: o que sai com a OS dos eventos, o que volta e o que está em reforma." className="!mb-3" />
+      <PageHeader title="Ativação" description="Estoque da área: o que sai com a OS dos eventos, o que volta e o que está em reforma." className="!mb-3" actions={<BotaoNovoItemEstoque />} />
       <TabsNav
         rotulo="Seções da Ativação"
         tabs={[

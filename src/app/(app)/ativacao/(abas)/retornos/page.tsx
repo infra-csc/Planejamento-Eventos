@@ -15,7 +15,7 @@ export default async function AtivacaoRetornosPage() {
   const eventos = await listarRetornosCache(usuario);
   return (
     <>
-      <p className="mb-4 mt-0 max-w-[70ch] text-pequeno text-muted">Os itens ligados a uma peça do catálogo saem com a OS do evento. Depois do evento, registre quantos voltaram bons, quantos vão para reforma e quantos se perderam.</p>
+      <p className="mb-4 mt-0 max-w-[70ch] text-pequeno text-muted">Os itens vinculados a uma peça do catálogo saem com a OS do evento. Depois do evento, registre quantos voltaram bons, quantos vão para reforma e quantos se perderam.</p>
       <RetornosTela eventos={eventos} />
     </>
   );
