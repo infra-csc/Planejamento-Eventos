@@ -54,15 +54,12 @@ export function abaOsMarcenaria(wb: ExcelJS.Workbook, cab: CabecalhoMarcenaria, 
   });
 
   let r = 8;
-  for (const s of d.secoes) {
+  // Só as seções com item: "ATIVAÇÃO" ou "MESAS" com uma linha em branco pareciam material esquecido (logística, 31/10).
+  for (const s of d.secoes.filter((x) => x.itens.length > 0)) {
     tituloSecao(ws, r, 2, s.nome, 5);
     r++;
     cabecalho(ws, r, 2, ["ITEM", "PEÇAS", "QUANTIDADE", "FOTO"], 2);
     r++;
-    if (s.itens.length === 0) {
-      for (let c = 2; c <= 5; c++) escrever(ws, r, c, null);
-      r++;
-    }
     for (const it of s.itens) {
       it.pecas.forEach((p, k) => {
         escrever(ws, r, 2, k === 0 ? it.item : null, { bold: k === 0 });

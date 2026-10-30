@@ -53,4 +53,13 @@ describe("OS de marcenaria em Excel (31/10: sem código e sem observação, foto
     expect(ext.width).toBeGreaterThan(104);
     expect(ws.getRow(10).height).toBe(110);
   });
+  it("seção sem item não aparece (ATIVAÇÃO e MESAS vazias saíam com uma linha em branco)", () => {
+    const comVazias = { ...dados, secoes: [{ nome: "MESAS", itens: [] }, ...dados.secoes, { nome: "ATIVAÇÃO", itens: [] }] } as OsMarcenaria;
+    const ws = abaOsMarcenaria(new ExcelJS.Workbook(), { nome: "Evento", dataCarga: null, responsavelEvento: "Fulano" }, comVazias);
+    const textos: string[] = [];
+    ws.eachRow((row) => row.eachCell((c) => textos.push(String(c.value ?? ""))));
+    expect(textos).toContain("STANDS");
+    expect(textos).not.toContain("MESAS");
+    expect(textos).not.toContain("ATIVAÇÃO");
+  });
 });

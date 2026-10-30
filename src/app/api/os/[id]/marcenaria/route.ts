@@ -23,7 +23,7 @@ const LARGURA_FOTO = 240;
  * OS de marcenaria no modelo da planilha da cenografia (OS CENO MARCENARIA_<evento>.xlsx): aba O.S
  * com o cabeçalho (evento, data da carga, responsáveis) e as seções STANDS, PALCO, TENDAS, MESAS,
  * ATIVAÇÃO, ITENS ESPECÍFICOS DA PROVA e GERAL, cada uma com ITEM | PEÇAS | QUANTIDADE |
- * REFERENCIA | OBSERVAÇÃO. Os dados vêm de `montarOsMarcenaria`, sobre o mesmo conteúdo de OS das
+ * FOTO (sem código nem observação desde 31/10; só as seções com item). Os dados vêm de `montarOsMarcenaria`, sobre o mesmo conteúdo de OS das
  * outras rotas.
  */
 
