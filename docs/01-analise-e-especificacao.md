@@ -272,7 +272,7 @@ Projeto: ATIVO ⇄ INATIVO (Cenografia). Inativo não pode entrar em novas solic
 ### 9.1 Happy path
 
 1. Logística cria evento (PREPARACAO) com data da reunião → áreas notificadas.
-2. Produção abre solicitação pré-reunião: "Pórtico boca 6,60m × 2", "Tenda 10×10 × 1", item avulso "4 fechamentos — GV". Salva como rascunho, completa depois, envia.
+2. Produção abre solicitação pré-reunião: "Pórtico boca 6,60m × 2", "Tenda 5×5" no quadro de tendas com 1 tenda e 4 fechamentos no local GV (RN-09). Salva como rascunho, completa depois, envia.
 3. Um dia antes da reunião, lembrete automático para áreas sem envio.
 4. Logística inicia reunião (EM_REUNIAO). Na tela de consolidação vê todos os itens enviados agrupados por área, responde item a item (atende, ajusta quantidade com observação, recusa com observação) e inclui linhas próprias.
 5. Fecha a ata → ABERTO. AtaVersao 1 e OS v1 (por setor) geradas; áreas notificadas.
