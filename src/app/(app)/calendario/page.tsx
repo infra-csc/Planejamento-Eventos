@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { listarCalendario, type ItemCalendario, type TipoCalendario } from "@/server/services/calendario";
+import { contarCompromissos, doMes } from "@/domain/calendario";
 import { hojeISO } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/button";
@@ -213,9 +214,11 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const ant = addMes(ano, mes, -1);
   const prox = addMes(ano, mes, 1);
   const hrefMes = (a: number, me: number) => query(`${a}-${pad(me)}`, filtro, eventoFiltro);
-  const tiposPresentes = ORDEM_TIPOS.filter((t) => itensMes.some((i) => i.tipo === t));
+  // Contagens só do mês mostrado (a grade traz dias dos meses vizinhos) e cada evento uma vez (auditoria 30/10, parte D N6).
+  const soDoMes = doMes(itensMes, m);
+  const tiposPresentes = ORDEM_TIPOS.filter((t) => soDoMes.some((i) => i.tipo === t));
   // Eventos com algum compromisso no mês, para filtrar o calendário por um só.
-  const eventosDoMes = [...new Map(itensMes.map((i) => [i.evento.id, i.evento])).values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const eventosDoMes = [...new Map(soDoMes.map((i) => [i.evento.id, i.evento])).values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const diasComItens = celulas.filter((c) => c.doMes && porDia.has(c.dia)).map((c) => [c.dia, porDia.get(c.dia)!] as const);
   const mesAtual = m === hoje.slice(0, 7);
   const filtrado = Boolean(filtro || eventoFiltro);
@@ -260,12 +263,12 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           rotulo="Filtrar por tipo"
           className="max-md:flex-nowrap"
           itens={[
-            { label: "Tudo", n: itensMes.filter(doEvento).length, href: query(m, null, eventoFiltro), ativo: !filtro },
-            ...tiposPresentes.map((t) => ({ label: TIPO[t].rotulo, n: itensMes.filter((i) => i.tipo === t && doEvento(i)).length, href: query(m, t, eventoFiltro), ativo: filtro === t })),
+            { label: "Tudo", n: contarCompromissos(soDoMes.filter(doEvento)), href: query(m, null, eventoFiltro), ativo: !filtro },
+            ...tiposPresentes.map((t) => ({ label: TIPO[t].rotulo, n: contarCompromissos(soDoMes.filter((i) => i.tipo === t && doEvento(i))), href: query(m, t, eventoFiltro), ativo: filtro === t })),
           ]}
         />
         </div>
-        {eventosDoMes.length > 1 && <FiltroEvento eventos={eventosDoMes.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: itensMes.filter((i) => i.evento.id === e.id).length }))} rotuloOculto />}
+        {eventosDoMes.length > 1 && <FiltroEvento eventos={eventosDoMes.map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, n: contarCompromissos(soDoMes.filter((i) => i.evento.id === e.id)) }))} rotuloOculto />}
       </div>
 
       {/* A grade ocupa a largura toda (com a agenda ao lado, cada dia ficava estreito e os nomes cortavam); a agenda vem embaixo. */}
