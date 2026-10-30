@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, historico, notificacoes, osVersoes, solicitacaoItens, solicitacoes, usuarios, type ItemStatus } from "@/server/db/schema";
+import { eventoItens, historico, notificacoes, solicitacaoItens, solicitacoes, usuarios, type ItemStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError } from "@/domain/errors";
 import {
@@ -426,21 +426,11 @@ export async function desfazerResposta(usuario: UsuarioAtual, itemId: string) {
       descricao: `${s.codigo} · ${descricao}: resposta desfeita — voltou para análise`,
       usuarioId: usuario.id,
     });
-    // Dentro da janela, desfazer apaga a versão da OS e o aviso que a resposta gerou, em vez de criar outros dois:
-    // antes a área recebia "atendido" e logo "voltou para análise", e a OS ganhava duas versões que se anulavam
-    // (auditoria 30/10, parte A N2). Só a versão que ainda é a última, não enviada ao carregamento.
+    // O desfazer apaga o aviso da resposta que ainda não foi lido, em vez de mandar outro: antes a área recebia
+    // "atendido" e logo "voltou para análise" (auditoria 30/10, parte A N2). A versão da OS fica: versões são o registro
+    // do que foi decidido (alguém pode ter baixado o arquivo) e nunca são apagadas; sai a versão do desfazer, como antes.
     const daResposta = (d: Date) => Math.abs(d.getTime() - ultimo.criadoEm.getTime()) < 5_000;
     if (s.tipo === "ALTERACAO") {
-      const [ultimaOs] = await tx
-        .select({ id: osVersoes.id, gatilho: osVersoes.gatilho, geradaPorId: osVersoes.geradaPorId, geradaEm: osVersoes.geradaEm, enviadaEm: osVersoes.enviadaEm, descricao: osVersoes.descricao })
-        .from(osVersoes)
-        .where(eq(osVersoes.eventoId, s.eventoId))
-        .orderBy(desc(osVersoes.numero))
-        .limit(1);
-      if (ultimaOs && ultimaOs.gatilho === "RESPOSTA_SOLICITACAO" && ultimaOs.geradaPorId === usuario.id && !ultimaOs.enviadaEm && daResposta(ultimaOs.geradaEm) && ultimaOs.descricao?.startsWith(`${s.codigo} · ${descricao} — `)) {
-        await tx.delete(osVersoes).where(eq(osVersoes.id, ultimaOs.id));
-      }
-      // Com a versão da resposta apagada, a OS volta a ser igual à anterior e nada é gerado; senão, sai a versão do desfazer.
       await gerarOsVersao(tx, s.eventoId, "CORRECAO_RESPOSTA", usuario.id, `${s.codigo} · ${descricao} — resposta desfeita`);
     }
     const avisos = (

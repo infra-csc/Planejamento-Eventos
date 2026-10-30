@@ -27,7 +27,7 @@ const versoesOs = async (eventoId: string) => (await (await getDb()).select({ nu
 const avisosDe = async (usuarioId: string, link: string) => (await getDb()).select({ titulo: notificacoes.titulo, mensagem: notificacoes.mensagem }).from(notificacoes).where(and(eq(notificacoes.usuarioId, usuarioId), eq(notificacoes.link, link)));
 
 describe("desfazer uma resposta de alteração (N2)", { timeout: 120_000 }, () => {
-  it("apaga a versão da OS e o aviso que a resposta gerou, em vez de criar outros", async () => {
+  it("apaga o aviso não lido da resposta, em vez de mandar outro; a versão da OS fica (versões nunca são apagadas)", async () => {
     const { ev } = await eventoAberto(E.logistica, pecaId, E.requisitante.areaId);
     const s = await enviarSolicitacao(E.requisitante, E.logistica, ev.id, [itemAvulso("Gerador extra", 2)]);
     const antes = await versoesOs(ev.id);
@@ -37,7 +37,8 @@ describe("desfazer uma resposta de alteração (N2)", { timeout: 120_000 }, () =
     expect(await avisosDe(E.requisitante.id, `/solicitacoes/${s.id}`)).toHaveLength(1);
 
     await desfazerResposta(E.logistica, s.itens[0].id);
-    expect(await versoesOs(ev.id)).toBe(antes);
+    // A versão da resposta continua e sai a do desfazer (a OS volta ao que era): o registro de versões fica inteiro.
+    expect(await versoesOs(ev.id)).toBe(antes + 2);
     // Ninguém tinha lido o "atendido": some, e não chega um "voltou para análise" no lugar.
     expect(await avisosDe(E.requisitante.id, `/solicitacoes/${s.id}`)).toEqual([]);
   });
