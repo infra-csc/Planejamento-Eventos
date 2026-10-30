@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { abreComPecas } from "@/domain/itens-por-area";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/layout";
@@ -56,8 +57,10 @@ export function ListaItens({
   /** Reabre o quadro de tendas do projeto, já preenchido. */
   editarTendas: (projetoId: string) => void;
 }) {
-  // Painel "Ajustar peças" aberto (um por vez).
+  // Painel "Ajustar peças" aberto (um por vez). Os kits de montagem e ceno já vêm abertos, para trocar os itens deles
+  // sem procurar o botão (31/10, logística); quem fecha um, fecha.
   const [ajustando, setAjustando] = useState<string | null>(null);
+  const [kitsFechados, setKitsFechados] = useState<ReadonlySet<string>>(new Set());
   const projetoDe = (i: ItemNovo) => (i.projetoId ? projetos.find((x) => x.id === i.projetoId) : undefined);
   // Padrão do projeto + peças extras aceitas (tenda: fechamento e calha, padrão 0).
   const bomDe = (i: ItemNovo) => {
@@ -178,7 +181,12 @@ export function ListaItens({
   const corpo = (i: ItemNovo, noGrupo: boolean) => {
     const bom = bomDe(i);
     const ajustes = resumoAjustes(i);
-    const abertoAjuste = ajustando === i.chave;
+    const kitAberto = Boolean(i.projetoId) && abreComPecas(projetoDe(i)?.nome ?? i.rotulo);
+    const abertoAjuste = ajustando === i.chave || (kitAberto && !kitsFechados.has(i.chave));
+    const alternarAjuste = () => {
+      if (kitAberto) setKitsFechados((f) => (abertoAjuste ? new Set([...f, i.chave]) : new Set([...f].filter((c) => c !== i.chave))));
+      setAjustando((a) => (a === i.chave ? null : abertoAjuste && kitAberto ? a : i.chave));
+    };
     return (
       <>
         <div className={cn("flex flex-wrap items-end gap-x-4 gap-y-3", !noGrupo && "mt-3 sm:pl-[76px]")}>
@@ -202,7 +210,7 @@ export function ListaItens({
             </div>
           )}
           {i.projetoId && bom.length > 0 && (
-            <Button variant={abertoAjuste ? "secondary" : "ghost"} size="sm" onClick={() => setAjustando((a) => (a === i.chave ? null : i.chave))} aria-expanded={abertoAjuste} aria-controls={`ajuste-${i.chave}`}>
+            <Button variant={abertoAjuste ? "secondary" : "ghost"} size="sm" onClick={alternarAjuste} aria-expanded={abertoAjuste} aria-controls={`ajuste-${i.chave}`}>
               <Icone nome={abertoAjuste ? "chevron-cima" : "chevron-baixo"} />
               {abertoAjuste ? "Fechar peças" : "Ajustar peças"}
             </Button>

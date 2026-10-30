@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { Button } from "@/components/ui/button";
-import { listasDaArea, projetosDaLista } from "@/domain/itens-por-area";
+import { abreComPecas, listasDaArea, projetosDaLista } from "@/domain/itens-por-area";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { Passo } from "./passo";
 import { ehAcompanhante, kitDe, novaChave } from "./utilidades";
@@ -91,7 +91,8 @@ export function ItensDaArea({
       const existentes = l.filter((i) => i.operacao === "ADICIONAR" && i.projetoId === p.id);
       if (v <= 0) return l.filter((i) => !existentes.includes(i));
       if (!existentes.length)
-        return [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: p.id, pecaId: null, eventoItemId: null, descricaoLivre: null, quantidade: v, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], locais: [], ajustes: {}, rotulo: p.nome, meta: `${p.codigo} · projeto padrão` }];
+        // Kit de montagem/ceno: sem arte nem marca para descrever; o que muda são as peças (vêm abertas em "Itens do pedido").
+        return [...l, { chave: novaChave(), operacao: "ADICIONAR", projetoId: p.id, pecaId: null, eventoItemId: null, descricaoLivre: null, quantidade: v, quantidadeAtual: null, destino: "", justificativa: "", descricoes: [], locais: [], ajustes: {}, rotulo: p.nome, meta: `${p.codigo} · projeto padrão`, ...(abreComPecas(p.nome) ? { semDescricao: true } : {}) }];
       const ultima = existentes[existentes.length - 1];
       const total = existentes.reduce((a, i) => a + i.quantidade, 0);
       return l.map((i) => (i === ultima ? { ...i, quantidade: Math.max(1, i.quantidade + v - total) } : i));
@@ -190,7 +191,11 @@ export function ItensDaArea({
                     <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
                       <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
                         {t.nome}
-                        {q > 0 && <span className="mt-0.5 block text-rotulo font-normal text-muted">Descreva cada unidade (arte, marca) em “Itens do pedido”</span>}
+                        {q > 0 && (
+                          <span className="mt-0.5 block text-rotulo font-normal text-muted">
+                            {abreComPecas(t.nome) ? "Ajuste as peças do kit em “Itens do pedido”" : "Descreva cada unidade (arte, marca) em “Itens do pedido”"}
+                          </span>
+                        )}
                       </span>
                       <Stepper
                         tamanho="sm"
