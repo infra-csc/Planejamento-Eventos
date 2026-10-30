@@ -5,9 +5,9 @@ import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { areasDoUsuario, pode } from "@/domain/permissions";
 import { CATEGORIAS } from "@/domain/arena/categorias";
-import { descreverGiro, normalizarAngulo, podeMexerNoPonto, type PosicaoEditada } from "@/domain/arena/posicoes";
+import { chaveItemAta, chavePontoNovo, descreverGiro, normalizarAngulo, podeMexerNoPonto, type PosicaoEditada } from "@/domain/arena/posicoes";
 import { registrarHistorico } from "./support";
-import { arenaExiste } from "./arenas";
+import { arenaExiste, obterArenaBase } from "./arenas";
 
 export async function listarPosicoesArena(slug: string): Promise<PosicaoEditada[]> {
   const db = await getDb();
@@ -69,6 +69,14 @@ async function exigirPontoDaArea(usuario: UsuarioAtual, slug: string, chave: str
   const [salvo] = await db.select({ itemAta: arenaPosicoes.itemAta, tipo: arenaPosicoes.tipo }).from(arenaPosicoes).where(and(eq(arenaPosicoes.arenaSlug, slug), eq(arenaPosicoes.chave, chave)));
   if (salvo && (salvo.tipo !== "NOVO" || !podeMexerNoPonto(secoes, salvo.itemAta))) throw new SemPermissaoError(MSG_OUTRA_AREA);
   if (itemAtaNovo !== undefined && !podeMexerNoPonto(secoes, itemAtaNovo)) throw new SemPermissaoError(MSG_OUTRA_AREA);
+  // Ponto novo de uma área: o item tem de existir na ata desta arena, e a chave é a do item. Sem isso,
+  // bastava mandar "<minha área>|qualquer coisa" para pôr um ponto inventado em qualquer mapa
+  // (auditoria 28/10, nº 93 / SEC-06). Ponto já salvo da própria área segue editável.
+  if (!salvo && itemAtaNovo) {
+    const base = await obterArenaBase(slug);
+    const naAta = base?.arena.ata.some((i) => chaveItemAta(i) === itemAtaNovo) ?? false;
+    if (!naAta || chave !== chavePontoNovo("ata", itemAtaNovo)) throw new SemPermissaoError(MSG_OUTRA_AREA);
+  }
 }
 
 /**
