@@ -29,7 +29,7 @@ export type ResultadoAtualizacao = {
 export async function atualizarProjetosNosEventos(tx: Executor, opcoes: { projetoId?: string; usuarioId: string | null }): Promise<ResultadoAtualizacao> {
   const defasadas = (
     await tx
-      .select({ id: eventoItens.id, eventoId: eventoItens.eventoId, projetoId: eventoItens.projetoId, solicitacaoItemId: eventoItens.solicitacaoItemId, versaoNumero: projetoVersoes.numero, versaoAtual: projetos.versaoAtual, nome: projetos.nome, codigoEvento: eventos.codigo, status: eventos.status })
+      .select({ id: eventoItens.id, eventoId: eventoItens.eventoId, projetoId: eventoItens.projetoId, solicitacaoItemId: eventoItens.solicitacaoItemId, versaoNumero: projetoVersoes.numero, versaoAtual: projetos.versaoAtual, nome: projetos.nome, codigoEvento: eventos.codigo, nomeEvento: eventos.nome, status: eventos.status })
       .from(eventoItens)
       .innerJoin(eventos, eq(eventos.id, eventoItens.eventoId))
       .innerJoin(projetos, eq(projetos.id, eventoItens.projetoId))
@@ -77,7 +77,8 @@ export async function atualizarProjetosNosEventos(tx: Executor, opcoes: { projet
         await notificar(tx, {
           usuarioIds: await usuariosComPedidoNoEvento(tx, eventoId),
           tipo: "ATA_AJUSTE",
-          titulo: `Ajuste na OS: ${linhas[0].codigoEvento}`,
+          // Nome do evento, como nos outros avisos de ajuste (antes o código; auditoria 28/10, nº 188).
+          titulo: `Ajuste na OS: ${linhas[0].nomeEvento}`,
           mensagem: `${texto} (projeto editado na Biblioteca).`,
           link: `/eventos/${eventoId}`,
           ...(opcoes.usuarioId ? { excetoUsuarioId: opcoes.usuarioId } : {}),

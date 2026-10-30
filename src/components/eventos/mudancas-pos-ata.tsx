@@ -4,12 +4,43 @@ import { cn } from "@/lib/cn";
 import { diaMesHora, tempoRelativo } from "@/lib/format";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
+import { ACOES_AJUSTE_ITEM } from "@/domain/historico";
 
-/** Ajuste feito direto pela logística depois da ata (vem do histórico do evento). */
-export type AjustePosAta = { id: string; titulo: string; autor: string | null; quando: Date; href: string };
+/** Ajuste feito direto pela logística depois da ata (vem do histórico do evento). `rotulo` troca "Ajuste da logística". */
+export type AjustePosAta = { id: string; titulo: string; rotulo?: string; autor: string | null; quando: Date; href: string };
 
-/** Registros do histórico que são ajuste direto num item (quantidade, retirada, inclusão, peça, vínculo, versão). */
-const ACOES_AJUSTE = new Set(["ATA_QUANTIDADE", "ATA_REMOCAO", "AJUSTE_INCLUSAO", "CONFERENCIA_AJUSTE", "PECA_PROJETO_AJUSTADA", "ITEM_VINCULADO", "ATUALIZACAO_VERSAO"]);
+/**
+ * Uma edição de projeto na Biblioteca atualiza todas as linhas do evento com aquele projeto e grava um registro por linha:
+ * "O que mudou" mostrava 4 linhas iguais, atribuídas à logística (auditoria 30/10, B-20). Junta as atualizações de versão
+ * com o mesmo texto e feitas no mesmo minuto; o resto passa como está.
+ */
+export function agruparAtualizacoesDeVersao<H extends { acao: string; descricao: string; criadoEm: Date }>(historico: readonly H[]): Array<{ h: H; n: number }> {
+  const saida: Array<{ h: H; n: number }> = [];
+  const grupos = new Map<string, { h: H; n: number }>();
+  for (const h of historico) {
+    if (h.acao !== "ATUALIZACAO_VERSAO") {
+      saida.push({ h, n: 1 });
+      continue;
+    }
+    const chave = `${h.descricao}|${Math.floor(h.criadoEm.getTime() / 60_000)}`;
+    const g = grupos.get(chave);
+    if (g) g.n++;
+    else {
+      const novo = { h, n: 1 };
+      grupos.set(chave, novo);
+      saida.push(novo);
+    }
+  }
+  return saida;
+}
+
+/** "Pórtico: atualizado de v1 para v2 (projeto editado)" × 4 → "Pórtico: 4 linhas atualizadas de v1 para v2". */
+export function tituloAtualizacao(titulo: string, n: number) {
+  const t = titulo.replace(/ \(projeto editado\)$/, "");
+  return n > 1 ? t.replace(": atualizado de ", `: ${n} linhas atualizadas de `) : t;
+}
+
+const ACOES_AJUSTE = new Set<string>(ACOES_AJUSTE_ITEM);
 
 /**
  * Ajustes da logística separados pelo fechamento da ata: os da reunião e os de depois (que mudam a OS). A visão geral
@@ -90,7 +121,10 @@ export function MudancasPosAta({
                 {l.m.area} · {l.m.quem} · <span className={l.m.como === "direto" ? "text-ink-2" : undefined}>{COMO[l.m.como]}</span>
               </>
             ) : (
-              <>Ajuste da logística{l.a.autor ? ` · ${l.a.autor}` : ""}</>
+              <>
+                {l.a.rotulo ?? "Ajuste da logística"}
+                {l.a.autor ? ` · ${l.a.autor}` : ""}
+              </>
             )}
             {l.quando > 0 && (
               <>

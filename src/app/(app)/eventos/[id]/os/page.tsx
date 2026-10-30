@@ -241,7 +241,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
           visao={visao}
           titulo={`OS v${exibida.numero}`}
           hrefVisao={(v) => hrefCom(`/eventos/${id}/os`, paramsAtuais, { visao: v === "totais" ? null : v })}
-          csvHref={(secao) => `/api/os/${id}/${secao}${qsExport}`}
+          csvHref={(secao) => `/api/os/${id}/secao/${secao}${qsExport}`}
           composicao={composicao}
         />
       </div>

@@ -202,7 +202,8 @@ export async function detalheLinha(usuario: UsuarioAtual, eventoId: string, linh
     capaId: linha.capaId ?? null,
     // Pedido de outra área: sem o código e a situação ("SOL-0002 (parcial)"), como na visão geral e na ata
     // (auditoria 30/10, B-05).
-    origemLabel: veTudo || !origem ? linha.origemLabel : "Pedido de área",
+    // "Pedido de outra área", como na visão geral, na aba Ata e no Excel (auditoria 28/10, nº 86).
+    origemLabel: veTudo || !origem ? linha.origemLabel : "Pedido de outra área",
     conferidoEm: linha.conferidoEm ? linha.conferidoEm.toISOString() : null,
     conferidoPor: linha.conferidoPor ?? null,
     descricaoOriginal: linha.registro.descricaoLivre,

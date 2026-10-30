@@ -9,6 +9,8 @@ import { blocoDados, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/
 import { NaoEncontradoError } from "@/domain/errors";
 import { GRUPO_LABEL, ordemGrupo, type GrupoMaterial, type MapaGrupos } from "@/domain/grupos-material";
 import { mapaGruposPecas, mapaGruposProjetos } from "@/server/services/grupos-material";
+import { contentDisposition, nomeArquivo } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 
 /*
  * Ata da reunião de OS em Excel: cabeçalho com os campos da ata (reunião, presentes, público, carga),
@@ -36,22 +38,22 @@ function grupoDaLinhaExport(x: { tipo: "PROJETO" | "PECA" | "AVULSO"; codigo: st
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a ata");
   const { id } = await params;
   const v = Number(new URL(request.url).searchParams.get("v"));
   const ata = await montarAtaExport(usuario, id, Number.isInteger(v) && v > 0 ? v : undefined).catch((e: unknown) => {
     if (e instanceof NaoEncontradoError) return null;
     throw e;
   });
-  if (!ata) return NextResponse.json({ erro: "Evento ou versão da ata não encontrados" }, { status: 404 });
+  if (!ata) return erroDownload(request, 404, "Evento ou versão da ata não encontrados");
   const ev = ata.evento;
   const [gPecas, gProjetos] = await Promise.all([mapaGruposPecas(), mapaGruposProjetos()]);
   const grupos = { pecas: gPecas, projetos: gProjetos };
   const reu = ata.reuniao;
   const rotuloVersao = ata.versao ? `v${ata.versao}` : "em construção";
   const cab = `Ata ${ev.codigo} · ${ev.nome} · ${rotuloVersao}`;
-  const rodape = `Logística: ______________________   Cliente/gestão: ______________________   Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`;
+  const rodape = `Logística: ______________________   Cliente / gestão: ______________________   Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";
@@ -86,7 +88,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ["Iniciada", reu?.iniciadaEm ? formatarDataHora(reu.iniciadaEm) : "—"],
       ["Ata fechada", reu?.fechadaEm ? formatarDataHora(reu.fechadaEm) : "—"],
       ["Fechada por", reu?.fechadaPor || "—"],
-      ["Conduzida por", reu?.conduzidaPor || ev.responsavel],
+      // Não há registro de quem conduziu: o nome é o responsável do evento (auditoria 30/10, B-10).
+      ["Responsável", reu?.conduzidaPor || ev.responsavel],
       ["Linhas conferidas", `${ata.linhas.filter((x) => x.conferidoPor).length} de ${ata.linhas.length}`],
     ],
     3,
@@ -153,7 +156,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         { nome: "Área", largura: 18 },
         { nome: "Item", largura: 46 },
         { nome: "Pedido", largura: 10, numero: true, total: "sum" },
-        { nome: "Na ata", largura: 10, numero: true, total: "sum" },
+        // É o que a resposta atendeu; a linha da ata pode ter mudado na conferência. Mesmo nome da impressão (auditoria 28/10, nº 182).
+        { nome: "Atendido", largura: 10, numero: true, total: "sum" },
         { nome: "Situação", largura: 18 },
         { nome: "Observação da logística", largura: 50 },
       ],
@@ -166,7 +170,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="ATA-${ev.codigo}-${ata.versao ? `v${ata.versao}` : "em-construcao"}.xlsx"`,
+      // "Ata EVT-0001 Nome v1.xlsx" (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(nomeArquivo(["Ata", ev.codigo, ev.nome, ata.versao ? `v${ata.versao}` : "em construção"], "xlsx")),
     },
   });
 }

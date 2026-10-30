@@ -78,7 +78,7 @@ describe("GET /api/os/[id]/complemento", { timeout: 30_000 }, () => {
     const r = await chamar(ev.id);
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe(XLSX);
-    expect(r.headers.get("content-disposition")).toContain(`desde-v${enviada.numero}.xlsx`);
+    expect(r.headers.get("content-disposition")).toContain(` desde v${enviada.numero}.xlsx`);
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await r.arrayBuffer());
     const ws = wb.getWorksheet("Complemento")!;

@@ -34,11 +34,17 @@ describe("folha de separação na ordem da lista de carregamento", () => {
   const folha = montarFolhaSeparacao(pecas, { stands: 2 });
   const nomes = (id: string) => folha.find((s) => s.id === id)?.linhas.map((l) => l.nome);
 
+  it("evento só com tendas 3×3: a cantoneira universal não abre a seção 5×5 (auditoria 30/10, B-21)", () => {
+    const so3 = montarFolhaSeparacao([peca("TND3-PE", "Pé de tenda 3×3", 4, "TENDA", "Tenda 3×3"), peca("TND5-CANT", "Cantoneira universal", 8, "TENDA", "Tenda")], { stands: 0 });
+    expect(so3.map((s) => s.id)).toEqual(["tendas-3x3", "tendas-comum"]);
+  });
+
   it("seções na ordem da lista; peças na ordem dela dentro de cada uma; o resto no fim do bloco", () => {
-    expect(folha.map((s) => s.id)).toEqual(["percurso", "tendas-3x3", "tendas-5x5", "q30", "estaio", "arena", "outros", "mrc-estandes", "mrc-mesas", "mrc-prova", "mrc-geral"]);
+    expect(folha.map((s) => s.id)).toEqual(["percurso", "tendas-3x3", "tendas-5x5", "tendas-comum", "q30", "estaio", "arena", "outros", "mrc-estandes", "mrc-mesas", "mrc-prova", "mrc-geral"]);
     expect(nomes("percurso")).toEqual(["Cavalete de trânsito", "Cone grande"]);
     expect(nomes("tendas-3x3")).toEqual(["Teto 3×3", "Pé de tenda 3×3"]);
-    expect(nomes("tendas-5x5")).toEqual(["Pé de tenda 5×5", "Cantoneira universal"]);
+    expect(nomes("tendas-5x5")).toEqual(["Pé de tenda 5×5"]);
+    expect(nomes("tendas-comum")).toEqual(["Cantoneira universal"]);
     expect(nomes("q30")).toEqual(["Q30 - 400", "Q30 - 3000", "Q30 - PARAFUSOS", "Q30 - 300"]);
     expect(nomes("arena")).toEqual(["Grade 2×1", "Cavalete reto", "Tina 500 l"]);
     expect(nomes("outros")).toEqual(["Lona 9×6"]);

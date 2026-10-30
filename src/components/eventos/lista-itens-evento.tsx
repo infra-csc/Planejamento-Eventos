@@ -78,7 +78,7 @@ export function ListaItensEvento({
   ataFechada: boolean;
   opcoes: OpcoesReferencia | null;
   podeCadastrar: boolean;
-  /** "SOL-0001 · Paulo Ribeiro" (ou "Pedido de área" fora da área de quem vê): vai no `title` da coluna Área. */
+  /** "SOL-0001 · Paulo Ribeiro" (ou "Pedido de outra área" fora da área de quem vê): vai no `title` da coluna Área. */
   origem: (l: Linha) => string;
   /** Nome de quem pediu (ou incluiu), à vista na coluna Área; null quando quem vê não pode ver. */
   quem: (l: Linha) => string | null;

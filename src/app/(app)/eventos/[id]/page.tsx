@@ -20,7 +20,7 @@ import { EmptyState, Metric, MetricStrip, Section, type TomSemantico } from "@/c
 import { IncluirItemEvento } from "@/components/eventos/acoes-linha-evento";
 import { ListaItensEvento } from "@/components/eventos/lista-itens-evento";
 import { iconeHistorico, LinhaTempoAgrupada } from "@/components/eventos/linha-tempo-agrupada";
-import { MudancasPosAta, separarAjustes } from "@/components/eventos/mudancas-pos-ata";
+import { agruparAtualizacoesDeVersao, MudancasPosAta, separarAjustes, tituloAtualizacao } from "@/components/eventos/mudancas-pos-ata";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
 
 const diasAte = (iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hojeISO()}T00:00:00Z`)) / 86_400_000);
@@ -68,6 +68,8 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const veArena = pode(usuario, "arena.ver");
   // Admin e logística corrigem os itens daqui (mesma regra da página do item): antes da ata, e com a ata fechada.
   const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
+  // Cancelado não terá ata, OS nem pedidos: os textos de "ainda vai acontecer" não servem (auditoria 30/10, B-18).
+  const cancelado = ev.status === "CANCELADO";
   const editavel = pode(usuario, "ata.consolidar") && (antesDaAta || (ev.status === "ABERTO" && pode(usuario, "ata.ajustar")));
   // Leituras independentes em paralelo. As leituras por peça vêm do estado de agora (ata + o que
   // entrou depois), igual à OS em vigor. Catálogo e áreas só para quem inclui e vincula itens.
@@ -91,8 +93,10 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const nAreas = new Set(linhas.map((l) => l.areaNome ?? "Logística")).size;
   // Quem pediu é assunto da área que pediu: fora dela, a origem aparece sem o código da solicitação nem o nome.
   const podeVerOrigem = (l: (typeof linhas)[number]) => veTodasAsAreas || !l.origemSolicitacaoId || daMinhaArea(usuario, l.registro.areaId);
-  const origem = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? [l.origemLabel, l.origemPor].filter(Boolean).join(" · ") : "Pedido de área");
-  const { posAta: ajustesPosAta } = separarAjustes(historico, ev.ataFechadaEm);
+  // "Pedido de outra área", como na aba Ata e no Excel (antes "Pedido de área"; auditoria 28/10, nº 86).
+  const origem = (l: (typeof linhas)[number]) => (podeVerOrigem(l) ? [l.origemLabel, l.origemPor].filter(Boolean).join(" · ") : "Pedido de outra área");
+  // Uma edição de projeto conta uma vez (as linhas atualizadas juntas), aqui, em "O que mudou" e na aba Ata (auditoria 30/10, B-20).
+  const ajustesPosAta = agruparAtualizacoesDeVersao(separarAjustes(historico, ev.ataFechadaEm).posAta);
 
   // Projetos agrupados (o mesmo projeto pode aparecer em várias linhas/destinos).
   const grupos = new Map<string, Grupo>();
@@ -108,6 +112,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   }
   const galeria = [...grupos.values()].sort((a, b) => b.quantidade - a.quantidade);
 
+  const janelaEncerrada = Boolean(ev.janelaAlteracoesAte && ev.janelaAlteracoesAte < hojeISO());
   const dEvento = diasAte(ev.dataInicio);
   const dReuniao = diasAte(isoSP(ev.dataReuniao));
   // O que falta: o próximo marco da fase, com o prazo.
@@ -130,8 +135,11 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         : ev.status === "ABERTO"
           ? {
               rotulo: "Alterações",
-              valor: ev.janelaAlteracoesAte ? `até ${diaMesISO(ev.janelaAlteracoesAte)}` : "abertas",
-              hint: mudancas.length + ajustesPosAta.length ? `${mudancas.length + ajustesPosAta.length} ${mudancas.length + ajustesPosAta.length === 1 ? "mudança" : "mudanças"} desde a ata de ${diaMes(ev.ataFechadaEm)}` : `Ata fechada em ${diaMes(ev.ataFechadaEm)}. Nada mudou desde então.`,
+              // Janela vencida: o maior número da tela era uma data passada sem dizer o que isso muda (auditoria 28/10, nº 35).
+              valor: janelaEncerrada ? "janela encerrada" : ev.janelaAlteracoesAte ? `até ${diaMesISO(ev.janelaAlteracoesAte)}` : "abertas",
+              hint: janelaEncerrada
+                ? `em ${diaMesISO(ev.janelaAlteracoesAte)} · pedidos ainda entram; a logística decide se atende`
+                : mudancas.length + ajustesPosAta.length ? `${mudancas.length + ajustesPosAta.length} ${mudancas.length + ajustesPosAta.length === 1 ? "mudança" : "mudanças"} desde a ata de ${diaMes(ev.ataFechadaEm)}` : `Ata fechada em ${diaMes(ev.ataFechadaEm)}. Nada mudou desde então.`,
               tom: "neutro",
               href: "#mudancas",
             }
@@ -188,7 +196,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         <Metric
           label="Ordem de serviço"
           valor={versoes.length ? <Codigo>v{versoes[0].numero}</Codigo> : "—"}
-          hint={versoes.length ? `${veOs ? `${totalOs.toLocaleString("pt-BR")} peças · ` : ""}atualizada ${diaMes(versoes[0].geradaEm)}` : "gerada ao fechar a ata"}
+          hint={versoes.length ? `${veOs ? `${totalOs.toLocaleString("pt-BR")} peças · ` : ""}atualizada ${diaMes(versoes[0].geradaEm)}` : cancelado ? "evento cancelado: sem OS" : "gerada ao fechar a ata"}
           href={veOs ? `/eventos/${id}/os` : undefined}
         />
       </MetricStrip>
@@ -199,7 +207,11 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
         <MudancasPosAta
           ataFechadaEm={ev.ataFechadaEm}
           mudancas={mudancas.map((m) => ({ ...m, codigoVisivel: veTodasAsAreas || daMinhaArea(usuario, m.areaId) }))}
-          ajustes={ajustesPosAta.map((h) => ({ id: h.id, titulo: classificarHistorico(h).titulo, autor: h.usuario?.nome ?? null, quando: h.criadoEm, href: `/eventos/${id}/itens/${h.entidadeId}` }))}
+          ajustes={ajustesPosAta.map(({ h, n }) =>
+            h.acao === "ATUALIZACAO_VERSAO"
+              ? { id: h.id, titulo: tituloAtualizacao(classificarHistorico(h).titulo, n), rotulo: "Projeto editado na Biblioteca", autor: h.usuario?.nome ?? null, quando: h.criadoEm, href: `/eventos/${id}/itens/${h.entidadeId}` }
+              : { id: h.id, titulo: classificarHistorico(h).titulo, autor: h.usuario?.nome ?? null, quando: h.criadoEm, href: `/eventos/${id}/itens/${h.entidadeId}` },
+          )}
           hrefOs={veOs && versoes.length > 1 ? `/eventos/${id}/os?base=${versoes[versoes.length - 1].numero}` : null}
           maximo={3}
         />
@@ -218,7 +230,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             </div>
           )}
           {linhas.length === 0 ? (
-            <EmptyState compact title="Nenhum item ainda" description={editavel ? "Os pedidos das áreas entram aqui sozinhos. O que for decidido fora de um pedido entra por “Incluir item”." : "Quando as áreas enviarem necessidades, os itens aparecem aqui."} />
+            <EmptyState compact title={cancelado ? "Nenhum item" : "Nenhum item ainda"} description={cancelado ? "Evento cancelado: não terá ata nem pedidos." : editavel ?"Os pedidos das áreas entram aqui sozinhos. O que for decidido fora de um pedido entra por “Incluir item”." : "Quando as áreas enviarem necessidades, os itens aparecem aqui."} />
           ) : osAgora ? (
             <div className="flex flex-col gap-4 bg-subtle p-3 sm:p-4">
               <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} />

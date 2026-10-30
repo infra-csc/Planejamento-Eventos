@@ -4,6 +4,8 @@ import { inArray } from "drizzle-orm";
 import { getUsuarioDaApi } from "@/server/auth/session";
 import { pode } from "@/domain/permissions";
 import { NaoEncontradoError } from "@/domain/errors";
+import { contentDisposition } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
@@ -27,14 +29,14 @@ const LARGURA_FOTO = 240;
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS de marcenaria");
   const { id } = await params;
   let ev: Awaited<ReturnType<typeof obterEvento>>;
   try {
     ev = await obterEvento(usuario, id);
   } catch (e) {
-    if (e instanceof NaoEncontradoError) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
+    if (e instanceof NaoEncontradoError) return erroDownload(request, 404, "Evento não encontrado");
     throw e;
   }
   const db = await getDb();
@@ -75,7 +77,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="OS CENO MARCENARIA_${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().replace(/\s+/g, "_").toUpperCase()}_${sufixo}.xlsx"`,
+      // Nome do modelo da cenografia, com o UTF-8 em filename* (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(`OS CENO MARCENARIA_${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().replace(/\s+/g, "_").toUpperCase()}_${sufixo}.xlsx`),
       "Cache-Control": "no-store",
     },
   });

@@ -26,6 +26,7 @@ import { pecas } from "@/server/db/schema";
 import { COOKIE_SESSAO } from "@/server/auth/cookies";
 import { abrirSessao, criarPeca, eventoAberto, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import { csvEscape, GET } from "./route";
+import { GET as GETSecao } from "../secao/[setor]/route";
 
 let E: Elenco;
 let eventoId: string;
@@ -74,7 +75,8 @@ describe("GET /api/os/[id]/[setor]", { timeout: 30_000 }, () => {
     const r = await chamar(eventoId, "ESTRUTURA", "?v=1");
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("text/csv; charset=utf-8");
-    expect(r.headers.get("content-disposition")).toMatch(/attachment; filename="OS-.*-ESTRUTURA-v1\.csv"/);
+    // "OS EVT-0001 Nome Estrutura v1.csv" (auditoria 28/10, nº 180).
+    expect(r.headers.get("content-disposition")).toMatch(/attachment; filename="OS EVT-\d+ .+ Estrutura \(box truss\) v1\.csv"/);
     const bytes = new Uint8Array(await r.arrayBuffer());
     expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const csv = new TextDecoder().decode(bytes.subarray(3));
@@ -82,6 +84,14 @@ describe("GET /api/os/[id]/[setor]", { timeout: 30_000 }, () => {
     expect(linha).toBeDefined();
     expect(linha).toContain(`"'=HYPERLINK(""http://mal.example"",""clique"")"`);
     expect(linha).toContain(";10;");
+  });
+
+  it("o botão CSV da seção usa /secao/: em /estrutura a rota fixa devolvia o Excel da OS de estrutura (auditoria 28/10, nº 34)", async () => {
+    await entrar(E.requisitante.id);
+    const r = await GETSecao(new Request(`http://teste/api/os/${eventoId}/secao/estrutura?v=1`), { params: Promise.resolve({ id: eventoId, setor: "estrutura" }) });
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("text/csv; charset=utf-8");
+    expect(await r.text()).toContain("Material;Estrutura");
   });
 
   it("setor sem peças sai com o cabeçalho e o aviso de que não há peças", async () => {

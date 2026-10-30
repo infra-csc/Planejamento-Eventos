@@ -5,6 +5,8 @@ import { pode } from "@/domain/permissions";
 import { obterEvento } from "@/server/services/eventos";
 import { complementoOs } from "@/server/services/os";
 import { NaoEncontradoError } from "@/domain/errors";
+import { contentDisposition, nomeArquivo } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 import { SETOR_LABEL } from "@/domain/os";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { blocoDados, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
@@ -13,20 +15,20 @@ import { blocoDados, faixaTitulo, impressao, tabela, tituloSecao } from "@/serve
  * Complemento da OS: só o que mudou desde a versão que foi enviada ao carregamento.
  * Serve para mandar ao galpão um "adendo" sem reimprimir a OS inteira.
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS");
   const { id } = await params;
   let ev: Awaited<ReturnType<typeof obterEvento>>;
   try {
     ev = await obterEvento(usuario, id);
   } catch (e) {
-    if (e instanceof NaoEncontradoError) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
+    if (e instanceof NaoEncontradoError) return erroDownload(request, 404, "Evento não encontrado");
     throw e;
   }
   const comp = await complementoOs(id);
-  if (!comp) return NextResponse.json({ erro: "A OS ainda não foi marcada como enviada ao carregamento." }, { status: 400 });
+  if (!comp) return erroDownload(request, 400, "A OS ainda não foi marcada como enviada ao carregamento", `/eventos/${id}/os`);
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Norte Mkt · Planejamento de Eventos";
@@ -101,7 +103,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="complemento-os-${ev.codigo.toLowerCase()}-desde-v${comp.numero}.xlsx"`,
+      // "Complemento OS EVT-0001 Nome desde v2.xlsx" (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(nomeArquivo(["Complemento OS", ev.codigo, ev.nome, `desde v${comp.numero}`], "xlsx")),
       "Cache-Control": "no-store",
     },
   });

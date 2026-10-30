@@ -55,6 +55,15 @@ describe("GET /api/os/[id]/excel", { timeout: 30_000 }, () => {
     expect((await chamar(eventoId)).status).toBe(401);
   });
 
+  it("aberto no navegador, o erro é uma página em português, não JSON cru (auditoria 28/10, nº 82)", async () => {
+    const r = await GET(new Request(`http://teste/api/os/${eventoId}/excel`, { headers: { accept: "text/html,application/xhtml+xml" } }), { params: Promise.resolve({ id: eventoId }) });
+    expect(r.status).toBe(401);
+    expect(r.headers.get("content-type")).toContain("text/html");
+    const html = await r.text();
+    expect(html).toContain("Não foi possível baixar o arquivo");
+    expect(html).not.toContain('{"erro"');
+  });
+
   it("403 quando o perfil não tem os.exportar", async () => {
     restricao.negar.add("REQUISITANTE:os.exportar");
     await entrar(E.requisitante.id);
@@ -73,10 +82,17 @@ describe("GET /api/os/[id]/excel", { timeout: 30_000 }, () => {
       const r = await chamar(eventoId);
       expect(r.status, perfil).toBe(200);
       expect(r.headers.get("content-type")).toBe(XLSX);
-      expect(r.headers.get("content-disposition")).toContain(`OS-${codigoEvento}-v1.xlsx`);
+      // Nome no padrão "OS EVT-0001 Nome v1.xlsx", com o UTF-8 em filename* (auditoria 28/10, nº 180).
+      expect(r.headers.get("content-disposition")).toMatch(new RegExp(`filename="OS ${codigoEvento} .+ v1\\.xlsx"; filename\\*=UTF-8''OS%20${codigoEvento}%20`));
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(await r.arrayBuffer());
       expect(wb.worksheets.length).toBeGreaterThan(0);
+      // "Fora do catálogo" como na tela, e "Ordem de serviço" com minúscula (auditoria 28/10, nº 75 e 85).
+      expect(wb.worksheets.map((w) => w.name)).toContain("Itens fora do catálogo");
+      expect(wb.worksheets.map((w) => w.name)).not.toContain("Itens avulsos");
+      const capa: string[] = [];
+      wb.getWorksheet("Resumo")!.eachRow((row) => row.eachCell((c) => capa.push(String(c.text))));
+      expect(capa.join(" | ")).toContain(`Ordem de serviço · ${codigoEvento}`);
     }
   });
 
@@ -84,7 +100,7 @@ describe("GET /api/os/[id]/excel", { timeout: 30_000 }, () => {
     await entrar(E.logistica.id);
     const v1 = await chamar(eventoId, "?v=1");
     expect(v1.status).toBe(200);
-    expect(v1.headers.get("content-disposition")).toContain("-v1.xlsx");
+    expect(v1.headers.get("content-disposition")).toContain(" v1.xlsx");
     const semOs = await novoEvento(E.logistica);
     const previa = await chamar(semOs.id);
     expect(previa.status).toBe(200);

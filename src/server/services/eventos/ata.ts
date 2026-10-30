@@ -111,12 +111,17 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
 
 export type LinhaAtaDetalhe = Awaited<ReturnType<typeof obterLinhasAta>>[number];
 
-export async function listarAtaVersoes(eventoId: string) {
+/**
+ * Versões da ata, da mais nova para a mais antiga. Quem usa uma só pede `{ numero }` ou `{ ultima: true }`: o JSON de
+ * cada versão traz a ata inteira, e a tela e as exportações liam todas para usar uma (auditoria 28/10, nº 146).
+ */
+export async function listarAtaVersoes(eventoId: string, opcoes: { numero?: number; ultima?: boolean } = {}) {
   const db = await getDb();
   return db.query.ataVersoes.findMany({
-    where: eq(ataVersoes.eventoId, eventoId),
+    where: opcoes.numero ? and(eq(ataVersoes.eventoId, eventoId), eq(ataVersoes.numero, opcoes.numero)) : eq(ataVersoes.eventoId, eventoId),
     with: { fechadaPor: { columns: { id: true, nome: true } } },
     orderBy: [desc(ataVersoes.numero)],
+    ...(opcoes.ultima ? { limit: 1 } : {}),
   });
 }
 

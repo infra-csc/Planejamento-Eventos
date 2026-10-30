@@ -1,5 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { NaoEncontradoError } from "@/domain/errors";
 import { requirePermissao } from "@/server/auth/session";
 import { montarAtaExport } from "@/server/export/ata";
 import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
@@ -15,7 +17,8 @@ const linha = "border-b border-line-strong";
 const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 
-const TIPO_LABEL = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
+// "fora do catálogo", como na tela e no Excel (auditoria 28/10, nº 75).
+const TIPO_LABEL = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const usuario = await requirePermissao("os.exportar");
@@ -38,7 +41,11 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
   const { v } = await searchParams;
-  const ata = await montarAtaExport(usuario, id, v ? Number(v) : undefined);
+  // Evento (ou versão) que não existe: "Não encontrado", e não a tela de erro com código (auditoria 28/10, nº 55).
+  const ata = await montarAtaExport(usuario, id, v ? Number(v) : undefined).catch((e: unknown) => {
+    if (e instanceof NaoEncontradoError) notFound();
+    throw e;
+  });
   const ev = ata.evento;
   const reu = ata.reuniao;
   const conferidas = ata.linhas.filter((x) => x.conferidoPor).length;
@@ -46,7 +53,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
   return (
     <div className="mx-auto max-w-4xl rounded-cartao border border-line bg-surface p-5 text-corpo text-ink sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Link href={`/eventos/${id}/ata${v ? `?v=${v}` : ""}`} className="link inline-flex items-center gap-1 text-corpo">
+        <Link href={`/eventos/${id}/ata${v ? `?v=${v}` : ""}`} className="link inline-flex items-center gap-1 text-corpo max-md:min-h-10">
           <Icone nome="seta-esquerda" />
           Voltar para a ata
         </Link>
@@ -77,7 +84,8 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
           <Campo k="Iniciada" v={reu?.iniciadaEm ? formatarDataHora(reu.iniciadaEm) : "—"} />
           <Campo k="Ata fechada" v={reu?.fechadaEm ? formatarDataHora(reu.fechadaEm) : "—"} forte />
           <Campo k="Fechada por" v={reu?.fechadaPor || "—"} />
-          <Campo k="Conduzida por" v={reu?.conduzidaPor || ev.responsavel} />
+          {/* "Responsável": não há registro de quem conduziu, e o nome era sempre o responsável do evento (auditoria 30/10, B-10). */}
+          <Campo k="Responsável" v={reu?.conduzidaPor || ev.responsavel} />
           <Campo k="Linhas conferidas" v={`${conferidas} de ${ata.linhas.length}`} />
           </dl>
           <div className="mt-2">
@@ -89,8 +97,10 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
 
       <section className="mb-6">
         <h2 className="mb-2 mt-0 text-destaque font-semibold">O que vai para o evento</h2>
-        <div className="overflow-x-auto print:overflow-visible">
+        {/* Rola pelo teclado no celular (região focável com nome) e a tabela tem legenda (auditoria 28/10, nº 67 e 140). */}
+        <div className="overflow-x-auto print:overflow-visible" role="region" aria-label="Linhas da ata" tabIndex={0}>
         <table className="w-full min-w-[640px] border-collapse print:min-w-0">
+          <caption className="sr-only">Linhas da ata: item, quantidade, destino, área, origem e quem conferiu</caption>
           <thead>
             <tr className={cabecalho}>
               <th scope="col" className={th}>Código</th>
@@ -170,14 +180,16 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
       {ata.solicitacoesPreReuniao.length > 0 && (
         <section className="mb-6 break-before-page">
           <h2 className="mb-2 mt-0 text-destaque font-semibold">O que cada área pediu antes da reunião</h2>
-          <div className="overflow-x-auto print:overflow-visible">
+          <div className="overflow-x-auto print:overflow-visible" role="region" aria-label="Pedidos das áreas" tabIndex={0}>
           <table className="w-full min-w-[640px] border-collapse print:min-w-0">
+            <caption className="sr-only">O que cada área pediu antes da reunião</caption>
             <thead>
               <tr className={cabecalho}>
                 <th scope="col" className={th}>Solicitação</th>
                 <th scope="col" className={th}>Área</th>
                 <th scope="col" className={th}>Item</th>
                 <th scope="col" className={`${th} text-right`}>Pedido</th>
+                {/* O número é o que a resposta atendeu (a linha da ata pode ter mudado na conferência): "Atendido" aqui e no Excel (auditoria 28/10, nº 182). */}
                 <th scope="col" className={`${th} text-right`}>Atendido</th>
                 <th scope="col" className={th}>Situação</th>
                 <th scope="col" className="py-1.5 font-semibold">Observação</th>

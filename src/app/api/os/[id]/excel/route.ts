@@ -12,6 +12,8 @@ import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import type { OsConteudo } from "@/server/db/schema";
 import { blocoDados, CHECK, COR, faixaTitulo, impressao, tabela, tituloSecao } from "@/server/export/excel";
 import { NaoEncontradoError } from "@/domain/errors";
+import { contentDisposition, nomeArquivo } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 
 /*
  * OS completa em Excel: capa com resumo e, em abas, tudo que vai no caminhão nas três leituras da tela
@@ -39,7 +41,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Resumo ---------- */
   const capa = wb.addWorksheet("Resumo", { views: [{ showGridLines: false }] });
   [24, 30, 14, 14, 24, 30].forEach((w, i) => (capa.getColumn(i + 1).width = w));
-  let l = faixaTitulo(capa, 6, "NORTE MKT · PLANEJAMENTO DE EVENTOS", `Ordem de Serviço · ${ev.codigo}`, `${ev.nome} · ${versao}`);
+  let l = faixaTitulo(capa, 6, "NORTE MKT · PLANEJAMENTO DE EVENTOS", `Ordem de serviço · ${ev.codigo}`, `${ev.nome} · ${versao}`);
   const fimEsq = blocoDados(
     capa,
     l,
@@ -90,7 +92,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
     ["Totais por peça", "Para carregar o caminhão: cada peça uma vez, com o total somado de todos os projetos e pedidos."],
     ["Por projeto", "Para montar: o que cada projeto padrão leva, unidade por unidade, já com os ajustes."],
     ["Peças soltas", "Peças pedidas fora de projeto (também somadas em Totais por peça)."],
-    ["Itens avulsos", "Itens sem peça de catálogo: separação manual, não somam por peça."],
+    ["Itens fora do catálogo", "Itens sem peça de catálogo: separação manual, não somam por peça."],
     ["Coluna Sep.", `Marque ${CHECK} conforme separar. Os filtros de cada tabela ajudam a trabalhar por setor.`],
   ];
   for (const [k, v] of guia) {
@@ -110,7 +112,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Totais por peça ---------- */
   const tot = wb.addWorksheet("Totais por peça", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
   faixaTitulo(tot, 8, "NORTE MKT", "Totais por peça", `${cab} · carregar o caminhão`);
-  const linhasTot = porGrupo.flatMap((g) => g.linhas.map((x) => [GRUPO_LABEL[g.grupo], setorLabel(setorDe.get(x.codigo)), x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao} → ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
+  const linhasTot = porGrupo.flatMap((g) => g.linhas.map((x) => [GRUPO_LABEL[g.grupo], setorLabel(setorDe.get(x.codigo)), x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao}: ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
   tabela(
     tot,
     "TotaisPorPeca",
@@ -197,9 +199,10 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   );
   impressao(solt, `${cab} · Peças soltas`, rodape, 5, true);
 
-  /* ---------- Itens avulsos ---------- */
-  const av = wb.addWorksheet("Itens avulsos", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-  faixaTitulo(av, 5, "NORTE MKT", "Itens avulsos", `${cab} · sem peça de catálogo, separação manual`);
+  /* ---------- Itens fora do catálogo ---------- */
+  // "Fora do catálogo", como na tela, na ata e na impressão (antes "Itens avulsos"; auditoria 28/10, nº 75).
+  const av = wb.addWorksheet("Itens fora do catálogo", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
+  faixaTitulo(av, 5, "NORTE MKT", "Itens fora do catálogo", `${cab} · sem peça de catálogo, separação manual`);
   tabela(
     av,
     "ItensAvulsos",
@@ -213,22 +216,22 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
     ],
     os.semSetor.map((x) => [x.descricao, x.quantidade, x.destino ?? "—", x.area ?? "—", CHECK]),
   );
-  impressao(av, `${cab} · Itens avulsos`, rodape, 5);
+  impressao(av, `${cab} · Itens fora do catálogo`, rodape, 5);
 
   return wb;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS");
   const { id } = await params;
   // Evento inexistente (link antigo, id digitado): 404 em vez de página de erro.
   const ev = await obterEvento(usuario, id).catch((e: unknown) => {
     if (e instanceof NaoEncontradoError) return null;
     throw e;
   });
-  if (!ev) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
+  if (!ev) return erroDownload(request, 404, "Evento não encontrado");
   const v = Number(new URL(request.url).searchParams.get("v"));
   const versoes = await listarOsResumo(id);
   const pedida = Number.isInteger(v) && v > 0 ? versoes.find((x) => x.numero === v) : undefined;
@@ -243,7 +246,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="OS-${ev.codigo}-${pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero}` : "previa"}.xlsx"`,
+      // "OS EVT-0001 Night Run v3.xlsx" (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(nomeArquivo(["OS", ev.codigo, ev.nome, pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero}` : "prévia"], "xlsx")),
     },
   });
 }
