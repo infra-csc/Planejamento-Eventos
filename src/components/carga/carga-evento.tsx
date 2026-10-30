@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/layout";
 import { Icone } from "@/components/ui/icons";
-import { TIPO_VEICULO_LABEL, type EventoCarga } from "@/domain/carga-descarga";
-import type { VeiculoCargaView } from "@/server/services/carga-descarga";
+import { TIPO_VEICULO_LABEL } from "@/domain/carga-descarga";
+import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-descarga";
 import { ContagemVeiculos, IconeVeiculo, TagCargaChip } from "./base";
 import { AcoesVeiculo, DetalheVeiculo, ResumoTrechos, TrechosVeiculo } from "./detalhe-veiculo";
 import { FormVeiculo } from "./form-veiculo";
@@ -28,8 +28,8 @@ export function CargaDoEvento({
   compacto,
   cabecalho,
 }: {
-  evento: EventoCarga & { ativo: boolean };
-  eventos: ReadonlyArray<EventoCarga & { ativo: boolean }>;
+  evento: EventoCargaView;
+  eventos: readonly EventoCargaView[];
   veiculos: readonly VeiculoCargaView[];
   podeEditar: boolean;
   compacto?: boolean;
@@ -75,7 +75,14 @@ export function CargaDoEvento({
           </Button>
         )}
       </header>
-      {!evento.ativo && <p className="m-0 border-b border-line-soft bg-subtle px-cartao py-2 text-pequeno text-muted">Evento encerrado ou cancelado: não recebe veículos novos.</p>}
+      {/* Cancelado com veículo: o caminhão segue reservado até alguém excluir (auditoria 30/10, parte D N2). */}
+      {evento.cancelado && veiculos.length > 0 ? (
+        <p className="m-0 border-b border-line-soft bg-danger-bg px-cartao py-2 text-pequeno text-danger">
+          Evento cancelado: {veiculos.length === 1 ? "este veículo não vai sair. Exclua para liberar o caminhão." : "estes veículos não vão sair. Exclua cada um para liberar os caminhões."}
+        </p>
+      ) : (
+        !evento.ativo && <p className="m-0 border-b border-line-soft bg-subtle px-cartao py-2 text-pequeno text-muted">Evento {evento.cancelado ? "cancelado" : "encerrado"}: não recebe veículos novos.</p>
+      )}
       {veiculos.length === 0 ? (
         <EmptyState
           compact
@@ -103,7 +110,7 @@ export function CargaDoEvento({
                     <Button variant="secondary" size="sm" onClick={() => setModal({ tipo: "ver", id: v.id })}>
                       Ver
                     </Button>
-                    {podeEditar && <AcoesVeiculo v={v} podeEditar tamanho="sm" onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />}
+                    {podeEditar && <AcoesVeiculo v={v} podeEditar evento={evento} tamanho="sm" onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />}
                   </div>
                 </div>
                 <div className="mt-1.5 sm:pl-[50px]">
@@ -128,7 +135,7 @@ export function CargaDoEvento({
               <TrechosVeiculo v={v} />
               {podeEditar && (
                 <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2">
-                  <AcoesVeiculo v={v} podeEditar={podeEditar} onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />
+                  <AcoesVeiculo v={v} podeEditar={podeEditar} evento={evento} onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />
                 </div>
               )}
             </li>

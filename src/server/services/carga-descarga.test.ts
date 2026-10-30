@@ -7,10 +7,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 process.env.PGLITE_DATA_DIR = "memory://";
 delete process.env.DATABASE_URL;
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { historico } from "@/server/db/schema";
-import { idaVazia, operacoesDoVeiculo, voltaVazia, type DadosVeiculo } from "@/domain/carga-descarga";
+import { eventos, historico } from "@/server/db/schema";
+import { construirOperacoes, idaVazia, operacoesDoVeiculo, voltaVazia, type DadosVeiculo } from "@/domain/carga-descarga";
 import { migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { duplicarVeiculoCarga, excluirVeiculoCarga, listarCarga, salvarVeiculoCarga } from "./carga-descarga";
 
@@ -63,6 +63,35 @@ describe("carga e descarga", () => {
     const db = await getDb();
     const acoes = (await db.select({ acao: historico.acao }).from(historico).where(and(eq(historico.eventoId, ev.id), eq(historico.entidade, "veiculo_carga")))).map((h) => h.acao).sort();
     expect(acoes).toEqual(["CARGA_VEICULO_CRIADO", "CARGA_VEICULO_DUPLICADO", "CARGA_VEICULO_EDITADO", "CARGA_VEICULO_EXCLUIDO"]);
+  });
+
+  it("evento cancelado com veículo continua na lista geral, marcado; sem veículo, sai (auditoria 30/10, parte D N2)", async () => {
+    const comVeiculo = await novoEvento(E.logistica);
+    const semVeiculo = await novoEvento(E.logistica);
+    await salvarVeiculoCarga(E.logistica, { eventoId: comVeiculo.id, veiculo: carreta });
+    const db = await getDb();
+    await db.update(eventos).set({ status: "CANCELADO" }).where(inArray(eventos.id, [comVeiculo.id, semVeiculo.id]));
+
+    const r = await listarCarga(E.logistica);
+    expect(r.eventos.find((e) => e.id === comVeiculo.id)).toMatchObject({ ativo: false, cancelado: true });
+    expect(r.eventos.some((e) => e.id === semVeiculo.id)).toBe(false);
+    // O veículo vira operação no calendário (antes ficava sem evento e era descartado).
+    const ops = construirOperacoes(r.eventos, r.veiculos, null);
+    expect(ops.some((o) => o.eventoId === comVeiculo.id && o.tipo === "cargaGalpao")).toBe(true);
+  });
+
+  it("duplicar recusa evento cancelado ou encerrado, como o salvar e a importação (auditoria 30/10, parte D N3)", async () => {
+    const ev = await novoEvento(E.logistica);
+    const { id } = await salvarVeiculoCarga(E.logistica, { eventoId: ev.id, veiculo: carreta });
+    const db = await getDb();
+    await db.update(eventos).set({ status: "ENCERRADO" }).where(eq(eventos.id, ev.id));
+    await expect(duplicarVeiculoCarga(E.logistica, id)).rejects.toThrow(/encerrado/);
+    await db.update(eventos).set({ status: "CANCELADO" }).where(eq(eventos.id, ev.id));
+    await expect(duplicarVeiculoCarga(E.admin, id)).rejects.toThrow(/cancelado/);
+    expect((await listarCarga(E.logistica, { eventoId: ev.id })).veiculos).toHaveLength(1);
+    // Excluir continua valendo: é assim que a logística libera o caminhão.
+    await excluirVeiculoCarga(E.logistica, id);
+    expect((await listarCarga(E.logistica, { eventoId: ev.id })).veiculos).toHaveLength(0);
   });
 
   it("as regras da ida e da volta bloqueiam o salvamento com mensagem clara", async () => {

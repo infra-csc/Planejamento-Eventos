@@ -27,12 +27,11 @@ import {
   TAGS_CARGA,
   TIPO_VEICULO_LABEL,
   type DiaPlanilha,
-  type EventoCarga,
   type FiltrosCarga,
   type Operacao,
   type TipoOperacao,
 } from "@/domain/carga-descarga";
-import type { VeiculoCargaView } from "@/server/services/carga-descarga";
+import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-descarga";
 import { COR_TAG, ContagemVeiculos, IconeVeiculo, TagCargaChip } from "./base";
 import { DetalheVeiculo, TrechosVeiculo } from "./detalhe-veiculo";
 import { FormVeiculo } from "./form-veiculo";
@@ -73,7 +72,7 @@ export function CalendarioCarga({
   hoje,
   usuarioId,
 }: {
-  eventos: ReadonlyArray<EventoCarga & { ativo: boolean }>;
+  eventos: readonly EventoCargaView[];
   veiculos: readonly VeiculoCargaView[];
   planilha: readonly DiaPlanilha[];
   podeEditar: boolean;
@@ -195,6 +194,9 @@ export function CalendarioCarga({
 
   const cardCls = "block w-full cursor-pointer rounded-controle border bg-surface px-2.5 py-2 text-left transition-[border-color,box-shadow] duration-150 hover:border-line-strong hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent";
 
+  // Evento cancelado com veículo: o cartão aparece (o caminhão segue reservado) e diz o que fazer (auditoria 30/10, parte D N2).
+  const seCancelado = (eventoId: string | null | undefined) => (eventoId && porId.get(eventoId)?.cancelado ? <span className="mt-0.5 block text-rotulo font-medium text-danger">Evento cancelado · libere o caminhão</span> : null);
+
   const cards = (lista: readonly Operacao[]) => {
     const out: React.ReactNode[] = [];
     if (filtros.ver === "veiculo") {
@@ -209,6 +211,7 @@ export function CalendarioCarga({
               </span>
               {v.ident && <span className="block break-words text-rotulo text-muted">{v.ident}</span>}
               <span className="mt-0.5 block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
+              {seCancelado(o.eventoId)}
               <CardRodape tags={o.tags} hora={o.hora ? `${o.rotuloHora} ${o.hora}` : null} extra={o.extra} />
             </button>
           </li>,
@@ -234,6 +237,7 @@ export function CalendarioCarga({
           <li key={k}>
             <button type="button" onClick={() => abrir(o, g)} className={cn(cardCls, "border-line")}>
               <span className="block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
+              {seCancelado(o.eventoId)}
               <ContagemVeiculos tipos={g.map((x) => x.veiculo!.tipo)} className="mt-1" />
               <CardRodape tags={[...new Set(g.flatMap((x) => x.tags))]} hora={faixa(g)} extra={o.tipo === "descGalpao" ? (g.map((x) => x.extra).find(Boolean) ?? "") : ""} />
             </button>
@@ -250,6 +254,7 @@ export function CalendarioCarga({
       <li key={o.chave}>
         <button type="button" onClick={() => abrir(o)} title={o.origem === "planilha" ? "Da planilha 2026" : undefined} className={cn(cardCls, o.origem === "planilha" ? "border-dotted border-line-strong" : "border-success-border bg-success-bg/40")}>
           <span className="block text-pequeno font-medium leading-snug text-ink">{o.nome}</span>
+          {seCancelado(o.eventoId)}
           {tipos.length > 0 && <ContagemVeiculos tipos={tipos} className="mt-1" />}
           {/* "PLANILHA" em caixa-alta em quase todo cartão: a borda pontilhada já diz a origem (e o filtro "Planilha"). */}
           {o.origem === "planilha" && <span className="sr-only"> · da planilha</span>}
@@ -581,7 +586,7 @@ export function CalendarioCarga({
                         <IconeVeiculo tipo={v.tipo} className="text-ink-3" />
                         <span className="text-corpo font-medium text-ink">{TIPO_VEICULO_LABEL[v.tipo]}</span>
                         {v.ident && <span className="text-pequeno text-ink-3">· {v.ident}</span>}
-                        {podeEditar && (
+                        {podeEditar && !ev.cancelado && (
                           <Button variant="ghost" size="xs" className="ml-auto" onClick={() => setModal({ tipo: "editar", id: v.id })}>
                             <Icone nome="lapis" />
                             Editar
@@ -597,7 +602,7 @@ export function CalendarioCarga({
                     <Link href={`/eventos/${ev.id}/carga`} className="link text-pequeno">
                       <Codigo>{ev.codigo}</Codigo> · abrir a carga do evento
                     </Link>
-                    {podeEditar && (
+                    {podeEditar && ev.ativo && (
                       <Button variant="secondary" size="md" onClick={() => setModal({ tipo: "novo", eventoId: ev.id })}>
                         <Icone nome="mais" />
                         Veículo neste evento

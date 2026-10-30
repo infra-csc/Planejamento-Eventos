@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/layout";
 import { Codigo } from "@/components/ui/numero";
-import { normalizarTexto, somarDias, type EventoCarga } from "@/domain/carga-descarga";
-import type { VeiculoCargaView } from "@/server/services/carga-descarga";
+import { normalizarTexto, somarDias } from "@/domain/carga-descarga";
+import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-descarga";
 import { ContagemVeiculos, diaCurto } from "./base";
 import { CargaDoEvento } from "./carga-evento";
 import { ImportarCarga } from "./importar-carga";
 
-type EventoLista = EventoCarga & { ativo: boolean };
+type EventoLista = EventoCargaView;
 
 /**
  * Cadastro do galpão (logística e administrador): à esquerda os eventos com quantos veículos cada um
@@ -35,8 +35,9 @@ export function CadastroCarga({ eventos, veiculos, podeEditar, podeCriarEvento, 
   // A volta cai dias depois do evento: o evento da semana passada ainda conta como "próximo".
   const corte = somarDias(hoje, -7);
   const termo = normalizarTexto(busca);
+  // Cancelado com veículo fica à vista mesmo passado: tem caminhão a liberar (auditoria 30/10, parte D N2).
   const lista = eventos
-    .filter((e) => passados || e.data >= corte || e.id === selecionado)
+    .filter((e) => passados || e.data >= corte || e.id === selecionado || e.cancelado)
     .filter((e) => !semVeiculo || !porEvento.has(e.id))
     .filter((e) => !termo || normalizarTexto(`${e.nome} ${e.codigo} ${e.local ?? ""}`).includes(termo))
     .sort((a, b) => (passados ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)) || a.nome.localeCompare(b.nome, "pt-BR"));
@@ -114,8 +115,9 @@ export function CadastroCarga({ eventos, veiculos, podeEditar, podeCriarEvento, 
                         <span className={cn("block text-pequeno font-semibold leading-snug", passou ? "text-ink-2" : "text-ink")}>{e.nome}</span>
                         <span className="numero mt-0.5 block text-rotulo text-muted">
                           {diaCurto(e.data)} · {e.codigo}
-                          {!e.ativo && " · encerrado"}
+                          {!e.ativo && !e.cancelado && " · encerrado"}
                         </span>
+                        {e.cancelado && <span className="mt-0.5 block text-rotulo font-medium text-danger">Cancelado · libere o caminhão</span>}
                       </span>
                       {vs.length ? (
                         <ContagemVeiculos tipos={vs.map((v) => v.tipo)} className="shrink-0 justify-end pt-0.5" />

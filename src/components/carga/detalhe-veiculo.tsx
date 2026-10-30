@@ -9,8 +9,8 @@ import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
 import { duplicarVeiculoCargaAction, excluirVeiculoCargaAction } from "@/app/(app)/carga-descarga/actions";
-import { dataHoraCurta, TIPO_VEICULO_LABEL, type EventoCarga } from "@/domain/carga-descarga";
-import type { VeiculoCargaView } from "@/server/services/carga-descarga";
+import { dataHoraCurta, TIPO_VEICULO_LABEL } from "@/domain/carga-descarga";
+import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-descarga";
 import { IconeVeiculo, TagCargaChip } from "./base";
 
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -122,8 +122,12 @@ export function ResumoTrechos({ v }: { v: VeiculoCargaView }) {
   );
 }
 
-/** Ações de um veículo: excluir (com confirmação no próprio rodapé), duplicar e editar. */
-export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento, tamanho = "md" }: { v: VeiculoCargaView; podeEditar: boolean; onEditar: () => void; onFeito: () => void; nomeEvento: string; tamanho?: "sm" | "md" }) {
+/**
+ * Ações de um veículo: excluir (com confirmação no próprio rodapé), duplicar e editar. Duplicar cria um veículo
+ * novo, então só em evento ativo; editar não vale em evento cancelado (o servidor recusa). Excluir fica sempre: é
+ * como a logística libera o caminhão de um evento cancelado (auditoria 30/10, parte D N3).
+ */
+export function AcoesVeiculo({ v, podeEditar, evento, onEditar, onFeito, nomeEvento, tamanho = "md" }: { v: VeiculoCargaView; podeEditar: boolean; evento?: Pick<EventoCargaView, "ativo" | "cancelado">; onEditar: () => void; onFeito: () => void; nomeEvento: string; tamanho?: "sm" | "md" }) {
   const [confirmar, setConfirmar] = useState(false);
   const [pendente, iniciar] = useTransition();
   if (!podeEditar) return null;
@@ -156,33 +160,37 @@ export function AcoesVeiculo({ v, podeEditar, onEditar, onFeito, nomeEvento, tam
         <Icone nome="lixeira" />
         Excluir
       </Button>
-      <Button
-        variant="secondary"
-        size={tamanho}
-        loading={pendente}
-        title="Cria uma cópia com o mesmo cadastro (ida e volta)"
-        onClick={() =>
-          iniciar(async () => {
-            const r = await duplicarVeiculoCargaAction(v.id, v.eventoId);
-            if (!r.ok) return toastErro(r.erro);
-            toastSucesso(`${rotulo} duplicado em ${nomeEvento}`);
-            onFeito();
-          })
-        }
-      >
-        <Icone nome="copiar" />
-        Duplicar
-      </Button>
-      <Button variant="primary" size={tamanho} onClick={onEditar}>
-        <Icone nome="lapis" />
-        Editar
-      </Button>
+      {evento?.ativo !== false && (
+        <Button
+          variant="secondary"
+          size={tamanho}
+          loading={pendente}
+          title="Cria uma cópia com o mesmo cadastro (ida e volta)"
+          onClick={() =>
+            iniciar(async () => {
+              const r = await duplicarVeiculoCargaAction(v.id, v.eventoId);
+              if (!r.ok) return toastErro(r.erro);
+              toastSucesso(`${rotulo} duplicado em ${nomeEvento}`);
+              onFeito();
+            })
+          }
+        >
+          <Icone nome="copiar" />
+          Duplicar
+        </Button>
+      )}
+      {!evento?.cancelado && (
+        <Button variant="primary" size={tamanho} onClick={onEditar}>
+          <Icone nome="lapis" />
+          Editar
+        </Button>
+      )}
     </>
   );
 }
 
 /** Modal de um veículo: ida e volta completas e as ações. */
-export function DetalheVeiculo({ v, evento, podeEditar, onEditar, onFechar }: { v: VeiculoCargaView; evento: EventoCarga | undefined; podeEditar: boolean; onEditar: () => void; onFechar: () => void }) {
+export function DetalheVeiculo({ v, evento, podeEditar, onEditar, onFechar }: { v: VeiculoCargaView; evento: EventoCargaView | undefined; podeEditar: boolean; onEditar: () => void; onFechar: () => void }) {
   return (
     <DialogContent title={`${TIPO_VEICULO_LABEL[v.tipo]}${v.ident ? ` · ${v.ident}` : ""}`} description={evento ? `${evento.nome} · evento ${dm(evento.data)}` : undefined} width={760}>
       {evento && (
@@ -193,6 +201,8 @@ export function DetalheVeiculo({ v, evento, podeEditar, onEditar, onFechar }: { 
           </Link>
         </p>
       )}
+      {/* O caminhão segue reservado até alguém excluir o veículo (auditoria 30/10, parte D N2). */}
+      {evento?.cancelado && <p className="m-0 mb-3 rounded-controle bg-danger-bg px-3 py-2 text-pequeno text-danger">Evento cancelado: este veículo não vai sair. Exclua para liberar o caminhão.</p>}
       <TrechosVeiculo v={v} />
       <p className="m-0 mt-3 text-rotulo text-muted">
         {v.atualizadoPor ? `Alterado por ${v.atualizadoPor}` : v.criadoPor ? `Cadastrado por ${v.criadoPor}` : ""}
@@ -200,7 +210,7 @@ export function DetalheVeiculo({ v, evento, podeEditar, onEditar, onFechar }: { 
       </p>
       {podeEditar && (
         <DialogFooter>
-          <AcoesVeiculo v={v} podeEditar={podeEditar} onEditar={onEditar} onFeito={onFechar} nomeEvento={evento?.nome ?? "evento"} />
+          <AcoesVeiculo v={v} podeEditar={podeEditar} evento={evento} onEditar={onEditar} onFeito={onFechar} nomeEvento={evento?.nome ?? "evento"} />
         </DialogFooter>
       )}
     </DialogContent>

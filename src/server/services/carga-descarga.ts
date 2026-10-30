@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray, ne, or } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { eventos, usuarios, veiculosCarga } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
@@ -8,6 +8,9 @@ import { registrarHistorico } from "./support";
 
 /** Veículo como a tela usa: os dados, o evento e quem cadastrou/alterou por último. */
 export type VeiculoCargaView = VeiculoCarga & { atualizadoEm: string; atualizadoPor: string | null; criadoPor: string | null };
+
+/** Evento como a carga usa: `ativo` recebe veículos novos; `cancelado` ainda pode ter caminhão a liberar. */
+export type EventoCargaView = EventoCarga & { ativo: boolean; cancelado: boolean };
 
 /** Cadastro e duplicação: a mesma data em criado e atualizado (o default do banco pode diferir por milissegundos). */
 const nascimento = () => {
@@ -35,7 +38,9 @@ export async function listarCarga(usuario: UsuarioAtual, filtro: { eventoId?: st
     db
       .select({ id: eventos.id, codigo: eventos.codigo, nome: eventos.nome, dataInicio: eventos.dataInicio, local: eventos.local, status: eventos.status })
       .from(eventos)
-      .where(filtro.eventoId ? eq(eventos.id, filtro.eventoId) : ne(eventos.status, "CANCELADO"))
+      // Cancelado só entra se ainda tem veículo: o caminhão continua reservado e a logística precisa vê-lo para
+      // liberar (antes a consulta tirava todos os cancelados e o veículo sumia do calendário; auditoria 30/10, parte D N2).
+      .where(filtro.eventoId ? eq(eventos.id, filtro.eventoId) : or(ne(eventos.status, "CANCELADO"), inArray(eventos.id, db.select({ id: veiculosCarga.eventoId }).from(veiculosCarga))))
       .orderBy(asc(eventos.dataInicio)),
   ]);
   // Quem alterou por último (nome), numa consulta só.
@@ -55,9 +60,9 @@ export async function listarCarga(usuario: UsuarioAtual, filtro: { eventoId?: st
   }));
   // Evento cancelado com veículo continua aparecendo (o veículo existe); no cadastro só os ativos.
   const comVeiculo = new Set(veiculos.map((v) => v.eventoId));
-  const eventosCarga: Array<EventoCarga & { ativo: boolean }> = evs
+  const eventosCarga: EventoCargaView[] = evs
     .filter((e) => e.status !== "CANCELADO" || comVeiculo.has(e.id))
-    .map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, data: e.dataInicio, local: e.local, ativo: e.status !== "CANCELADO" && e.status !== "ENCERRADO" }));
+    .map((e) => ({ id: e.id, codigo: e.codigo, nome: e.nome, data: e.dataInicio, local: e.local, ativo: e.status !== "CANCELADO" && e.status !== "ENCERRADO", cancelado: e.status === "CANCELADO" }));
   return { veiculos, eventos: eventosCarga, podeEditar: usuario.perfil === "ADMIN" || usuario.perfil === "LOGISTICA" };
 }
 
@@ -113,8 +118,11 @@ export async function duplicarVeiculoCarga(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "carga.editar");
   const db = await getDb();
   return db.transaction(async (tx) => {
-    const v = await tx.query.veiculosCarga.findFirst({ where: eq(veiculosCarga.id, id), with: { evento: { columns: { nome: true } } } });
+    const v = await tx.query.veiculosCarga.findFirst({ where: eq(veiculosCarga.id, id), with: { evento: { columns: { nome: true, status: true } } } });
     if (!v) throw new NaoEncontradoError("Veículo");
+    // A cópia é um veículo novo: mesma regra da importação (antes duplicava em evento cancelado; auditoria 30/10, parte D N3).
+    if (v.evento.status === "CANCELADO") throw new DomainError("O evento foi cancelado: não recebe veículos.");
+    if (v.evento.status === "ENCERRADO") throw new DomainError("O evento está encerrado: não recebe veículos novos.");
     const [novo] = await tx
       .insert(veiculosCarga)
       .values({ eventoId: v.eventoId, tipo: v.tipo, ident: v.ident, ida: v.ida, volta: v.volta, criadoPorId: usuario.id, atualizadoPorId: usuario.id, ...nascimento() })
