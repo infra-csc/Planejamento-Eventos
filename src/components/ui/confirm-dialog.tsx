@@ -75,7 +75,9 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
                 {confirmLabel}
               </SubmitButton>
               <DialogClose asChild>
-                <Button variant="secondary" size="lg">
+                {/* Ação que apaga abre com o foco em Cancelar: um Enter por engano não exclui (antes o foco caía no botão
+                    vermelho; auditoria 30/10, parte D N11). Com justificativa, o foco fica no campo. */}
+                <Button variant="secondary" size="lg" autoFocus={danger && !reasonLabel}>
                   {cancelLabel}
                 </Button>
               </DialogClose>
