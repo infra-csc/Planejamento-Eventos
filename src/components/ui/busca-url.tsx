@@ -50,7 +50,8 @@ export function BuscaUrl({ param = "q", placeholder, ariaLabel, className, largu
           if (timer.current) clearTimeout(timer.current);
           timer.current = setTimeout(() => aplicar(v), 280);
         }}
-        className="h-[34px] w-full min-w-0 rounded-controle border border-line-control bg-surface pl-9 pr-8 text-corpo text-ink transition-colors duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none max-md:h-10 [&::-webkit-search-cancel-button]:cursor-pointer"
+        // Foco: borda + anel da marca, como os outros campos (auditoria 28/10 nº 135).
+        className="h-[34px] w-full min-w-0 rounded-controle border border-line-control bg-surface pl-9 pr-8 text-corpo text-ink transition-[color,border-color,box-shadow] duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent max-md:h-10 [&::-webkit-search-cancel-button]:cursor-pointer"
       />
       {/* Enquanto a lista filtrada carrega. */}
       <span aria-hidden className={cn("pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 transition-opacity duration-150", pendente ? "opacity-100 delay-100" : "opacity-0")}>

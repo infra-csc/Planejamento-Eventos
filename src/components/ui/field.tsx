@@ -2,9 +2,12 @@ import { Children, cloneElement, forwardRef, isValidElement, type InputHTMLAttri
 import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
 
-/* Borda line-control: 3:1 sobre branco (WCAG 1.4.11). Foco: borda da marca (o anel global fica só no teclado). */
-const base =
-  "w-full rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink transition-colors duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input";
+/*
+ * Borda line-control: 3:1 sobre branco (WCAG 1.4.11). Foco: borda da marca + 1 px de anel da marca (2 px no total).
+ * Só a troca de cor da borda de 1 px dava 2,5:1 entre os estados e o teclado não via o foco (auditoria 28/10 nº 135).
+ */
+export const FOCO_CAMPO = "focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+const base = `w-full rounded-controle border border-line-control bg-surface px-3 text-corpo text-ink transition-[color,border-color,box-shadow] duration-150 placeholder:text-meta hover:border-ink-3 ${FOCO_CAMPO} disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted read-only:bg-subtle aria-[invalid=true]:border-danger-input`;
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(base, "h-[34px] max-md:h-10", className)} {...rest} />;
@@ -57,12 +60,15 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
-  const idMensagem = htmlFor && (error || hint) ? `${htmlFor}-${error ? "erro" : "dica"}` : undefined;
+  // Erro e dica juntos: antes o erro tomava o lugar da dica e quem usa leitor de tela perdia o formato pedido
+  // (auditoria 28/10 nº 63). O erro vem primeiro na descrição.
+  const idErro = htmlFor && error ? `${htmlFor}-erro` : undefined;
+  const idDica = htmlFor && hint ? `${htmlFor}-dica` : undefined;
   const unico = Children.count(children) === 1 && isValidElement<PropsAria>(children) ? children : null;
   const campo =
     unico && htmlFor
       ? cloneElement(unico, {
-          "aria-describedby": [unico.props["aria-describedby"], idMensagem].filter(Boolean).join(" ") || undefined,
+          "aria-describedby": [unico.props["aria-describedby"], idErro, idDica].filter(Boolean).join(" ") || undefined,
           ...(error ? { "aria-invalid": true } : {}),
           ...(obrigatorio ? { "aria-required": true } : {}),
         })
@@ -75,16 +81,17 @@ export function Field({
         </Label>
       )}
       {campo}
-      {error ? (
-        <span id={idMensagem} className="mt-[5px] flex items-start gap-1 text-pequeno text-danger">
+      {error && (
+        <span id={idErro} className="mt-[5px] flex items-start gap-1 text-pequeno text-danger">
           <Icone nome="erro" className="mt-px size-4" />
           {error}
         </span>
-      ) : hint ? (
-        <p id={idMensagem} className="mt-1.5 text-pequeno text-muted">
+      )}
+      {hint && (
+        <p id={idDica} className={cn("text-pequeno text-muted", error ? "mt-1" : "mt-1.5")}>
           {hint}
         </p>
-      ) : null}
+      )}
     </div>
   );
 }
