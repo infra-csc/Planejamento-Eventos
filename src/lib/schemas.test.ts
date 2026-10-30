@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configuracoesSchema, eventoSchema, pecaSchema } from "./schemas";
+import { configuracoesSchema, eventoSchema, pecaSchema, projetoSchema } from "./schemas";
 
 const mensagens = (r: { success: boolean; error?: { issues: Array<{ path: PropertyKey[]; message: string }> } }, campo: string) => (r.error?.issues ?? []).filter((i) => i.path[0] === campo).map((i) => i.message);
 
@@ -10,6 +10,15 @@ describe("mensagens de validação em português", () => {
       expect(mensagens(pecaSchema.safeParse({ ...peca, estoqueProprio }), "estoqueProprio")).toEqual(["Use um número inteiro, 0 ou mais."]);
     }
     expect(pecaSchema.parse({ ...peca, estoqueProprio: "4" }).estoqueProprio).toBe(4);
+  });
+
+  it("duplicar sem completar o nome ou o código não grava o separador (auditoria 30/10, parte C N13)", () => {
+    const peca = { codigo: "QAC-43469-", nome: "Peça", setor: "ESTRUTURA", unidade: "un" };
+    expect(mensagens(pecaSchema.safeParse(peca), "codigo")).toEqual(["Complete o código depois do “-” (ex.: PUFF-02)."]);
+    expect(pecaSchema.parse({ ...peca, codigo: "qac-43469-b" }).codigo).toBe("QAC-43469-B");
+    const projeto = { nome: "Projeto QA C 93613 — ", itens: [{ pecaId: "x", quantidade: 1 }] };
+    expect(mensagens(projetoSchema.safeParse(projeto), "nome")).toEqual(["Complete o nome: diga o que muda depois do “—”."]);
+    expect(projetoSchema.parse({ ...projeto, nome: "Projeto QA C 93613 — com aplique" }).nome).toBe("Projeto QA C 93613 — com aplique");
   });
 
   it("data do evento vazia pede a data; preenchida errada continua inválida (auditoria 30/10, B-08)", () => {

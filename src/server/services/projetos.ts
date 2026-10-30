@@ -311,6 +311,17 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
   const mime = detectarMimeAnexo(new Uint8Array(conteudo));
   const tipo = mime ? MIMES[mime] : undefined;
   if (!mime || !tipo) throw new ValidacaoError("Formato não suportado. Use PNG, JPG, WEBP ou PDF (o conteúdo do arquivo não corresponde a nenhum deles).");
+  // A foto precisa abrir de verdade: um JPEG corrompido passava pela assinatura e ficava quebrado na galeria e como
+  // capa (a peça e a Ativação já recusavam; auditoria 30/10, parte C N14). Import tardio: o sharp não vai para quem
+  // só importa este módulo sem enviar foto.
+  if (tipo === "IMAGEM") {
+    const sharp = (await import("sharp")).default;
+    await sharp(conteudo)
+      .stats()
+      .catch(() => {
+        throw new ValidacaoError(`Não foi possível ler a imagem “${file.name}”. Envie outra foto.`);
+      });
+  }
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");

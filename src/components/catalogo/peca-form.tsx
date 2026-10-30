@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { ActionForm } from "@/components/ui/action-form";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { toastSucesso } from "@/components/ui/toast";
 import { salvarPecaAction } from "@/app/(app)/catalogo/actions";
 import { Checkbox, Field, FormError, Input, Select, Textarea } from "@/components/ui/field";
 import { ButtonLink, SubmitButton } from "@/components/ui/button";
 import { Aviso, Section } from "@/components/ui/layout";
 import { Numero } from "@/components/ui/numero";
 import { SETOR_LABEL } from "@/domain/os";
-import { ESTADO_INICIAL } from "@/lib/action";
+import { ESTADO_INICIAL, type ActionResult } from "@/lib/action";
 import { LIMITES, SETORES } from "@/domain/constantes";
 import type { Setor } from "@/server/db/schema";
 import type { GrupoProjetoOpcao } from "@/components/projetos/grupo-projeto-field";
@@ -27,18 +29,30 @@ export function PecaForm({
   grupos: readonly GrupoProjetoOpcao[];
   cancelarHref: string;
 }) {
-  const [state, action] = useActionState(salvarPecaAction, ESTADO_INICIAL);
+  const [state, action] = useActionState(salvarPecaAction, ESTADO_INICIAL as ActionResult<{ destino: string }>);
+  const router = useRouter();
+  // Salvou: toast e só então navega; antes só redirecionava, sem dizer que tinha salvado (auditoria 30/10, parte C N19).
+  const visto = useRef(state);
+  useEffect(() => {
+    if (visto.current === state) return;
+    visto.current = state;
+    if (!state.ok || !state.dados?.destino) return;
+    if (state.mensagem) toastSucesso(state.mensagem);
+    router.push(state.dados.destino);
+  }, [state, router]);
   const c = !state.ok ? state.campos : undefined;
   return (
-    <ActionForm action={action} noValidate className="flex flex-col gap-5">
+    // Celular: o campo em foco não fica atrás da barra fixa do rodapé (auditoria 28/10, nº 30).
+    <ActionForm action={action} noValidate className="flex flex-col gap-5 max-md:[&_:is(input,textarea,button)]:scroll-mb-28">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
       {/* Para onde ir depois de salvar: a lista do jeito que a pessoa deixou (o mesmo do Cancelar). */}
       <input type="hidden" name="$volta" value={cancelarHref} />
 
       <Section titulo="Identificação" sub="Como a peça aparece no catálogo, nos projetos e nas OS.">
         <div className="grid gap-4 px-cartao py-4 sm:grid-cols-2">
+          {/* Sem foco automático: pulava o cabeçalho e a trilha da página (auditoria 28/10, nº 141). */}
           <Field label="Código" htmlFor="codigo" error={c?.codigo} hint="Curto e único. Ex.: BOX-600, TND-MASTRO, MDF-15" obrigatorio>
-            <Input id="codigo" name="codigo" defaultValue={valores.codigo ?? ""} required autoFocus className="font-mono uppercase" maxLength={LIMITES.codigoPeca} />
+            <Input id="codigo" name="codigo" defaultValue={valores.codigo ?? ""} required className="font-mono uppercase" maxLength={LIMITES.codigoPeca} />
           </Field>
           <Field label="Nome descritivo" htmlFor="nome" error={c?.nome} obrigatorio>
             <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required placeholder="Ex.: Box truss 600 mm (trecho 3 m)" />
@@ -86,7 +100,8 @@ export function PecaForm({
           <ul className="m-0 mt-1 grid max-h-56 list-none gap-px overflow-y-auto p-0">
             {usos.map((u) => (
               <li key={u.id} className="flex items-baseline justify-between gap-3">
-                <Link href={`/projetos/${u.id}`} className="min-w-0 text-ink-2 no-underline hover:text-accent hover:underline">
+                {/* 24 px de alvo (40 no celular): os links tinham 17–20 px (auditoria 28/10, nº 60). */}
+                <Link href={`/projetos/${u.id}`} className="inline-flex min-h-6 min-w-0 items-center text-ink-2 no-underline hover:text-accent hover:underline max-md:min-h-10">
                   {u.nome}
                 </Link>
                 <span className="numero shrink-0 text-ink-3">

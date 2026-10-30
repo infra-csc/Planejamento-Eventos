@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireUsuario } from "@/server/auth/session";
 import { adicionarAnexoPeca, alterarAtivoPeca, criarPeca, editarPeca, impactoInativacaoPeca, removerAnexoPeca } from "@/server/services/catalogo";
 import { pecaSchema } from "@/lib/schemas";
@@ -9,16 +8,19 @@ import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
 import { hrefPeca, voltaDaBiblioteca } from "@/lib/url";
 
-export async function salvarPecaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+/** Cria ou salva a peça e devolve para onde ir com a mensagem: a tela mostra o toast e navega (parte C N19). */
+export async function salvarPecaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult<{ destino: string }>> {
   const usuario = await requireUsuario();
   const id = String(formData.get("id") ?? "") || null;
   // Volta para a lista do jeito que a pessoa deixou (setor, busca, página).
   const volta = voltaDaBiblioteca(String(formData.get("$volta") ?? ""));
-  let novaId: string | null = null;
+  let nova: { id: string; codigo: string } | null = null;
+  let codigo = "";
   try {
     const dados = parseForm(pecaSchema, formData);
+    codigo = dados.codigo;
     if (id) await editarPeca(usuario, id, dados);
-    else novaId = (await criarPeca(usuario, dados)).id;
+    else nova = await criarPeca(usuario, dados);
   } catch (e) {
     return tratarErro(e);
   }
@@ -27,7 +29,11 @@ export async function salvarPecaAction(_prev: ActionResult, formData: FormData):
   // Catálogo em cache (listas de peças e opções dos formulários): expira já.
   invalidarDados(TAGS_DADOS.catalogo);
   // Peça nova vai para a própria página, já no ponto de incluir fotos e anexos (levando a volta junto).
-  redirect(novaId ? `${hrefPeca(`/catalogo/${novaId}/editar`, volta)}&nova=1#fotos` : volta);
+  return {
+    ok: true,
+    mensagem: nova ? `Peça ${nova.codigo} cadastrada` : `Peça ${codigo} salva`,
+    dados: { destino: nova ? `${hrefPeca(`/catalogo/${nova.id}/editar`, volta)}&nova=1#fotos` : volta },
+  };
 }
 
 export async function alterarAtivoPecaAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

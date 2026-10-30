@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requirePermissao } from "@/server/auth/session";
-import { listarGruposProjetos, listarProjetos, obterProjeto } from "@/server/services/projetos";
+import { listarGruposProjetos, listarProjetos, obterProjeto, usoProjetosPorEvento } from "@/server/services/projetos";
 import { listarPecas } from "@/server/services/catalogo";
 import { NaoEncontradoError } from "@/domain/errors";
 import { PageHeader } from "@/components/ui/layout";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Editar projeto" };
 export default async function EditarProjetoPage({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await requirePermissao("projeto.gerenciar");
   const { id } = await params;
-  const [p, pecas, projetos, grupos] = await Promise.all([
+  const [p, pecas, projetos, grupos, uso] = await Promise.all([
     obterProjeto(usuario, id).catch((e) => {
       if (e instanceof NaoEncontradoError) notFound();
       throw e;
@@ -22,6 +22,7 @@ export default async function EditarProjetoPage({ params }: { params: Promise<{ 
     listarPecas(usuario),
     listarProjetos(usuario),
     listarGruposProjetos(usuario),
+    usoProjetosPorEvento(),
   ]);
   const categorias = [...new Set(projetos.map((x) => x.categoria).filter(Boolean))];
   return (
@@ -45,6 +46,7 @@ export default async function EditarProjetoPage({ params }: { params: Promise<{ 
         categorias={categorias}
         grupos={grupos}
         cancelarHref={`/projetos/${p.id}`}
+        usos={(uso.get(p.id)?.eventos ?? []).map((e) => ({ codigo: e.codigo, status: e.status }))}
       />
     </div>
   );

@@ -345,6 +345,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                           anexos={detalhe.anexos.map((a) => ({ id: a.id, tipo: a.tipo, nomeArquivo: a.nomeArquivo, tamanho: a.tamanho }))}
                           categorias={[...new Set(projetos.map((x) => x.categoria).filter(Boolean))]}
                           grupos={gruposProjeto}
+                          usos={(uso.get(detalhe.id)?.eventos ?? []).map((e) => ({ codigo: e.codigo, status: e.status }))}
                         />
                       )}
                       {pode(usuario, "projeto.gerenciar") && (

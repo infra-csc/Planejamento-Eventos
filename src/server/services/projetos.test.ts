@@ -8,8 +8,8 @@ process.env.PGLITE_DATA_DIR = "memory://";
 delete process.env.DATABASE_URL;
 
 import { ValidacaoError } from "@/domain/errors";
-import { criarPeca, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
-import { alterarAtivoProjeto, criarProjeto, editarProjeto, excluirGrupoProjeto, listarGruposComUso, listarGruposProjetos, listarProjetos, obterProjeto } from "./projetos";
+import { criarPeca, migrarBanco, montarElenco, pngMinimo, type Elenco } from "@/test/apoio";
+import { alterarAtivoProjeto, anexarArquivo, criarProjeto, editarProjeto, excluirGrupoProjeto, listarGruposComUso, listarGruposProjetos, listarProjetos, obterProjeto } from "./projetos";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { pecas } from "@/server/db/schema";
@@ -143,5 +143,15 @@ describe("peça inativa (auditoria 30/10, parte C N8)", () => {
     // Trocando a peça, o projeto volta a salvar e pode ser reativado.
     await editarProjeto(E.cenografia, p.id, dados("Projeto com peça que sai"));
     await expect(alterarAtivoProjeto(E.cenografia, p.id, true)).resolves.toBeUndefined();
+  });
+});
+
+describe("anexos do projeto (auditoria 30/10, parte C N14)", () => {
+  it("JPEG corrompido é recusado como na peça; foto que abre entra", async () => {
+    const p = await criarProjeto(E.cenografia, dados("Projeto com anexo corrompido"));
+    const corrompido = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(64).fill(7)]);
+    await expect(anexarArquivo(E.cenografia, p.id, new File([corrompido], "quebrada.jpg", { type: "image/jpeg" }))).rejects.toThrow(/Não foi possível ler a imagem “quebrada.jpg”/);
+    const png = await pngMinimo();
+    await expect(anexarArquivo(E.cenografia, p.id, new File([new Uint8Array(png)], "boa.png", { type: "image/png" }))).resolves.toMatchObject({ id: expect.any(String) });
   });
 });

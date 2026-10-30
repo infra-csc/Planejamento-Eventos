@@ -8,7 +8,7 @@ import { FormError } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/layout";
 import { pecasParaProjetoAction } from "@/app/(app)/biblioteca/actions";
 import { ProjetoForm, type PecaOpcao } from "./projeto-form";
-import { AnexosManager } from "./anexos-manager";
+import { AnexosProjeto } from "./anexos-projeto";
 import type { GrupoProjetoOpcao } from "./grupo-projeto-field";
 
 type Anexo = { id: string; tipo: "IMAGEM" | "PDF"; nomeArquivo: string; tamanho: number };
@@ -23,11 +23,14 @@ export function EditarProjetoModal({
   anexos,
   categorias,
   grupos = [],
+  usos = [],
 }: {
   projeto: { id: string; nome: string; categoria: string; descricao: string | null; grupoEvento?: string | null; versaoAtual: number; disponivelEmSolicitacoes: boolean; itens: Array<{ pecaId: string; quantidade: number; codigo?: string; nome?: string }> };
   anexos: Anexo[];
   categorias?: string[];
   grupos?: GrupoProjetoOpcao[];
+  /** Eventos que usam o projeto: o formulário diz quais a versão nova muda e confirma se sai OS nova. */
+  usos?: Array<{ codigo: string; status: string }>;
 }) {
   const [aberto, setAberto] = useState(false);
   const [pecas, setPecas] = useState<PecaOpcao[] | null>(null);
@@ -55,7 +58,7 @@ export function EditarProjetoModal({
 
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
-      <Button variant="link" size="sm" onClick={() => abrir(true)}>
+      <Button variant="link" size="sm" aria-haspopup="dialog" className="max-md:min-h-10" onClick={() => abrir(true)}>
         Editar
       </Button>
       {aberto && (
@@ -64,13 +67,13 @@ export function EditarProjetoModal({
             <section aria-label="Fotos e desenhos" className="overflow-hidden rounded-cartao border border-line bg-surface">
               <div className="border-b border-line-soft px-cartao py-3">
                 <h3 className="m-0 text-corpo font-semibold">Fotos e desenhos</h3>
-                <p className="mt-0.5 text-pequeno text-muted">Clique para ampliar. Render, modulação ou PDF técnico, até 8 MB.</p>
+                <p className="mt-0.5 text-pequeno text-muted">Clique para ampliar. Render, modulação ou PDF técnico.</p>
               </div>
-              <AnexosManager projetoId={projeto.id} anexos={anexos} podeGerenciar />
+              <AnexosProjeto projetoId={projeto.id} anexos={anexos} podeGerenciar />
             </section>
             <div>
               {pecas ? (
-                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} grupos={grupos} cancelarHref={aqui} onCancelar={() => setAberto(false)} voltarPara={aqui} />
+                <ProjetoForm valores={projeto} pecas={pecas} categorias={categorias} grupos={grupos} cancelarHref={aqui} onCancelar={() => setAberto(false)} voltarPara={aqui} usos={usos} onSalvo={() => setAberto(false)} />
               ) : erro ? (
                 <FormError message={erro} />
               ) : (
