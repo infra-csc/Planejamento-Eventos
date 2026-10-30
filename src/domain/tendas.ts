@@ -109,8 +109,8 @@ type DescricoesTenda = { descricoes?: string[]; semDescricao?: boolean };
 export type LocalTenda = { local: string; quantidade: number; totais: Partial<Record<PapelTenda, number>> } & DescricoesTenda;
 
 /**
- * Locais e quantidades de tendas mais comuns nas OS. Fechamentos e calhas começam zerados:
- * quem pede informa explicitamente os acessórios necessários. Linha com 0 tendas não vira item.
+ * Locais e quantidades de tendas mais comuns nas OS. O quadro abre com estes locais e 0 tendas (a quantidade comum
+ * aparece ao lado, como referência); fechamentos e calhas também começam zerados. Linha com 0 tendas não vira item.
  */
 export const LOCAIS_PADRAO_TENDA: Readonly<Record<string, readonly LocalTenda[]>> = {
   "5×5": [
@@ -135,9 +135,19 @@ export const LOCAIS_SUGERIDOS_TENDA: Readonly<Record<string, readonly string[]>>
   "3×3": ["Lixo", "Limpeza/carregadores", "Apoio", "Cronometragem", "Palco", "Médica", "Painel de LED", "Som palco", "House mix", "Área de descanso", "Video wall", "Equipe de filmagem", "Reciclagem", "Hidratação", "Segurança", "Estacionamento", "Food truck"],
 };
 
+/**
+ * Linhas com que o quadro abre: os locais comuns, todos com 0 tendas. Antes vinham com a quantidade comum já
+ * preenchida (8 tendas na 5×5) e quem só ajustava um local pedia tenda a mais nos outros (auditoria de usabilidade 28/10).
+ */
 export function locaisIniciaisTenda(tamanho: string): LocalTenda[] {
-  const linhas = (LOCAIS_PADRAO_TENDA[tamanho] ?? []).map((l) => ({ ...l, totais: { ...l.totais } }));
+  const linhas = (LOCAIS_PADRAO_TENDA[tamanho] ?? []).map((l) => ({ ...l, quantidade: 0, totais: { ...l.totais } }));
   return linhas.length ? linhas : [novoLocalTenda()];
+}
+
+/** Quantas tendas o local costuma ter nas OS (referência ao lado do campo), ou 0. */
+export function quantidadeComumTenda(tamanho: string, local: string): number {
+  const alvo = local.trim().toLocaleLowerCase("pt-BR");
+  return (LOCAIS_PADRAO_TENDA[tamanho] ?? []).find((l) => l.local.toLocaleLowerCase("pt-BR") === alvo)?.quantidade ?? 0;
 }
 
 export function novoLocalTenda(): LocalTenda {

@@ -62,8 +62,9 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   // Tenda: o pedido guarda fechamentos e calhas como ajuste POR TENDA sobre a lista padrão da versão (a 5×5 v3
   // já traz 1 calha). A tela mostra o resultado — "Depósito · 1 tenda · 4 fechamentos · sem calha" — e não
   // "Peças ajustadas: +4 Fechamento lateral · −1 Calha de lona", que ninguém entendia.
-  const ehTendaItem = (i: (typeof s.itens)[number]) => Boolean((i.projeto?.nome ?? i.eventoItem?.projeto?.nome)?.trim().match(/^tendas?(?:\s|\d)/i));
-  const padraoTendas = await padraoTendaPorVersao([...new Set(s.itens.filter(ehTendaItem).map((i) => i.projetoVersaoId).filter((v): v is string => Boolean(v)))]);
+  // Tenda pelas peças da versão (kitDaTenda), como na conferência e no quadro: "Kit tenda 5×5" também é tenda.
+  const padraoTendas = await padraoTendaPorVersao([...new Set(s.itens.map((i) => i.projetoVersaoId).filter((v): v is string => Boolean(v)))]);
+  const ehTendaItem = (i: (typeof s.itens)[number]) => Boolean(padraoTendas.get(i.projetoVersaoId ?? "")?.ehTenda);
   const porTenda = (i: (typeof s.itens)[number], sufixo: "-FECH" | "-CALHA") => {
     const padrao = padraoTendas.get(i.projetoVersaoId ?? "");
     const base = sufixo === "-FECH" ? (padrao?.fechamentos ?? 0) : (padrao?.calhas ?? 0);

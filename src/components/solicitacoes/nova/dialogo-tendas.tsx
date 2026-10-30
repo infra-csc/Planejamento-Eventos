@@ -80,7 +80,7 @@ export function DialogoTendas({
           description={
             iniciais
               ? "Uma linha por local. Zere o local que não vai."
-              : "Os locais mais comuns das OS já vêm preenchidos. Zere o que não vai."
+              : "Os locais mais comuns das OS já estão na lista. Informe quantas tendas vão em cada um."
           }
           width={760}
         >

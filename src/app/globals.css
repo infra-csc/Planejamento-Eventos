@@ -227,6 +227,15 @@
      */
     scroll-padding-top: var(--altura-cabecalho);
   }
+  /*
+   * Celular: os formulários (projeto, peça, nova solicitação, evento) têm uma barra fixa no rodapé. O campo focado por
+   * Tab ou pelo teclado virtual parava atrás dela (WCAG 2.4.11, auditoria 28/10): a rolagem deixa a altura da barra livre.
+   */
+  @media (max-width: 1023px) {
+    html {
+      scroll-padding-bottom: 6rem;
+    }
+  }
 
   :target {
     scroll-margin-top: var(--folga-ancora);

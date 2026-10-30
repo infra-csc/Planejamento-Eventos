@@ -10,7 +10,7 @@ import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
 import { Stepper } from "@/components/ui/stepper";
 import { ajustarDescricoes, descricoesEsperadas } from "@/domain/descricoes-itens";
-import { itensDoQuadro, PAPEIS_POR_LOCAL, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, novoLocalTenda, padraoPorTenda, papeisDoKit, previaTendas, totalDoLocal, type KitTenda, type LocalTenda, type PapelTenda } from "@/domain/tendas";
+import { itensDoQuadro, PAPEIS_POR_LOCAL, LOCAIS_PADRAO_TENDA, LOCAIS_SUGERIDOS_TENDA, locaisIniciaisTenda, novoLocalTenda, padraoPorTenda, papeisDoKit, previaTendas, quantidadeComumTenda, totalDoLocal, type KitTenda, type LocalTenda, type PapelTenda } from "@/domain/tendas";
 import { DescricoesItem } from "./nova/descricoes-item";
 
 export type ItemTenda = { quantidade: number; destino: string; ajustes: Record<string, number>; descricoes: string[]; semDescricao?: boolean; locais: string[] };
@@ -19,8 +19,8 @@ type Linha = { pecaId: string; codigo: string; quantidade: number };
 /**
  * Quadro "Tendas 5×5 por local", no formato da planilha da cenografia: uma linha por local com a
  * quantidade de tendas e o total de cada peça do kit naquele local (fechamentos, cantoneiras,
- * travessas, pés, mastros, cabos, calhas). Abre com os locais que aparecem em quase toda OS já com
- * as quantidades mais comuns; as colunas de peça seguem o padrão × tendas até alguém digitar outro
+ * travessas, pés, mastros, cabos, calhas). Abre com os locais que aparecem em quase toda OS, com 0 tendas
+ * e a quantidade comum ao lado como referência; as colunas de peça seguem o padrão × tendas até alguém digitar outro
  * número (a célula fica marcada). Linha com 0 tendas é ignorada. Ao confirmar, vira um item por
  * local (projeto da tenda, destino = local, diferença do padrão como ajuste por unidade). Se o
  * total do local não divide igual entre as tendas, o local vira 2 ou 3 itens com a divisão
@@ -153,6 +153,9 @@ export function QuadroTendas({
                   <td className="px-1.5 py-1.5 max-sm:order-3 max-sm:p-0">
                     <span className="mb-1 block text-rotulo text-muted sm:hidden">Tendas</span>
                     <Stepper tamanho="sm" valor={l.quantidade} min={0} onChange={(v) => mudar(n, { quantidade: v })} label={`Tendas em ${nomeLinha}`} />
+                    {l.quantidade === 0 && quantidadeComumTenda(kit.tamanho, l.local) > 0 && (
+                      <span className="mt-0.5 block text-center text-rotulo text-ink-3 max-sm:text-left">comum: {quantidadeComumTenda(kit.tamanho, l.local)}</span>
+                    )}
                   </td>
                   {papeis.map((p) => {
                     const total = totalDoLocal(kit, bom, l, p.papel);

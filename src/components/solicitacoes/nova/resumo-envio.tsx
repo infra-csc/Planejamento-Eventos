@@ -257,7 +257,7 @@ export function BarraEnvioMovel({
           <p className="m-0 text-corpo font-medium text-ink">
             <Numero valor={n} /> {n === 1 ? "item" : "itens"}
           </p>
-          <p className={cn("m-0 truncate text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : estadoSalvo?.tipo === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
+          <p className={cn("m-0 line-clamp-2 text-pequeno", pendencias.length && tentouEnviar ? "text-danger" : estadoSalvo?.tipo === "erro" ? "text-danger" : "text-muted")} aria-live="polite">
             {pendencias.length ? `Falta: ${pendencias[0].texto.toLowerCase()}` : edicaoEnviada ? "Pronto para salvar" : estado ? `Pronto para enviar · ${estado.toLowerCase()}` : "Pronto para enviar"}
           </p>
         </div>

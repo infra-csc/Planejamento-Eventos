@@ -344,9 +344,8 @@ export function BuscaCatalogo({
                         (r.capaId ? (
                           <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line max-sm:hidden" />
                         ) : (
-                          <span aria-hidden className="grid h-10 w-14 shrink-0 place-items-center rounded-controle bg-subtle text-meta max-sm:hidden">
-                            <Icone nome="camadas" className="size-4" />
-                          </span>
+                          // Sem foto: espaço vazio (para alinhar), sem a caixa cinza com ícone em quase toda linha, como na Biblioteca.
+                          <span aria-hidden className="h-10 w-14 shrink-0 max-sm:hidden" />
                         ))}
                       <div className="min-w-0 flex-1 basis-48">
                         <p className="m-0 flex min-w-0 items-baseline gap-2">

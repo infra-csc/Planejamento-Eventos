@@ -7,6 +7,7 @@ import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { areasDoUsuario, pode, podeVerSolicitacao } from "@/domain/permissions";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { kitDaTenda } from "@/domain/tendas";
 import { escopoRascunhos } from "./escopo";
 
 /* ------------------------------------------------------------------ */
@@ -433,8 +434,8 @@ export async function mudancasPosAta(eventoId: string): Promise<MudancaPosAta[]>
  * Fechamentos e calhas que a lista padrão de cada versão de tenda já traz por tenda (a 5×5 v3 traz 1 calha):
  * o total do local é (padrão + ajuste do pedido) × tendas — "−1 calha" sozinho não dizia nada.
  */
-export async function padraoTendaPorVersao(versaoIds: string[]): Promise<Map<string, { fechamentos: number; calhas: number; temCalha: boolean }>> {
-  const mapa = new Map<string, { fechamentos: number; calhas: number; temCalha: boolean }>();
+export async function padraoTendaPorVersao(versaoIds: string[]): Promise<Map<string, { fechamentos: number; calhas: number; temCalha: boolean; ehTenda: boolean }>> {
+  const mapa = new Map<string, { fechamentos: number; calhas: number; temCalha: boolean; ehTenda: boolean }>();
   if (!versaoIds.length) return mapa;
   const db = await getDb();
   const rows = await db
@@ -445,7 +446,9 @@ export async function padraoTendaPorVersao(versaoIds: string[]): Promise<Map<str
   for (const id of versaoIds) {
     const doProjeto = rows.filter((r) => r.versaoId === id);
     const soma = (sufixo: string) => doProjeto.filter((r) => r.codigo.endsWith(sufixo)).reduce((t, r) => t + r.quantidade, 0);
-    mapa.set(id, { fechamentos: soma("-FECH"), calhas: soma("-CALHA"), temCalha: doProjeto.some((r) => r.codigo.endsWith("-CALHA") || r.codigo.startsWith("TND5-")) });
+    // "É tenda" e "tem calha" pelo kit das peças, como no resto do app (antes: pelo nome do projeto e pelo prefixo TND5-).
+    const kit = kitDaTenda(doProjeto.map((r) => r.codigo));
+    mapa.set(id, { fechamentos: soma("-FECH"), calhas: soma("-CALHA"), temCalha: Boolean(kit?.pecas.calha), ehTenda: Boolean(kit) });
   }
   return mapa;
 }

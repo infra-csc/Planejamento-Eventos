@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distribuirTendasDoLocal, dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, totalDoLocal } from "./tendas";
+import { distribuirTendasDoLocal, dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, quantidadeComumTenda, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -100,19 +100,23 @@ describe("itensDoQuadro", () => {
     ]);
   });
 
-  it("o quadro abre com os locais padrão e acessórios zerados", () => {
+  it("o quadro abre com os locais padrão, sem tendas e com acessórios zerados", () => {
     const locais = locaisIniciaisTenda("5×5");
     expect(locais.map((l) => l.local)).toEqual(["Depósito", "GV", "Dispersão", "Médica", "Extra"]);
+    // Nenhuma tenda pedida sem a pessoa digitar: a quantidade comum fica só como referência.
+    expect(locais.every((l) => l.quantidade === 0)).toBe(true);
+    expect(quantidadeComumTenda("5×5", "gv")).toBe(3);
+    expect(quantidadeComumTenda("5×5", "Lixo")).toBe(0);
     const t = Object.fromEntries(previaTendas(kit, bom5, locais).map((x) => [x.papel, x.total]));
     expect(t.fechamento).toBe(0);
     expect(t.calha).toBe(0);
-    expect(t.cantoneira).toBe(32);
+    expect(t.cantoneira).toBe(0);
     expect(locaisIniciaisTenda("9×9")).toEqual([{ local: "", quantidade: 0, totais: { fechamento: 0, calha: 0 } }]);
   });
 
   it("novos locais e mudanças na quantidade não acrescentam acessórios do BOM", () => {
     const bomComAcessorios = [...bom5, { codigo: "TND5-FECH", quantidade: 4 }, { codigo: "TND5-CALHA", quantidade: 1 }];
-    for (const local of [...locaisIniciaisTenda("5×5"), { ...novoLocalTenda(), quantidade: 3 }]) {
+    for (const local of [...locaisIniciaisTenda("5×5").map((l) => ({ ...l, quantidade: 2 })), { ...novoLocalTenda(), quantidade: 3 }]) {
       expect(totalDoLocal(kit, bomComAcessorios, local, "fechamento")).toBe(0);
       expect(totalDoLocal(kit, bomComAcessorios, local, "calha")).toBe(0);
       const itens = itensDoQuadro(kit, bomComAcessorios, [local]);
