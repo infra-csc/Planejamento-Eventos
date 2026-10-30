@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { ButtonLink } from "@/components/ui/button";
+import { BotaoVoltar } from "@/components/ui/botao-voltar";
 import { Icone } from "@/components/ui/icons";
 
-export const metadata: Metadata = { title: "Página não encontrada" };
+export const metadata: Metadata = { title: "Não encontrado" };
 
 /**
  * 404 fora do shell (endereço que não é de nenhuma rota): tela cheia, curta, com a marca.
@@ -25,11 +26,15 @@ export default async function NotFound() {
         <p className="m-0 mb-1 text-pequeno text-muted">
           Erro <span className="numero">404</span>
         </p>
-        <h1 className="m-0 text-pagina font-semibold tracking-[-0.02em] text-ink">Página não encontrada</h1>
-        <p className="m-0 mt-2 text-corpo text-ink-2">O endereço pode estar errado ou o registro foi excluído.</p>
-        <ButtonLink href="/" variant="primary" size="lg" className="mt-6 no-underline">
-          Ir para o painel
-        </ButtonLink>
+        {/* Mesmo título, tamanho e texto do 404 de dentro do app (eram dois desenhos; auditoria 28/10, nº 58). */}
+        <h1 className="m-0 text-titulo font-semibold tracking-[-0.01em] text-ink">Não encontrado</h1>
+        <p className="m-0 mt-1.5 text-corpo text-ink-2">Esta página ou registro não existe, foi excluído ou o endereço está incompleto.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <ButtonLink href="/" variant="primary" size="lg" className="no-underline">
+            Ir para o painel
+          </ButtonLink>
+          <BotaoVoltar />
+        </div>
       </div>
     </main>
   );
