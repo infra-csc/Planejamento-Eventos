@@ -9,7 +9,7 @@ import { INICIO_RETORNOS, podeGerenciarEstoque, problemaConclusao, problemaRetor
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo } from "./projetos";
 import { diaBrasilia, registrarHistorico } from "./support";
-import { saidasPelaOs, situacaoDoEstoque } from "./ativacao-situacao";
+import { saidasPelaOs, situacaoCompletaDoEstoque, situacaoDoEstoque } from "./ativacao-situacao";
 
 export { capasDosItens, situacaoDoEstoque, type SaidaItem } from "./ativacao-situacao";
 
@@ -176,7 +176,7 @@ export async function abrirReforma(usuario: UsuarioAtual, dados: { itemId: strin
     if (!item) throw new NaoEncontradoError("Item do estoque");
     // "Em posse" inclui o que saiu com a OS e ainda não voltou: só o que está no galpão vai para reforma. Antes
     // dava para mandar as unidades de um evento em andamento, e o retorno delas falhava (auditoria 30/10, parte C N6).
-    const emEvento = (await situacaoDoEstoque(tx)).emEvento.get(item.id) ?? 0;
+    const emEvento = (await situacaoDoEstoque(tx, item.id)).emEvento.get(item.id) ?? 0;
     const noGalpao = Math.max(0, item.quantidade - emEvento);
     if (dados.quantidade > noGalpao) {
       const detalhe = emEvento ? ` (${emEvento} de ${item.quantidade} estão fora em evento)` : "";
@@ -247,9 +247,11 @@ export async function obterItemAtivacao(usuario: UsuarioAtual, itemId: string) {
   const db = await getDb();
   const item = await db.query.estoqueItens.findFirst({ where: eq(estoqueItens.id, itemId), with: { peca: { columns: { id: true, codigo: true, nome: true } } } });
   if (!item) throw new NaoEncontradoError("Item do estoque");
-  const hoje = diaBrasilia();
-  const [saidas, retornos, reformas, anexos, hist, sit] = await Promise.all([
-    saidasPelaOs(db, { itemId }),
+  // Situação e eventos só deste item, com a mesma conta da lista do estoque: antes calculava o estoque inteiro e lia
+  // as saídas de novo (auditoria 28/10, nº 45). Os eventos incluem o pedido com a ata aberta, que a aba "Em eventos"
+  // da lista já contava e a página não mostrava (auditoria 30/10, parte C N25).
+  const [sit, retornos, reformas, anexos, hist] = await Promise.all([
+    situacaoCompletaDoEstoque(db, itemId),
     db.query.estoqueRetornos.findMany({ where: eq(estoqueRetornos.itemId, itemId), with: { evento: { columns: { id: true, codigo: true, nome: true } }, registradoPor: { columns: { nome: true } } }, orderBy: [desc(estoqueRetornos.atualizadoEm)] }),
     db.query.estoqueReformas.findMany({ where: eq(estoqueReformas.itemId, itemId), with: { evento: { columns: { id: true, codigo: true, nome: true } } }, orderBy: [desc(estoqueReformas.criadoEm)] }),
     db.select({ id: estoqueAnexos.id, tipo: estoqueAnexos.tipo, nomeArquivo: estoqueAnexos.nomeArquivo, tamanho: estoqueAnexos.tamanho, reformaId: estoqueAnexos.reformaId }).from(estoqueAnexos).where(eq(estoqueAnexos.itemId, itemId)).orderBy(asc(estoqueAnexos.criadoEm)),
@@ -260,12 +262,13 @@ export async function obterItemAtivacao(usuario: UsuarioAtual, itemId: string) {
       .where(and(eq(historico.entidade, "estoque_item"), eq(historico.entidadeId, itemId)))
       .orderBy(desc(historico.criadoEm))
       .limit(30),
-    situacaoDoEstoque(db),
   ]);
-  const voltou = new Set(retornos.map((r) => r.eventoId));
-  const eventosDoItem = saidas
-    .map((s) => ({ evento: s.evento, levou: s.itens[0]?.levou ?? 0, retornou: voltou.has(s.evento.id), saiu: s.evento.dataMontagem <= hoje }))
-    .filter((e) => !e.retornou);
+  const eventosDoItem = (sit.eventos.get(itemId) ?? []).map((e) => ({
+    evento: { id: e.eventoId, codigo: e.codigo, nome: e.nome, dataMontagem: e.dataMontagem, dataDesmontagem: e.dataDesmontagem },
+    levou: e.quantidade,
+    situacao: e.situacao,
+    saiu: e.situacao === "fora",
+  }));
   return {
     item: { id: item.id, nome: item.nome, categoria: item.categoria, quantidade: item.quantidade, comprar: item.comprar, observacao: item.observacao, ativo: item.ativo, peca: item.peca, pecaId: item.pecaId },
     situacao: { ...situacaoItem(item.quantidade, sit.emEvento.get(itemId) ?? 0, sit.emReforma.get(itemId) ?? 0), reservado: sit.reservado.get(itemId) ?? 0 },

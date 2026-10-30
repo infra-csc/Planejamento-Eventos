@@ -12,7 +12,7 @@ import { getDb } from "@/server/db";
 import { areas, estoqueItens, estoqueReformas, eventos, pecas } from "@/server/db/schema";
 import { DomainError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { problemaConclusao, problemaRetorno, semDestinoNoRetorno, situacaoItem } from "@/domain/estoque";
-import { criarUsuario, dia, eventoAberto, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
+import { criarUsuario, dia, eventoAberto, incluirPeca, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { abrirReforma, concluirReforma, listarReformas, listarRetornos, obterItemAtivacao, pedidosDoItem, registrarRetorno } from "./ativacao";
 import { estoqueParaSolicitacao, listarEstoque, salvarItemEstoque } from "./estoque";
@@ -142,6 +142,17 @@ describe("módulo Ativação", { timeout: 60_000 }, () => {
     await registrarRetorno(ativacao, fora.evento.id, [{ itemId, voltaram: 1, reforma: 3, perdidos: 1, observacao: "5 ficaram com o cliente" }]);
     const d = await obterItemAtivacao(ativacao, itemId);
     expect(d.historico[0].descricao).toMatch(/1 voltou, 3 para reforma, 1 perdido, 5 sem destino \(contam como no galpão\)/);
+  });
+
+  it("a página do item mostra o pedido com a ata aberta, como a lista, sem mexer nos números (auditoria 30/10, parte C N25)", async () => {
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pecaId, 3, null);
+    const naLista = (await listarEstoque(ativacao)).find((i) => i.id === itemId)!;
+    const d = await obterItemAtivacao(ativacao, itemId);
+    // Mesmos eventos e mesma conta nos dois lugares; o pedido não tira do estoque.
+    expect(d.eventos.map((e) => [e.evento.id, e.situacao, e.levou])).toEqual(naLista.eventos.map((e) => [e.eventoId, e.situacao, e.quantidade]));
+    expect(d.eventos.find((e) => e.evento.id === ev.id)).toMatchObject({ situacao: "pedido", levou: 3, saiu: false });
+    expect(d.situacao).toMatchObject({ emEvento: naLista.emEvento, reservado: naLista.reservado, emReforma: naLista.emReforma });
   });
 
   it("uma peça, um item; só a Ativação e o admin usam o módulo", async () => {
