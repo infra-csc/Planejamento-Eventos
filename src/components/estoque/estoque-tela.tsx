@@ -126,12 +126,12 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
           <div className="overflow-x-auto">
             {/* Celular: item, quantidade e editar cabem em 375 px (sem data-responsiva a tabela ganhava 640 px e o
                 stepper, que é a ação da tela, ficava fora da vista, só rolando a tabela de lado). */}
-            <table data-responsiva className="w-full border-collapse max-sm:[overflow-wrap:anywhere] sm:min-w-[640px] xl:min-w-[820px]">
+            <table data-responsiva className="w-full border-collapse max-sm:table-fixed max-sm:[overflow-wrap:anywhere] sm:min-w-[640px] xl:min-w-[820px]">
               <thead>
                 <tr className="bg-subtle text-left text-micro font-semibold uppercase tracking-[0.06em] text-muted">
                   <th className="px-3 py-2.5 pl-cartao">Item</th>
                   <th className="hidden px-3 py-2.5 md:table-cell">Categoria</th>
-                  <th className="px-3 py-2.5 text-center max-sm:px-1" title="Em bom estado, no galpão ou em evento">Em posse</th>
+                  <th className="px-3 py-2.5 text-center max-sm:w-[134px] max-sm:px-1" title="Em bom estado, no galpão ou em evento">Em posse</th>
                   <th className="hidden px-3 py-2.5 text-right xl:table-cell" title="Saiu com a OS e ainda não voltou (entre parênteses, reservado para eventos que ainda vão montar)">Em evento</th>
                   <th className="hidden px-3 py-2.5 text-right xl:table-cell">Em reforma</th>
                   <th className="hidden px-3 py-2.5 text-right sm:table-cell" title="Em posse menos o que está fora em evento">Disponível</th>
@@ -262,7 +262,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
       <td className={cn("numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell", valor - item.emEvento <= 0 && "text-warning")}>{Math.max(0, valor - item.emEvento)}</td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno sm:table-cell">{item.comprar ? <span className="font-medium text-warning">{item.comprar}</span> : <span className="text-line-strong">—</span>}</td>
-      <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-1">
+      <td className="px-3 py-2.5 pr-cartao text-right align-middle max-sm:pl-0 max-sm:pr-2">
         {/* Só o lápis, como nas outras listas: "Editar" escrito em 244 linhas. */}
         <IconButton label={`Editar ${item.nome}`} onClick={onEditar}>
           <Icone nome="lapis" />
