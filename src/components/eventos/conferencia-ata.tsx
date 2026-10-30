@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { combinaBusca } from "@/lib/busca";
@@ -240,7 +241,7 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
       : qtd === 0
         ? "A linha sai da ata."
         : pedido != null && qtd < pedido
-          ? `A área vê "parcial: ${qtd} de ${pedido}"${motivo.trim() ? ", com o motivo" : ""}.`
+          ? `A área vê “parcial: ${qtd} de ${pedido}”${motivo.trim() ? ", com o motivo" : ""}.`
           : pedido != null && qtd === pedido
             ? "A área vê o pedido atendido integralmente."
             : `A ata passa a ter ${qtd}.`;
@@ -306,6 +307,8 @@ function AjusteModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId:
   );
 }
 
+const LIMITE_DESCRICAO = 300;
+
 /** Administrador corrige a descrição das unidades que veio do pedido: cada texto com quantas unidades levam ele. */
 function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; eventoId: string; onFechar: () => void }) {
   const total = l.quantidade > 0 ? l.quantidade : (l.origem?.quantidadeSolicitada ?? 1);
@@ -337,7 +340,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
           {grupos.map((g, n) => (
             <div key={n} className="grid grid-cols-[112px_minmax(0,1fr)_36px] items-center gap-2 motion-safe:animate-fade-up-rapido">
               <Stepper tamanho="sm" valor={g.unidades} min={1} onChange={(v) => mudar(n, { unidades: v })} label={`Unidades da descrição ${n + 1}`} />
-              <Input value={g.texto} maxLength={300} onChange={(e) => mudar(n, { texto: e.target.value })} placeholder="Ex.: PALCO, arte da marca, 2×1 m" aria-label={`Descrição ${n + 1}`} autoFocus={n === 0} />
+              <Input value={g.texto} maxLength={LIMITE_DESCRICAO} onChange={(e) => mudar(n, { texto: e.target.value })} placeholder="Ex.: PALCO, arte da marca, 2×1 m" aria-label={`Descrição ${n + 1}`} autoFocus={n === 0} />
               {grupos.length > 1 ? (
                 <IconButton label={`Tirar a descrição ${n + 1}`} onClick={() => setGrupos((gs) => gs.filter((_, i) => i !== n))}>
                   <Icone nome="lixeira" />
@@ -347,6 +350,16 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
               )}
             </div>
           ))}
+          {/* O campo corta em 300 caracteres: texto colado maior perdia o fim sem aviso (auditoria 30/10, B-24). */}
+          {grupos.some((g) => g.texto.length >= LIMITE_DESCRICAO - 20) && (
+            <p role="status" className={cn("m-0 text-pequeno", grupos.some((g) => g.texto.length >= LIMITE_DESCRICAO) ? "text-warning" : "text-muted")}>
+              {grupos
+                .map((g, n) => (g.texto.length >= LIMITE_DESCRICAO - 20 ? `Descrição ${n + 1}: ${g.texto.length}/${LIMITE_DESCRICAO}` : null))
+                .filter(Boolean)
+                .join(" · ")}
+              {grupos.some((g) => g.texto.length >= LIMITE_DESCRICAO) ? " — chegou ao limite; o que passar disso não entra." : " caracteres."}
+            </p>
+          )}
           <Button variant="ghost" size="sm" className="self-start" onClick={() => setGrupos((gs) => [...gs, { texto: "", unidades: 1 }])}>
             <Icone nome="mais" />
             Outra descrição
@@ -540,7 +553,8 @@ function Linha({
         {l.origem && l.origem.descricoes.length > 0 && <Descricoes grupos={l.origem.descricoes} />}
         {l.origem?.observacao && <ObservacaoLinha texto={l.origem.observacao} codigo={l.codigo} />}
         {dicas && (
-          <p title={dicas} className={cn("m-0 mt-1 line-clamp-2 text-rotulo", l.ultimoAjuste ? "text-warning" : "text-muted")}>
+          // Inteiro no celular: o motivo é uma frase e o title não existe no toque (auditoria 28/10, nº 127).
+          <p title={dicas} className={cn("m-0 mt-1 text-rotulo md:line-clamp-2", l.ultimoAjuste ? "text-warning" : "text-muted")}>
             {l.ultimoAjuste && <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />}
             {dicas}
           </p>
@@ -699,7 +713,7 @@ function LinhaJunta({
           </div>
         )}
         {ajustadas.map((l) => (
-          <p key={l.id} className="m-0 mt-0.5 line-clamp-2 text-rotulo text-warning">
+          <p key={l.id} className="m-0 mt-0.5 text-rotulo text-warning md:line-clamp-2">
             <Icone nome="lapis" className="mr-1 inline size-3 align-[-2px]" />
             Ajustado por {l.ultimoAjuste!.por}: {l.ultimoAjuste!.descricao}
           </p>
@@ -832,12 +846,31 @@ export function ConferenciaAta({
     enfileirar({ tipo: "um", id, v });
   };
 
-  const [filtro, setFiltro] = useState<Filtro>("todas");
-  const [area, setArea] = useState("");
-  const [pessoa, setPessoa] = useState("");
+  // Filtros na URL (situação, área, pessoa, material, busca): sobrevivem a recarregar e a voltar, como na lista de
+  // eventos (antes se perdiam; auditoria 30/10, B-23). Valor da URL que não existe na ata é ignorado mais abaixo.
+  const sp = useSearchParams();
+  const [filtro, setFiltro] = useState<Filtro>(() => {
+    const s = sp.get("situacao");
+    return s === "pendentes" || s === "conferidas" ? s : "todas";
+  });
+  const [area, setArea] = useState(() => sp.get("area") ?? "");
+  const [pessoa, setPessoa] = useState(() => sp.get("pessoa") ?? "");
   // Separação dos materiais como na lista da ata (Estrutura, Tendas, Ativação, Percurso, Arena).
-  const [grupo, setGrupo] = useState<GrupoMaterial | "">("");
-  const [busca, setBusca] = useState("");
+  const [grupo, setGrupo] = useState<GrupoMaterial | "">(() => (sp.get("material") ?? "") as GrupoMaterial | "");
+  const [busca, setBusca] = useState(() => sp.get("q") ?? "");
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const por = (k: string, v: string) => (v ? p.set(k, v) : p.delete(k));
+    por("situacao", filtro === "todas" ? "" : filtro);
+    por("area", area);
+    por("pessoa", pessoa);
+    por("material", grupo);
+    por("q", busca.trim());
+    const qs = p.toString();
+    const novo = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    // Sem navegação nem nova entrada no histórico: só a URL acompanha os filtros.
+    if (novo !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(window.history.state, "", `${novo}${window.location.hash}`);
+  }, [filtro, area, pessoa, grupo, busca]);
   const [ajustando, setAjustando] = useState<LinhaConferencia | null>(null);
   const [descrevendo, setDescrevendo] = useState<LinhaConferencia | null>(null);
   const editarDescricao = podeEditarDescricao ? setDescrevendo : undefined;
@@ -853,6 +886,9 @@ export function ConferenciaAta({
   const opcionais = linhas.length - obrigatorias.length;
   // Contagens dos filtros sobre a lista toda (com as opcionais): o número da pílula é o que a lista mostra.
   const nPendentesLista = linhas.filter((l) => !l.conferidoEm).length;
+  // "A conferir" na mesma base do "0 de 5 conferidas" e do "Conferir as 5 restantes"; as opcionais à parte ("5 +1"),
+  // em vez de "A conferir 6" (auditoria 28/10, nº 104).
+  const nOpcionaisPendentes = nPendentesLista - pendentes;
   const nConferidasLista = linhas.length - nPendentesLista;
   const areasNaAta = useMemo(() => [...new Set(linhas.map(areaDe))].sort((a, b) => a.localeCompare(b, "pt-BR")), [linhas]);
   const areaAtiva = area && areasNaAta.includes(area) ? area : "";
@@ -1127,7 +1163,13 @@ export function ConferenciaAta({
                 className="!flex-nowrap"
                 itens={[
                   { label: "Todas", n: linhas.length, ativo: filtro === "todas", onSelect: () => setFiltro("todas") },
-                  { label: "A conferir", n: nPendentesLista, ativo: filtro === "pendentes", onSelect: () => setFiltro("pendentes") },
+                  {
+                    label: "A conferir",
+                    n: nOpcionaisPendentes > 0 ? `${pendentes} +${nOpcionaisPendentes}` : pendentes,
+                    title: nOpcionaisPendentes > 0 ? `${pendentes} obrigatórias e ${nOpcionaisPendentes} ${nOpcionaisPendentes === 1 ? "opcional" : "opcionais"} (a definir ou estaiamento)` : undefined,
+                    ativo: filtro === "pendentes",
+                    onSelect: () => setFiltro("pendentes"),
+                  },
                   { label: "Conferidas", n: nConferidasLista, ativo: filtro === "conferidas", onSelect: () => setFiltro("conferidas") },
                 ]}
               />
@@ -1190,7 +1232,7 @@ export function ConferenciaAta({
         filtro === "pendentes" && !areaAtiva && !pessoaAtiva && !grupoAtivo && !busca.trim() ? (
           <EmptyState icone="check-circulo" title="Nada a conferir" description={presentesOk ? "Tudo conferido. Feche a ata no topo da página." : "Tudo conferido. Registre os presentes e feche a ata."} action={!presentesOk ? <Button variant="link" onClick={pedirRegistroDePresentes}>Registrar os presentes</Button> : undefined} />
         ) : (
-          <EmptyState icone="busca" title={busca.trim() ? `Nada encontrado para “${busca.trim()}”` : "Nenhuma linha com esses filtros"} description="Tente outra palavra ou tire um dos filtros." action={<Button variant="link" onClick={limparFiltros}>Limpar filtros</Button>} />
+          <EmptyState icone="busca" title={busca.trim() ? `Nada encontrado para “${busca.trim()}”` : "Nenhuma linha com estes filtros"} description="Tente outra palavra ou tire um dos filtros." action={<Button variant="link" onClick={limparFiltros}>Limpar filtros</Button>} />
         )
       ) : (
         <div ref={listaRef} onKeyDown={navegarComTeclado} className="@container">

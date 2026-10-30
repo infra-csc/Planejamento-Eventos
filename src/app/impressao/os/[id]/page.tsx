@@ -1,6 +1,8 @@
 import { osParaLeitura } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { NaoEncontradoError } from "@/domain/errors";
 import { obterEventoCache } from "@/server/cache";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
@@ -17,9 +19,10 @@ import { pecaDeEstruturaLocada } from "@/server/export/os-estrutura";
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const usuario = await requirePermissao("os.exportar");
   const [{ id }, { v }] = await Promise.all([params, searchParams]);
-  const ev = await obterEventoCache(usuario, id).catch(() => null);
-  // Vira o nome sugerido do PDF ao imprimir.
-  return { title: ev ? `OS ${ev.nome}${v ? ` v${v}` : ""}` : "OS" };
+  const [ev, versoes] = await Promise.all([obterEventoCache(usuario, id).catch(() => null), listarOsResumo(id).catch(() => [])]);
+  // Vira o nome sugerido do PDF ao imprimir: com o código e a versão, como a ata (auditoria 28/10, nº 184).
+  const versao = v ?? versoes[0]?.numero;
+  return { title: ev ? `OS ${ev.codigo}${versao ? ` v${versao}` : " prévia"} · ${ev.nome}` : "OS" };
 }
 
 /* Tipografia do design system, em tinta só (sem cores de tela): cabeçalho de tabela em caixa-alta pequena,
@@ -47,7 +50,16 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
   const { v } = await searchParams;
-  const [ev, versoes, mapa, separacao] = await Promise.all([obterEventoCache(usuario, id), listarOsResumo(id), mapaGruposPecas(), obterSeparacao(id)]);
+  // Evento que não existe: "Não encontrado", e não a tela de erro com código (auditoria 28/10, nº 55).
+  const [ev, versoes, mapa, separacao] = await Promise.all([
+    obterEventoCache(usuario, id).catch((e: unknown) => {
+      if (e instanceof NaoEncontradoError) notFound();
+      throw e;
+    }),
+    listarOsResumo(id),
+    mapaGruposPecas(),
+    obterSeparacao(id),
+  ]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
   // O prisma comum são 2 grades, já somadas na grade: não sai como item à parte.
   const os = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
@@ -65,7 +77,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   return (
     <div className="mx-auto max-w-4xl rounded-cartao border border-line bg-surface p-5 text-corpo text-ink sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Link href={`/eventos/${id}/os`} className="link inline-flex items-center gap-1 text-corpo">
+        <Link href={`/eventos/${id}/os`} className="link inline-flex items-center gap-1 text-corpo max-md:min-h-10">
           <Icone nome="seta-esquerda" />
           Voltar para a OS
         </Link>
@@ -107,27 +119,30 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
 
       {os.semSetor.length > 0 && (
         <section className="mb-8 break-inside-avoid">
-          <h3 className="mb-2 mt-0 text-destaque font-semibold">Materiais fora de catálogo</h3>
-          <Rolagem rotulo="Materiais fora de catálogo">
-            {/* Cinco colunas não cabem em 375 px: no celular esta rola de lado; as de peça cabem sem Obs. */}
-            <table className={`${tabela} min-w-[420px]`}>
+          {/* "Itens fora do catálogo", como na tela (nº 75), e as mesmas colunas das outras seções, com o local embaixo do item
+              como a nota das peças: antes as colunas ficavam em outra posição (auditoria 28/10, nº 121). */}
+          <h3 className="mb-2 mt-0 text-destaque font-semibold">Itens fora do catálogo</h3>
+          <Rolagem rotulo="Itens fora do catálogo">
+            <table className={tabela}>
+              <caption className="sr-only">Itens fora do catálogo: item, quantidade, separado e observação</caption>
               <thead>
                 <tr className={cabecalho}>
                   <th scope="col" className={th}>Item</th>
                   <th scope="col" className={`${th} w-28 text-right`}>Quantidade</th>
-                  <th scope="col" className={`${th} w-[24%]`}>Local · área</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">Sep.</th>
-                  <th scope="col" className={`${th} w-[26%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
+                  <th scope="col" className={`${th} w-[34%] pl-3 not-print:max-sm:hidden`}>Obs.</th>
                 </tr>
               </thead>
               <tbody>
                 {os.semSetor.map((a, i) => (
                   <tr key={i} className={linha}>
-                    <td className={td}>{a.descricao}</td>
+                    <td className={td}>
+                      {a.descricao}
+                      {(a.destino || a.area) && <span className="block text-rotulo text-ink-3">{[a.destino, a.area].filter(Boolean).join(" · ")}</span>}
+                    </td>
                     <td className={`${num} font-semibold`}>{fmt(a.quantidade)}</td>
-                    <td className={`${td} text-rotulo text-ink-3`}>{[a.destino, a.area].filter(Boolean).join(" · ") || "—"}</td>
                     <td className={sep}>☐</td>
-                    <td className={`${obs} !w-[26%]`} />
+                    <td className={obs} />
                   </tr>
                 ))}
               </tbody>
@@ -160,6 +175,7 @@ function TabelaSecao({ secao, sub = false }: { secao: SecaoFolha; sub?: boolean 
       {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 text-destaque font-semibold">{secao.titulo}</h3>}
       <Rolagem rotulo={secao.titulo}>
         <table className={tabela}>
+          <caption className="sr-only">{`${secao.titulo}: peça, quantidade, separado e observação`}</caption>
           <thead>
             <tr className={cabecalho}>
               <th scope="col" className={th}>Peça</th>

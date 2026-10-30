@@ -7,7 +7,7 @@ import type { Executor } from "../support";
 export function nomeLinha(l: { tipo: string; projeto?: { nome: string } | null; peca?: { codigo: string; nome: string } | null; descricaoLivre?: string | null }) {
   if (l.tipo === "PROJETO" && l.projeto) return l.projeto.nome;
   if (l.tipo === "PECA" && l.peca) return `${l.peca.codigo} · ${l.peca.nome}`;
-  return l.descricaoLivre ?? "Item avulso";
+  return l.descricaoLivre ?? "Item fora do catálogo";
 }
 
 export async function nomesUsuarios(ex: Executor, ids: Array<string | null | undefined>) {

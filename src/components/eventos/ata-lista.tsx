@@ -84,7 +84,8 @@ function CheckConferida({ l, eventoId }: { l: LinhaAtaView; eventoId: string }) 
       }}
       className={cn(
         "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors disabled:opacity-60",
-        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-strong bg-surface text-line-strong hover:border-success hover:text-success",
+        // Desmarcada com borda e check em contraste de 3:1 (antes line-strong, apagado; auditoria 28/10, nº 139).
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-ink-3 hover:border-success hover:text-success",
       )}
     >
       <Icone nome="check" />

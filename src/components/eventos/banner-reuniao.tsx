@@ -24,6 +24,7 @@ export function BannerReuniao({
   presentesOk,
   iniciadaEm,
   vazia = total === 0,
+  avisoAntecipada = null,
 }: {
   eventoId: string;
   codigo: string;
@@ -36,6 +37,8 @@ export function BannerReuniao({
   iniciadaEm: string | null;
   /** Nenhuma linha na ata (nem opcional): muda o texto do banner. */
   vazia?: boolean;
+  /** Reunião iniciada antes do dia marcado: a data e quantos dias faltam, no diálogo (auditoria 28/10, nº 31). */
+  avisoAntecipada?: string | null;
 }) {
   const router = useRouter();
   const [confirmar, setConfirmar] = useState<"INICIAR_REUNIAO" | "FECHAR_ATA" | null>(null);
@@ -51,7 +54,7 @@ export function BannerReuniao({
     : vazia
       ? "A ata está vazia. Inclua linhas decididas na reunião antes de fechar."
       : faltam > 0
-        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Falta conferir ${faltam} linhas`} da ata. Marque cada uma no check à esquerda da linha.`
+        ? `${faltam === 1 ? "Falta conferir 1 linha" : `Falta conferir ${faltam} linhas`} da ata. Marque cada uma na caixa à esquerda da linha.`
         : !presentesOk
           ? "Tudo conferido. Registre quem estava presente em “Dados da reunião” para fechar a ata."
           : "Tudo conferido e presentes registrados. Feche a ata para gerar a OS.";
@@ -71,7 +74,8 @@ export function BannerReuniao({
             {!completo &&
               (total > 0 && faltam <= 0 && !presentesOk ? (
                 // O único bloqueio é o campo de presentes: o aviso vira o atalho para ele.
-                <button id="fechar-ata-motivo" type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 text-rotulo font-medium text-accent-light underline-offset-2 hover:underline">
+                // Anel de foco claro sobre o banner escuro (o vinho ficava em 1,87:1; auditoria 28/10, nº 139).
+                <button id="fechar-ata-motivo" type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 text-rotulo font-medium text-accent-light underline-offset-2 hover:underline focus-visible:outline-accent-light">
                   {motivoBloqueio} →
                 </button>
               ) : (
@@ -109,6 +113,7 @@ export function BannerReuniao({
           }}
         >
           {confirmar === "FECHAR_ATA" && <Aviso>As áreas são notificadas e, a partir daqui, mudanças entram como solicitação de alteração.</Aviso>}
+          {confirmar === "INICIAR_REUNIAO" && avisoAntecipada && <Aviso tom="warning">{avisoAntecipada}</Aviso>}
         </ConfirmDialog>
       )}
     </BannerEscuro>

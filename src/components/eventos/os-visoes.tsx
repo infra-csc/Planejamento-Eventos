@@ -96,8 +96,8 @@ export function OsVisoes({
               [
                 ["totais", "Totais por peça", os.setores.reduce((a, s) => a + s.linhas.length, 0)],
                 ["projetos", "Por projeto", os.projetos?.length ?? 0],
-                ["individuais", "Soltas e avulsos", individuaisAgrupadas(os.individuais ?? []).length + os.semSetor.length],
-                ...(composicao ? ([["composicao", composicao.ajustavel ? "Itens · ajustar" : "Itens da OS", composicao.n]] as const) : []),
+                ["individuais", "Soltas e fora do catálogo", individuaisAgrupadas(os.individuais ?? []).length + os.semSetor.length],
+                ...(composicao ? ([["composicao", composicao.ajustavel ? "Ajustar itens" : "Itens da OS", composicao.n]] as const) : []),
               ] as const
             ).map(([chave, rotulo, n]) => ({ label: rotulo, n: n >= 0 ? n : undefined, ativo: visao === chave, href: hrefVisao(chave) }))}
           />
@@ -302,7 +302,7 @@ export function OsVisoes({
                           {l.nome}
                           <span className="mt-0.5 block text-rotulo text-muted md:hidden">
                             <Codigo className="block sm:hidden">{l.codigo}</Codigo>
-                            <span className="line-clamp-2">{l.origens.map(origemTexto).join(" · ")}</span>
+                            <span className="line-clamp-2" title={l.origens.map(origemTexto).join(" · ")}>{l.origens.map(origemTexto).join(" · ")}</span>
                           </span>
                         </th>
                         {/* Composição quebra em até 2 linhas (inteira no título): antes, sem quebra, espremia o nome e escondia o total. */}

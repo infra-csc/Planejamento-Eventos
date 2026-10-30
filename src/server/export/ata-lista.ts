@@ -19,6 +19,8 @@ export type AtaLista = {
   boxTruss: SecaoLista;
   ativacao: SecaoLista;
   arena: SecaoLista;
+  /** Itens fora do catálogo (separação manual). Vazia quando não há nenhum: a planilha não desenha a seção. */
+  outros: SecaoLista;
 };
 
 /** PERCURSO, como na ata (rótulo → código no catálogo; sem código = linha só para preencher à mão). */
@@ -98,11 +100,10 @@ export function montarAtaLista(os: OsConteudo): AtaLista {
   const percurso = secao("PERCURSO", PERCURSO, (c, p) => p.setor === "ARENA" && /cone|cocho|cavalete|tina|pallet|palet|rampa|prisma|grade 2|estaca|corda|malote/i.test(p.nome) && pega(c));
   const ativacao = secao("ATIVAÇÃO", ATIVACAO, (c, p) => soltas.has(c) && (p.setor === "MARCENARIA" || /ombrel|puff|balc|bancada|pranch|mesa/i.test(p.nome)) && pega(c));
   const arena = secao("ARENA", ARENA, (c, p) => p.setor === "ARENA" && pega(c));
-  // Itens fora do catálogo: na ARENA, com o local na OBS.
-  for (const x of [...os.semSetor, ...os.setores.flatMap((s) => s.avulsos)]) {
-    arena.linhas.push({ item: x.descricao, quantidade: x.quantidade, obs: x.destino?.trim() || null });
-    arena.total += x.quantidade;
-  }
+  // Itens fora do catálogo numa seção própria, com o local na OBS: na ARENA, "Fechamento de tenda" e "Lona" pareciam
+  // material de arena (auditoria 30/10, B-27).
+  const outrosLinhas = [...os.semSetor, ...os.setores.flatMap((s) => s.avulsos)].map((x) => ({ item: x.descricao, quantidade: x.quantidade, obs: x.destino?.trim() || null }));
+  const outros: SecaoLista = { titulo: "OUTROS (FORA DO CATÁLOGO)", linhas: outrosLinhas, total: outrosLinhas.reduce((a, l) => a + l.quantidade, 0) };
 
   const contrapeso = ESTRUTURA_CONTRAPESO.flatMap(([item, codigo]) => {
     const q = totalPorCodigo.get(codigo)?.total ?? 0;
@@ -114,7 +115,7 @@ export function montarAtaLista(os: OsConteudo): AtaLista {
     total: estrutura.estruturas.reduce((a, e) => a + e.quantidade, 0) + contrapeso.reduce((a, l) => a + l.quantidade, 0),
   };
 
-  return { percurso, tendas: estrutura.tendas, boxTruss, ativacao, arena };
+  return { percurso, tendas: estrutura.tendas, boxTruss, ativacao, arena, outros };
 }
 
 /** Locais em que o projeto (pelo nome em maiúsculas) foi pedido, para a coluna OBS do BOX TRUSS. */

@@ -90,9 +90,18 @@ describe("GET /api/eventos/[id]/ata/excel", { timeout: 30_000 }, () => {
     const r = await chamar(eventoId);
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe(XLSX);
-    expect(r.headers.get("content-disposition")).toMatch(/ATA-.*-v1\.xlsx/);
+    expect(r.headers.get("content-disposition")).toMatch(/filename="Ata EVT-\d+ .+ v1\.xlsx"/);
     const abas = await textos(r);
     expect(abas.get("Ata")).toContain(NOTA);
+    // Sem "Conduzida por" (não há esse registro), origem "Pedido da área", "Atendido" como na impressão e
+    // "Cliente / gestão" com espaços (auditoria 28/10, nº 86, 181 e 182; 30/10, B-10).
+    expect(abas.get("Ata")).toContain("Responsável");
+    expect(abas.get("Ata")).not.toContain("Conduzida por");
+    expect(abas.get("Ata")).toContain("Pedido da área");
+    expect(abas.get("Ata")).not.toContain("Solicitação da área");
+    expect(abas.get("Ata")).toContain("Assinatura cliente / gestão");
+    expect(abas.get("Pedidos das áreas")).toContain("Atendido");
+    expect(abas.get("Pedidos das áreas")).not.toContain("Na ata");
     expect(abas.get("Pedidos das áreas")).toContain("Pedido da área A");
     expect(abas.get("Pedidos das áreas")).toContain("Pedido da área B");
   });
@@ -110,7 +119,7 @@ describe("GET /api/eventos/[id]/ata/excel", { timeout: 30_000 }, () => {
     await entrar(E.gestao.id);
     const r = await chamar(ev.id);
     expect(r.status).toBe(200);
-    expect(r.headers.get("content-disposition")).toContain("em-construcao.xlsx");
+    expect(r.headers.get("content-disposition")).toContain(" em construcao.xlsx");
   });
 
   // Filtra pelo id da área: renomear a área depois do fechamento não esconde os próprios pedidos.

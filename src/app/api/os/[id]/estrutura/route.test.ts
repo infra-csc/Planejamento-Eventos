@@ -87,6 +87,13 @@ describe("GET /api/os/[id]/estrutura", { timeout: 30_000 }, () => {
     expect(nomes[2]).toContain("(2X)");
     expect(wb.worksheets[2].getImages().length).toBe(1);
     expect(nomeProjeto.length).toBeGreaterThan(0);
+    // "RESPONSAVEL PELA O.S" é o responsável do evento, não quem baixou (auditoria 30/10, B-26).
+    const total: string[] = [];
+    wb.getWorksheet("TOTAL")!.eachRow((row) => row.eachCell((c) => total.push(String(c.text))));
+    const i = total.indexOf("RESPONSAVEL PELA O.S");
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(total[i + 1]).toContain(E.logistica.nome);
+    expect(total[i + 1]).not.toContain(E.requisitante.nome);
   });
 
   it("sem projeto.ver, a pasta sai sem as imagens dos projetos", async () => {

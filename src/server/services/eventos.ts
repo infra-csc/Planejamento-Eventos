@@ -10,7 +10,10 @@
  */
 export {
   ACOES_COM_MOTIVO,
+  contarAjustesPosAta,
   contarItensPendentesPreReuniao,
+  contarLinhasConferidas,
+  detalhesListaEventos,
   linhasAtaResumidas,
   listarEventos,
   listarEventosAceitando,

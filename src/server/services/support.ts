@@ -293,8 +293,7 @@ export function buscaSemAcento(colunas: AnyColumn[], termo: string): SQL | undef
     sql` || ' ' || `,
   );
   const normalizado = sql`lower(translate(${alvo}, ${COM_ACENTO}, ${SEM_ACENTO}))`;
-  // % e _ são curingas do LIKE: saem do termo para a busca ser literal.
-  const literais = palavras.map((p) => p.replace(/[%_]/g, "")).filter(Boolean);
-  if (literais.length === 0) return undefined;
-  return and(...literais.map((p) => sql`${normalizado} like ${`%${p}%`}`));
+  // % e _ são curingas do LIKE: escapados, a busca é literal. Antes eram tirados do termo, e "%" sozinho virava busca
+  // vazia, que devolvia todos os registros (auditoria 30/10, B-25). `\` é o escape padrão do LIKE no Postgres.
+  return and(...palavras.map((p) => sql`${normalizado} like ${`%${p.replace(/[\\%_]/g, "\\$&")}%`}`));
 }

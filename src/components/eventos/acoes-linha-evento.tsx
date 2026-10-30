@@ -209,14 +209,15 @@ export function EditarTendasDoItem({ eventoId, nome, locais, ataFechada, tamanho
   return (
     <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {tamanho === "sm" ? (
-        <Button abreDialogo variant="secondary" size="sm" onClick={() => setAberto(true)} aria-label={`Editar todas as tendas de ${nome}`}>
+        <Button abreDialogo variant="secondary" size="sm" onClick={() => setAberto(true)} aria-label={`Editar todos os locais de ${nome}`}>
           <Icone nome="lapis" className="size-3.5" />
           Editar todos os locais
         </Button>
       ) : (
         // Na lista: o mesmo lápis das linhas de cada local, na mesma coluna (a lixeira não existe no total).
         <>
-          <IconButton abreDialogo label={`Editar todas as tendas de ${nome}`} onClick={() => setAberto(true)}>
+          {/* O nome lido começa pelo texto visível do botão irmão ("Editar todos os locais"; auditoria 28/10, nº 61). */}
+          <IconButton abreDialogo label={`Editar todos os locais de ${nome}`} onClick={() => setAberto(true)}>
             <Icone nome="lapis" />
           </IconButton>
           <span aria-hidden className="size-7 shrink-0 max-md:size-10" />

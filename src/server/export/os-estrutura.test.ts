@@ -238,7 +238,7 @@ describe("montarOsMarcenaria", () => {
 });
 
 describe("montarAtaLista", () => {
-  it("PERCURSO com as linhas fixas, tendas por local, BOX TRUSS com os projetos e avulsos na ARENA", () => {
+  it("PERCURSO com as linhas fixas, tendas por local, BOX TRUSS com os projetos e os itens fora do catálogo em OUTROS", () => {
     const a = montarAtaLista(os);
     expect(a.percurso.linhas[0]).toEqual({ item: "Cavaletes Transito", quantidade: null, obs: null });
     expect(a.percurso.linhas.find((l) => l.item === "Cones GRANDES")).toEqual({ item: "Cones GRANDES", quantidade: 350, obs: "Percurso" });
@@ -249,7 +249,10 @@ describe("montarAtaLista", () => {
       ["ESTANDE 9×6 M", 2, "2 Credenciamento"],
       ["QUADRO Q15 2,30×2,30 M", 2, "2 Kit"],
     ]);
-    expect(a.arena.linhas.at(-1)).toEqual({ item: "Lona 9×6", quantidade: 4, obs: "Pit lane" });
+    // Antes iam para a ARENA (auditoria 30/10, B-27).
+    expect(a.arena.linhas.some((l) => l.item === "Lona 9×6")).toBe(false);
+    expect(a.outros.linhas.at(-1)).toEqual({ item: "Lona 9×6", quantidade: 4, obs: "Pit lane" });
+    expect(a.outros.total).toBe(a.outros.linhas.reduce((s, l) => s + (l.quantidade ?? 0), 0));
   });
 });
 

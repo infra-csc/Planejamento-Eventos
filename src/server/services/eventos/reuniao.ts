@@ -37,6 +37,8 @@ export async function salvarDadosReuniao(usuario: UsuarioAtual, id: string, dado
   const db = await getDb();
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, id) });
   if (!ev) throw new NaoEncontradoError("Evento");
+  // Cancelado nunca teve ata fechada: a mensagem dizia "antes de fechar a ata" (auditoria 30/10, B-30).
+  if (ev.status === "CANCELADO") throw new DomainError("Evento cancelado: os dados da reunião não mudam mais.");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("Os dados da reunião só podem ser editados antes de fechar a ata.");
   const r = await db.update(eventos).set(dados).where(and(eq(eventos.id, id), inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]))).returning({ id: eventos.id });
   if (r.length === 0) throw new DomainError("A ata acabou de ser fechada; os dados ficaram como estavam.");

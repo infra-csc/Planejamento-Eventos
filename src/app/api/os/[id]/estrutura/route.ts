@@ -3,6 +3,8 @@ import ExcelJS from "exceljs";
 import { getUsuarioDaApi } from "@/server/auth/session";
 import { pode } from "@/domain/permissions";
 import { NaoEncontradoError } from "@/domain/errors";
+import { contentDisposition } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { getDb } from "@/server/db";
@@ -29,19 +31,20 @@ const LARGURA_IMAGEM = 800;
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a OS de estrutura");
   const { id } = await params;
-  let ev: Evento;
-  try {
-    ev = await obterEvento(usuario, id);
-  } catch (e) {
-    if (e instanceof NaoEncontradoError) return NextResponse.json({ erro: "Evento não encontrado" }, { status: 404 });
-    throw e;
-  }
+  // Evento e versões numa ida só (antes em série; auditoria 28/10, nº 147).
+  const [ev, versoes] = await Promise.all([
+    obterEvento(usuario, id).catch((e: unknown): Evento | null => {
+      if (e instanceof NaoEncontradoError) return null;
+      throw e;
+    }),
+    listarOsResumo(id),
+  ]);
+  if (!ev) return erroDownload(request, 404, "Evento não encontrado");
   // Mesma escolha de versão da rota /excel: ?v= pede uma versão; sem ela, a OS calculada da ata atual.
   const v = Number(new URL(request.url).searchParams.get("v"));
-  const versoes = await listarOsResumo(id);
   const pedida = Number.isInteger(v) && v > 0 ? versoes.find((x) => x.numero === v) : undefined;
   const gravado = pedida ? (await obterConteudosOs(id, [pedida.numero])).get(pedida.numero) : undefined;
   const ehAtual = pedida && versoes[0]?.numero === pedida.numero;
@@ -62,7 +65,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const hf = (t: string) => t.replace(/&/g, "&&");
   const cab = hf(`OS de estrutura · ${ev.codigo} · ${ev.nome} · ${rotulo}`);
   const rodape = hf(`Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`);
-  impressao(abaTotal(wb, { nome: ev.nome, dataInicio: ev.dataInicio, local: ev.local ?? "", diretor: ev.responsavel.nome, versao: rotulo, geradaPor: usuario.nome }, dados), cab, rodape, undefined, true);
+  // "RESPONSAVEL PELA O.S" é o responsável do evento, não quem baixou (a Júlia baixava e saía o nome dela; auditoria
+  // 30/10, B-26). Quem gerou o arquivo continua no rodapé.
+  impressao(abaTotal(wb, { nome: ev.nome, dataInicio: ev.dataInicio, local: ev.local ?? "", diretor: ev.responsavel.nome, versao: rotulo, geradaPor: ev.responsavel.nome }, dados), cab, rodape, undefined, true);
   impressao(abaSomatoria(wb, dados), `${cab} · SOMATORIA`, rodape, 4, true);
   for (const a of dados.abas) impressao(abaProjeto(wb, a, imagens.get(a.codigo)), `${cab} · ${hf(a.nome)}`, rodape, 5, false);
 
@@ -71,7 +76,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="OS ESTRUTURA_${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().replace(/\s+/g, "_").toUpperCase()}_${sufixo}.xlsx"`,
+      // Nome do modelo da cenografia, com o UTF-8 em filename* (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(`OS ESTRUTURA_${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().replace(/\s+/g, "_").toUpperCase()}_${sufixo}.xlsx`),
       "Cache-Control": "no-store",
     },
   });

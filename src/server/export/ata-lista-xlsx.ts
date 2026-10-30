@@ -74,6 +74,8 @@ export function abaListaMateriais(wb: ExcelJS.Workbook, cab: CabecalhoAta, d: At
 
   r = secao(ws, r, d.ativacao);
   r = secao(ws, r, d.arena);
+  // Fora do catálogo: seção própria, só quando há algum (auditoria 30/10, B-27).
+  if (d.outros.linhas.length) r = secao(ws, r, d.outros);
 
   tituloSecao(ws, r, 2, "OBSERVACOES");
   r++;

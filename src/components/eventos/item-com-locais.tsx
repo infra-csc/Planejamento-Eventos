@@ -60,7 +60,8 @@ export function ItemComLocais({
               className="-ml-1.5 inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-controle border-0 bg-transparent px-1.5 py-0.5 text-left text-corpo font-medium text-ink focus-visible:outline-2 focus-visible:outline-accent max-md:min-h-10"
             >
               <Icone nome="chevron-direita" className={cn("size-3.5 shrink-0 text-ink-3 transition-transform duration-150", aberto && "rotate-90")} />
-              <span className="truncate" title={nome}>
+              {/* Estreito: o nome em até 2 linhas, sem cortar em poucas letras (auditoria 28/10, nº 11). */}
+              <span className="line-clamp-2 min-w-0 break-words @lg:line-clamp-none @lg:truncate" title={nome}>
                 {nome}
               </span>
               <span className="sr-only">

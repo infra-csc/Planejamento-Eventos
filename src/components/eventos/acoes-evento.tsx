@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { cn } from "@/lib/cn";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Icone } from "@/components/ui/icons";
 import { Aviso } from "@/components/ui/layout";
-import { acoesDisponiveis, motivoBloqueioEncerramento, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
+import { acoesDisponiveis, avisoReuniaoAntecipada, diasAte, motivoBloqueioEncerramento, TRANSICOES_EVENTO, type AcaoEvento } from "@/domain/evento";
 import { transicionarEventoAction } from "@/app/(app)/eventos/actions";
 import type { EventoStatus, Perfil } from "@/server/db/schema";
 
@@ -24,6 +26,7 @@ export function AcoesEvento({
   solicitacoesAbertas,
   bloquearEncerramentoComPendentes = true,
   corrigeDireto = false,
+  datas,
 }: {
   evento: { id: string; codigo: string; nome: string; status: EventoStatus };
   perfil: Perfil;
@@ -35,18 +38,27 @@ export function AcoesEvento({
   bloquearEncerramentoComPendentes?: boolean;
   /** Admin e logística corrigem os itens direto (visão geral): pedir alteração é caminho de apoio, não a ação da tela. */
   corrigeDireto?: boolean;
+  /**
+   * Datas que decidem o botão principal (auditoria 28/10, nº 31 e 32): `hoje`, o dia da reunião e o do evento em
+   * "YYYY-MM-DD" (fuso de São Paulo), e a reunião por extenso ("10/11 às 14:00") para o diálogo.
+   */
+  datas?: { hoje: string; diaReuniao: string; quandoReuniao: string; diaEvento: string };
 }) {
+  const router = useRouter();
   const [acao, setAcao] = useState<AcaoEvento | null>(null);
   const t = acao ? TRANSICOES_EVENTO[acao] : null;
   const base = `/eventos/${evento.id}`;
+  const editando = usePathname() === `${base}/editar`;
   const disponiveis = acoesDisponiveis(evento.status, perfil);
   const tem = (a: AcaoEvento) => disponiveis.includes(a);
 
   const botoes: Botao[] = [];
+  // Antes do dia da reunião, "Iniciar reunião" não é o próximo passo: fica secundário (auditoria 28/10, nº 32).
+  const reuniaoAntecipada = datas ? avisoReuniaoAntecipada(datas.hoje, datas.diaReuniao, datas.quandoReuniao) : null;
   if (tem("INICIAR_REUNIAO")) {
     botoes.push({
       chave: "iniciar",
-      principal: true,
+      principal: !reuniaoAntecipada,
       render: (v) => (
         <Button abreDialogo key="iniciar" variant={v} size="lg" onClick={() => setAcao("INICIAR_REUNIAO")}>
           {TRANSICOES_EVENTO.INICIAR_REUNIAO.label}
@@ -68,9 +80,11 @@ export function AcoesEvento({
   }
   if (tem("ENCERRAR")) {
     const bloqueio = motivoBloqueioEncerramento(solicitacoesAbertas, bloquearEncerramentoComPendentes);
+    // Logo depois da ata o próximo passo é mandar a OS (aba OS), não encerrar: até o dia do evento, secundário (nº 32).
+    const antesDoEvento = datas ? diasAte(datas.hoje, datas.diaEvento) > 0 : false;
     botoes.push({
       chave: "encerrar",
-      principal: !bloqueio,
+      principal: !bloqueio && !antesDoEvento,
       render: (v) => (
         <Button abreDialogo key="encerrar" variant={bloqueio ? "secondary" : v} size="lg" disabled={Boolean(bloqueio)} motivoDesabilitado={bloqueio ?? undefined} onClick={() => setAcao("ENCERRAR")}>
           {TRANSICOES_EVENTO.ENCERRAR.label}
@@ -112,7 +126,8 @@ export function AcoesEvento({
     <>
       {/* Cancelar fica junto da edição do evento (mesmos perfis e fases): ação terciária, discreta. */}
       {tem("CANCELAR") && (
-        <ButtonLink href={`${base}/editar`} variant="ghost" size="lg" className="no-underline">
+        // Na própria edição nenhuma aba fica marcada: o "Editar" é que diz onde se está (auditoria 28/10, nº 124).
+        <ButtonLink href={`${base}/editar`} variant="ghost" size="lg" aria-current={editando ? "page" : undefined} className={cn("no-underline", editando && "bg-accent-bg text-accent")}>
           <Icone nome="lapis" />
           Editar
         </ButtonLink>
@@ -131,6 +146,10 @@ export function AcoesEvento({
           reasonLabel={t.exigeJustificativa ? (acao === "REABRIR" ? "Justificativa da exceção" : "Justificativa") : undefined}
           action={transicionarEventoAction}
           hidden={{ eventoId: evento.id, acao }}
+          onSuccess={() => {
+            // Reunião iniciada: a próxima tarefa é conferir a ata, como "Fechar ata" já leva à OS (auditoria 28/10, nº 33).
+            if (acao === "INICIAR_REUNIAO") router.push(`/conferencia/${evento.id}`);
+          }}
         >
           {/* Um aviso só, em tópicos: antes eram dois quadros iguais empilhados. */}
           {acao === "ENCERRAR" && (
@@ -148,8 +167,10 @@ export function AcoesEvento({
             </Aviso>
           )}
           {acao === "FECHAR_ATA" && <Aviso>A ata é congelada e a OS de cada setor é gerada a partir dela. As áreas são notificadas.</Aviso>}
-          {acao === "INICIAR_REUNIAO" && <Aviso>Os envios de necessidades ficam bloqueados enquanto a reunião acontece. Rascunhos das áreas continuam salvos.</Aviso>}
-          {acao === "REABRIR" && <Aviso tom="warning">O evento volta a aceitar alterações. A reabertura fica marcada no evento e no histórico.</Aviso>}
+          {/* A descrição já diz o que acontece; o aviso só acrescenta (antes repetia a mesma frase: auditoria 28/10, nº 169, e 30/10, B-14). */}
+          {acao === "INICIAR_REUNIAO" && reuniaoAntecipada && <Aviso tom="warning">{reuniaoAntecipada}</Aviso>}
+          {acao === "INICIAR_REUNIAO" && <Aviso>Rascunhos das áreas continuam salvos.</Aviso>}
+          {acao === "REABRIR" && <Aviso tom="warning">A reabertura fica marcada no evento e no histórico.</Aviso>}
         </ConfirmDialog>
       )}
     </>

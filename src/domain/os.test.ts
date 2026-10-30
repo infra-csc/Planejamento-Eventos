@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularOS, diffOS, individuaisAgrupadas, textoLocais, type LinhaAta } from "./os";
+import { calcularOS, diffOS, individuaisAgrupadas, RESUMO_SEM_MUDANCA, resumoVersaoOs, textoLocais, type LinhaAta } from "./os";
 
 const bomPortico = [
   { pecaId: "p400", codigo: "BOX-400", nome: "Box 400", setor: "ESTRUTURA" as const, unidade: "un", quantidade: 1 },
@@ -75,5 +75,17 @@ describe("peças soltas na OS", () => {
     expect(g.map((x) => [x.codigo, x.quantidade])).toEqual([["CAV-RETO", 10], ["CONE-G", 5]]);
     expect(textoLocais(g[0].locais)).toBe("Dispersão · Produção: 8; STAND · Ativação: 2");
     expect(textoLocais(g[1].locais)).toBe("Produção");
+  });
+});
+
+describe("resumoVersaoOs", () => {
+  const projeto = (q: number): LinhaAta[] => [{ id: "1", tipo: "PROJETO", quantidade: q, destino: null, areaNome: null, projeto: { codigo: "PJ-1", nome: "Pórtico", versao: 1, bom: bomPortico } }];
+
+  it("com mais de 3 peças, o fim diz “e mais N peças” (antes “· +N”; auditoria 30/10, B-17)", () => {
+    expect(resumoVersaoOs(calcularOS(projeto(1)), calcularOS(projeto(2)))).toBe("BOX-400 +1 · BOX-600 +5 · CUBO +10 · e mais 1 peça");
+  });
+
+  it("sem mudança, o texto que a aba OS troca por “igual à vN” (auditoria 30/10, B-12)", () => {
+    expect(resumoVersaoOs(calcularOS(projeto(1)), calcularOS(projeto(1)))).toBe(RESUMO_SEM_MUDANCA);
   });
 });

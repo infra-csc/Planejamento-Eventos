@@ -31,6 +31,12 @@ import { salvarSeparacao } from "@/server/services/separacao";
 import { pecaSchema } from "@/lib/schemas";
 import { invalidarDados, revalidarTelasOperacao, TAGS_DADOS } from "@/server/cache-dados";
 
+/**
+ * Só aparece com chamada malformada (aba antiga, bug ou adulteração): diz o que fazer em vez de "Dados inválidos." e
+ * "Ação inválida." (auditoria 28/10, nº 177).
+ */
+const DADOS_INVALIDOS = "Não foi possível salvar. Atualize a página e tente de novo.";
+
 /** Fase, ata e OS mudam painel, listas e contadores: a tela atual volta renderizada (ver revalidarTelasOperacao). */
 function revalidarTudo() {
   revalidarTelasOperacao();
@@ -79,7 +85,7 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
   const usuario = await requireUsuario();
   const eventoId = String(formData.get("eventoId") ?? "");
   const acao = String(formData.get("acao") ?? "") as AcaoEvento;
-  if (!ACOES_EVENTO.includes(acao)) return { ok: false, erro: "Ação inválida." };
+  if (!ACOES_EVENTO.includes(acao)) return { ok: false, erro: DADOS_INVALIDOS };
   const justificativa = String(formData.get("justificativa") ?? "").trim() || null;
   if (!motivoOpcionalSchema.safeParse(justificativa).success) return { ok: false, erro: `A justificativa deve ter no máximo ${LIMITES.justificativa} caracteres.` };
   if (TRANSICOES_EVENTO[acao].exigeJustificativa) {
@@ -103,7 +109,7 @@ export async function transicionarEventoAction(_prev: ActionResult, formData: Fo
 /** Autosave das observações da reunião (textarea da aba Consolidar ata). */
 export async function salvarObservacoesAction(eventoId: string, texto: string) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof texto !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof texto !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
   if (texto.length > LIMITES.observacoesReuniao) return { ok: false, erro: `As observações passam do limite de ${LIMITES.observacoesReuniao.toLocaleString("pt-BR")} caracteres.` } as const;
   // Sem revalidatePath: o texto vive no estado do cliente e nada mais na tela depende dele.
   return executar(() => salvarObservacoesReuniao(usuario, eventoId, texto.trim() || null));
@@ -154,7 +160,7 @@ export async function alterarQuantidadeLinhaAction(_prev: ActionResult, formData
 
 export async function conferirLinhaAction(eventoId: string, linhaId: string, conferida: boolean) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof conferida !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof conferida !== "boolean") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => conferirLinha(usuario, eventoId, linhaId, conferida));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
@@ -164,7 +170,7 @@ export async function conferirLinhaAction(eventoId: string, linhaId: string, con
 export async function conferirTodasAction(eventoId: string, linhaIds: string[], conhecidas?: string[]) {
   const usuario = await requireUsuario();
   const lista = (x: unknown): x is string[] => Array.isArray(x) && x.length <= 2000 && x.every((y) => typeof y === "string");
-  if (typeof eventoId !== "string" || !lista(linhaIds) || (conhecidas !== undefined && !lista(conhecidas))) return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || !lista(linhaIds) || (conhecidas !== undefined && !lista(conhecidas))) return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => conferirTodasLinhas(usuario, eventoId, linhaIds, conhecidas));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
@@ -174,7 +180,7 @@ export async function conferirTodasAction(eventoId: string, linhaIds: string[], 
 /** Autosave dos dados da reunião (presentes, público, carga): mesmo schema do formulário. */
 export async function salvarDadosReuniaoAutoAction(eventoId: string, dados: Record<string, string>) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || !dados || typeof dados !== "object") return { ok: false, erro: "Dados inválidos." } as ActionResult;
+  if (typeof eventoId !== "string" || !dados || typeof dados !== "object") return { ok: false, erro: DADOS_INVALIDOS } as ActionResult;
   const fd = new FormData();
   for (const [k, v] of Object.entries(dados)) if (typeof v === "string") fd.set(k, v);
   let r: ActionResult;
@@ -193,7 +199,7 @@ export async function salvarDadosReuniaoAutoAction(eventoId: string, dados: Reco
 /** OS enviada ao carregamento: marca a versão atual (gerando uma nova se a ata mudou) como a enviada. */
 export async function marcarOsEnviadaAction(eventoId: string) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as ActionResult;
+  if (typeof eventoId !== "string") return { ok: false, erro: DADOS_INVALIDOS } as ActionResult;
   const r = await executar(() => marcarOsEnviada(usuario, eventoId));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   if (!r.ok) return r;
@@ -202,7 +208,7 @@ export async function marcarOsEnviadaAction(eventoId: string) {
 
 export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: string) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof linhaId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof linhaId !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => atualizarVersaoLinha(usuario, eventoId, linhaId));
   revalidarTudo();
   return r;
@@ -211,8 +217,8 @@ export async function atualizarVersaoLinhaAction(eventoId: string, linhaId: stri
 /** `quantidadeEsperada`: a quantidade que a tela mostrava (controle de concorrência). */
 export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: string, quantidade: number, motivo: string, quantidadeEsperada?: number | null) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
-  if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || typeof quantidade !== "number" || typeof motivo !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
+  if (quantidadeEsperada != null && !Number.isInteger(quantidadeEsperada)) return { ok: false, erro: DADOS_INVALIDOS } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarLinhaNaConferencia(usuario, eventoId, linhaId, quantidade, motivo, { quantidadeEsperada }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
@@ -223,7 +229,7 @@ export async function ajustarLinhaConferenciaAction(eventoId: string, linhaId: s
 /** Grades do prisma: quantas a mais a reunião decidiu (linha própria, somada à da regra). */
 export async function definirExtraDaRegraAction(eventoId: string, linhaRegraId: string, extra: number, motivo: string) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof linhaRegraId !== "string" || !Number.isInteger(extra) || typeof motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof linhaRegraId !== "string" || !Number.isInteger(extra) || typeof motivo !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => definirExtraDaRegra(usuario, eventoId, linhaRegraId, extra, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
@@ -234,7 +240,7 @@ export async function definirExtraDaRegraAction(eventoId: string, linhaRegraId: 
 /** Folha de separação: estrutura locada no local (box Q30, tendas e estaiamento fora; Q15 se marcado). */
 export async function salvarSeparacaoAction(eventoId: string, locada: boolean, q15Locado: boolean) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof locada !== "boolean" || typeof q15Locado !== "boolean") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof locada !== "boolean" || typeof q15Locado !== "boolean") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => salvarSeparacao(usuario, eventoId, { locada, q15Locado }));
   revalidatePath(`/eventos/${eventoId}/os`);
   return r;
@@ -243,7 +249,7 @@ export async function salvarSeparacaoAction(eventoId: string, locada: boolean, q
 /** Cavalete/pé sem nenhuma linha na ata: inclui o que a regra pede. */
 export async function completarAcompanhanteAction(eventoId: string, codigo: string) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof codigo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof codigo !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => completarAcompanhante(usuario, eventoId, codigo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
@@ -252,7 +258,7 @@ export async function completarAcompanhanteAction(eventoId: string, codigo: stri
 
 export async function editarDescricoesLinhaAction(eventoId: string, linhaId: string, grupos: unknown) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || typeof linhaId !== "string" || !Array.isArray(grupos) || grupos.length > 1000) return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || typeof linhaId !== "string" || !Array.isArray(grupos) || grupos.length > 1000) return { ok: false, erro: DADOS_INVALIDOS } as const;
   const lista = grupos.map((g) => {
     const o = (g ?? {}) as Record<string, unknown>;
     return { texto: typeof o.texto === "string" ? o.texto : "", unidades: Number(o.unidades) };
@@ -265,7 +271,7 @@ export async function editarDescricoesLinhaAction(eventoId: string, linhaId: str
 
 export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
   const usuario = await requireUsuario();
-  if (!ref || typeof ref !== "object" || !alvo || typeof alvo !== "object") return { ok: false, erro: "Dados inválidos." } as const;
+  if (!ref || typeof ref !== "object" || !alvo || typeof alvo !== "object") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const referencia: RefVinculo = { linhaId: typeof ref.linhaId === "string" ? ref.linhaId : null, solicitacaoItemId: typeof ref.solicitacaoItemId === "string" ? ref.solicitacaoItemId : null };
   const a = alvo as Record<string, unknown>;
   let destino: AlvoVinculo;
@@ -288,7 +294,7 @@ export async function vincularAoCatalogoAction(ref: RefVinculo, alvo: unknown) {
 
 export async function ajustarPecaDoProjetoAction(eventoId: string, linhaId: string, pecaId: string, quantidade: number, motivo: string) {
   const usuario = await requireUsuario();
-  if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: "Dados inválidos." } as const;
+  if ([eventoId, linhaId, pecaId, motivo].some((v) => typeof v !== "string") || typeof quantidade !== "number") return { ok: false, erro: DADOS_INVALIDOS } as const;
   if (!motivoOpcionalSchema.safeParse(motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarPecaDoProjeto(usuario, eventoId, linhaId, pecaId, quantidade, motivo));
   revalidatePath(`/eventos/${eventoId}`, "layout");
@@ -307,7 +313,7 @@ const localValido = (d: QuadroLocalEntrada | undefined): d is QuadroLocalEntrada
 /** Tendas de um local na conferência: quantas tendas e o total de fechamentos e calhas (como no quadro). */
 export async function ajustarTendasDoLocalAction(eventoId: string, dados: QuadroLocalEntrada & { motivo: string }) {
   const usuario = await requireUsuario();
-  if (typeof eventoId !== "string" || !localValido(dados) || typeof dados.motivo !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof eventoId !== "string" || !localValido(dados) || typeof dados.motivo !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
   if (!motivoOpcionalSchema.safeParse(dados.motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const r = await executar(() => ajustarTendasDoLocal(usuario, eventoId, { linhaIds: dados.linhaIds, tendas: dados.tendas, totais: dados.totais, motivo: dados.motivo }));
   revalidatePath(`/eventos/${eventoId}`, "layout");
@@ -319,7 +325,7 @@ export async function ajustarTendasDoLocalAction(eventoId: string, dados: Quadro
 export async function ajustarTendasDosLocaisAction(eventoId: string, dados: { locais: QuadroLocalEntrada[]; motivo: string }) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || !Array.isArray(dados?.locais) || !dados.locais.length || dados.locais.length > 200 || !dados.locais.every(localValido) || typeof dados.motivo !== "string") {
-    return { ok: false, erro: "Dados inválidos." } as const;
+    return { ok: false, erro: DADOS_INVALIDOS } as const;
   }
   if (!motivoOpcionalSchema.safeParse(dados.motivo).success) return { ok: false, erro: `O motivo deve ter no máximo ${LIMITES.justificativa} caracteres.` } as const;
   const locais = dados.locais.map((l) => ({ linhaIds: l.linhaIds, tendas: l.tendas, totais: l.totais }));

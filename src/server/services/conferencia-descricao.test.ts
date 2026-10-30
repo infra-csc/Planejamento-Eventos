@@ -69,7 +69,7 @@ describe("editar descrição na conferência", () => {
     // Nem o id da solicitação de outra área sai no payload (endurecimento E7 da auditoria de segurança 28/10).
     expect(restrito.origem?.solicitacaoId).toBeNull();
     expect((await detalheLinha(E.requisitante, eventoId, l.id)).origem?.solicitacaoId).toBeTruthy();
-    expect(restrito.origemLabel).toBe("Pedido de área");
+    expect(restrito.origemLabel).toBe("Pedido de outra área");
     expect((await detalheLinha(E.requisitante, eventoId, l.id)).origemLabel).toMatch(/^SOL-/);
   });
 });

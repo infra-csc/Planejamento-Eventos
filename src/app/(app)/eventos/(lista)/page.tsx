@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { listarEventos, type EventoLista } from "@/server/services/eventos";
+import { detalhesListaEventos, listarEventos, type EventoLista } from "@/server/services/eventos";
 import { pode } from "@/domain/permissions";
 import { EVENTO_STATUS_LABEL, statusExibicao } from "@/domain/evento";
 import { addDiasISO, diaMesHora, diaMesISO, hojeISO, hora, isoSP, periodoCurto } from "@/lib/format";
@@ -9,14 +9,14 @@ import { cn } from "@/lib/cn";
 import { FiltroSelectUrl } from "@/components/ui/filtro-select-url";
 import { hrefCom, ordenar, paginar, proximaOrdem } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
-import { Badge, EventoStatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabela";
 import { LinhaLink } from "@/components/ui/linha-link";
-import { BarrasFase } from "@/components/eventos/fases";
+import { FaseEventoTexto } from "@/components/eventos/fases";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { listarAreasCache } from "@/server/cache";
@@ -25,14 +25,15 @@ export const metadata: Metadata = { title: "Eventos" };
 
 const POR_PAGINA = 25;
 
+// Os mesmos nomes dos selos de fase (antes "Aberto" × "Aberto a alterações", "Realizados" × "Realizado"; auditoria 28/10, nº 39).
 const FASES = [
   ["TODOS", "Todos"],
-  ["PREPARACAO", "Preparação"],
-  ["EM_REUNIAO", "Em reunião"],
-  ["ABERTO", "Aberto"],
-  ["ENCERRADO", "Encerrado"],
-  ["REALIZADO", "Realizados"],
-  ["CANCELADO", "Cancelado"],
+  ["PREPARACAO", EVENTO_STATUS_LABEL.PREPARACAO],
+  ["EM_REUNIAO", EVENTO_STATUS_LABEL.EM_REUNIAO],
+  ["ABERTO", EVENTO_STATUS_LABEL.ABERTO],
+  ["ENCERRADO", EVENTO_STATUS_LABEL.ENCERRADO],
+  ["REALIZADO", "Realizado"],
+  ["CANCELADO", EVENTO_STATUS_LABEL.CANCELADO],
 ] as const;
 type Fase = (typeof FASES)[number][0];
 
@@ -49,19 +50,20 @@ function quando(dataInicio: string, hoje: string) {
  * O próximo marco do evento, com tom: reunião hoje/amanhã em destaque; reunião que passou sem começar em
  * amarelo ("reunião não iniciada"); reunião aberta de outro dia não é "agora" (é ata por fechar).
  */
-function marco(e: EventoLista, hoje: string): { texto: string; tom?: "info" | "warning" } {
+function marco(e: EventoLista, hoje: string, versaoOs: number): { texto: string; tom?: "info" | "warning" } {
   const diaReuniao = isoSP(e.dataReuniao);
   if (e.status === "PREPARACAO") {
     if (diaReuniao === hoje) return { texto: `reunião hoje ${hora(e.dataReuniao)}`, tom: "info" };
     if (diaReuniao === addDiasISO(hoje, 1)) return { texto: `reunião amanhã ${hora(e.dataReuniao)}`, tom: "info" };
-    if (diaReuniao < hoje) return { texto: `não iniciada · ${diaMesHora(e.dataReuniao)}`, tom: "warning" };
-    return { texto: `reunião ${diaMesHora(e.dataReuniao)}` };
+    // Data e hora sem quebra entre elas: "14:00" ficava sozinho na 3ª linha (auditoria 28/10, nº 114).
+    if (diaReuniao < hoje) return { texto: `não iniciada · ${diaMesHora(e.dataReuniao).replace(" ", " ")}`, tom: "warning" };
+    return { texto: `reunião ${diaMesHora(e.dataReuniao).replace(" ", " ")}` };
   }
   if (e.status === "EM_REUNIAO") return diaReuniao < hoje ? { texto: "ata por fechar", tom: "warning" } : { texto: "em reunião agora", tom: "info" };
   // Sem janela, "aberto a alterações" só repetia a fase ao lado: mostra quando o evento acontece.
   if (e.status === "ABERTO") return { texto: e.janelaAlteracoesAte ? `alterações até ${diaMesISO(e.janelaAlteracoesAte)}` : quando(e.dataInicio, hoje) };
   if (e.status === "CANCELADO") return { texto: "cancelado" };
-  return { texto: e.versaoOs ? `OS final v${e.versaoOs}` : "sem OS" };
+  return { texto: versaoOs ? `OS final v${versaoOs}` : "sem OS" };
 }
 // Reunião hoje/amanhã/agora é estado (em andamento): azul de informação; o vinho é só para "aja aqui".
 const COR_MARCO = { info: "font-medium text-info", warning: "font-medium text-warning" } as const;
@@ -84,31 +86,20 @@ const exigeAcao = (e: EventoLista) => e.status === "EM_REUNIAO" || (e.solicitaco
 /** Sem ordenação escolhida, a lista mantém a prioridade dos antigos grupos: ação agora, em andamento, encerrados e cancelados. */
 const prioridade = (e: EventoLista) => (exigeAcao(e) ? 0 : e.status === "PREPARACAO" || e.status === "ABERTO" ? 1 : 2);
 
-/** Selos das áreas: cheio = já enviou pedido para o evento; apagado = ainda não. */
 /**
- * Quem já pediu para o evento, de relance: as áreas que pediram em destaque; as que faltam viram um
- * "faltam N" discreto (nomes no título). Antes, todas as áreas apareciam em toda linha e o útil se perdia.
+ * Quem já pediu para o evento, em número ("3 de 5"), com os nomes no `title`: até 5 selos verdes por linha deixavam
+ * a lista carregada (auditoria 28/10, nº 38; densidade das listas, design system §4).
  */
 function AreasQuePediram({ areas, pediram }: { areas: Array<{ id: string; nome: string }>; pediram: string[] }) {
   if (areas.length === 0) return null;
   const ja = areas.filter((a) => pediram.includes(a.id));
   const faltam = areas.filter((a) => !pediram.includes(a.id));
-  if (ja.length === 0) return <span className="text-pequeno text-meta" title={`Nenhuma área pediu ainda: ${faltam.map((a) => a.nome).join(", ")}`}>nenhuma ainda</span>;
+  const titulo = [ja.length ? `Já pediram: ${ja.map((a) => a.nome).join(", ")}` : null, faltam.length ? `Ainda não pediram: ${faltam.map((a) => a.nome).join(", ")}` : null].filter(Boolean).join(" · ");
+  if (ja.length === 0) return <span className="text-pequeno text-meta" title={titulo}>nenhuma ainda</span>;
   return (
-    <span className="flex flex-wrap items-center gap-1" aria-label={`${ja.length} de ${areas.length} áreas já pediram`}>
-      {ja.map((a) => (
-        <span key={a.id} title={`${a.nome}: já pediu`} className="inline-flex items-center gap-1 rounded-chip border border-success-border bg-success-bg px-1.5 py-px text-rotulo font-medium text-success">
-          <Icone nome="check" className="size-3" />
-          {a.nome}
-        </span>
-      ))}
-      {faltam.length > 0 ? (
-        <span className="text-rotulo text-muted" title={`Ainda não pediram: ${faltam.map((a) => a.nome).join(", ")}`}>
-          faltam {faltam.length}
-        </span>
-      ) : (
-        <span className="text-rotulo font-medium text-success">todas</span>
-      )}
+    <span className="numero text-pequeno text-ink-2" title={titulo}>
+      {ja.length === areas.length ? "todas" : `${ja.length} de ${areas.length}`}
+      <span className="sr-only"> áreas já pediram</span>
     </span>
   );
 }
@@ -164,6 +155,8 @@ export default async function EventosPage({
   // Sem ordem escolhida: prioridade (ação agora, em andamento, o resto) e, dentro dela, o evento mais próximo.
   const ordenados = ordem ? ordenar(filtrados, acessores, ordem, sp.dir) : [...filtrados].sort((a, b) => prioridade(a) - prioridade(b) || a.dataInicio.localeCompare(b.dataInicio));
   const pag = paginar(ordenados, sp.pagina, POR_PAGINA);
+  // Versão da OS e áreas que pediram: só das linhas desta página (auditoria 28/10, nº 69).
+  const detalhes = await detalhesListaEventos(pag.itens.map((e) => e.id));
 
   const params = { q: sp.q, fase: sp.fase, acao: sp.acao, ordem: sp.ordem, dir: sp.dir, pagina: sp.pagina, reuniao: sp.reuniao, resp: sp.resp, periodo: sp.periodo };
   const rotuloFase = FASES.find(([v]) => v === fase)?.[1] ?? "Todos";
@@ -266,7 +259,7 @@ export default async function EventosPage({
                     {th("codigo", "Código", 100, "left", "hidden sm:table-cell")}
                     {th("nome", "Evento")}
                     {th("fase", "Fase", 150, "left", "hidden sm:table-cell")}
-                    <th scope="col" aria-sort={sp.ordem === "periodo" ? (sp.dir === "desc" ? "descending" : "ascending") : "none"} className="hidden border-b border-line-soft bg-subtle p-0 font-medium lg:table-cell" style={{ width: 160 }}>
+                    <th scope="col" aria-sort={sp.ordem === "periodo" ? (sp.dir === "desc" ? "descending" : "ascending") : "none"} className="hidden border-b border-line-soft bg-subtle p-0 font-medium lg:table-cell" style={{ width: 180 }}>
                       <Link
                         href={hrefCom("/eventos", params, { ...proximaOrdem(sp.ordem, sp.dir, "periodo"), pagina: null })}
                         scroll={false}
@@ -291,7 +284,8 @@ export default async function EventosPage({
                     // Só junta o que existe: sem cliente/local não sobra "·" solto. O responsável vem junto (antes ficava
                     // embaixo de "em dia", na coluna de pendências, e parecia uma pendência).
                     const onde = [e.cliente, e.local, `resp. ${e.responsavel.nome}`].filter(Boolean).join(" · ");
-                    const m = marco(e, hoje);
+                    const d = detalhes.get(e.id);
+                    const m = marco(e, hoje, d?.versaoOs ?? 0);
                     return (
                       <LinhaLink key={e.id} href={`/eventos/${e.id}`} rotulo={`Abrir ${e.codigo} — ${e.nome}`}>
                         <td className="hidden border-b border-line-row px-3 py-3 text-pequeno text-ink-3 sm:table-cell">
@@ -315,7 +309,7 @@ export default async function EventosPage({
                           </span>
                           {/* Celular: fase e pendência dentro da célula do evento. */}
                           <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:hidden">
-                            <EventoStatusBadge status={st} />
+                            <FaseEventoTexto status={st} />
                             {e.solicitacoesAbertas > 0 && (
                               <span className="inline-flex items-center gap-1.5 text-pequeno font-medium text-warning">
                                 <span aria-hidden className="block size-1.5 rounded-full bg-warning" />
@@ -325,17 +319,14 @@ export default async function EventosPage({
                           </span>
                         </th>
                         <td className="hidden border-b border-line-row px-3 py-3 sm:table-cell">
-                          <EventoStatusBadge status={st} />
-                          <span className="mt-1.5 block max-w-[112px]">
-                            <BarrasFase status={e.status} rotuloStatus={st === "REALIZADO" ? "Realizado" : EVENTO_STATUS_LABEL[st]} />
-                          </span>
+                          <FaseEventoTexto status={st} />
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 lg:table-cell">
                           <span className="numero block text-pequeno text-ink">{periodoCurto(e.dataInicio, e.dataFim)}</span>
                           <span className={cn("block text-rotulo", m.tom ? COR_MARCO[m.tom] : "text-muted")}>{m.texto}</span>
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 xl:table-cell">
-                          <AreasQuePediram areas={areasQuePedem} pediram={e.areasQuePediram} />
+                          <AreasQuePediram areas={areasQuePedem} pediram={d?.areasQuePediram ?? []} />
                         </td>
                         <td className="hidden border-b border-line-row px-3 py-3 text-right sm:table-cell">
                           {e.solicitacoesAbertas > 0 ? (

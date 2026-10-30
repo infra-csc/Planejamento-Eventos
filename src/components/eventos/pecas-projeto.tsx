@@ -103,7 +103,8 @@ export function PecasProjeto({
       <RodapeTabela
         direita={
           editavel && (
-            <Button variant="link" size="sm" onClick={() => abrir({ pecaId: null, codigo: "", nome: "", porUnidade: 0 })}>
+            // 40 px no celular: o link de botão não tem altura mínima (auditoria 30/10, B-37).
+            <Button variant="link" size="sm" className="max-md:min-h-10" onClick={() => abrir({ pecaId: null, codigo: "", nome: "", porUnidade: 0 })}>
               <Icone nome="mais" />
               Incluir peça
             </Button>
@@ -172,8 +173,10 @@ export function AjustePecaDialog({
         <div className="flex flex-col gap-3.5">
           {!inicial.codigo && (
             <div>
-              <Label>Peça do catálogo</Label>
+              {/* Rótulo ligado ao campo (o nome lido era só o exemplo; auditoria 28/10, nº 64). */}
+              <Label htmlFor="incluir-peca-projeto">Peça do catálogo</Label>
               <ComboBox
+                id="incluir-peca-projeto"
                 value={edicao.pecaId}
                 onChange={(id) => {
                   const p = opcoesPecas.find((x) => x.id === id);

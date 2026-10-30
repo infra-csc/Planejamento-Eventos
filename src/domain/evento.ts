@@ -32,7 +32,7 @@ export const TRANSICOES_EVENTO: Record<AcaoEvento, Transicao> = {
     perfis: ["LOGISTICA", "ADMIN"],
     exigeJustificativa: false,
     label: "Iniciar reunião",
-    descricao: "Bloqueia novos envios de necessidades e abre a consolidação da ata.",
+    descricao: "Bloqueia novos envios de necessidades e abre a conferência da ata.",
   },
   VOLTAR_PREPARACAO: {
     de: ["EM_REUNIAO"],
@@ -97,6 +97,21 @@ export function motivoBloqueioEncerramento(abertas: readonly string[], bloquear:
   if (!bloquear || abertas.length === 0) return null;
   if (abertas.length === 1) return `${abertas[0]} está sem resposta. Responda antes de encerrar.`;
   return `Existem ${abertas.length} solicitações sem resposta (${abertas.join(", ")}). Responda todas antes de encerrar.`;
+}
+
+/** Dias inteiros de `hoje` até `dia` (ambos "YYYY-MM-DD"); negativo quando `dia` já passou. */
+export function diasAte(hoje: string, dia: string): number {
+  return Math.round((Date.parse(`${dia}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Aviso para quem inicia a reunião antes do dia marcado (auditoria 28/10, nº 31): o diálogo só dizia que os envios
+ * ficam bloqueados, e a data marcada ficava no cartão atrás dele. `null` no dia da reunião ou depois.
+ */
+export function avisoReuniaoAntecipada(hoje: string, diaReuniao: string, quando: string): string | null {
+  const dias = diasAte(hoje, diaReuniao);
+  if (dias <= 0) return null;
+  return `A reunião está marcada para ${quando}, ${dias === 1 ? "amanhã" : `daqui a ${dias} dias`}. Iniciando agora, as áreas param de enviar necessidades desde já.`;
 }
 
 /** Em qual estado do evento cada tipo de solicitação pode ser criada/enviada. */

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
@@ -19,7 +20,7 @@ import {
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { aplicarAjustesBom, descricaoLinha } from "@/domain/os";
-import { gerarOsVersao, montarLinhasAta } from "../os";
+import { gerarOsVersao, linhasAtivasDaRequisicao, montarLinhasAta } from "../os";
 import { bloquearEvento, notificarAjusteLinha, registrarHistorico, type Executor } from "../support";
 import { nomeLinha, nomesUsuarios } from "./comum";
 import { sincronizarRegrasAta } from "@/server/services/eventos/regras-kit";
@@ -32,12 +33,15 @@ import { grupoDaLinha } from "@/domain/grupos-material";
 /**
  * Linhas ativas da ata com a origem legível (handoff §5.6): "SOL-0001", "SOL-0001 (parcial)",
  * "Incluída na reunião" (antes do fechamento) ou "Ajuste da logística" (depois).
+ *
+ * Memoizada por requisição (só leitura de página e de rota): o item da ata, a OS e a conferência montavam a ata até 3
+ * vezes por abertura (auditoria 28/10, nº 68). Sem `linhaId`, as linhas vêm da mesma leitura da OS ao vivo.
  */
-export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: string } = {}) {
+export const obterLinhasAta = cache(async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: string } = {}) {
   const db = await getDb();
   const [linhas, ev] = await Promise.all([
     // Com `linhaId`, só aquela linha ativa: cada campo abaixo depende apenas da própria linha e do evento.
-    montarLinhasAta(db, eventoId, opcoes.linhaId ? { linhaId: opcoes.linhaId } : {}),
+    opcoes.linhaId ? montarLinhasAta(db, eventoId, { linhaId: opcoes.linhaId }) : linhasAtivasDaRequisicao(eventoId),
     db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { ataFechadaEm: true } }),
   ]);
   const ids = linhas.map((l) => l.registro.solicitacaoItemId).filter((x): x is string => Boolean(x));
@@ -107,16 +111,21 @@ export async function obterLinhasAta(eventoId: string, opcoes: { linhaId?: strin
       conferidoPor: l.registro.conferidoPorId ? (nomesConferiu.get(l.registro.conferidoPorId) ?? null) : null,
     };
   });
-}
+});
 
 export type LinhaAtaDetalhe = Awaited<ReturnType<typeof obterLinhasAta>>[number];
 
-export async function listarAtaVersoes(eventoId: string) {
+/**
+ * Versões da ata, da mais nova para a mais antiga. Quem usa uma só pede `{ numero }` ou `{ ultima: true }`: o JSON de
+ * cada versão traz a ata inteira, e a tela e as exportações liam todas para usar uma (auditoria 28/10, nº 146).
+ */
+export async function listarAtaVersoes(eventoId: string, opcoes: { numero?: number; ultima?: boolean } = {}) {
   const db = await getDb();
   return db.query.ataVersoes.findMany({
-    where: eq(ataVersoes.eventoId, eventoId),
+    where: opcoes.numero ? and(eq(ataVersoes.eventoId, eventoId), eq(ataVersoes.numero, opcoes.numero)) : eq(ataVersoes.eventoId, eventoId),
     with: { fechadaPor: { columns: { id: true, nome: true } } },
     orderBy: [desc(ataVersoes.numero)],
+    ...(opcoes.ultima ? { limit: 1 } : {}),
   });
 }
 

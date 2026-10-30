@@ -40,7 +40,8 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
       <Section titulo="Evento" padded>
         <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
           <Field label="Nome" htmlFor="nome" error={c?.nome} obrigatorio className="sm:col-span-2">
-            <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required autoFocus placeholder="Ex.: Festival de Verão 2026" />
+            {/* Sem autoFocus: o foco pulava o cabeçalho e a trilha, e o leitor de tela começava no meio da página (auditoria 28/10, nº 141). */}
+            <Input id="nome" name="nome" defaultValue={valores.nome ?? ""} required placeholder="Ex.: Festival de Verão 2026" />
           </Field>
           <Field label="Cliente" htmlFor="cliente" error={c?.cliente} optional>
             <Input id="cliente" name="cliente" placeholder="Ex.: Banco do Brasil" defaultValue={valores.cliente ?? ""} />
@@ -98,8 +99,9 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
         <SubmitButton size="lg" className="max-md:flex-1">
           {valores.id ? "Salvar alterações" : "Criar evento"}
         </SubmitButton>
+        {/* "Cancelar" ao lado de "Cancelar evento" (zona de exceção) tinha efeitos opostos (auditoria 30/10, B-33). */}
         <ButtonLink href={cancelarHref} variant="ghost" size="lg" className="no-underline">
-          Cancelar
+          Voltar sem salvar
         </ButtonLink>
       </div>
     </ActionForm>

@@ -50,8 +50,14 @@ function textoTenda(ls: readonly Linha[], noTotal: boolean): string | null {
  * depois da ata quase toda linha tem um, e selos em metade da lista viram ruído.
  */
 function selo(ls: readonly Linha[]) {
-  const aviso = ls.some((l) => l.posAta) ? "depois da ata" : ls.some((l) => l.registro.justificativaAjuste) ? "ajustado" : null;
-  return aviso ? <span className="shrink-0 text-rotulo text-ink-3">{aviso}</span> : null;
+  // As grades a mais do prisma diziam só "ajustado": o aviso diz o que são, e o motivo vai no title (auditoria 30/10, B-19).
+  const ajustada = ls.find((l) => l.registro.justificativaAjuste);
+  const aviso = ls.some((l) => l.posAta) ? "depois da ata" : ajustada ? (ajustada.registro.regra === "grade-prisma" ? "a mais do prisma" : "ajustado") : null;
+  return aviso ? (
+    <span className="shrink-0 text-rotulo text-ink-3" title={ajustada?.registro.justificativaAjuste ?? undefined}>
+      {aviso}
+    </span>
+  ) : null;
 }
 
 const unicos = (xs: string[]) => [...new Set(xs)].join(", ");
@@ -78,7 +84,7 @@ export function ListaItensEvento({
   ataFechada: boolean;
   opcoes: OpcoesReferencia | null;
   podeCadastrar: boolean;
-  /** "SOL-0001 · Paulo Ribeiro" (ou "Pedido de área" fora da área de quem vê): vai no `title` da coluna Área. */
+  /** "SOL-0001 · Paulo Ribeiro" (ou "Pedido de outra área" fora da área de quem vê): vai no `title` da coluna Área. */
   origem: (l: Linha) => string;
   /** Nome de quem pediu (ou incluiu), à vista na coluna Área; null quando quem vê não pode ver. */
   quem: (l: Linha) => string | null;
@@ -137,7 +143,8 @@ export function ListaItensEvento({
     return (
       <th scope="row" className={cn(celula, "max-w-0 pr-3 text-left font-normal", recuo ? "pl-9 @lg:pl-12" : "pl-cartao")}>
         <span className="flex min-w-0 items-center gap-2 overflow-hidden">
-          <span className={cn("truncate text-corpo text-ink", !recuo && "font-medium", so === "celular" && "@lg:hidden")} title={title}>
+          {/* Estreito: o nome em até 2 linhas (cortava em ~12 letras com a coluna de ações; auditoria 28/10, nº 11). */}
+          <span className={cn("line-clamp-2 min-w-0 break-words text-corpo text-ink @lg:line-clamp-none @lg:truncate", !recuo && "font-medium", so === "celular" && "@lg:hidden")} title={title}>
             {texto}
           </span>
           {tenda && <span className="hidden min-w-0 shrink-[3] truncate text-pequeno text-ink-3 @lg:inline" title={tenda}>{tenda}</span>}
@@ -226,7 +233,8 @@ export function ListaItensEvento({
               {/* No celular a coluna Local some: o local vem na célula do item, no lugar do nome (que está no total). */}
               {celulaItem({ texto: local, title: local, so: "celular", recuo: true, tenda, ls: g, resumo: "" })}
               {tdQtd(qtd, false)}
-              {tdLocal(local, local)}
+              {/* Sem local, a coluna Local fica com "—" (antes repetia a área, que já tem coluna; auditoria 30/10, B-19). */}
+              {tdLocal(x.destino ?? <span className="text-muted">—</span>, x.destino ?? undefined)}
               {tdArea(unicos(g.map(area)), g.map((y) => `${area(y)} · ${origem(y)}`).join("\n"), nomesDe(g))}
               {/* Local com várias linhas somadas: o lápis abre o quadro do local, que também tira o local (0 tendas). */}
               {tdAcoes(acoesDaLinha(x, ls, g.length > 1))}

@@ -104,7 +104,7 @@ export const SETOR_LABEL: Record<Setor, string> = {
 export function descricaoLinha(l: LinhaAta): string {
   if (l.tipo === "PROJETO" && l.projeto) return `${l.projeto.nome} (v${l.projeto.versao})`;
   if (l.tipo === "PECA" && l.peca) return `${l.peca.codigo} · ${l.peca.nome}`;
-  return l.descricaoLivre ?? "Item avulso";
+  return l.descricaoLivre ?? "Item fora do catálogo";
 }
 
 export function calcularOS(linhas: LinhaAta[]): OsConteudo {
@@ -166,7 +166,7 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
       acumular(l.peca.setor, l.peca, l.quantidade, origem);
       individuais.push({ codigo: l.peca.codigo, nome: l.peca.nome, setor: l.peca.setor, unidade: l.peca.unidade, quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     } else {
-      semSetor.push({ descricao: l.descricaoLivre ?? "Item avulso", quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
+      semSetor.push({ descricao: l.descricaoLivre ?? "Item fora do catálogo", quantidade: l.quantidade, destino: l.destino, area: l.areaNome });
     }
   }
 
@@ -205,11 +205,18 @@ export function diffOS(antes: OsConteudo, depois: OsConteudo): DiffLinha[] {
   return out.sort((x, y) => x.codigo.localeCompare(y.codigo, "pt-BR"));
 }
 
-/** Resumo curto de uma diferença de OS: "BOX-600 +4 · CUBO −2 · +3". */
+/** Resumo de uma versão igual à anterior (gravado no banco: a tela troca por "igual à vN"). */
+export const RESUMO_SEM_MUDANCA = "sem mudança nas quantidades";
+
+/**
+ * Resumo curto de uma diferença de OS: "BOX-600 +4 · CUBO −2 · e mais 3 peças". O fim era "· +3", lido como mais uma
+ * quantidade (auditoria 30/10, B-17).
+ */
 function resumirDiff(diff: DiffLinha[]): string {
-  if (diff.length === 0) return "sem mudança nas quantidades";
+  if (diff.length === 0) return RESUMO_SEM_MUDANCA;
   const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
-  return partes.join(" · ") + (diff.length > 3 ? ` · +${diff.length - 3}` : "");
+  const resto = diff.length - 3;
+  return partes.join(" · ") + (resto > 0 ? ` · e mais ${resto} ${resto === 1 ? "peça" : "peças"}` : "");
 }
 
 /** Texto da lista de versões: o que mudou em relação à anterior, ou o tamanho da primeira. */

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
 import { listarAtaVersoes, obterEvento, obterLinhasAta } from "@/server/services/eventos";
@@ -41,10 +42,15 @@ function origemVisivel(usuario: UsuarioAtual, l: { origemLabel: string; origemSo
   return "Pedido de outra área";
 }
 
-const ORIGEM_LABEL: Record<string, string> = { SOLICITACAO: "Solicitação da área", AJUSTE_LOGISTICA: "Incluída pela logística" };
+// "Pedido da área", como na aba Ata (antes "Solicitação da área" só no Excel; auditoria 28/10, nº 86).
+const ORIGEM_LABEL: Record<string, string> = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída pela logística" };
 
-export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, versaoPedida?: number): Promise<AtaExport> {
-  const [ev, versoes] = await Promise.all([obterEvento(usuario, eventoId), listarAtaVersoes(eventoId)]);
+/**
+ * Memoizada por requisição: a impressão da ata montava a ata duas vezes (título e página; auditoria 28/10, nº 68). Lê só a
+ * versão usada, não o JSON de todas (nº 146).
+ */
+export const montarAtaExport = cache(async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, versaoPedida?: number): Promise<AtaExport> {
+  const [ev, versoes] = await Promise.all([obterEvento(usuario, eventoId), listarAtaVersoes(eventoId, versaoPedida ? { numero: versaoPedida } : { ultima: true })]);
   const base = { codigo: ev.codigo, nome: ev.nome, cliente: ev.cliente, local: ev.local, dataMontagem: ev.dataMontagem, dataInicio: ev.dataInicio, dataFim: ev.dataFim, dataDesmontagem: ev.dataDesmontagem, dataCarga: ev.dataCarga, dataReuniao: ev.dataReuniao, responsavel: ev.responsavel.nome };
   const sel = versaoPedida ? versoes.find((v) => v.numero === versaoPedida) : versoes[0];
   if (versaoPedida && !sel) throw new NaoEncontradoError("Versão da ata");
@@ -90,4 +96,4 @@ export async function montarAtaExport(usuario: UsuarioAtual, eventoId: string, v
     linhas: linhas.map((l) => ({ tipo: l.tipo, descricao: l.descricao, codigo: l.tipo === "PROJETO" ? (l.projeto?.codigo ?? null) : l.tipo === "PECA" ? (l.peca?.codigo ?? null) : null, versao: l.versao, quantidade: l.quantidade, destino: l.destino, area: l.areaNome, origem: origemVisivel(usuario, l), conferidoPor: l.conferidoPor ?? null })),
     solicitacoesPreReuniao: [],
   };
-}
+});

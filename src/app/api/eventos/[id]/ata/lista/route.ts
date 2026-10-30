@@ -12,6 +12,8 @@ import { formatarDataHora } from "@/lib/format";
 import { impressao } from "@/server/export/excel";
 import { montarAtaLista } from "@/server/export/ata-lista";
 import { abaListaMateriais } from "@/server/export/ata-lista-xlsx";
+import { contentDisposition } from "@/server/export/nome-arquivo";
+import { erroDownload } from "@/server/export/resposta-erro";
 
 /*
  * Ata no modelo da planilha da cenografia (ATA <evento>.xlsx, aba LISTA DE MATERIAIS): cabeçalho da
@@ -25,15 +27,15 @@ import { abaListaMateriais } from "@/server/export/ata-lista-xlsx";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioDaApi();
-  if (!usuario) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 });
-  if (!pode(usuario, "os.exportar")) return NextResponse.json({ erro: "Sem permissão" }, { status: 403 });
+  if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
+  if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa a ata");
   const { id } = await params;
   const v = Number(new URL(request.url).searchParams.get("v"));
   const ata = await montarAtaExport(usuario, id, Number.isInteger(v) && v > 0 ? v : undefined).catch((e: unknown) => {
     if (e instanceof NaoEncontradoError) return null;
     throw e;
   });
-  if (!ata) return NextResponse.json({ erro: "Evento ou versão da ata não encontrados" }, { status: 404 });
+  if (!ata) return erroDownload(request, 404, "Evento ou versão da ata não encontrados");
   const db = await getDb();
   const [os, [ultimaOs]] = await Promise.all([
     calcularOsAtual(db, id),
@@ -74,7 +76,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="ATA ${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().toUpperCase()}${ultimaOs ? ` - lista OS v${ultimaOs.numero}` : " - lista atual"}.xlsx"`,
+      // Nome do modelo da cenografia (fica como a equipe espera), com o UTF-8 em filename* (auditoria 28/10, nº 180).
+      "Content-Disposition": contentDisposition(`ATA ${ev.nome.replace(/[^\p{L}\p{N} _-]/gu, "").trim().toUpperCase()}${ultimaOs ? ` - lista OS v${ultimaOs.numero}` : " - lista atual"}.xlsx`),
       "Cache-Control": "no-store",
     },
   });

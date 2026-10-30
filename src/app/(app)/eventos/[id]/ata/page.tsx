@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
-import { listarAtaVersoes, obterHistoricoEvento, obterLinhasAta } from "@/server/services/eventos";
+import { contarAjustesPosAta, listarAtaVersoes, obterLinhasAta } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { daMinhaArea, pode } from "@/domain/permissions";
 import { diaMesHora, formatarDataHora } from "@/lib/format";
@@ -16,7 +16,6 @@ import { AtaLista } from "@/components/eventos/ata-lista";
 import { paraView } from "@/components/eventos/ata-view";
 import { Exportacoes } from "@/components/eventos/exportacoes";
 import { mudancasPosAta } from "@/server/services/solicitacoes";
-import { separarAjustes } from "@/components/eventos/mudancas-pos-ata";
 
 const TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 const ORIGEM = { SOLICITACAO: "Pedido da área", AJUSTE_LOGISTICA: "Incluída pela logística" } as const;
@@ -35,9 +34,11 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const usuario = await requireUsuario();
   const { id } = await params;
   const sp = await searchParams;
-  const [ev, versoes, mudancas, historico] = await Promise.all([obterEventoCache(usuario, id), listarAtaVersoes(id), mudancasPosAta(id), obterHistoricoEvento(usuario, id)]);
+  const ev = await obterEventoCache(usuario, id);
+  // Só a versão mais nova da ata e a contagem dos ajustes: antes vinham o JSON de todas as versões e 300 registros do
+  // histórico só para contar (auditoria 28/10, nº 146).
+  const [versoes, mudancas, ajustesPosAta] = await Promise.all([listarAtaVersoes(id, { ultima: true }), mudancasPosAta(id), contarAjustesPosAta(usuario, id, ev.ataFechadaEm)]);
   // Mesma conta da visão geral: pedidos das áreas que entraram, mudaram ou saíram + ajustes diretos da logística.
-  const ajustesPosAta = separarAjustes(historico, ev.ataFechadaEm).posAta.length;
   const totalMudancas = mudancas.length + ajustesPosAta;
   const fechada = versoes.length > 0;
   const emConstrucao = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
@@ -46,9 +47,9 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
   const linhas = emConstrucao || !fechada ? await obterLinhasAta(id) : [];
   const podeConferir = pode(usuario, "ata.consolidar") && emConstrucao;
   const veTodas = pode(usuario, "solicitacao.ver_todas");
-  // Código e link da solicitação são de quem pediu: outra área vê só "Pedido de área".
+  // Código e link da solicitação são de quem pediu: outra área vê só "Pedido de outra área" (auditoria 28/10, nº 86).
   const esconderOrigemAlheia = (v: ReturnType<typeof paraView>, areaDaLinha: string | null) =>
-    veTodas || areaDaLinha == null || daMinhaArea(usuario, areaDaLinha) ? v : { ...v, origemSolicitacaoId: null, origemLabel: v.origemSolicitacaoId ? "Pedido de área" : v.origemLabel };
+    veTodas || areaDaLinha == null || daMinhaArea(usuario, areaDaLinha) ? v : { ...v, origemSolicitacaoId: null, origemLabel: v.origemSolicitacaoId ? "Pedido de outra área" : v.origemLabel };
   const veObservacoes = pode(usuario, "historico.ver_tudo") || pode(usuario, "ata.consolidar");
   const podeAjustarOs = pode(usuario, "ata.ajustar") && ev.status === "ABERTO";
 
@@ -58,7 +59,8 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
     { label: "Iniciada", valor: reu ? (reu.iniciadaEm ? formatarDataHora(reu.iniciadaEm) : "—") : ev.reuniaoIniciadaEm ? formatarDataHora(ev.reuniaoIniciadaEm) : "ainda não" },
     { label: "Ata fechada", valor: reu ? formatarDataHora(reu.fechadaEm) : congelada && !emConstrucao ? formatarDataHora(congelada.fechadaEm) : "ainda não", forte: true },
     { label: "Fechada por", valor: reu?.fechadaPor ?? (!emConstrucao ? congelada?.fechadaPor?.nome : null) ?? "—" },
-    { label: "Conduzida por", valor: reu?.conduzidaPor || ev.responsavel.nome },
+    // Não há registro de quem conduziu: era sempre o responsável do evento com outro nome (auditoria 30/10, B-10).
+    { label: "Responsável", valor: reu?.conduzidaPor || ev.responsavel.nome },
     { label: "Público esperado", valor: (reu ? reu.publicoEsperado : ev.publicoEsperado)?.toLocaleString("pt-BR") ?? "—" },
     { label: "Caminhão carrega", valor: (reu ? reu.caminhaoCarrega : ev.caminhaoCarrega) || "—" },
     { label: "Caminhão sai", valor: (reu ? reu.caminhaoSai : ev.caminhaoSai) || "—" },
@@ -89,7 +91,8 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             tom="info"
             titulo={`${totalMudancas} ${totalMudancas === 1 ? "mudança" : "mudanças"} depois da reunião`}
             acoes={
-              <Link href={`/eventos/${id}#mudancas`} className="link whitespace-nowrap text-pequeno">
+              // Alvo de toque de 40 px no celular (auditoria 30/10, B-37).
+              <Link href={`/eventos/${id}#mudancas`} className="link whitespace-nowrap text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
                 Ver o que mudou
               </Link>
             }
@@ -160,12 +163,9 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
                           );
                         const sub = (
                           <span className="mt-0.5 block text-rotulo text-muted">
-                            {l0.codigo && (
-                              <Codigo>
-                                {l0.codigo}
-                                {l0.versao ? ` · v${l0.versao}` : ""}
-                              </Codigo>
-                            )}
+                            {/* Os "·" fora do código em fonte mono: dentro dele o espaço saía mais largo que nos outros (auditoria 28/10, nº 123). */}
+                            {l0.codigo && <Codigo>{l0.codigo}</Codigo>}
+                            {l0.codigo && l0.versao ? <> · <Codigo>v{l0.versao}</Codigo></> : null}
                             {l0.codigo ? " · " : ""}
                             {ORIGEM[l0.origem]}
                           </span>
@@ -236,7 +236,7 @@ export default async function AtaPage({ params, searchParams }: { params: Promis
             titulo="Precisa mudar algo depois da reunião?"
             acoes={
               podeAjustarOs ? (
-                <Link href={`/eventos/${id}#itens`} className="link whitespace-nowrap text-pequeno">
+                <Link href={`/eventos/${id}#itens`} className="link whitespace-nowrap text-pequeno max-md:inline-flex max-md:min-h-10 max-md:items-center">
                   Corrigir os itens
                 </Link>
               ) : undefined

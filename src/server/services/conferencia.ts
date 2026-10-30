@@ -255,7 +255,7 @@ export async function ajustarQuantidadeLinha(
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { id: true, nome: true, status: true } });
     if (!ev) throw new NaoEncontradoError("Evento");
     const antesDaAta = ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO";
-    if (conferencia && !antesDaAta) throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, use o ajuste com justificativa na aba Ata.");
+    if (conferencia && !antesDaAta) throw new DomainError("A conferência acontece antes de fechar a ata. Depois disso, ajuste o item na visão geral do evento (Itens do evento), com justificativa.");
     if (!antesDaAta && ev.status !== "ABERTO") throw new DomainError("O evento não aceita ajustes na ata neste estado.");
     const posAta = ev.status === "ABERTO";
     if (posAta) exigir(usuario, "ata.ajustar");
@@ -706,7 +706,8 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: l.id,
           acao: opcoes.posAta ? "ATA_QUANTIDADE" : "CONFERENCIA_AJUSTE",
-          descricao: `${tendasDe}: ${l.quantidade} → ${primeira.quantidade}${resumoPorTenda(papeis, primeira.porUnidade)}${razao ? ` — ${razao}` : ""}`,
+          // Só o que mudou: "1 → 1 · 1 fechamento por tenda" repetia valores iguais (auditoria 30/10, B-16).
+          descricao: `${tendasDe}: ${primeira.quantidade !== l.quantidade ? `${l.quantidade} → ${primeira.quantidade}` : qtdTendas(l.quantidade)}${JSON.stringify(bom) !== JSON.stringify(bomBase) ? resumoPorTenda(papeis, primeira.porUnidade) : ""}${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
           dadosAntes: { quantidade: l.quantidade },
           dadosDepois: { quantidade: primeira.quantidade, motivo: razao },
@@ -730,7 +731,7 @@ async function aplicarQuadros(
           entidade: "evento_item",
           entidadeId: nova.id,
           acao: opcoes.posAta ? "AJUSTE_INCLUSAO" : "ATA_INCLUSAO",
-          descricao: `${tendasDe}: ${qtdTendas(p.quantidade)}${resumoPorTenda(papeis, p.porUnidade)} (parte da mesma linha)${razao ? ` — ${razao}` : ""}`,
+          descricao: `${tendasDe}: ${qtdTendas(p.quantidade)}${resumoPorTenda(papeis, p.porUnidade)} no mesmo local${razao ? ` — ${razao}` : ""}`,
           usuarioId: usuario.id,
         });
         r.finais.push(nova.id);
@@ -740,7 +741,12 @@ async function aplicarQuadros(
     if (!mudou) continue;
     r.link ??= r.finais[0] ? `/eventos/${eventoId}/itens/${r.finais[0]}` : null;
     const contar = (ls: readonly Estado[]) => ls.reduce((a, l) => a + l.quantidade, 0);
-    const mudancas = [`${contar(antes)} → ${qtdTendas(contar(depois))}`, ...papeis.map((x) => `${total(antes, x.codigo)} → ${qtdPapel(x.papel, total(depois, x.codigo))}`)];
+    // Só os números que mudaram ("6 → 6 fechamentos, 3 → 3 calhas" não diz nada; auditoria 30/10, B-16).
+    const mudancas = [
+      ...(contar(antes) !== contar(depois) ? [`${contar(antes)} → ${qtdTendas(contar(depois))}`] : []),
+      ...papeis.filter((x) => total(antes, x.codigo) !== total(depois, x.codigo)).map((x) => `${total(antes, x.codigo)} → ${qtdPapel(x.papel, total(depois, x.codigo))}`),
+    ];
+    if (mudancas.length === 0) mudancas.push(qtdTendas(contar(depois)));
     r.resumos.push(`${l0.destino ? `de ${l0.destino}` : "sem local"} (${mudancas.join(", ")})`);
   }
   return r;

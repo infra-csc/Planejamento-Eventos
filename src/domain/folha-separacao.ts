@@ -24,7 +24,10 @@ const n = (nome: RegExp, ...codigos: string[]): Entrada => ({ nome, codigos });
 const SECOES: readonly Secao[] = [
   { id: "percurso", titulo: "Materiais de percurso", entradas: [c("CAV-TRANSITO"), c("COCHO"), c("CAV-COCHO"), c("CONE-G"), c("CONE-P"), c("RAMPA-MAD")] },
   { id: "tendas-3x3", titulo: "Tendas 3×3", entradas: [c("TND3-LONA"), c("TND3-FECH"), c("TND3-TRAV"), c("TND3-PE"), c("TND3-MASTRO"), c("TND3-CABO")] },
-  { id: "tendas-5x5", titulo: "Tendas 5×5", entradas: [c("TND5-LONA"), c("TND5-FECH"), c("TND5-TRAV"), c("TND5-PE"), c("TND5-MASTRO"), c("TND5-CABO"), c("TND5-CALHA"), c("TND5-CANT", "TND3-CANT")] },
+  { id: "tendas-5x5", titulo: "Tendas 5×5", entradas: [c("TND5-LONA"), c("TND5-FECH"), c("TND5-TRAV"), c("TND5-PE"), c("TND5-MASTRO"), c("TND5-CABO"), c("TND5-CALHA")] },
+  // A cantoneira universal serve aos dois tamanhos: em "Tendas 5×5", um evento só com 3×3 imprimia a seção 5×5 só por
+  // causa dela (auditoria 30/10, B-21).
+  { id: "tendas-comum", titulo: "Tendas (3×3 e 5×5)", entradas: [c("TND5-CANT", "TND3-CANT")] },
   {
     id: "q30",
     titulo: "Estrutura (box Q30)",

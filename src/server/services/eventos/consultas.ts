@@ -1,7 +1,7 @@
-import { and, asc, count, desc, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { escopoRascunhos } from "../solicitacoes/escopo";
-import { eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
+import { ataVersoes, eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
 import { areasDoUsuario, pode } from "@/domain/permissions";
@@ -9,6 +9,7 @@ import { numeroOsAtual } from "../os";
 import { buscaSemAcento, type Executor } from "../support";
 import { nomeLinha } from "./comum";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { ACOES_AJUSTE_ITEM } from "@/domain/historico";
 
 /** Áreas do usuário para `in (...)`; sem nenhuma, um valor que não casa com área alguma. */
 const minhasOuNenhuma = (usuario: Parameters<typeof areasDoUsuario>[0]) => {
@@ -36,9 +37,14 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
   if (filtro.deData && dataValida(filtro.deData)) conds.push(sql`${eventos.dataFim} >= ${filtro.deData}`);
   if (filtro.ateData && dataValida(filtro.ateData)) conds.push(sql`${eventos.dataInicio} <= ${filtro.ateData}`);
 
-  const [rows, abertas, versoes, pediram] = await Promise.all([
+  // A lista inteira só traz o que as abas, os filtros e a ordenação usam (colunas curtas e as pendências, que
+  // decidem "exige ação agora"). Versão da OS e áreas que pediram são só exibição: saem em `detalhesListaEventos`,
+  // para as 25 linhas da página (auditoria 28/10, nº 69: antes eram agregadas todas as solicitações e todas as OS
+  // do banco a cada abertura da lista).
+  const [rows, abertas] = await Promise.all([
     db.query.eventos.findMany({
       where: conds.length ? and(...conds) : undefined,
+      columns: { id: true, codigo: true, nome: true, cliente: true, local: true, status: true, dataInicio: true, dataFim: true, dataReuniao: true, janelaAlteracoesAte: true, reabertoVezes: true },
       with: { responsavel: { columns: { id: true, nome: true } } },
       orderBy: [asc(eventos.dataInicio)],
     }),
@@ -48,24 +54,34 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
       // Quem não vê todas as áreas conta só o que é da própria área: a fila das outras não é assunto dele.
       .where(and(inArray(solicitacoes.status, STATUS_ABERTOS), eq(solicitacoes.excluida, false), pode(usuario, "solicitacao.ver_todas") ? undefined : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario))))
       .groupBy(solicitacoes.eventoId),
-    db
-      .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
-      .from(osVersoes)
-      .groupBy(osVersoes.eventoId),
-    // Áreas que já enviaram pedido para o evento (rascunho e cancelada não contam).
-    db
-      .selectDistinct({ eventoId: solicitacoes.eventoId, areaId: solicitacoes.areaId })
-      .from(solicitacoes)
-      .where(and(eq(solicitacoes.excluida, false), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA"]))),
   ]);
-  const areasQuePediram = new Map<string, string[]>();
-  for (const p of pediram) areasQuePediram.set(p.eventoId, [...(areasQuePediram.get(p.eventoId) ?? []), p.areaId]);
   const mapaAbertas = new Map(abertas.map((a) => [a.eventoId, Number(a.n)]));
-  const mapaVersoes = new Map(versoes.map((v) => [v.eventoId, Number(v.v)]));
-  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapaAbertas.get(r.id) ?? 0, versaoOs: mapaVersoes.get(r.id) ?? 0, areasQuePediram: areasQuePediram.get(r.id) ?? [] }));
+  return rows.map((r) => ({ ...r, solicitacoesAbertas: mapaAbertas.get(r.id) ?? 0 }));
 }
 
 export type EventoLista = Awaited<ReturnType<typeof listarEventos>>[number];
+
+/** Versão atual da OS e áreas que já pediram (rascunho e cancelada não contam), só dos eventos mostrados. */
+export async function detalhesListaEventos(eventoIds: string[]) {
+  const vazio = new Map<string, { versaoOs: number; areasQuePediram: string[] }>();
+  if (eventoIds.length === 0) return vazio;
+  const db = await getDb();
+  const [versoes, pediram] = await Promise.all([
+    db
+      .select({ eventoId: osVersoes.eventoId, v: sql<number>`max(${osVersoes.numero})` })
+      .from(osVersoes)
+      .where(inArray(osVersoes.eventoId, eventoIds))
+      .groupBy(osVersoes.eventoId),
+    db
+      .selectDistinct({ eventoId: solicitacoes.eventoId, areaId: solicitacoes.areaId })
+      .from(solicitacoes)
+      .where(and(inArray(solicitacoes.eventoId, eventoIds), eq(solicitacoes.excluida, false), notInArray(solicitacoes.status, ["RASCUNHO", "CANCELADA"]))),
+  ]);
+  for (const id of eventoIds) vazio.set(id, { versaoOs: 0, areasQuePediram: [] });
+  for (const v of versoes) vazio.get(v.eventoId)!.versaoOs = Number(v.v);
+  for (const p of pediram) vazio.get(p.eventoId)!.areasQuePediram.push(p.areaId);
+  return vazio;
+}
 
 /**
  * Eventos que aceitam pedido (preparação ou aberto), mais o do rascunho em edição, para o formulário
@@ -103,8 +119,36 @@ export const ACOES_COM_MOTIVO = ["CONFERENCIA_AJUSTE", "ATA_QUANTIDADE", "ATA_RE
 export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: string, limite = 300) {
   exigir(usuario, "evento.ver");
   const db = await getDb();
+  return db.query.historico.findMany({
+    where: escopoHistoricoEvento(usuario, eventoId),
+    with: { usuario: { columns: { id: true, nome: true } } },
+    orderBy: [desc(historico.criadoEm)],
+    limit: limite,
+  });
+}
+
+/**
+ * Quantos ajustes diretos nos itens depois da ata (o aviso da aba Ata), com o mesmo recorte e a mesma conta de "O que
+ * mudou" na visão geral: a aba lia 300 registros do histórico, com o JSON, só para contar (auditoria 28/10, nº 146).
+ * As atualizações de versão de uma mesma edição de projeto contam uma vez (30/10, B-20).
+ */
+export async function contarAjustesPosAta(usuario: UsuarioAtual, eventoId: string, ataFechadaEm: Date | null) {
+  if (!ataFechadaEm) return 0;
+  exigir(usuario, "evento.ver");
+  const db = await getDb();
+  const acoes = ACOES_AJUSTE_ITEM.filter((a) => a !== "CONFERENCIA_AJUSTE");
+  const [r] = await db
+    .select({
+      n: sql<number>`count(distinct case when ${historico.acao} = 'ATUALIZACAO_VERSAO' then ${historico.descricao} || '|' || date_trunc('minute', ${historico.criadoEm})::text else ${historico.id} end)`,
+    })
+    .from(historico)
+    .where(and(escopoHistoricoEvento(usuario, eventoId), eq(historico.entidade, "evento_item"), inArray(historico.acao, [...acoes]), sql`${historico.criadoEm} > ${ataFechadaEm}`));
+  return Number(r?.n ?? 0);
+}
+
+function escopoHistoricoEvento(usuario: UsuarioAtual, eventoId: string) {
   const areaIds = sql.join(minhasOuNenhuma(usuario).map((a) => sql`${a}`), sql`, `);
-  const escopo = pode(usuario, "historico.ver_tudo")
+  return pode(usuario, "historico.ver_tudo")
     ? and(eq(historico.eventoId, eventoId), pode(usuario, "carga.ver") ? undefined : ne(historico.entidade, "veiculo_carga"))
     : and(
         eq(historico.eventoId, eventoId),
@@ -118,12 +162,6 @@ export async function obterHistoricoEvento(usuario: UsuarioAtual, eventoId: stri
           ),
         ),
       );
-  return db.query.historico.findMany({
-    where: escopo,
-    with: { usuario: { columns: { id: true, nome: true } } },
-    orderBy: [desc(historico.criadoEm)],
-    limit: limite,
-  });
 }
 
 /**
@@ -134,7 +172,7 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
   const db = await getDb();
   // Quem vê todas não conta rascunho de outra área (ainda não foi enviado); o admin vê tudo.
   const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : escopoRascunhos(usuario)) : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario));
-  const [[linhas], sols, versaoOs] = await Promise.all([
+  const [[linhas], sols, versaoOs, [ata]] = await Promise.all([
     db
       .select({ n: count() })
       .from(eventoItens)
@@ -145,10 +183,20 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
       .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), escopoArea))
       .groupBy(solicitacoes.tipo, solicitacoes.status),
     numeroOsAtual(db, eventoId),
+    // Linhas da ata congelada (a última fechada): a fase "Reunião de OS" dizia "ata fechada com 20 linhas" contando as
+    // linhas de hoje, e a ata tinha 18 (auditoria 30/10, B-09). Só o tamanho da lista, sem trazer o JSON.
+    db
+      .select({ n: sql<number>`jsonb_array_length(${ataVersoes.conteudo} -> 'linhas')` })
+      .from(ataVersoes)
+      .where(eq(ataVersoes.eventoId, eventoId))
+      .orderBy(desc(ataVersoes.numero))
+      .limit(1),
   ]);
   const soma = (xs: typeof sols) => xs.reduce((a, s) => a + Number(s.n), 0);
   return {
     linhas: Number(linhas?.n ?? 0),
+    /** Linhas da ata fechada (`null` antes do fechamento). */
+    linhasAtaFechada: ata ? Number(ata.n ?? 0) : null,
     solicitacoes: soma(sols),
     preEnviadas: soma(sols.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA")),
     versaoOs,
@@ -175,6 +223,16 @@ export async function linhasAtaResumidas(eventoIds: string[]) {
     mapa.get(r.eventoId)?.push({ id: r.id, nome, quantidade: r.quantidade, destino: r.destino, areaNome: r.area?.nome ?? null, areaId: r.areaId });
   }
   return Object.fromEntries(mapa);
+}
+
+/** Linhas ativas já conferidas na reunião (o diálogo de adiar avisa quantas se perdem). Antes a tela montava a ata inteira para contar (auditoria 28/10, nº 146). */
+export async function contarLinhasConferidas(eventoId: string) {
+  const db = await getDb();
+  const [r] = await db
+    .select({ n: count() })
+    .from(eventoItens)
+    .where(and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true), isNotNull(eventoItens.conferidoEm)));
+  return Number(r?.n ?? 0);
 }
 
 /** Itens de necessidades pré-reunião ainda sem resposta (bloqueiam o fechamento da ata). */
