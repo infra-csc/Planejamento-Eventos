@@ -18,11 +18,16 @@ const classes = (tamanho: "sm" | "md", className?: string) =>
     className,
   );
 
-type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "title"> & { label: string; tamanho?: "sm" | "md" };
+type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "title"> & {
+  label: string;
+  tamanho?: "sm" | "md";
+  /** Abre um diálogo: `aria-haspopup="dialog"` (como no `Button`). */
+  abreDialogo?: boolean;
+};
 
-export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton({ label, tamanho = "md", className, type = "button", children, ...rest }, ref) {
+export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton({ label, tamanho = "md", className, type = "button", abreDialogo, children, ...rest }, ref) {
   return (
-    <button ref={ref} type={type} aria-label={label} title={label} className={classes(tamanho, className)} {...rest}>
+    <button ref={ref} type={type} aria-label={label} title={label} aria-haspopup={abreDialogo ? "dialog" : undefined} className={classes(tamanho, className)} {...rest}>
       {children}
     </button>
   );

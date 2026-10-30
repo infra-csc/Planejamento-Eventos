@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 const SITUACAO: Record<EventoComPedidos["situacao"], { rotulo: string; tom: "neutral" | "info" | "warning" | "success" }> = {
   fora: { rotulo: "Fora · ainda não voltou", tom: "warning" },
@@ -67,10 +67,10 @@ export function BotaoPedidosItem({ itemId, nome, emUso, unidades }: { itemId: st
             {erro ? (
               <FormError message={erro} />
             ) : !dados ? (
-              <div className="flex flex-col gap-2" aria-busy="true" aria-label="Carregando pedidos">
+              <Carregando texto="Carregando pedidos…" className="flex flex-col gap-2">
                 <Skeleton className="h-16" />
                 <Skeleton className="h-16" />
-              </div>
+              </Carregando>
             ) : dados.length === 0 ? (
               <p className="m-0 text-corpo text-ink-2">Nenhum evento pediu este item desde 20/10, quando o controle de saída e retorno começou.</p>
             ) : (

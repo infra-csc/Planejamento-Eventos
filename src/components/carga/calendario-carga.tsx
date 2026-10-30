@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { AcaoNoCabecalho } from "@/components/ui/acao-cabecalho";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
@@ -329,10 +330,12 @@ export function CalendarioCarga({
           {filtros.eventos && <Kpi n={daSemana.evento} rotulo={daSemana.evento === 1 ? "evento" : "eventos"} cls="text-success" />}
         </dl>
         {podeEditar && (
-          <Button variant="primary" size="md" className="ml-auto" onClick={() => setModal({ tipo: "novo" })}>
-            <Icone nome="mais" />
-            Novo veículo
-          </Button>
+          <AcaoNoCabecalho>
+            <Button variant="primary" size="lg" abreDialogo onClick={() => setModal({ tipo: "novo" })}>
+              <Icone nome="mais" />
+              Novo veículo
+            </Button>
+          </AcaoNoCabecalho>
         )}
       </div>
 

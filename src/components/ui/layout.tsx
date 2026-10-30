@@ -19,7 +19,10 @@ export function Meta({ rotulo, valor, mono }: { rotulo: string; valor: React.Rea
 
 /**
  * Cabeçalho de página: o único h1 do app. `eyebrow` (código + badges) fica acima do título,
- * `meta` (pares rótulo/valor) abaixo da descrição. `tamanho="sm"` para telas de detalhe de item.
+ * `meta` (pares rótulo/valor) abaixo da descrição. `tamanho="sm"` (18 px) em **toda** tela de detalhe de um
+ * registro (evento, solicitação, projeto, peça, item da Ativação, arena); 24 px só nas telas de módulo/lista.
+ * A ação principal vai em `actions`; numa aba que precisa da sua própria ação, a aba a manda para cá com
+ * `<AcaoNoCabecalho>` (ui/acao-cabecalho.tsx).
  */
 export function PageHeader({
   title,
@@ -54,7 +57,14 @@ export function PageHeader({
           {description && <p className="mt-1 max-w-[680px] text-corpo text-ink-2">{description}</p>}
           {meta && <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-corpo text-ink-2">{meta}</div>}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
+        {/*
+          Sempre presente (some vazio): é também o lugar onde `AcaoNoCabecalho` põe a ação de uma aba.
+          No celular as ações ficam sempre à esquerda; antes uma ação ia à esquerda e duas, ao quebrar, à direita
+          (auditoria 28/10 nº 116).
+        */}
+        <div data-acoes-pagina className="flex shrink-0 flex-wrap items-center justify-start gap-2 empty:hidden max-sm:w-full sm:justify-end">
+          {actions}
+        </div>
       </div>
     </>
   );
@@ -86,7 +96,7 @@ export function Section({
 }) {
   const escuro = tom === "dark";
   return (
-    <Tag className={cn("overflow-hidden rounded-cartao border", escuro ? "border-dark bg-dark text-white" : "border-line bg-surface", className)}>
+    <Tag className={cn("overflow-hidden rounded-cartao border", escuro ? "border-dark bg-dark text-white [&_:focus-visible]:!outline-accent-light" : "border-line bg-surface", className)}>
       {(titulo || acoes) && (
         <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-cartao py-3.5", escuro ? "border-dark-3" : "border-line-soft")}>
           <div className="min-w-0">
@@ -153,7 +163,8 @@ export function RodapeTabela({ children, direita, className }: { children: React
 export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
   return (
     // Celular: as ações descem para baixo do texto (lado a lado, o título quebrava palavra por palavra).
-    <section className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-cartao bg-dark px-cartao py-4", className)} {...rest}>
+    // Anel de foco rosa em tudo que está dentro: o vinho sobre o fundo escuro dava 1,87:1 (auditoria 28/10 nº 139).
+    <section className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-cartao bg-dark px-cartao py-4 [&_:focus-visible]:!outline-accent-light", className)} {...rest}>
       <div className="min-w-[min(15rem,100%)] flex-1">
         {titulo && <h2 className="m-0 text-secao font-semibold text-white">{titulo}</h2>}
         {children && <div className="mt-1 text-corpo text-on-dark-3">{children}</div>}
@@ -161,10 +172,6 @@ export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { 
       {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}
     </section>
   );
-}
-
-export function TableWrap({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("overflow-x-auto", className)}>{children}</div>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -265,10 +272,26 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden className={cn("animate-esqueleto rounded-chip bg-line", className)} />;
 }
 
+/**
+ * Contêiner de um carregamento (loading.tsx, cartão que espera dados): avisa "Carregando…" ao leitor de tela.
+ * Antes era `aria-label` num div sem papel, que o leitor ignora e o axe acusa (auditoria 28/10 nº 144).
+ */
+export function Carregando({ children, className, texto = "Carregando…" }: { children: React.ReactNode; className?: string; texto?: string }) {
+  return (
+    <div aria-busy="true" data-carregando className={className}>
+      {/* Um aviso por tela: o esqueleto de lista dentro de outro carregamento fica calado. */}
+      <span role="status" className="sr-only [[data-carregando]_[data-carregando]>&]:hidden">
+        {texto}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 /** Esqueleto de lista/tabela dentro de cartão: `linhas` linhas com título, subtítulo e valor à direita. */
 export function SkeletonLista({ linhas = 5, className }: { linhas?: number; className?: string }) {
   return (
-    <div aria-busy="true" aria-label="Carregando" className={className}>
+    <Carregando className={className}>
       {Array.from({ length: linhas }, (_, i) => (
         <div key={i} className="flex items-center gap-4 border-b border-line-row px-cartao py-3.5 last:border-b-0">
           <div className="flex-1">
@@ -278,7 +301,7 @@ export function SkeletonLista({ linhas = 5, className }: { linhas?: number; clas
           <Skeleton className="h-3.5 w-16" />
         </div>
       ))}
-    </div>
+    </Carregando>
   );
 }
 

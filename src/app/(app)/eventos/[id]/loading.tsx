@@ -1,9 +1,9 @@
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 /** Troca de aba do evento: o cabeçalho fica, só o conteúdo da aba mostra o esqueleto. */
 export default function LoadingAbaEvento() {
   return (
-    <div aria-busy="true" aria-label="Carregando" className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+    <Carregando texto="Carregando…" className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
         <div className="border-b border-line-soft px-cartao py-3.5">
           <Skeleton className="h-4 w-44" />
@@ -33,6 +33,6 @@ export default function LoadingAbaEvento() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Skeleton, SkeletonLista } from "@/components/ui/layout";
+import { Carregando, Skeleton, SkeletonLista } from "@/components/ui/layout";
 
 /** Esqueleto do Painel: cabeçalho, "precisa de você agora", fila + agenda e a faixa de métricas. */
 function EsqueletoPainel() {
   return (
-    <div aria-busy="true" aria-label="Carregando painel">
+    <Carregando texto="Carregando painel…">
       <div className="mb-5 border-b border-line pb-4">
         <Skeleton className="h-3 w-48" />
         <Skeleton className="mt-2.5 h-6 w-full max-w-56" />
@@ -58,14 +58,14 @@ function EsqueletoPainel() {
           </div>
         ))}
       </div>
-    </div>
+    </Carregando>
   );
 }
 
 /** Esqueleto genérico (handoff §6): cabeçalho e um cartão de lista — telas sem esqueleto próprio. */
 function EsqueletoGenerico() {
   return (
-    <div aria-busy="true" aria-label="Carregando">
+    <Carregando texto="Carregando…">
       <div className="mb-5 border-b border-line pb-4">
         <Skeleton className="h-6 w-full max-w-64" />
       </div>
@@ -75,7 +75,7 @@ function EsqueletoGenerico() {
         </div>
         <SkeletonLista linhas={5} />
       </div>
-    </div>
+    </Carregando>
   );
 }
 

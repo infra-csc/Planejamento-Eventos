@@ -107,6 +107,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
   return (
     <>
       <PageHeader
+        // Título de detalhe com 18 px, como toda tela de registro (decisão de 30/10 sobre a auditoria 28/10 nº 51).
+        tamanho="sm"
         className="!mb-4"
         breadcrumbs={[{ label: "Eventos", href: "/eventos" }, { label: `${ev.codigo} · ${ev.nome}` }]}
         eyebrow={

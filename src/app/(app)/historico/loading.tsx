@@ -1,9 +1,9 @@
-import { Skeleton, SkeletonLista } from "@/components/ui/layout";
+import { Carregando, Skeleton, SkeletonLista } from "@/components/ui/layout";
 
 /** Esqueleto com a forma do histórico: título, números do topo, barra de filtros e tabela. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando histórico">
+    <Carregando texto="Carregando histórico…">
       <div className="mb-5 flex items-center justify-between gap-5 border-b border-line pb-4">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-9 w-36 rounded-controle" />
@@ -29,6 +29,6 @@ export default function Loading() {
         </div>
         <SkeletonLista linhas={10} />
       </div>
-    </div>
+    </Carregando>
   );
 }

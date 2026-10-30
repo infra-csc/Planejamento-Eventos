@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 import { pecasParaProjetoAction } from "@/app/(app)/biblioteca/actions";
 import { ProjetoForm, type PecaOpcao } from "./projeto-form";
 import { AnexosManager } from "./anexos-manager";
@@ -32,7 +32,7 @@ export function EditarProjetoModal({
   const [aberto, setAberto] = useState(false);
   const [pecas, setPecas] = useState<PecaOpcao[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [carregando, iniciar] = useTransition();
+  const [, iniciar] = useTransition();
   // Volta para a Biblioteca do jeito que está (busca, filtros, página), com este projeto selecionado.
   const pathname = usePathname();
   const params = useSearchParams();
@@ -74,10 +74,10 @@ export function EditarProjetoModal({
               ) : erro ? (
                 <FormError message={erro} />
               ) : (
-                <div className="flex flex-col gap-3" aria-busy={carregando || undefined} aria-label="Carregando o catálogo de peças">
+                <Carregando texto="Carregando o catálogo de peças…" className="flex flex-col gap-3">
                   <Skeleton className="h-40" />
                   <Skeleton className="h-64" />
-                </div>
+                </Carregando>
               )}
             </div>
           </div>

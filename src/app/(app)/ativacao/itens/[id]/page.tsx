@@ -46,6 +46,8 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
+        // Título de detalhe com 18 px, como toda tela de registro (decisão de 30/10 sobre a auditoria 28/10 nº 51).
+        tamanho="sm"
         breadcrumbs={[{ label: "Ativação", href: "/ativacao" }, { label: item.nome }]}
         title={item.nome}
         eyebrow={

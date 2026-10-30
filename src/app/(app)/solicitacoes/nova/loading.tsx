@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 /** Cabeçalho de um passo: círculo do número + título + linha de apoio. */
 function CabecalhoPasso({ largura }: { largura: string }) {
@@ -16,7 +16,7 @@ function CabecalhoPasso({ largura }: { largura: string }) {
 /** Esqueleto do formulário de solicitação: passos à esquerda e resumo/envio à direita. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando formulário">
+    <Carregando texto="Carregando formulário…">
       <div className="mb-[18px]">
         <Skeleton className="h-6 w-full max-w-52" />
         <Skeleton className="mt-2.5 h-4 w-full max-w-[520px]" />
@@ -70,6 +70,6 @@ export default function Loading() {
           </div>
         </div>
       </div>
-    </div>
+    </Carregando>
   );
 }

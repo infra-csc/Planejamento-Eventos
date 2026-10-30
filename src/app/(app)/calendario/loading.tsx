@@ -1,9 +1,9 @@
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 /** Esqueleto com a forma do calendário: cabeçalho com o mês, filtros, grade (lista no celular) e agenda. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando calendário">
+    <Carregando texto="Carregando calendário…">
       <div className="mb-5 flex flex-col items-start gap-3 border-b border-line pb-4 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-6 w-36" />
         <Skeleton className="h-8 w-52 rounded-controle" />
@@ -65,6 +65,6 @@ export default function Loading() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   );
 }

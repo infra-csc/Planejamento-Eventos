@@ -1,9 +1,9 @@
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 /** Esqueleto do detalhe da solicitação: cabeçalho, coluna de itens e painel lateral de dados. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando solicitação">
+    <Carregando texto="Carregando solicitação…">
       <div className="mb-[18px]">
         <Skeleton className="h-3.5 w-48" />
         <Skeleton className="mt-2.5 h-6 w-full max-w-72" />
@@ -53,6 +53,6 @@ export default function Loading() {
           </div>
         </div>
       </div>
-    </div>
+    </Carregando>
   );
 }
