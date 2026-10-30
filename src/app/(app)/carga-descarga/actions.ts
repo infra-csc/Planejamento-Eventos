@@ -7,7 +7,10 @@ import { executar } from "@/lib/action";
 import { duplicarVeiculoCarga, excluirVeiculoCarga, salvarVeiculoCarga } from "@/server/services/carga-descarga";
 import { TAGS_CARGA, TIPOS_VEICULO } from "@/domain/carga-descarga";
 import { MAX_LINHAS_IMPORTACAO, MAX_QUANTIDADE } from "@/domain/carga-importacao";
-import { importarVeiculosCarga, previaImportacaoCarga } from "@/server/services/carga-importacao";
+import { CAMINHO_GOOGLE_PLANILHAS, importarVeiculosCarga, previaImportacaoCarga } from "@/server/services/carga-importacao";
+
+/** Só com payload malformado (tela desatualizada ou adulterada): diz o que fazer (auditoria 28/10, nº 177). */
+const ERRO_PAYLOAD = "Não foi possível salvar. Atualize a página e tente de novo.";
 
 /** Data e hora local ("AAAA-MM-DDTHH:mm") ou vazio. */
 const dataHora = z.string().regex(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})?$/, { message: "Data e hora inválidas." });
@@ -55,7 +58,7 @@ const revalidar = (eventoId?: string) => {
 export async function salvarVeiculoCargaAction(payload: unknown) {
   const usuario = await requireUsuario();
   const p = veiculoSchema.safeParse(payload);
-  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? "Dados inválidos." } as const;
+  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? ERRO_PAYLOAD } as const;
   const r = await executar(() => salvarVeiculoCarga(usuario, p.data), p.data.id ? "Veículo atualizado" : "Veículo cadastrado");
   revalidar(p.data.eventoId);
   return r;
@@ -63,7 +66,7 @@ export async function salvarVeiculoCargaAction(payload: unknown) {
 
 export async function duplicarVeiculoCargaAction(id: string, eventoId: string) {
   const usuario = await requireUsuario();
-  if (typeof id !== "string" || typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof id !== "string" || typeof eventoId !== "string") return { ok: false, erro: ERRO_PAYLOAD } as const;
   const r = await executar(() => duplicarVeiculoCarga(usuario, id), "Veículo duplicado");
   revalidar(eventoId);
   return r;
@@ -71,7 +74,7 @@ export async function duplicarVeiculoCargaAction(id: string, eventoId: string) {
 
 export async function excluirVeiculoCargaAction(id: string, eventoId: string) {
   const usuario = await requireUsuario();
-  if (typeof id !== "string" || typeof eventoId !== "string") return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof id !== "string" || typeof eventoId !== "string") return { ok: false, erro: ERRO_PAYLOAD } as const;
   const r = await executar(() => excluirVeiculoCarga(usuario, id), "Veículo excluído");
   revalidar(eventoId);
   return r;
@@ -87,7 +90,7 @@ export async function previaImportacaoCargaAction(form: FormData) {
   const arquivo = form.get("arquivo");
   if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, erro: "Escolha a planilha (.xlsx)." } as const;
   if (arquivo.size > LIMITE_ARQUIVO) return { ok: false, erro: "Arquivo grande demais (máximo 5 MB)." } as const;
-  if (!/\.xlsx$/i.test(arquivo.name)) return { ok: false, erro: "Envie o arquivo .xlsx do modelo (Excel). Se estiver no Google Planilhas: Arquivo › Fazer download › .xlsx." } as const;
+  if (!/\.xlsx$/i.test(arquivo.name)) return { ok: false, erro: `Envie o arquivo .xlsx do modelo (Excel; ${CAMINHO_GOOGLE_PLANILHAS}).` } as const;
   const buffer = await arquivo.arrayBuffer();
   return executar(() => previaImportacaoCarga(usuario, buffer));
 }
@@ -101,7 +104,7 @@ const importacaoSchema = z
 export async function importarCargaAction(payload: unknown) {
   const usuario = await requireUsuario();
   const p = importacaoSchema.safeParse(payload);
-  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? "Dados inválidos." } as const;
+  if (!p.success) return { ok: false, erro: p.error.issues[0]?.message ?? ERRO_PAYLOAD } as const;
   const r = await executar(() => importarVeiculosCarga(usuario, p.data));
   revalidatePath("/carga-descarga", "layout");
   if (r.ok) for (const id of r.dados?.eventos ?? []) revalidatePath(`/eventos/${id}`, "layout");

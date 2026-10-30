@@ -125,7 +125,7 @@ export function lerDataHora(v: ValorCelula | undefined): { valor: string } | { e
     const r = montar(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5]));
     return r ? { valor: r } : { erro: `data inválida (${s})` };
   }
-  return { erro: `use dd/mm/aaaa hh:mm (veio "${s}")` };
+  return { erro: `use dd/mm/aaaa hh:mm (veio “${s}”)` };
 }
 
 const SINONIMOS_TAG: Record<string, TagCarga> = {
@@ -155,7 +155,7 @@ export function lerTags(v: ValorCelula | undefined): { valor: TagCarga[] } | { e
   const tags: TagCarga[] = [];
   for (const p of partes) {
     const t = SINONIMOS_TAG[p];
-    if (!t) return { erro: `"${p.toLowerCase()}" não existe (use: ${TAGS_CARGA.map((x) => (x === "ativacao" ? "ativação" : x)).join(", ")})` };
+    if (!t) return { erro: `“${p.toLowerCase()}” não existe (use: ${TAGS_CARGA.map((x) => (x === "ativacao" ? "ativação" : x)).join(", ")})` };
     if (!tags.includes(t)) tags.push(t);
   }
   return { valor: tags };
@@ -166,7 +166,7 @@ export function lerSimNao(v: ValorCelula | undefined): { valor: boolean } | { er
   const s = normalizarTexto(texto(v));
   if (["", "NAO", "N", "0", "FALSO", "FALSE", "-"].includes(s)) return { valor: false };
   if (["SIM", "S", "X", "1", "VERDADEIRO", "TRUE"].includes(s)) return { valor: true };
-  return { erro: `use sim ou não (veio "${texto(v)}")` };
+  return { erro: `use sim ou não (veio “${texto(v)}”)` };
 }
 
 export function lerTipo(v: ValorCelula | undefined): { valor: TipoVeiculo } | { erro: string } {
@@ -175,14 +175,14 @@ export function lerTipo(v: ValorCelula | undefined): { valor: TipoVeiculo } | { 
     .trim();
   if (!s) return { erro: "falta o tipo (carreta, truck ou toco)" };
   const t = TIPOS_VEICULO.find((x) => x.toUpperCase() === s || (x === "truck" && s === "TRUCADO"));
-  return t ? { valor: t } : { erro: `tipo "${texto(v)}" desconhecido (use carreta, truck ou toco)` };
+  return t ? { valor: t } : { erro: `tipo “${texto(v)}” desconhecido (use carreta, truck ou toco)` };
 }
 
 export function lerQuantidade(v: ValorCelula | undefined): { valor: number } | { erro: string } {
   const s = texto(v);
   if (!s) return { valor: 1 };
   const n = Number(s.replace(",", "."));
-  if (!Number.isInteger(n) || n < 1 || n > MAX_QUANTIDADE) return { erro: `quantidade de 1 a ${MAX_QUANTIDADE} (veio "${s}")` };
+  if (!Number.isInteger(n) || n < 1 || n > MAX_QUANTIDADE) return { erro: `quantidade de 1 a ${MAX_QUANTIDADE} (veio “${s}”)` };
   return { valor: n };
 }
 
@@ -201,8 +201,8 @@ export function lerEvento<E extends EventoCarga>(v: ValorCelula | undefined, eve
   const alvo = normalizarTexto(s).replace(/\s+/g, " ");
   const achados = eventos.filter((x) => normalizarTexto(x.nome).replace(/\s+/g, " ") === alvo);
   if (achados.length === 1) return { valor: achados[0] };
-  if (achados.length > 1) return { erro: `há ${achados.length} eventos "${s}": use o código (aba Eventos)` };
-  return { erro: `evento "${s}" não encontrado: escolha na lista` };
+  if (achados.length > 1) return { erro: `há ${achados.length} eventos “${s}”: use o código (aba Eventos)` };
+  return { erro: `evento “${s}” não encontrado: escolha na lista` };
 }
 
 export type LinhaInterpretada<E extends EventoCarga = EventoCarga> = {

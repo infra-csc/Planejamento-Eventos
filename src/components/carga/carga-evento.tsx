@@ -11,6 +11,7 @@ import type { EventoCargaView, VeiculoCargaView } from "@/server/services/carga-
 import { ContagemVeiculos, IconeVeiculo, TagCargaChip } from "./base";
 import { AcoesVeiculo, DetalheVeiculo, ResumoTrechos, TrechosVeiculo } from "./detalhe-veiculo";
 import { FormVeiculo } from "./form-veiculo";
+import { useFocoDeVolta } from "./use-foco-de-volta";
 
 /** Quem mexeu por último: "alterado por" só depois do cadastro. */
 const autoria = (v: VeiculoCargaView) => (v.atualizadoPor ? `alterado por ${v.atualizadoPor}` : v.criadoPor ? `cadastrado por ${v.criadoPor}` : "");
@@ -36,7 +37,13 @@ export function CargaDoEvento({
   /** Substitui o título "Veículos de carga" (o cadastro mostra o nome e a data do evento). */
   cabecalho?: React.ReactNode;
 }) {
-  const [modal, setModal] = useState<{ tipo: "form"; id?: string } | { tipo: "ver"; id: string } | null>(null);
+  const [modal, setModalBruto] = useState<{ tipo: "form"; id?: string } | { tipo: "ver"; id: string } | null>(null);
+  const foco = useFocoDeVolta();
+  const setModal = (m: typeof modal) => {
+    if (m) foco.guardar();
+    else foco.devolver();
+    setModalBruto(m);
+  };
   const doModal = modal && "id" in modal && modal.id ? veiculos.find((v) => v.id === modal.id) : undefined;
   const podeCadastrar = podeEditar && evento.ativo;
   const novo = () => setModal({ tipo: "form" });
@@ -71,7 +78,8 @@ export function CargaDoEvento({
         {podeCadastrar && (
           <Button variant="primary" size="md" onClick={novo}>
             <Icone nome="mais" />
-            {compacto ? "Incluir veículo" : "Novo veículo"}
+            {/* Um nome só para a mesma ação, aqui e no calendário (auditoria 28/10, nº 163). */}
+            Novo veículo
           </Button>
         )}
       </header>
@@ -89,7 +97,7 @@ export function CargaDoEvento({
           icone="caminhao"
           title="Nenhum veículo cadastrado"
           // Sem botão aqui: o do cabeçalho do cartão, logo acima, é o mesmo (antes eram dois "Novo veículo" juntos).
-          description={podeCadastrar ? `Cadastre cada caminhão em “${compacto ? "Incluir veículo" : "Novo veículo"}”, com a ida (carga no galpão) e a volta (descarga no galpão). Eles aparecem no calendário de carga e descarga.` : "Os veículos deste evento aparecem aqui quando a logística cadastrar."}
+          description={podeCadastrar ? `Cadastre cada caminhão em “Novo veículo”, com a ida (carga no galpão) e a volta (descarga no galpão). Eles aparecem no calendário de carga e descarga.` : "Os veículos deste evento aparecem aqui quando a logística cadastrar."}
         />
       ) : compacto ? (
         <ul className="m-0 list-none p-0">
@@ -134,7 +142,7 @@ export function CargaDoEvento({
               </div>
               <TrechosVeiculo v={v} />
               {podeEditar && (
-                <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2">
+                <div className="mt-2.5 flex flex-row-reverse flex-wrap items-center justify-start gap-2">
                   <AcoesVeiculo v={v} podeEditar={podeEditar} evento={evento} onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />
                 </div>
               )}

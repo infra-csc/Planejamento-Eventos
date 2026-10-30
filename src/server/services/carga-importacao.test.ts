@@ -12,7 +12,7 @@ import { COLUNAS_CARGA, rotuloEventoModelo } from "@/domain/carga-importacao";
 import { montarModeloCarga } from "@/server/export/carga-modelo";
 import { migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { listarCarga } from "./carga-descarga";
-import { importarVeiculosCarga, previaImportacaoCarga } from "./carga-importacao";
+import { importarVeiculosCarga, previaImportacaoCarga, tamanhoDescompactado } from "./carga-importacao";
 
 let E: Elenco;
 beforeAll(async () => {
@@ -89,9 +89,26 @@ describe("importação de carga por planilha", () => {
     const arquivo = await planilhaPreenchida([]);
     await expect(previaImportacaoCarga(E.requisitante, arquivo)).rejects.toThrow();
     await expect(previaImportacaoCarga(E.admin, arquivo)).rejects.toThrow(/nenhuma linha preenchida/);
-    await expect(previaImportacaoCarga(E.logistica, new TextEncoder().encode("não é xlsx").buffer as ArrayBuffer)).rejects.toThrow(/Não consegui abrir/);
+    await expect(previaImportacaoCarga(E.logistica, new TextEncoder().encode("não é xlsx").buffer as ArrayBuffer)).rejects.toThrow(/Não foi possível abrir/);
     const outra = new ExcelJS.Workbook();
     outra.addWorksheet("Plan1").addRow(["Nome", "Valor"]);
     await expect(previaImportacaoCarga(E.logistica, (await outra.xlsx.writeBuffer()) as ArrayBuffer)).rejects.toThrow(/aba Veículos/);
+  });
+
+  it("célula de data e hora à meia-noite vale 00:00 (auditoria 30/10, parte D N13)", async () => {
+    const ev = await novoEvento(E.logistica);
+    const evento = (await listarCarga(E.logistica, { eventoId: ev.id })).eventos[0];
+    const arquivo = await planilhaPreenchida([{ evento: evento.codigo, tipo: "truck", voltaDescartar: "sim", idaFimCarga: new Date("2026-11-01T00:00:00Z") }]);
+    const previa = await previaImportacaoCarga(E.logistica, arquivo);
+    expect(previa.linhas[0].erros).toEqual([]);
+    expect(previa.linhas[0].veiculo?.ida.fimCarga).toBe("2026-11-01T00:00");
+  });
+
+  it("mede o conteúdo descompactado do .xlsx antes de abrir (endurecimento E4)", async () => {
+    const arquivo = await planilhaPreenchida([]);
+    const n = tamanhoDescompactado(arquivo);
+    expect(n).toBeGreaterThan(arquivo.byteLength);
+    expect(n).toBeLessThan(5 * 1024 * 1024);
+    expect(tamanhoDescompactado(new TextEncoder().encode("não é xlsx").buffer as ArrayBuffer)).toBeNull();
   });
 });
