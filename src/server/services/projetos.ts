@@ -75,7 +75,7 @@ export async function resolverGrupoProjeto(tx: ProjetoTx | Executor, usuario: Us
     .onConflictDoNothing({ target: projetoGrupos.nomeNormalizado }).returning({ id: projetoGrupos.id });
   if (criado) return criado.id;
   const existente = await tx.query.projetoGrupos.findFirst({ where: eq(projetoGrupos.nomeNormalizado, grupo.nomeNormalizado) });
-  if (!existente) throw new ValidacaoError("Não foi possível selecionar o grupo. Tente novamente.");
+  if (!existente) throw new ValidacaoError("Não foi possível selecionar o grupo. Tente de novo.");
   return existente.id;
 }
 

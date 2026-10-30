@@ -98,7 +98,7 @@ export function OrganizarProjetosDialog({
         onConcluido();
         router.refresh();
       } catch {
-        const mensagem = "Não foi possível atualizar os projetos. Verifique sua conexão e tente novamente.";
+        const mensagem = "Não foi possível atualizar os projetos. Verifique sua conexão e tente de novo.";
         setErro(mensagem);
         toastErro(mensagem);
       } finally {

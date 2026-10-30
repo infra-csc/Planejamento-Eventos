@@ -269,20 +269,25 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
   const ctx = useContext(SelecaoContext);
   if (!gerencia || !ctx) return null;
   const count = ctx.selecionados.size;
+  const contagem = `${count} ${count === 1 ? "item selecionado" : "itens selecionados"}`;
   // Nada marcado: só a dica, numa linha. A barra com "Limpar" e as ações (todas desabilitadas sem seleção)
   // ocupava duas ou três linhas acima da lista o tempo todo, no celular quase uma tela. A dica também era uma faixa
   // fixa entre as abas e a tabela: fica para o leitor de tela (as caixas de seleção já se explicam; a barra aparece ao marcar).
-  if (count === 0)
-    return (
-      <p aria-live="polite" className="sr-only">
-        {ctx.modoReativar ? "Marque os itens inativos para reativar vários de uma vez." : "Marque os itens ativos para organizar, mostrar nas solicitações ou inativar vários de uma vez."}
-      </p>
-    );
+  // A região viva é sempre o mesmo elemento: criada junto com o texto (a barra aparecendo), o leitor de tela não
+  // anunciava "1 item selecionado" (auditoria 28/10, nº 137).
+  const aoVivo = (
+    <p aria-live="polite" aria-atomic="true" className="sr-only">
+      {count ? contagem : ctx.modoReativar ? "Marque os itens inativos para reativar vários de uma vez." : "Marque os itens ativos para organizar, mostrar nas solicitações ou inativar vários de uma vez."}
+    </p>
+  );
   return (
+    <>
+    {aoVivo}
+    {count > 0 && (
     <div className="flex flex-col gap-2 border-b border-line-soft bg-selected px-cartao py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center justify-between gap-3 sm:justify-start">
-        <span aria-live="polite" className="numero text-pequeno font-medium text-ink">
-          {count} {count === 1 ? "item selecionado" : "itens selecionados"}
+        <span aria-hidden className="numero text-pequeno font-medium text-ink">
+          {contagem}
         </span>
         <button
           type="button"
@@ -318,6 +323,8 @@ export function BarraSelecaoLote({ gerencia }: { gerencia: boolean }) {
         )}
       </div>
     </div>
+    )}
+    </>
   );
 }
 
