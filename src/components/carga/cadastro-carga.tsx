@@ -76,11 +76,11 @@ export function CadastroCarga({ eventos, veiculos, podeEditar, podeCriarEvento, 
               <Input type="search" aria-label="Filtrar eventos" value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setBusca("")} placeholder="Filtrar eventos" className="!pl-8" />
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              <label className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-9">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-10">
                 <input type="checkbox" checked={semVeiculo} onChange={(e) => setSemVeiculo(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
                 Só sem veículo
               </label>
-              <label className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-9" title="Eventos de mais de uma semana atrás">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-10" title="Eventos de mais de uma semana atrás">
                 <input type="checkbox" checked={passados} onChange={(e) => setPassados(e.target.checked)} className="size-4 accent-[var(--color-accent)]" />
                 Mostrar eventos passados
               </label>

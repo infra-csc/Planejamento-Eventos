@@ -397,7 +397,7 @@ export function CalendarioCarga({
                   title={TAG_CARGA_DICA[t]}
                   onClick={() => mudarFiltros({ tags: ligada ? filtros.tags.filter((x) => x !== t) : [...filtros.tags, t] })}
                   className={cn(
-                    "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-chip border px-2 text-pequeno transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent max-md:h-9",
+                    "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-chip border px-2 text-pequeno transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent max-md:h-10",
                     ligada ? "border-ink-3 bg-selected font-medium text-ink" : "border-line-control bg-surface text-ink-2 hover:border-line-strong",
                   )}
                 >
@@ -415,7 +415,7 @@ export function CalendarioCarga({
               ["planilha", "Planilha 2026", "Itens da planilha antiga (somem quando o evento é cadastrado)"],
             ] as const
           ).map(([k, rotulo, dica]) => (
-            <label key={k} title={dica} className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-9">
+            <label key={k} title={dica} className="inline-flex cursor-pointer items-center gap-1.5 text-pequeno text-ink-2 max-md:min-h-10">
               <input type="checkbox" checked={filtros[k]} onChange={(e) => mudarFiltros({ [k]: e.target.checked })} className="size-4 accent-[var(--color-accent)]" />
               {rotulo}
             </label>
