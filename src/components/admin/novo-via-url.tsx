@@ -3,6 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Icone } from "@/components/ui/icons";
 
 const PARAM = "novo";
 
@@ -23,7 +24,9 @@ export function BotaoNovo({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const params = useSearchParams();
   return (
-    <Button variant="primary" size="lg" onClick={() => gravarPedido(params.toString(), pathname, true)}>
+    // Criar leva o "+" em todo o app (auditoria 28/10 nº 115); abre o diálogo de criação.
+    <Button variant="primary" size="lg" abreDialogo onClick={() => gravarPedido(params.toString(), pathname, true)}>
+      <Icone nome="mais" />
       {children}
     </Button>
   );

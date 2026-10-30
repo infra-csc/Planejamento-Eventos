@@ -46,17 +46,17 @@ export function AcoesSolicitacao({
   return (
     <>
       {podeCancelar && eventoStatus !== "ENCERRADO" && eventoStatus !== "CANCELADO" && (
-        <Button variant="ghost" size="lg" onClick={() => setDialogo("cancelar")}>
+        <Button abreDialogo variant="ghost" size="lg" onClick={() => setDialogo("cancelar")}>
           Cancelar solicitação
         </Button>
       )}
       {podeExcluir && (
-        <Button variant="ghost" size="lg" onClick={() => setDialogo("excluir")}>
+        <Button abreDialogo variant="ghost" size="lg" onClick={() => setDialogo("excluir")}>
           Excluir rascunho
         </Button>
       )}
       {podeDevolver && (
-        <Button variant="secondary" size="lg" onClick={() => setDialogo("devolver")}>
+        <Button abreDialogo variant="secondary" size="lg" onClick={() => setDialogo("devolver")}>
           Devolver para ajuste
         </Button>
       )}

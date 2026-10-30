@@ -78,7 +78,9 @@ export function toast(mensagem: string, opcoes?: { desfazer?: () => void | Promi
     desfazer: opcoes?.desfazer,
     acao: opcoes?.acao,
     grupo: opcoes?.grupo,
-    restante: opcoes?.duracao ?? (opcoes?.desfazer || opcoes?.acao ? 8000 : 5000),
+    // Com uma ação ("Descrever"), 8 s era pouco para chegar ao botão pelo teclado ou leitor de tela (WCAG 2.2.1,
+    // auditoria 28/10 nº 137): 15 s, e o tempo para enquanto o mouse ou o foco estão no aviso.
+    restante: opcoes?.duracao ?? (opcoes?.acao ? 15000 : opcoes?.desfazer ? 8000 : 5000),
     inicio: null,
   };
   lista = [...lista, item];
@@ -149,54 +151,61 @@ export function Toaster() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  /*
+   * Duas regiões vivas lado a lado: erro em `role="alert"` (interrompe) e o resto em `role="status"` (educado).
+   * Antes o alerta ficava dentro do status (papéis aninhados, WCAG 4.1.3; auditoria 28/10 nº 137) e o leitor de
+   * tela podia ler o erro duas vezes ou nenhuma. As duas existem sempre (região criada junto com o texto não é lida).
+   * Erros ficam embaixo da pilha, mais perto do canto.
+   */
+  const daPilha = (tipo: "erro" | "outros") => itens.filter((t) => (tipo === "erro") === (t.tipo === "erro")).map((t) => <CartaoToast key={t.id} t={t} />);
+  const pilha = "flex flex-col items-end gap-2 max-sm:items-stretch";
   return (
-    <div aria-live="polite" role="status" className="no-print">
-      <AnuncioNavegacao />
-      {itens.length > 0 && (
-        <div
-          className="fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end gap-2 max-sm:inset-x-3 max-sm:bottom-auto max-sm:top-[calc(env(safe-area-inset-top,0px)+12px)] max-sm:max-w-none"
-          onMouseEnter={pausar}
-          onMouseLeave={retomar}
-          onFocus={pausar}
-          onBlur={retomar}
-        >
-          {itens.map((t) => {
-            const icone = ICONE[t.tipo];
-            const botaoAcao = cn(
-              "ml-1 shrink-0 cursor-pointer rounded-chip border-0 bg-transparent px-1.5 py-0.5 text-corpo font-medium underline-offset-2 transition-colors duration-150 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 max-md:min-h-10",
-              t.tipo === "erro" ? "text-white focus-visible:outline-white" : "text-accent-light focus-visible:outline-accent-light",
-            );
-            return (
-              <div
-                key={t.id}
-                className={cn("flex w-full animate-fade-up-rapido items-center gap-2.5 rounded-cartao py-2.5 pl-4 pr-2 text-white shadow-toast sm:w-auto", t.tipo === "erro" ? "bg-danger" : "bg-dark")}
-                role={t.tipo === "erro" ? "alert" : undefined}
-              >
-                <Icone nome={icone.nome} className={icone.cor} />
-                <span className="min-w-0 flex-1 text-corpo">{t.mensagem}</span>
-                {t.desfazer && (
-                  <button type="button" onClick={() => void executarDesfazer(t)} className={botaoAcao} title="Desfazer (Ctrl+Z)">
-                    Desfazer
-                  </button>
-                )}
-                {t.acao && (
-                  <button type="button" onClick={() => void executarAcao(t)} className={botaoAcao}>
-                    {t.acao.rotulo}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => remover(t.id)}
-                  aria-label="Fechar aviso"
-                  className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white max-md:size-10"
-                >
-                  <Icone nome="fechar" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+    <div
+      className="no-print pointer-events-none fixed bottom-6 right-6 z-[var(--z-toast)] flex max-w-[520px] flex-col items-end max-sm:inset-x-3 max-sm:bottom-auto max-sm:top-[calc(env(safe-area-inset-top,0px)+12px)] max-sm:max-w-none max-sm:items-stretch [&_[data-toast]]:pointer-events-auto"
+      onMouseEnter={pausar}
+      onMouseLeave={retomar}
+      onFocus={pausar}
+      onBlur={retomar}
+    >
+      <div role="status" aria-live="polite" className={pilha}>
+        <AnuncioNavegacao />
+        {daPilha("outros")}
+      </div>
+      <div role="alert" className={cn(pilha, "[&:not(:empty)]:mt-2")}>
+        {daPilha("erro")}
+      </div>
+    </div>
+  );
+}
+
+function CartaoToast({ t }: { t: ItemToast }) {
+  const icone = ICONE[t.tipo];
+  const botaoAcao = cn(
+    "ml-1 shrink-0 cursor-pointer rounded-chip border-0 bg-transparent px-1.5 py-0.5 text-corpo font-medium underline-offset-2 transition-colors duration-150 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 max-md:min-h-10",
+    t.tipo === "erro" ? "text-white focus-visible:outline-white" : "text-accent-light focus-visible:outline-accent-light",
+  );
+  return (
+    <div data-toast className={cn("flex w-full animate-fade-up-rapido items-center gap-2.5 rounded-cartao py-2.5 pl-4 pr-2 text-white shadow-toast sm:w-auto", t.tipo === "erro" ? "bg-danger" : "bg-dark")}>
+      <Icone nome={icone.nome} className={icone.cor} />
+      <span className="min-w-0 flex-1 text-corpo">{t.mensagem}</span>
+      {t.desfazer && (
+        <button type="button" onClick={() => void executarDesfazer(t)} className={botaoAcao} title="Desfazer (Ctrl+Z)">
+          Desfazer
+        </button>
       )}
+      {t.acao && (
+        <button type="button" onClick={() => void executarAcao(t)} className={botaoAcao}>
+          {t.acao.rotulo}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => remover(t.id)}
+        aria-label="Fechar aviso"
+        className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white max-md:size-10"
+      >
+        <Icone nome="fechar" />
+      </button>
     </div>
   );
 }

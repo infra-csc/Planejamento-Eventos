@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 import { diaMesHora } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/badge";
 import type { EntradaLinhaTempo, TomLinhaTempo } from "@/server/services/linha-do-tempo";
 
 const COR: Record<TomLinhaTempo, string> = {
@@ -36,6 +37,9 @@ function Autor({ e }: { e: EntradaLinhaTempo }) {
 }
 
 /**
+ * O item a que a entrada se refere vai numa `Tag` (contorno, sem fundo), como todo tipo/objeto no app; antes era um chip
+ * cinza feito à mão (auditoria 28/10 nº 118).
+ *
  * Linha do tempo de auditoria: o que aconteceu, quem fez (nome e perfil), quando e o detalhe registrado.
  * `rotuloItem` marca a que item da solicitação a entrada se refere.
  */
@@ -71,7 +75,7 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
                     const it = x.itemId && rotuloItem ? rotuloItem(x.itemId) : null;
                     return (
                       <li key={x.id} className="break-words text-pequeno text-ink-2">
-                        {it && <span className="mr-1.5 rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{it}</span>}
+                        {it && <Tag className="mr-1.5">{it}</Tag>}
                         {x.descricao}
                       </li>
                     );
@@ -87,7 +91,7 @@ export function LinhaDoTempo({ entradas, rotuloItem, vazio = "Nada registrado ai
             <div className="min-w-0 flex-1">
               <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-corpo">
                 <span className="font-medium text-ink">{e.titulo}</span>
-                {item && <span className="rounded-chip bg-control px-1.5 py-px text-rotulo text-ink-3">{item}</span>}
+                {item && <Tag>{item}</Tag>}
                 <Autor e={e} />
                 <span className="numero text-rotulo text-muted">{diaMesHora(e.em)}</span>
               </p>

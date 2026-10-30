@@ -6,6 +6,7 @@ import { ITEM_STATUS_LABEL } from "@/domain/solicitacao";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
+import { TabelaRolavel } from "@/components/ui/tabela";
 import { ImprimirBotao } from "../../os/[id]/imprimir-botao";
 
 /* Mesma tipografia da impressão da OS: tinta só, cabeçalho de tabela em caixa-alta pequena, números tabulares. */
@@ -89,7 +90,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
 
       <section className="mb-6">
         <h2 className="mb-2 mt-0 text-destaque font-semibold">O que vai para o evento</h2>
-        <div className="overflow-x-auto print:overflow-visible">
+        <TabelaRolavel rotulo="O que vai para o evento">
         <table className="w-full min-w-[640px] border-collapse print:min-w-0">
           <thead>
             <tr className={cabecalho}>
@@ -159,7 +160,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
             </tr>
           </tfoot>
         </table>
-        </div>
+        </TabelaRolavel>
       </section>
 
       <section className="mb-6 break-inside-avoid">
@@ -170,7 +171,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
       {ata.solicitacoesPreReuniao.length > 0 && (
         <section className="mb-6 break-before-page">
           <h2 className="mb-2 mt-0 text-destaque font-semibold">O que cada área pediu antes da reunião</h2>
-          <div className="overflow-x-auto print:overflow-visible">
+          <TabelaRolavel rotulo="O que cada área pediu antes da reunião">
           <table className="w-full min-w-[640px] border-collapse print:min-w-0">
             <thead>
               <tr className={cabecalho}>
@@ -201,7 +202,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
               )}
             </tbody>
           </table>
-          </div>
+          </TabelaRolavel>
         </section>
       )}
 

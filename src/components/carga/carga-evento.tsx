@@ -107,7 +107,7 @@ export function CargaDoEvento({
                     ))}
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Button variant="secondary" size="sm" onClick={() => setModal({ tipo: "ver", id: v.id })}>
+                    <Button abreDialogo variant="secondary" size="sm" onClick={() => setModal({ tipo: "ver", id: v.id })}>
                       Ver
                     </Button>
                     {podeEditar && <AcoesVeiculo v={v} podeEditar evento={evento} tamanho="sm" onEditar={() => setModal({ tipo: "form", id: v.id })} onFeito={() => undefined} nomeEvento={evento.nome} />}

@@ -1,9 +1,9 @@
-import { Skeleton, SkeletonLista } from "@/components/ui/layout";
+import { Carregando, Skeleton, SkeletonLista } from "@/components/ui/layout";
 
 /** Esqueleto com a forma da lista de solicitações: título, barra de filtros e cartão com abas e linhas. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando solicitações">
+    <Carregando texto="Carregando solicitações…">
       <div className="mb-5 flex items-center justify-between gap-5 border-b border-line pb-4">
         <Skeleton className="h-6 w-44" />
         <Skeleton className="h-9 w-36 rounded-controle" />
@@ -20,6 +20,6 @@ export default function Loading() {
         </div>
         <SkeletonLista linhas={8} />
       </div>
-    </div>
+    </Carregando>
   );
 }

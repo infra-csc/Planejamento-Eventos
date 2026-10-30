@@ -53,7 +53,7 @@ export function EnvioOs({
             <span>Marque quando a OS for para o galpão: o que entrar depois vira um complemento separado.</span>
           </p>
           {podeEnviar && (
-            <Button variant="primary" size="md" className="mt-3 w-full" onClick={() => setConfirmar(true)}>
+            <Button abreDialogo variant="primary" size="md" className="mt-3 w-full" onClick={() => setConfirmar(true)}>
               Marcar v{versaoAtual} como enviada
             </Button>
           )}
@@ -102,7 +102,7 @@ export function EnvioOs({
                   Complemento (.xlsx)
                 </a>
                 {podeEnviar && (
-                  <Button variant="secondary" size="md" className="w-full" onClick={() => setConfirmar(true)}>
+                  <Button abreDialogo variant="secondary" size="md" className="w-full" onClick={() => setConfirmar(true)}>
                     Incorporar numa OS nova
                   </Button>
                 )}

@@ -230,7 +230,7 @@ Projeto: ATIVO ⇄ INATIVO (Cenografia). Inativo não pode entrar em novas solic
 - **RN-06** Rascunho preserva o progresso (autosave), sem enviar.
 - **RN-07** Parcial e Não atendido exigem observação da logística; o solicitante é notificado item a item. "A OS nunca reflete uma quantidade menor em silêncio."
 - **RN-08** Muitas solicitações do mesmo evento correm em paralelo; não há fila nem bloqueio entre elas.
-- **RN-09** Estrutura da tenda tem BOM automático (cantoneira, travessa, pé, mastro, cabo, calha). **Fechamento de tenda nunca entra em BOM**: é sempre item avulso com quantidade + destino.
+- **RN-09** Estrutura da tenda tem lista de peças automática no projeto (cantoneira universal, travessa, pé, mastro, cabo; na 5×5 também 1 calha por tenda). O **fechamento não faz parte do padrão do projeto**: é pedido **por local**, no quadro de tendas (tendas, fechamentos e calhas de cada local), e entra na OS como ajuste "extra" da linha da tenda, só com peças do kit da própria tenda (ex.: `TND5-FECH`; `extrasPermitidosTenda`), não como item avulso. A calha também se ajusta por local. Projeto "de tenda" é reconhecido pelas peças da lista, não pelo nome (`src/domain/tendas.ts`). *(Atualizada em 30/10: a versão anterior dizia que o fechamento nunca entrava na lista e era sempre item avulso.)*
 - **RN-10** Encerramento para alterações é comando explícito da Logística; não é automático por data de corte. Depois dele nenhuma solicitação nova é aceita (rascunhos existentes ficam bloqueados para envio).
 - **RN-11** A ata digital é gerada a partir do que foi consolidado e ajustado na reunião e fica congelada (snapshot) ao ser fechada; alterações posteriores ficam registradas separadamente.
 - **RN-12** Catálogo de peças é único e reutilizado por todos os projetos.
@@ -272,7 +272,7 @@ Projeto: ATIVO ⇄ INATIVO (Cenografia). Inativo não pode entrar em novas solic
 ### 9.1 Happy path
 
 1. Logística cria evento (PREPARACAO) com data da reunião → áreas notificadas.
-2. Produção abre solicitação pré-reunião: "Pórtico boca 6,60m × 2", "Tenda 10×10 × 1", item avulso "4 fechamentos — GV". Salva como rascunho, completa depois, envia.
+2. Produção abre solicitação pré-reunião: "Pórtico boca 6,60m × 2", "Tenda 5×5" no quadro de tendas com 1 tenda e 4 fechamentos no local GV (RN-09). Salva como rascunho, completa depois, envia.
 3. Um dia antes da reunião, lembrete automático para áreas sem envio.
 4. Logística inicia reunião (EM_REUNIAO). Na tela de consolidação vê todos os itens enviados agrupados por área, responde item a item (atende, ajusta quantidade com observação, recusa com observação) e inclui linhas próprias.
 5. Fecha a ata → ABERTO. AtaVersao 1 e OS v1 (por setor) geradas; áreas notificadas.

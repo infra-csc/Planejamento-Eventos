@@ -40,7 +40,7 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
             <Numero valor={emReforma} /> {emReforma === 1 ? "unidade" : "unidades"} em reforma
           </p>
         )}
-        <Button variant="primary" className="ml-auto" onClick={() => setModal({ tipo: "nova" })} disabled={!itens.length}>
+        <Button abreDialogo variant="primary" className="ml-auto" onClick={() => setModal({ tipo: "nova" })} disabled={!itens.length}>
           <Icone nome="mais" />
           Enviar para reforma
         </Button>
@@ -91,11 +91,11 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
                       <td className="px-3 py-2.5 text-pequeno">{r.previsao ? <span className={atrasada ? "font-medium text-danger" : "text-ink-2"}>{formatarData(r.previsao)}{atrasada ? " · atrasada" : ""}</span> : <span className="text-line-strong">—</span>}</td>
                       <td className="px-3 py-2.5 pr-cartao text-right">
                         <span className="inline-flex gap-1.5">
-                          <Button variant="ghost" size="xs" onClick={() => setModal({ tipo: "editar", r })}>
+                          <Button abreDialogo variant="ghost" size="xs" onClick={() => setModal({ tipo: "editar", r })}>
                             <Icone nome="lapis" />
                             Editar
                           </Button>
-                          <Button variant="secondary" size="xs" onClick={() => setModal({ tipo: "concluir", r })}>
+                          <Button abreDialogo variant="secondary" size="xs" onClick={() => setModal({ tipo: "concluir", r })}>
                             <Icone nome="check" />
                             Concluir
                           </Button>

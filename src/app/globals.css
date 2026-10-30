@@ -275,16 +275,45 @@
 }
 
 @layer components {
-  /* Link de texto padrão do produto */
+  /*
+   * Link de texto padrão do produto. Sublinhado discreto sempre, cheio no hover: só a cor separava o link do texto
+   * em volta (1,06:1, WCAG 1.4.1; auditoria 28/10 nº 62) — "EVT-0002 Convenção…" no meio da frase não parecia link.
+   */
   .link {
     color: var(--color-accent);
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+    text-decoration-thickness: 1px;
     text-underline-offset: 2px;
   }
   .link:hover {
     color: var(--color-accent-hover);
-    text-decoration: underline;
+    text-decoration-color: currentColor;
   }
+  /*
+   * Celular: link solto ("Ver tudo", "Ver o que mudou", "Voltar para a OS") ganha área de toque de 40 px sem mudar
+   * o desenho (auditoria 28/10 nº 59/60 e 30/10 B-37). Link no meio de frase ou de lista fica como está: é a
+   * exceção da WCAG 2.5.8 e a área maior cobriria o vizinho de cima e de baixo.
+   */
+  @media (max-width: 767px) {
+    .link:not(:is(p, li, dd, td) .link) {
+      position: relative;
+    }
+    .link:not(:is(p, li, dd, td) .link)::after {
+      content: "";
+      position: absolute;
+      inset: -11px -4px;
+    }
+  }
+}
+
+/*
+ * Rodapé de diálogo: um só tamanho de botão (36 px, o `lg`). Formulários em diálogo usavam `md` (34) e as
+ * confirmações `lg` (36): o rodapé mudava de altura entre diálogos irmãos (auditoria 28/10 nº 132). Fora das
+ * camadas para valer sobre o tamanho do botão; o mínimo de 40 px no celular continua (min-height).
+ */
+.rodape-dialogo > :is(button, a) {
+  height: 2.25rem;
 }
 
 /* Telas estreitas: tabelas rolam na horizontal dentro do próprio cartão, sem rolar a página.

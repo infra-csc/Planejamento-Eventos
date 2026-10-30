@@ -21,15 +21,21 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
    * mostra o motivo no `title` e o leitor de tela o anuncia (aria-describedby).
    */
   motivoDesabilitado?: string;
+  /**
+   * O botão abre um diálogo (`aria-haspopup="dialog"`): o leitor de tela avisa antes do clique. Os diálogos abertos por
+   * estado (sem `DialogTrigger`) não diziam isso (auditoria 28/10, observação do VIS).
+   */
+  abreDialogo?: boolean;
 };
 
-export const Button = forwardRef<HTMLButtonElement, Props>(function Button({ variant, size, loading, motivoDesabilitado, className, children, disabled, type = "button", onClick, title, "aria-describedby": describedBy, ...rest }, ref) {
+export const Button = forwardRef<HTMLButtonElement, Props>(function Button({ variant, size, loading, motivoDesabilitado, abreDialogo, className, children, disabled, type = "button", onClick, title, "aria-describedby": describedBy, ...rest }, ref) {
   const idMotivo = useId();
   // Com motivo: aria-disabled em vez de disabled, para o foco e o title (tooltip) continuarem funcionando.
   const comMotivo = Boolean(disabled && motivoDesabilitado && !loading);
   return (
     <button
       {...rest}
+      {...(abreDialogo ? { "aria-haspopup": "dialog" as const } : {})}
       ref={ref}
       type={type}
       className={buttonClasses({ variant, size, className })}

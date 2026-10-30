@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { AcaoNoCabecalho } from "@/components/ui/acao-cabecalho";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
 import { Icone } from "@/components/ui/icons";
@@ -329,10 +330,12 @@ export function CalendarioCarga({
           {filtros.eventos && <Kpi n={daSemana.evento} rotulo={daSemana.evento === 1 ? "evento" : "eventos"} cls="text-success" />}
         </dl>
         {podeEditar && (
-          <Button variant="primary" size="md" className="ml-auto" onClick={() => setModal({ tipo: "novo" })}>
-            <Icone nome="mais" />
-            Novo veículo
-          </Button>
+          <AcaoNoCabecalho>
+            <Button variant="primary" size="lg" abreDialogo onClick={() => setModal({ tipo: "novo" })}>
+              <Icone nome="mais" />
+              Novo veículo
+            </Button>
+          </AcaoNoCabecalho>
         )}
       </div>
 
@@ -601,7 +604,7 @@ export function CalendarioCarga({
                         <span className="text-corpo font-medium text-ink">{TIPO_VEICULO_LABEL[v.tipo]}</span>
                         {v.ident && <span className="text-pequeno text-ink-3">· {v.ident}</span>}
                         {podeEditar && !ev.cancelado && (
-                          <Button variant="ghost" size="xs" className="ml-auto" onClick={() => setModal({ tipo: "editar", id: v.id })}>
+                          <Button abreDialogo variant="ghost" size="xs" className="ml-auto" onClick={() => setModal({ tipo: "editar", id: v.id })}>
                             <Icone nome="lapis" />
                             Editar
                           </Button>
@@ -617,7 +620,7 @@ export function CalendarioCarga({
                       <Codigo>{ev.codigo}</Codigo> · abrir a carga do evento
                     </Link>
                     {podeEditar && ev.ativo && (
-                      <Button variant="secondary" size="md" onClick={() => setModal({ tipo: "novo", eventoId: ev.id })}>
+                      <Button abreDialogo variant="secondary" size="md" onClick={() => setModal({ tipo: "novo", eventoId: ev.id })}>
                         <Icone nome="mais" />
                         Veículo neste evento
                       </Button>

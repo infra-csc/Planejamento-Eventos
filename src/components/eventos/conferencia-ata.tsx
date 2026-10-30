@@ -1102,12 +1102,12 @@ export function ConferenciaAta({
                     </Button>
                   )}
                   {pendentes > 1 && (
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmarTodas(true)} className="max-sm:order-last max-sm:col-span-2">
+                    <Button abreDialogo variant="ghost" size="sm" onClick={() => setConfirmarTodas(true)} className="max-sm:order-last max-sm:col-span-2">
                       <Icone nome="check" />
                       Conferir as <span className="numero">{pendentes}</span> restantes
                     </Button>
                   )}
-                  <Button variant="secondary" size="sm" onClick={() => setIncluir(true)} className={pendentes > 0 ? undefined : "max-sm:col-span-2"}>
+                  <Button abreDialogo variant="secondary" size="sm" onClick={() => setIncluir(true)} className={pendentes > 0 ? undefined : "max-sm:col-span-2"}>
                     <Icone nome="mais" />
                     Incluir linha
                   </Button>
@@ -1179,7 +1179,7 @@ export function ConferenciaAta({
           description="As necessidades das áreas entram aqui sozinhas. Inclua também as linhas decididas na reunião."
           action={
             editavel ? (
-              <Button variant="secondary" size="md" onClick={() => setIncluir(true)}>
+              <Button abreDialogo variant="secondary" size="md" onClick={() => setIncluir(true)}>
                 <Icone nome="mais" />
                 Incluir linha
               </Button>

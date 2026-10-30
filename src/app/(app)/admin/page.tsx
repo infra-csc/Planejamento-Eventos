@@ -6,7 +6,6 @@ import { ultimoAcesso } from "@/lib/format";
 import { TabsNav } from "@/components/ui/tabs-nav";
 import { hrefCom } from "@/lib/url";
 import { PageHeader } from "@/components/ui/layout";
-import { Pills } from "@/components/ui/pills";
 import { BuscaUrl } from "@/components/ui/busca-url";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 import { Paginacao } from "@/components/ui/tabela";
@@ -144,11 +143,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader title="Administração" divisor actions={acao} />
 
-      {/* Barra compacta (template de pedidos): seção da administração e busca na mesma linha. */}
-      <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        <Pills rotulo="Seções da administração" itens={secoes.map((t) => ({ href: t.href, label: t.label, ativo: aba === t.chave }))} />
-        {busca}
-      </div>
+      {/*
+        Seção da página em abas, como Ativação, Carga e o evento; pílula fica só para filtro. Antes eram pílulas com
+        abas dentro do cartão (auditoria 28/10 nº 53).
+      */}
+      <TabsNav rotulo="Seções da administração" className="mb-4" tabs={secoes.map((t) => ({ href: t.href, label: t.label, ativo: aba === t.chave }))} />
+      {busca && <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">{busca}</div>}
 
       {conteudo}
     </>

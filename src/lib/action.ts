@@ -67,7 +67,7 @@ export function tratarErro(e: unknown, contexto?: ContextoErro): ActionResult<ne
   // tipo, mensagem e pilha (sem o objeto cru, que pode trazer parâmetros da consulta: e-mail, hash).
   const ref = Math.random().toString(36).slice(2, 8).toUpperCase();
   console.error(linhaLogErro(e, { ref, codigo, acao: contexto?.acao, usuarioId: contexto?.usuarioId, origem: "action" }));
-  return { ok: false, erro: `Não foi possível concluir a operação. Tente novamente; se continuar, informe o código ${ref} ao administrador.` };
+  return { ok: false, erro: `Não foi possível concluir a operação. Tente de novo; se continuar, informe o código ${ref} ao administrador.` };
 }
 
 export function parseForm<T>(schema: ZodType<T>, formData: FormData): T {

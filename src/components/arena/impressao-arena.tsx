@@ -2,6 +2,7 @@ import type { Arena, CategoriaPonto, PontoArena, Vec2 } from "@/domain/arena/tip
 import { CATEGORIAS, COR_PERCURSO } from "@/domain/arena/categorias";
 import { itensNaoPosicionados, poligonoFaixa } from "@/domain/arena/geometria";
 import { formatarData, formatarDataHora } from "@/lib/format";
+import { TabelaRolavel } from "@/components/ui/tabela";
 
 /**
  * Mapa de montagem para impressão (A4 paisagem): a mesma planta do plano 2D, estática, com os
@@ -237,7 +238,7 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
       <section className="pt-1">
         <h2 className="mb-2 text-base font-semibold">Pontos do mapa</h2>
         {/* Na tela do celular a lista rola de lado dentro dela (alargava a página); no papel, sem rolagem. */}
-        <div className="overflow-x-auto print:overflow-visible">
+        <TabelaRolavel rotulo="Pontos do mapa">
         <table className="w-full min-w-[640px] border-collapse print:min-w-0">
           <thead>
             <tr className="border-b border-black text-left text-[10px] uppercase tracking-wide">
@@ -275,7 +276,7 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
             })}
           </tbody>
         </table>
-        </div>
+        </TabelaRolavel>
         <p className="mt-1 text-[10px] text-neutral-500">Posição em metros a partir do marco da arena: x cresce para leste, z cresce para sul.</p>
       </section>
 

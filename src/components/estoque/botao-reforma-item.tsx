@@ -11,7 +11,7 @@ export function BotaoReformaItem({ item }: { item: { id: string; nome: string; q
   return (
     <>
       {/* Sem o lápis: ele é do "Editar item", ao lado. */}
-      <Button variant="secondary" onClick={() => setAberto(true)} disabled={item.quantidade - item.emEvento <= 0} motivoDesabilitado={item.emEvento ? "As unidades em posse estão fora em evento; só o que está no galpão vai para reforma." : "Não há unidades em posse para enviar à reforma."}>
+      <Button abreDialogo variant="secondary" onClick={() => setAberto(true)} disabled={item.quantidade - item.emEvento <= 0} motivoDesabilitado={item.emEvento ? "As unidades em posse estão fora em evento; só o que está no galpão vai para reforma." : "Não há unidades em posse para enviar à reforma."}>
         Enviar para reforma
       </Button>
       <Dialog open={aberto} onOpenChange={setAberto}>

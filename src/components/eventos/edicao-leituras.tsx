@@ -12,7 +12,7 @@ export function EditarTendaBotao({ eventoId, tenda, ataFechada, rotulo }: { even
   const [aberto, setAberto] = useState(false);
   return (
     <>
-      <IconButton label={`Editar tendas de ${rotulo}`} onClick={() => setAberto(true)}>
+      <IconButton abreDialogo label={`Editar tendas de ${rotulo}`} onClick={() => setAberto(true)}>
         <Icone nome="lapis" />
       </IconButton>
       {aberto && <EditarTendaDialog eventoId={eventoId} tenda={tenda} ataFechada={ataFechada} onFechar={() => setAberto(false)} />}
@@ -31,7 +31,7 @@ export function OrigensDoTotal({ titulo, descricao, rotuloBotao, origens }: { ti
   const [aberto, setAberto] = useState(false);
   return (
     <>
-      <IconButton label={rotuloBotao} onClick={() => setAberto(true)}>
+      <IconButton abreDialogo label={rotuloBotao} onClick={() => setAberto(true)}>
         <Icone nome="lapis" />
       </IconButton>
       <Dialog open={aberto} onOpenChange={setAberto}>

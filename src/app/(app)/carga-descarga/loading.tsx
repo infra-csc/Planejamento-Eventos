@@ -1,9 +1,9 @@
-import { Skeleton } from "@/components/ui/layout";
+import { Carregando, Skeleton } from "@/components/ui/layout";
 
 /** Esqueleto do calendário de carga: semana, filtros, gráfico do ano e os 7 dias. */
 export default function Loading() {
   return (
-    <div aria-busy="true" aria-label="Carregando carga e descarga">
+    <Carregando texto="Carregando carga e descarga…">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Skeleton className="h-10 w-40" />
@@ -17,6 +17,6 @@ export default function Loading() {
           ))}
         </div>
       </div>
-    </div>
+    </Carregando>
   );
 }

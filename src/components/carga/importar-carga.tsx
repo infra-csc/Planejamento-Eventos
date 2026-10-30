@@ -32,7 +32,7 @@ export function ImportarCarga() {
         <Icone nome="download" />
         Baixar modelo
       </a>
-      <Button variant="secondary" size="sm" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" size="sm" onClick={() => setAberto(true)}>
         <Icone nome="seta-cima" />
         Importar planilha
       </Button>

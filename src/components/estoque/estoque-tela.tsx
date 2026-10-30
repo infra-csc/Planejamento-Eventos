@@ -17,6 +17,7 @@ import { Icone } from "@/components/ui/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { Numero } from "@/components/ui/numero";
 import { EmptyState } from "@/components/ui/layout";
+import { AcaoNoCabecalho } from "@/components/ui/acao-cabecalho";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
 import { BotaoPedidosItem } from "./pedidos-item";
 
@@ -98,10 +99,12 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
         <div className="w-full sm:w-[180px]">
           <Select value={categoria} onValueChange={setCategoria} aria-label="Categoria" ordenarAlfabetico={false} opcoes={[{ value: "Todas", label: "Todas as categorias" }, ...categorias.map((c) => ({ value: c, label: c }))]} />
         </div>
-        <Button variant="primary" className="sm:ml-auto" onClick={() => setEditando("novo")}>
-          <Icone nome="mais" />
-          Novo item
-        </Button>
+        <AcaoNoCabecalho>
+          <Button variant="primary" size="lg" abreDialogo onClick={() => setEditando("novo")}>
+            <Icone nome="mais" />
+            Novo item
+          </Button>
+        </AcaoNoCabecalho>
       </div>
 
       <div className="overflow-hidden rounded-cartao border border-line bg-surface">
@@ -284,7 +287,7 @@ export function BotaoEditarItemEstoque({ item, catalogo }: { item: ItemEditavel;
   const categorias = [...new Set([...CATEGORIAS_ESTOQUE, item.categoria])];
   return (
     <>
-      <Button variant="secondary" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" onClick={() => setAberto(true)}>
         <Icone nome="lapis" />
         Editar item
       </Button>

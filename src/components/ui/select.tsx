@@ -35,6 +35,8 @@ export function Select({
   tamanho = "md",
   "aria-describedby": describedBy,
   "aria-label": ariaLabel,
+  "aria-invalid": ariaInvalid,
+  "aria-required": ariaRequired,
 }: {
   id?: string;
   name?: string;
@@ -52,6 +54,9 @@ export function Select({
   "aria-describedby"?: string;
   /** Nome acessível quando não há <label> ligado pelo id (filtros soltos). */
   "aria-label"?: string;
+  /* Vêm do <Field> (erro e obrigatório); antes ficavam pelo caminho (auditoria 28/10 nº 63). */
+  "aria-invalid"?: boolean | "true" | "false";
+  "aria-required"?: boolean;
 }) {
   const [interno, setInterno] = useState(defaultValue);
   const controlado = value !== undefined;
@@ -83,12 +88,14 @@ export function Select({
       >
         <S.Trigger
           id={id}
-          aria-invalid={invalid || undefined}
+          aria-invalid={invalid || ariaInvalid === true || ariaInvalid === "true" || undefined}
+          aria-required={ariaRequired || undefined}
           aria-describedby={describedBy}
           aria-label={ariaLabel}
           className={cn(
-            "group flex w-full cursor-pointer items-center justify-between gap-2 rounded-controle border border-line-control bg-surface text-left text-corpo text-ink outline-none transition-colors",
-            "hover:border-ink-3 focus-visible:border-accent data-[state=open]:border-accent",
+            "group flex w-full cursor-pointer items-center justify-between gap-2 rounded-controle border border-line-control bg-surface text-left text-corpo text-ink outline-none transition-[color,border-color,box-shadow]",
+            // Foco por teclado: borda + anel da marca, como os campos (auditoria 28/10 nº 135).
+            "hover:border-ink-3 focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent data-[state=open]:border-accent",
             "disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted aria-[invalid=true]:border-danger-input data-[placeholder]:text-meta",
             tamanho === "sm" ? "h-8 px-2.5 text-pequeno max-md:h-10" : "h-[34px] px-3 max-md:h-10",
             className,

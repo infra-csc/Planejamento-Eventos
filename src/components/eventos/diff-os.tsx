@@ -4,7 +4,7 @@ import { Tag, type Tom } from "@/components/ui/badge";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { Section } from "@/components/ui/layout";
-import { CaptionOculta, Th } from "@/components/ui/tabela";
+import { CaptionOculta, TabelaRolavel, Th } from "@/components/ui/tabela";
 
 type Tipo = "entrou" | "saiu" | "mudou";
 const tipoDe = (d: DiffLinha): Tipo => (d.antes === 0 ? "entrou" : d.depois === 0 ? "saiu" : "mudou");
@@ -47,7 +47,7 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
             <Contagem n={n("mudou")} tipo="mudou" />
             <Contagem n={n("saiu")} tipo="saiu" />
           </div>
-          <div className="max-h-[420px] overflow-auto">
+          <TabelaRolavel rotulo={titulo} className="max-h-[420px] overflow-auto">
             <table data-responsiva className="w-full border-collapse sm:min-w-[600px]">
               <CaptionOculta>{titulo}</CaptionOculta>
               <thead className="sticky top-0 z-[1]">
@@ -103,7 +103,7 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
                 })}
               </tbody>
             </table>
-          </div>
+          </TabelaRolavel>
         </>
       )}
     </Section>

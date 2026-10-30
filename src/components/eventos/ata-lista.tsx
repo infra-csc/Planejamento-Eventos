@@ -181,7 +181,7 @@ export function AtaLista({
   const colunas = 3 + (compacta ? 0 : 2) + (conferivel || editavel ? 1 : 0);
 
   const botaoIncluir = editavel && (
-    <Button variant="link" size="sm" onClick={() => setIncluir(true)}>
+    <Button abreDialogo variant="link" size="sm" onClick={() => setIncluir(true)}>
       <Icone nome="mais" />
       {contexto === "os" ? "Incluir item na OS com justificativa" : `Incluir linha ${exigeJustificativa ? "com justificativa" : "decidida na reunião"}`}
     </Button>

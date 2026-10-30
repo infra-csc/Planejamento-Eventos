@@ -194,6 +194,7 @@ export default async function EventosPage({
         actions={
           pode(usuario, "evento.criar") && (
             <ButtonLink href="/eventos/novo" variant="primary" size="lg" className="no-underline">
+              <Icone nome="mais" />
               Novo evento
             </ButtonLink>
           )
@@ -249,6 +250,7 @@ export default async function EventosPage({
                 </Link>
               ) : semFiltro && pode(usuario, "evento.criar") ? (
                 <ButtonLink href="/eventos/novo" variant="primary" size="md" className="no-underline">
+                  <Icone nome="mais" />
                   Novo evento
                 </ButtonLink>
               ) : undefined

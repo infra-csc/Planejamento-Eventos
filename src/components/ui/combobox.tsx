@@ -26,6 +26,9 @@ export function ComboBox({
   invalid,
   className,
   ordenarAlfabetico = true,
+  "aria-describedby": describedBy,
+  "aria-invalid": ariaInvalid,
+  "aria-required": ariaRequired,
 }: {
   id?: string;
   value: string | null;
@@ -36,6 +39,10 @@ export function ComboBox({
   invalid?: boolean;
   className?: string;
   ordenarAlfabetico?: boolean;
+  /* Vêm do <Field>: erro, dica e obrigatório chegam ao campo (auditoria 28/10 nº 63). */
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "true" | "false";
+  "aria-required"?: boolean;
 }) {
   const uid = useId();
   const [aberto, setAberto] = useState(false);
@@ -43,6 +50,8 @@ export function ComboBox({
   const [indice, setIndice] = useState(0);
   const raiz = useRef<HTMLDivElement>(null);
   const campoRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const invalido = invalid || ariaInvalid === true || ariaInvalid === "true";
   const listaRef = useRef<HTMLUListElement>(null);
   // A lista vai num portal (no body, ou dentro do modal quando o campo está num) e flutua presa ao
   // campo: assim não é cortada por cartões com overflow escondido e, sem espaço embaixo, abre para cima.
@@ -72,8 +81,24 @@ export function ComboBox({
     return () => document.removeEventListener("mousedown", fora);
   }, [aberto]);
 
+  // Esc com a lista aberta fecha só a lista. O diálogo (Radix) escuta o Esc no document, na captura, antes do
+  // campo: a escuta na janela vem antes dele e o `preventDefault` faz o diálogo ignorar este Esc. Antes o Esc
+  // fechava o diálogo inteiro e o que já fora preenchido se perdia (auditoria 28/10 nº 142).
+  useEffect(() => {
+    if (!aberto) return;
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || document.activeElement !== inputRef.current) return;
+      e.preventDefault();
+      setAberto(false);
+      setBusca("");
+    };
+    window.addEventListener("keydown", esc, true);
+    return () => window.removeEventListener("keydown", esc, true);
+  }, [aberto]);
+
   useLayoutEffect(() => {
     if (!aberto) return;
+    let quadro = 0;
     const medir = () => {
       const campo = campoRef.current;
       if (!campo) return;
@@ -86,11 +111,16 @@ export function ComboBox({
       const alvo = modal ?? document.body;
       if (abaixo >= 220 || abaixo >= acima) setPos({ left: r.left - base.left, width: r.width, top: r.bottom - base.top + 4, max: Math.min(320, Math.max(120, abaixo)), alvo });
       else setPos({ left: r.left - base.left, width: r.width, bottom: base.bottom - r.top + 4, max: Math.min(320, acima), alvo });
+      // Celular: o diálogo sobe da borda de baixo (animação). Campo focado ao abrir era medido no meio da subida:
+      // a lista abria para cima, com a altura de antes, e passava do topo da tela, cobrindo o título e as
+      // primeiras opções (auditoria 28/10 nº 12). Enquanto o diálogo se move, mede de novo a cada quadro.
+      if (modal?.getAnimations?.().some((a) => a.playState === "running")) quadro = requestAnimationFrame(medir);
     };
     medir();
     window.addEventListener("resize", medir);
     window.addEventListener("scroll", medir, true);
     return () => {
+      cancelAnimationFrame(quadro);
       window.removeEventListener("resize", medir);
       window.removeEventListener("scroll", medir, true);
     };
@@ -107,18 +137,28 @@ export function ComboBox({
     setAberto(false);
   };
 
+  // Quantas opções sobraram com o que foi digitado: o leitor de tela não via a lista mudar (auditoria 28/10 nº 137).
+  const filtrando = aberto && busca.trim() !== "" && busca !== selecionada?.label;
+  const anuncio = !filtrando ? "" : visiveis.length === 0 ? "Nada encontrado" : visiveis.length === 1 ? "1 opção" : `${visiveis.length} opções`;
+
   return (
     <div ref={raiz} className={cn("relative", className)}>
+      <span aria-live="polite" className="sr-only">
+        {anuncio}
+      </span>
       <div ref={campoRef} className="relative">
         <Icone nome="busca" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
         <input
+          ref={inputRef}
           id={id}
           role="combobox"
           aria-expanded={aberto}
           aria-controls={`${uid}-lista`}
           aria-autocomplete="list"
           aria-activedescendant={aberto && visiveis[indice] ? `${uid}-opcao-${indice}` : undefined}
-          aria-invalid={invalid || undefined}
+          aria-invalid={invalido || undefined}
+          aria-required={ariaRequired || undefined}
+          aria-describedby={describedBy}
           disabled={disabled}
           value={aberto ? busca : (selecionada?.label ?? "")}
           placeholder={placeholder}
@@ -157,7 +197,8 @@ export function ComboBox({
             }
           }}
           className={cn(
-            "h-[34px] w-full rounded-controle border border-line-control bg-surface pl-9 pr-9 text-corpo text-ink transition-colors duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none max-md:h-10",
+            // Foco: borda + anel da marca, como os outros campos (auditoria 28/10 nº 135).
+            "h-[34px] w-full rounded-controle border border-line-control bg-surface pl-9 pr-9 text-corpo text-ink transition-[color,border-color,box-shadow] duration-150 placeholder:text-meta hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent max-md:h-10",
             "disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted aria-[invalid=true]:border-danger-input",
           )}
         />

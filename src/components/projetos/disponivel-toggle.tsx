@@ -10,7 +10,7 @@ export function DisponivelToggle({ id, disponivel }: { id: string; disponivel: b
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>
+      <Button abreDialogo variant="ghost" onClick={() => setOpen(true)}>
         {disponivel ? "Tirar das solicitações" : "Liberar nas solicitações"}
       </Button>
       {open && (

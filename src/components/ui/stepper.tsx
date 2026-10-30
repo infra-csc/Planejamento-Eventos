@@ -19,6 +19,9 @@ export function Stepper({
   autoFocus,
   disabled,
   className,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalido,
+  "aria-required": obrigatorio,
 }: {
   id?: string;
   valor: number;
@@ -31,6 +34,10 @@ export function Stepper({
   autoFocus?: boolean;
   disabled?: boolean;
   className?: string;
+  /* Vêm do <Field>: chegam ao campo de número, senão o erro e a dica não eram lidos (auditoria 28/10 nº 63). */
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "true" | "false";
+  "aria-required"?: boolean;
 }) {
   // Campo apagado para digitar outro número: fica vazio sem avisar ninguém. Antes Number("") virava 0 e o
   // estoque gravava 0 enquanto a pessoa pensava (auditoria 30/10, parte C N5). Ao sair vazio, volta o valor.
@@ -45,7 +52,14 @@ export function Stepper({
     sm ? "size-[30px]" : "size-[34px]",
   );
   return (
-    <div className={cn("inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-colors duration-150 focus-within:border-accent", disabled && "opacity-60", className)}>
+    <div
+      className={cn(
+        // Foco: borda + anel da marca, como os outros campos (auditoria 28/10 nº 135).
+        "inline-flex items-center overflow-hidden rounded-controle border border-line-control bg-surface transition-[border-color,box-shadow] duration-150 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent has-[input[aria-invalid=true]]:border-danger-input",
+        disabled && "opacity-60",
+        className,
+      )}
+    >
       <button type="button" aria-label={`Diminuir${deQue}`} disabled={disabled || valor <= min} onClick={() => onChange(fixar(valor - 1))} className={btn}>
         <Icone nome="menos" />
       </button>
@@ -57,6 +71,9 @@ export function Stepper({
         max={max}
         value={rascunho ?? valor}
         aria-label={label}
+        aria-describedby={describedBy}
+        aria-invalid={invalido || undefined}
+        aria-required={obrigatorio || undefined}
         autoFocus={autoFocus}
         disabled={disabled}
         onChange={(e) => {

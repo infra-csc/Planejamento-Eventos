@@ -33,7 +33,14 @@ type Props = {
  * mantém aberta com o erro em falha.
  */
 export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger, reasonLabel, reasonRequired = true, reasonPlaceholder, action, hidden, children, onSuccess }: Props) {
-  const [state, formAction] = useActionState(action, { ok: true } as ActionResult);
+  // O aviso de sucesso sai quando a action responde, não do efeito do diálogo: numa lista que remonta a linha
+  // (chave com o estado, revalidação que tira a linha) o diálogo sumia antes do efeito e a pessoa ficava sem retorno
+  // (auditoria 30/10, parte C N10 e parte D N25).
+  const [state, formAction] = useActionState(async (prev: ActionResult, fd: FormData) => {
+    const r = await action(prev, fd);
+    if (r.ok && r.mensagem) toastSucesso(r.mensagem);
+    return r;
+  }, { ok: true } as ActionResult);
   const ultimo = useRef<ActionResult | null>(null);
 
   useEffect(() => {
@@ -45,7 +52,6 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
     ultimo.current = state;
     if (!open) return;
     if (state.ok) {
-      if (state.mensagem) toastSucesso(state.mensagem);
       onOpenChange(false);
       onSuccess?.(state);
     }
@@ -64,7 +70,8 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
             {hidden && Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
             {children}
             {reasonLabel && (
-              <Field label={reasonLabel} htmlFor="justificativa" error={campos?.justificativa} obrigatorio={reasonRequired}>
+              // Sem obrigação, o rótulo diz "(opcional)": o "Motivo" do Cancelar parecia obrigatório (auditoria 30/10, parte A N22).
+              <Field label={reasonLabel} htmlFor="justificativa" error={campos?.justificativa} obrigatorio={reasonRequired} optional={!reasonRequired}>
                 <Textarea id="justificativa" name="justificativa" required={reasonRequired} autoFocus placeholder={reasonPlaceholder ?? "Fica registrado no histórico, com seu nome e a hora."} />
               </Field>
             )}

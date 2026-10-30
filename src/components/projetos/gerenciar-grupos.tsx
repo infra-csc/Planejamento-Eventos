@@ -39,7 +39,7 @@ export function GerenciarGrupos({ grupos }: { grupos: GrupoComUso[] }) {
         if (!o) setConfirmando(null);
       }}
     >
-      <Button variant="secondary" size="md" onClick={() => setAberto(true)}>
+      <Button abreDialogo variant="secondary" size="md" onClick={() => setAberto(true)}>
         <Icone nome="camadas" />
         Grupos
       </Button>
