@@ -217,7 +217,7 @@ export function ProjetoForm({
       </Section>
 
       {valores.id && bomMudou && (
-        <Section titulo={`Nova versão (v${(valores.versaoAtual ?? 1) + 1})`} sub="A lista de peças mudou. Eventos que já usam este projeto mantêm a versão anterior até a logística decidir atualizar.">
+        <Section titulo={`Nova versão (v${(valores.versaoAtual ?? 1) + 1})`} sub="A lista de peças mudou. Ao salvar, os eventos que usam este projeto passam para a versão nova (com a ata fechada, sai nova versão da OS e quem pediu é avisado). Fica na versão anterior só o evento em que a logística ajustou peças uma a uma.">
           <div className="px-cartao py-4">
             <Field label="O que mudou" htmlFor="observacaoVersao" optional hint="Aparece no histórico de versões e na ata dos eventos que usam o projeto.">
               <Input id="observacaoVersao" name="observacaoVersao" placeholder="Ex.: incluída sapata de base; parafusos ajustados para 140" />

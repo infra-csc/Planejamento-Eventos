@@ -144,8 +144,10 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
                 </tr>
               </thead>
               <tbody>
+                {/* A chave leva a quantidade salva: depois de "Editar item" (ou de outro salvamento), a linha recomeça com o
+                    número novo. Antes o stepper guardava o antigo e o próximo "+" gravava por cima (auditoria 30/10). */}
                 {visiveis.map((i) => (
-                  <LinhaEstoque key={i.id} item={i} onEditar={() => setEditando(i)} />
+                  <LinhaEstoque key={`${i.id}:${i.quantidade}`} item={i} onEditar={() => setEditando(i)} />
                 ))}
               </tbody>
             </table>
@@ -228,7 +230,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
         {/* Abaixo de 1280 px as colunas "em evento" e "em reforma" somem: o número vai para baixo do nome. */}
         {(item.emEvento > 0 || item.reservado > 0 || item.emReforma > 0) && (
           <span className="block text-rotulo text-ink-3 xl:hidden">
-            {[item.emEvento ? `${item.emEvento} em evento` : null, item.reservado ? `${item.reservado} reservado` : null, item.emReforma ? `${item.emReforma} em reforma` : null].filter(Boolean).join(" · ")}
+            {[item.emEvento ? `${item.emEvento} em evento` : null, item.reservado ? `${item.reservado} ${item.reservado === 1 ? "reservado" : "reservados"}` : null, item.emReforma ? `${item.emReforma} em reforma` : null].filter(Boolean).join(" · ")}
           </span>
         )}
         </span>
@@ -244,7 +246,7 @@ function LinhaEstoque({ item, onEditar }: { item: ItemEstoqueTela; onEditar: () 
       </td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">
         {item.emEvento ? <span className="font-medium text-info">{item.emEvento}</span> : <span className="text-line-strong">—</span>}
-        {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} reservado</span>}
+        {item.reservado > 0 && <span className="block text-rotulo text-meta" title="Reservado para eventos que ainda vão montar">+{item.reservado} {item.reservado === 1 ? "reservado" : "reservados"}</span>}
       </td>
       <td className="numero hidden px-3 py-2.5 text-right align-middle text-pequeno xl:table-cell">{item.emReforma ? <span className="font-medium text-warning">{item.emReforma}</span> : <span className="text-line-strong">—</span>}</td>
       <td className={cn("numero hidden px-3 py-2.5 text-right align-middle text-corpo font-semibold sm:table-cell", valor - item.emEvento <= 0 && "text-warning")}>{Math.max(0, valor - item.emEvento)}</td>

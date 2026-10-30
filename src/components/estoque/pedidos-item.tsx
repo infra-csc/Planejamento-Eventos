@@ -50,7 +50,7 @@ export function BotaoPedidosItem({ itemId, nome, emUso, unidades }: { itemId: st
         size="xs"
         onClick={abrir}
         aria-label={emUso ? `Pedidos de ${nome}: ${emUso} ${emUso === 1 ? "evento" : "eventos"} em andamento, ${unidades} unidades` : `Histórico de pedidos de ${nome}`}
-        className={cn("-ml-1.5 mt-0.5 h-auto px-1.5 py-0.5 text-rotulo", emUso > 0 && "font-medium text-ink")}
+        className={cn("-ml-1.5 mt-0.5 h-auto whitespace-normal px-1.5 py-0.5 text-left text-rotulo", emUso > 0 && "font-medium text-ink")}
       >
         <Icone nome="relogio" className="size-3.5" />
         {emUso > 0 ? (

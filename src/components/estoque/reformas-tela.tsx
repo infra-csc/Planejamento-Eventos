@@ -123,7 +123,7 @@ export function ReformasTela({ reformas, itens }: { reformas: ReformaTela[]; ite
                     {r.item.nome}
                   </Link>
                   <span className="text-ink-3">
-                    {r.quantidade} em reforma · {r.consertados ?? 0} voltaram ao estoque{r.baixados ? ` · ${r.baixados} baixados` : ""}
+                    {r.quantidade} em reforma · {r.consertados ?? 0} {(r.consertados ?? 0) === 1 ? "voltou" : "voltaram"} ao estoque{r.baixados ? ` · ${r.baixados} ${r.baixados === 1 ? "baixado" : "baixados"}` : ""}
                     {r.concluidaEm && ` · concluída em ${diaMes(r.concluidaEm)}`}
                   </span>
                   <Tag tom="success" className="ml-auto">
