@@ -149,7 +149,7 @@ export function EscolhaEvento({
               {temRascunho && (
                 <p className="m-0 basis-full text-pequeno text-meta">
                   {/* Pedido já enviado não tem "excluir rascunho": o caminho é outra solicitação para o outro evento. */}
-                  {edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação." : "Para trocar de evento, exclua este rascunho e crie outro."}
+                  {edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação." : "Para trocar de evento, exclua este rascunho (em Solicitações › Rascunhos e devolvidas) e crie outro."}
                 </p>
               )}
             </div>

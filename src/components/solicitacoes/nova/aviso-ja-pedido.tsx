@@ -38,7 +38,8 @@ export function AcoesReferencia({ referencia, pedidos, quantidade = 1, className
     <>
       <span className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
         {temPecas && (
-          <button type="button" onClick={() => setAba("pecas")} className="inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-pequeno text-accent hover:underline">
+          // Alvo de 24 px no desktop e 40 px no celular (tinha 18 px; auditoria 28/10, nº 59).
+          <button type="button" onClick={() => setAba("pecas")} className="inline-flex min-h-6 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-pequeno text-accent hover:underline max-md:min-h-10">
             <Icone nome="lista" className="size-3.5" />
             Ver peças
           </button>

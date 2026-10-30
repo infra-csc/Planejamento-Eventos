@@ -236,7 +236,7 @@ export function calcularEfeitoLinha(antes: EstadoItemResposta, novo: { status: I
     return { acao: "atualizar", ativo: true, quantidade: nova, quantidadeAnterior: null };
   }
 
-  if (!linha) throw new DomainError("A linha da ata referenciada não existe mais.");
+  if (!linha) throw new DomainError("A linha da ata escolhida não existe mais. Escolha outra linha ou tire o item da solicitação.");
 
   if (antes.operacao === "ALTERAR_QUANTIDADE") {
     const anterior = antes.quantidadeAnterior ?? linha.quantidade;

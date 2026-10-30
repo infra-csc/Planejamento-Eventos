@@ -215,18 +215,22 @@ export function ResumoEnvio({
               </Button>
             )}
           </div>
-          {textoSalvo && (
-            <p className={cn("m-0 flex items-start gap-1.5 text-pequeno", estadoSalvo.tipo === "erro" ? "text-danger" : estadoSalvo.tipo === "salvo" ? "text-ink-2" : "text-meta")} aria-live="polite">
-              {estadoSalvo.tipo === "salvando" ? (
-                <span aria-hidden className="mt-[7px] block size-1.5 shrink-0 animate-pulse-dot rounded-full bg-current" />
-              ) : estadoSalvo.tipo === "salvo" ? (
-                <Icone nome="check" className="mt-0.5 size-3.5 shrink-0 text-success" />
-              ) : estadoSalvo.tipo === "erro" ? (
-                <Icone nome="alerta" className="mt-0.5 size-3.5 shrink-0" />
-              ) : null}
-              <span>{textoSalvo}</span>
-            </p>
-          )}
+          {/* Região viva sempre na página (vazia quando não há o que dizer): criada junto com o texto, o leitor de tela
+              não anunciava "Salvo" nem o erro (auditoria 28/10, nº 137). */}
+          <p className={cn("m-0 flex items-start gap-1.5 text-pequeno", !textoSalvo && "sr-only", estadoSalvo.tipo === "erro" ? "text-danger" : estadoSalvo.tipo === "salvo" ? "text-ink-2" : "text-meta")} aria-live="polite">
+            {textoSalvo && (
+              <>
+                {estadoSalvo.tipo === "salvando" ? (
+                  <span aria-hidden className="mt-[7px] block size-1.5 shrink-0 animate-pulse-dot rounded-full bg-current" />
+                ) : estadoSalvo.tipo === "salvo" ? (
+                  <Icone nome="check" className="mt-0.5 size-3.5 shrink-0 text-success" />
+                ) : estadoSalvo.tipo === "erro" ? (
+                  <Icone nome="alerta" className="mt-0.5 size-3.5 shrink-0" />
+                ) : null}
+                <span>{textoSalvo}</span>
+              </>
+            )}
+          </p>
         </div>
       </Passo>
     </aside>
