@@ -174,7 +174,8 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const hoje = hojeISO();
-  const m = /^\d{4}-\d{2}$/.test(sp.mes ?? "") ? sp.mes! : hoje.slice(0, 7);
+  // Mês 01–12: "?mes=2026-13" virava uma grade de janeiro toda cinza com o cabeçalho "2026" (auditoria 30/10, parte D N19).
+  const m = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.mes ?? "") ? sp.mes! : hoje.slice(0, 7);
   const ano = Number(m.slice(0, 4));
   const mes = Number(m.slice(5, 7));
   const filtro = sp.tipo && sp.tipo in TIPO ? (sp.tipo as TipoCalendario) : null;
