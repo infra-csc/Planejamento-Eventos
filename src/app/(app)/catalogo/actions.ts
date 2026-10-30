@@ -34,7 +34,7 @@ export async function alterarAtivoPecaAction(_prev: ActionResult, formData: Form
   const usuario = await requireUsuario();
   const id = String(formData.get("id") ?? "");
   const ativo = String(formData.get("ativo")) === "true";
-  const r = await executar(() => alterarAtivoPeca(usuario, id, ativo), ativo ? "Peça reativada." : "Peça inativada.");
+  const r = await executar(() => alterarAtivoPeca(usuario, id, ativo), ativo ? "Peça reativada" : "Peça inativada");
   revalidatePath("/catalogo", "layout");
   revalidatePath("/biblioteca");
   invalidarDados(TAGS_DADOS.catalogo);
@@ -44,7 +44,7 @@ export async function alterarAtivoPecaAction(_prev: ActionResult, formData: Form
 /** Projetos e pedidos em aberto que usam a peça: a tela mostra antes de confirmar a inativação. */
 export async function impactoInativacaoPecaAction(id: string) {
   const usuario = await requireUsuario();
-  if (typeof id !== "string" || !id) return { ok: false, erro: "Dados inválidos." } as const;
+  if (typeof id !== "string" || !id) return { ok: false, erro: "Não foi possível concluir. Atualize a página e tente de novo." } as const;
   return executar(() => impactoInativacaoPeca(usuario, id));
 }
 
@@ -67,8 +67,8 @@ export async function adicionarAnexoPecaAction(form: FormData) {
 
 export async function removerAnexoPecaAction(anexoId: string) {
   const usuario = await requireUsuario();
-  if (typeof anexoId !== "string" || !anexoId) return { ok: false, erro: "Dados inválidos." } as const;
-  const r = await executar(() => removerAnexoPeca(usuario, anexoId), "Arquivo removido.");
+  if (typeof anexoId !== "string" || !anexoId) return { ok: false, erro: "Não foi possível concluir. Atualize a página e tente de novo." } as const;
+  const r = await executar(() => removerAnexoPeca(usuario, anexoId), "Arquivo removido");
   if (r.ok && r.dados) revalidarAnexos(r.dados);
   return r;
 }

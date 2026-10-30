@@ -108,7 +108,7 @@ export function AnexosPeca({
     }
     setEnviando(null);
     setErros(falhas);
-    if (ok) toastSucesso(ok === 1 ? "Arquivo incluído." : `${ok} arquivos incluídos.`);
+    if (ok) toastSucesso(ok === 1 ? "Arquivo incluído" : `${ok} arquivos incluídos`);
     router.refresh();
   };
 
@@ -116,7 +116,7 @@ export function AnexosPeca({
     iniciarRemocao(async () => {
       const r = await removerAcao(id);
       if (!r.ok) setErros([r.erro]);
-      else toastSucesso("Arquivo removido.");
+      else toastSucesso("Arquivo removido");
       setRemover(null);
       router.refresh();
     });

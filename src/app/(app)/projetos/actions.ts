@@ -49,7 +49,7 @@ export async function alterarAtivoProjetoAction(_prev: ActionResult, formData: F
   const usuario = await requireUsuario();
   const id = String(formData.get("id") ?? "");
   const ativo = String(formData.get("ativo")) === "true";
-  const r = await executar(() => alterarAtivoProjeto(usuario, id, ativo), ativo ? "Projeto reativado." : "Projeto inativado.");
+  const r = await executar(() => alterarAtivoProjeto(usuario, id, ativo), ativo ? "Projeto reativado" : "Projeto inativado");
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
   revalidatePath(`/projetos/${id}`);
@@ -61,7 +61,7 @@ export async function alterarDisponivelProjetoAction(_prev: ActionResult, formDa
   const usuario = await requireUsuario();
   const id = String(formData.get("id") ?? "");
   const disponivel = String(formData.get("disponivel")) === "true";
-  const r = await executar(() => alterarDisponivelProjeto(usuario, id, disponivel), disponivel ? "Projeto disponível nas solicitações." : "Projeto fora das listas das solicitações.");
+  const r = await executar(() => alterarDisponivelProjeto(usuario, id, disponivel), disponivel ? "Projeto disponível nas solicitações" : "Projeto fora das listas das solicitações");
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");
   revalidatePath(`/projetos/${id}`);
@@ -74,7 +74,7 @@ export async function anexarArquivoAction(_prev: ActionResult, formData: FormDat
   const projetoId = String(formData.get("projetoId") ?? "");
   const file = formData.get("arquivo");
   if (!(file instanceof File)) return { ok: false, erro: "Selecione um arquivo." };
-  const r = await executar(() => anexarArquivo(usuario, projetoId, file), "Anexo adicionado.");
+  const r = await executar(() => anexarArquivo(usuario, projetoId, file), "Anexo adicionado");
   revalidatePath(`/projetos/${projetoId}`);
   revalidatePath("/biblioteca");
   // A capa do projeto (primeira imagem) entra nas listas em cache.
@@ -85,7 +85,7 @@ export async function anexarArquivoAction(_prev: ActionResult, formData: FormDat
 export async function removerAnexoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
   const anexoId = z.string().min(1).parse(formData.get("anexoId"));
-  const r = await executar(() => removerAnexo(usuario, anexoId), "Anexo removido.");
+  const r = await executar(() => removerAnexo(usuario, anexoId), "Anexo removido");
   if (r.ok && r.dados) revalidatePath(`/projetos/${r.dados}`);
   revalidatePath("/projetos");
   revalidatePath("/biblioteca");

@@ -69,7 +69,7 @@ export async function organizarProjetosEmLoteAction(formData: FormData): Promise
 /** Exclui um grupo de prova; os projetos e as peças dele passam para Padrão. */
 export async function excluirGrupoProjetoAction(grupoId: string): Promise<ActionResult<{ nome: string; projetos: number; pecas: number }>> {
   const usuario = await requireUsuario();
-  if (typeof grupoId !== "string" || !grupoId) return { ok: false, erro: "Dados inválidos." };
+  if (typeof grupoId !== "string" || !grupoId) return { ok: false, erro: "Não foi possível concluir. Atualize a página e tente de novo." };
   const r = await executar(() => excluirGrupoProjeto(usuario, grupoId));
   if (!r.ok) return r;
   revalidatePath("/biblioteca");
