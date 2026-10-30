@@ -173,7 +173,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                       <form action={abrirAction} className="m-0">
                         <input type="hidden" name="id" value={n.id} />
                         <input type="hidden" name="link" value={n.link} />
-                        <BotaoNotificacao rotulo={`Abrir: ${n.titulo}`} className={cn(classe, "group cursor-pointer border-0 border-b transition-colors hover:bg-subtle")}>
+                        <BotaoNotificacao className={cn(classe, "group cursor-pointer border-0 border-b transition-colors hover:bg-subtle")}>
                           {conteudo}
                         </BotaoNotificacao>
                       </form>

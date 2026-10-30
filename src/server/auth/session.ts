@@ -52,7 +52,7 @@ export async function autenticar(email: string, senha: string): Promise<{ ok: tr
     ],
     JANELA_LOGIN_MS,
   );
-  if (tentativa.excedido) return { ok: false, erro: "Muitas tentativas. Aguarde 15 minutos e tente novamente." };
+  if (tentativa.excedido) return { ok: false, erro: "Muitas tentativas. Aguarde 15 minutos e tente de novo." };
   const db = await getDb();
   const [u] = await db
     .select()

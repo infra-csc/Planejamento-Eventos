@@ -10,7 +10,8 @@ import { segredoPortal } from "@/server/auth/portal-entrada";
 const ERROS_PORTAL: Record<string, string> = {
   "portal-expirado": "O link do portal venceu ou já foi usado. Volte ao Portal NORTE e abra o app de novo.",
   "portal-invalido": "Não foi possível confirmar seu acesso pelo Portal NORTE. Abra o app de novo pelo portal; se continuar, avise o administrador.",
-  "portal-desativado": "A entrada pelo Portal NORTE não está configurada neste servidor (PORTAL_SSO_SECRET).",
+  // Sem o nome da variável do servidor na tela (auditoria 28/10, nº 178).
+  "portal-desativado": "A entrada pelo Portal NORTE não está ativa. Entre com e-mail e senha ou avise o administrador.",
   "portal-inativo": "Sua conta está inativa neste app. Fale com o administrador.",
 };
 
