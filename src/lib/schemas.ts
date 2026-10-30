@@ -69,7 +69,8 @@ export const eventoSchema = z.object({
   nome: texto(LIMITES.nome),
   cliente: textoOpcional(120),
   local: textoOpcional(LIMITES.descricaoLivre),
-  dataInicio: dataISO,
+  // Vazio diz o que falta, como a reunião ao lado (antes: "Data inválida") (auditoria 30/10, B-08).
+  dataInicio: z.string().min(1, "Informe a data do evento").pipe(dataISO),
   dataReuniao: z.string().min(1, "Informe a data e hora da reunião"),
   janelaAlteracoesAte: z
     .union([z.literal(""), dataISO])
@@ -119,7 +120,13 @@ export const pecaSchema = z.object({
   familia: textoOpcional(LIMITES.categoria).transform((v) => v ?? ""),
   unidade: texto(LIMITES.unidade).default("un"),
   descricao: textoOpcional(LIMITES.justificativa),
-  estoqueProprio: z.coerce.number().int().min(0).default(0),
+  // Mensagens próprias: as do Zod saíam em inglês na tela ("Too small: expected number to be >=0") (auditoria 30/10, parte C N11).
+  estoqueProprio: z.coerce
+    .number({ error: "Use um número inteiro, 0 ou mais." })
+    .int("Use um número inteiro, 0 ou mais.")
+    .min(0, "Use um número inteiro, 0 ou mais.")
+    .max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`)
+    .default(0),
   permiteEmProjeto: bool,
   /** "Aparece nas solicitações": só vale quando o formulário tem a opção (`temDisponivel`); sem ela, não mexe. */
   disponivelEmSolicitacoes: bool,
