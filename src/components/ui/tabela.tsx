@@ -98,9 +98,20 @@ export function Paginacao({ total, pagina, paginas, de, porPagina, hrefPagina }:
   const seta = (dir: "ant" | "prox") => <Icone nome={dir === "ant" ? "chevron-esquerda" : "chevron-direita"} />;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-cartao py-3">
-      <span className="numero text-pequeno text-muted">
-        Mostrando <span className="font-medium text-ink">{de + 1}</span> a <span className="font-medium text-ink">{Math.min(de + porPagina, total)}</span> de <span className="font-medium text-ink">{total}</span>
-      </span>
+      {de >= total ? (
+        // Página além do fim (link velho, ?pagina=999): antes dizia "Mostrando 49901 a 741 de 741" sobre uma tabela vazia
+        // (auditoria 30/10, parte D N16). A tela deve levar à última página; isto é a rede de segurança.
+        <span className="numero text-pequeno text-muted">
+          Esta página não existe.{" "}
+          <Link href={hrefPagina(paginas)} scroll={false} className="link">
+            Ir para a página {paginas}
+          </Link>
+        </span>
+      ) : (
+        <span className="numero text-pequeno text-muted">
+          Mostrando <span className="font-medium text-ink">{de + 1}</span> a <span className="font-medium text-ink">{Math.min(de + porPagina, total)}</span> de <span className="font-medium text-ink">{total}</span>
+        </span>
+      )}
       <nav aria-label="Paginação" className="flex overflow-hidden rounded-controle border border-line-strong bg-surface">
         {pagina > 1 ? (
           <Link href={hrefPagina(pagina - 1)} scroll={false} aria-label="Página anterior" className={cn(caixa, "text-ink-2 hover:bg-subtle")}>
