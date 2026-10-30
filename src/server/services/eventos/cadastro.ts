@@ -4,7 +4,7 @@ import { eventos } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
 import { formatarDataHora } from "@/lib/format";
-import { bloquearEvento, notificar, proximoCodigo, registrarHistorico, usuariosRequisitantes, type Executor } from "../support";
+import { bloquearEvento, diaBrasilia, notificar, proximoCodigo, registrarHistorico, usuariosRequisitantes, type Executor } from "../support";
 
 /* ------------------------------------------------------------------ */
 /* Criar / editar                                                       */
@@ -32,6 +32,23 @@ export type DadosEvento = {
 function validarOrdemDatas(d: { dataMontagem: string; dataInicio: string; dataFim: string; dataDesmontagem: string }) {
   if (d.dataInicio < d.dataMontagem || d.dataFim < d.dataInicio || d.dataDesmontagem < d.dataFim) {
     throw new ValidacaoError("As datas precisam seguir a ordem: montagem, início, fim e desmontagem.");
+  }
+}
+
+const ddmm = (d: string) => d.split("-").reverse().join("/");
+
+/**
+ * Reunião de OS até o dia do evento e janela de alterações depois da reunião. Antes passava "reunião 20/12" num
+ * evento de 10/12 e a linha do tempo mostrava a reunião depois do encerramento (auditoria 30/10, B-04).
+ * Evento no passado não é bloqueado aqui (importação e acertos de eventos antigos): a tela avisa.
+ */
+function validarReuniaoEJanela(dados: Pick<DadosEvento, "dataInicio" | "dataReuniao" | "janelaAlteracoesAte">) {
+  const diaReuniao = diaBrasilia(dados.dataReuniao);
+  if (diaReuniao > dados.dataInicio) {
+    throw new ValidacaoError(`A reunião de OS (${ddmm(diaReuniao)}) fica depois do evento (${ddmm(dados.dataInicio)}).`, { dataReuniao: "A reunião precisa ser antes do evento (ou no mesmo dia)." });
+  }
+  if (dados.janelaAlteracoesAte && dados.janelaAlteracoesAte < diaReuniao) {
+    throw new ValidacaoError(`As alterações iriam só até ${ddmm(dados.janelaAlteracoesAte)}, antes da reunião de OS (${ddmm(diaReuniao)}).`, { janelaAlteracoesAte: "A janela de alterações termina depois da reunião." });
   }
 }
 
@@ -87,6 +104,7 @@ export async function inserirEvento(tx: Executor, usuario: Pick<UsuarioAtual, "i
 export async function criarEvento(usuario: UsuarioAtual, dados: DadosEvento) {
   exigir(usuario, "evento.criar");
   periodoEvento(dados);
+  validarReuniaoEJanela(dados);
   const db = await getDb();
   return db.transaction(async (tx) => {
     const ev = await inserirEvento(tx, usuario, dados);
@@ -115,6 +133,9 @@ export async function editarEvento(usuario: UsuarioAtual, id: string, dados: Dad
       throw new ValidacaoError("A reunião de OS já começou ou aconteceu; a data dela não muda mais.", { dataReuniao: "Reunião já iniciada ou realizada." });
     }
     const periodo = periodoEvento(dados, atual);
+    // Só quando as datas mudam: evento antigo fora de ordem continua editável no resto (nome, local…).
+    const datasMudaram = reuniaoMudou || atual.dataInicio !== dados.dataInicio || (atual.janelaAlteracoesAte ?? null) !== (dados.janelaAlteracoesAte ?? null);
+    if (datasMudaram) validarReuniaoEJanela(dados);
     const [ev] = await tx
       .update(eventos)
       .set({

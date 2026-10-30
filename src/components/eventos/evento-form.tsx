@@ -8,6 +8,7 @@ import { Field, FormError, Input } from "@/components/ui/field";
 import { ButtonLink, SubmitButton } from "@/components/ui/button";
 import { Section } from "@/components/ui/layout";
 import { ESTADO_INICIAL } from "@/lib/action";
+import { hojeISO } from "@/lib/format";
 
 export type EventoFormValores = {
   id?: string;
@@ -31,6 +32,8 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
   // com a logística); acompanha a data até alguém mudar a reunião à mão.
   const [reuniao, setReuniao] = useState(valores.dataReuniao ?? "");
   const [reuniaoManual, setReuniaoManual] = useState(Boolean(valores.dataReuniao));
+  // Evento no passado não é bloqueado (acertos de eventos antigos), mas avisa ao escolher a data (auditoria 30/10, B-04).
+  const [noPassado, setNoPassado] = useState(false);
   return (
     <ActionForm action={action} noValidate className="flex flex-col gap-4">
       {valores.id && <input type="hidden" name="id" value={valores.id} />}
@@ -50,7 +53,7 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
 
       <Section titulo="Datas" padded>
         <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-          <Field label="Data do evento" htmlFor="dataInicio" error={c?.dataInicio} obrigatorio hint="Mais de um dia: informe o primeiro.">
+          <Field label="Data do evento" htmlFor="dataInicio" error={c?.dataInicio} obrigatorio hint={noPassado ? "Esta data já passou. Confira antes de salvar." : "Mais de um dia: informe o primeiro."}>
             <Input
               id="dataInicio"
               name="dataInicio"
@@ -59,6 +62,7 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
               required
               className="numero"
               onChange={(e) => {
+                setNoPassado(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && e.target.value < hojeISO());
                 if (!reuniaoManual && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) setReuniao(`${reuniaoDoEvento(e.target.value)}T${HORA_DA_REUNIAO}`);
               }}
             />

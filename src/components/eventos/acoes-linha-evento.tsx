@@ -11,6 +11,7 @@ import { toastSucesso } from "@/components/ui/toast";
 import { Icone } from "@/components/ui/icons";
 import { IconButton } from "@/components/ui/icon-button";
 import { Stepper } from "@/components/ui/stepper";
+import { avisoTotaisDaTenda } from "@/domain/tendas";
 import { LinhaAtaForm, type OpcoesReferencia } from "./linha-ata-form";
 
 type Linha = { id: string; nome: string; quantidade: number; veioDePedido: boolean };
@@ -156,6 +157,7 @@ export function EditarTendaDialog({ eventoId, tenda, ataFechada, onFechar, aoRem
       if (tendas === 0 && aoRemover) router.push(aoRemover);
       else router.refresh();
     });
+  const aviso = avisoTotaisDaTenda(tenda, { tendas, fechamentos, calhas }, tenda.temCalha);
   // Mais de uma linha no mesmo local (ex.: uma da reunião e outra incluída depois): o quadro mexe na soma delas.
   const somaDeLinhas = tenda.linhaIds.length > 1 ? ` Soma das ${tenda.linhaIds.length} linhas deste local.` : "";
   return (
@@ -179,6 +181,11 @@ export function EditarTendaDialog({ eventoId, tenda, ataFechada, onFechar, aoRem
             <Textarea id="tenda-motivo" value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} className="min-h-[64px]" placeholder="Fica registrado no histórico, com seu nome e a hora." />
           </Field>
         </div>
+        {aviso && (
+          <p className="m-0 mt-3 text-pequeno text-warning" role="status">
+            {aviso}
+          </p>
+        )}
         {erro && <FormError message={erro} />}
         <DialogFooter>
           <Button variant={tendas === 0 ? "danger" : "primary"} onClick={salvar} loading={pendente}>
@@ -246,10 +253,41 @@ function QuadroTendasDialog({ eventoId, nome, locais, ataFechada, onFechar }: { 
       router.refresh();
     });
   const celula = "border-b border-line-row px-2 py-2";
+  // Tendas mudaram e fechamentos/calhas não: aviso por local (auditoria 30/10, B-07).
+  const avisos = locais.map((l, i) => avisoTotaisDaTenda(l, valores[i], l.temCalha)).map((a, i) => (a ? `${locais[i].local ?? "Local não informado"}: ${a}` : null)).filter(Boolean);
+  const nomeLocal = (l: TendaDoLocal) => l.local ?? "local não informado";
   return (
     <Dialog open onOpenChange={(o) => !o && onFechar()}>
       <DialogContent title={`${nome} · todos os locais`} description={ataFechada ? "Mude o que precisar em cada local. Sai nova versão da OS e a área é avisada." : "Mude o que precisar em cada local, como no quadro de tendas da solicitação. 0 tendas tira o local."} width={temCalha ? 760 : 640}>
-        <div className="max-h-[55vh] overflow-auto">
+        {/* Celular: um local por bloco, com tendas, fechamentos e calhas empilhados. Na tabela, a 375 px a coluna Calhas
+            ficava fora da tela e o "+" dos fechamentos era cortado (auditoria 30/10, B-06). */}
+        <ul className="m-0 flex max-h-[55vh] list-none flex-col gap-2.5 overflow-y-auto p-0 sm:hidden">
+          {locais.map((l, i) => (
+            <li key={l.linhaIds.join("|")} className={`rounded-controle border border-line p-3 ${mudou(i) ? "bg-selected" : ""}`}>
+              <p className="m-0 mb-2 text-pequeno font-medium text-ink">
+                {l.local ?? <span className="text-muted">local não informado</span>}
+                {valores[i].tendas === 0 && <span className="ml-2 text-rotulo font-normal text-danger">sai do evento</span>}
+              </p>
+              <div className="flex flex-col gap-2">
+                <Field label="Tendas" htmlFor={`qm-tendas-${i}`}>
+                  <Stepper id={`qm-tendas-${i}`} valor={valores[i].tendas} min={0} onChange={(v) => mudar(i, "tendas", v)} label={`Tendas em ${nomeLocal(l)}`} />
+                </Field>
+                <Field label="Fechamentos" htmlFor={`qm-fech-${i}`}>
+                  <Stepper id={`qm-fech-${i}`} valor={valores[i].fechamentos} min={0} onChange={(v) => mudar(i, "fechamentos", v)} label={`Fechamentos em ${nomeLocal(l)}`} />
+                </Field>
+                {l.temCalha && (
+                  <Field label="Calhas" htmlFor={`qm-calha-${i}`}>
+                    <Stepper id={`qm-calha-${i}`} valor={valores[i].calhas} min={0} onChange={(v) => mudar(i, "calhas", v)} label={`Calhas em ${nomeLocal(l)}`} />
+                  </Field>
+                )}
+              </div>
+            </li>
+          ))}
+          <li className="rounded-controle bg-subtle px-3 py-2 text-pequeno font-semibold text-ink">
+            Total: {total("tendas")} tendas · {total("fechamentos")} fechamentos{temCalha ? ` · ${total("calhas")} calhas` : ""}
+          </li>
+        </ul>
+        <div className="max-h-[55vh] overflow-auto max-sm:hidden">
           <table className="w-full border-collapse text-left">
             <thead className="sticky top-0 bg-surface">
               <tr className="text-rotulo text-ink-3">
@@ -291,6 +329,13 @@ function QuadroTendasDialog({ eventoId, nome, locais, ataFechada, onFechar }: { 
             <Textarea id="quadro-motivo" value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} className="min-h-[56px]" placeholder="Fica registrado no histórico de cada local alterado." />
           </Field>
         </div>
+        {avisos.length > 0 && (
+          <ul className="m-0 mt-3 list-none p-0 text-pequeno text-warning" role="status">
+            {avisos.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        )}
         {erro && <FormError message={erro} />}
         <DialogFooter>
           <Button variant="primary" onClick={salvar} loading={pendente} disabled={!alterados.length}>

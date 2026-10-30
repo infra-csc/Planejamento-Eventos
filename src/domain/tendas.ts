@@ -342,3 +342,22 @@ function subconjuntoQueSoma(valores: readonly number[], alvo: number): number[] 
   });
   return de.get(alvo) ?? null;
 }
+
+type TotaisDoLocal = { tendas: number; fechamentos: number; calhas: number };
+
+/**
+ * Quadro de tendas do evento: o número de tendas mudou e os totais do local (fechamentos, calhas) não. Os totais
+ * não acompanham sozinhos (podem ter sido ajustados à mão), então a tela avisa antes de salvar. Antes uma tenda a
+ * mais saía sem calha sem ninguém perceber (auditoria 30/10, B-07). Sem nada a avisar, `null`.
+ */
+export function avisoTotaisDaTenda(antes: TotaisDoLocal, depois: TotaisDoLocal, temCalha: boolean): string | null {
+  if (depois.tendas === antes.tendas || depois.tendas === 0) return null;
+  const n = (q: number, um: string, varios: string) => `${q} ${q === 1 ? um : varios}`;
+  const parados = [
+    antes.fechamentos > 0 && depois.fechamentos === antes.fechamentos ? n(depois.fechamentos, "fechamento", "fechamentos") : null,
+    temCalha && depois.calhas === antes.calhas ? n(depois.calhas, "calha", "calhas") : null,
+  ].filter(Boolean);
+  if (!parados.length) return null;
+  const semCalha = temCalha ? Math.max(0, depois.tendas - depois.calhas) : 0;
+  return `As tendas foram de ${antes.tendas} para ${depois.tendas}, mas ${parados.join(" e ")} não ${parados.length === 1 && /^1 /.test(parados[0]!) ? "mudou" : "mudaram"}${semCalha ? ` (${n(semCalha, "tenda fica", "tendas ficam")} sem calha)` : ""}. Confira antes de salvar.`;
+}

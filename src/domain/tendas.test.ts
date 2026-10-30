@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distribuirTendasDoLocal, dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, quantidadeComumTenda, totalDoLocal } from "./tendas";
+import { avisoTotaisDaTenda, distribuirTendasDoLocal, dividirPorUnidade, ehProjetoTenda, extrasPermitidosTenda, itensDoQuadro, KITS_TENDA, kitDaTenda, locaisDosItens, locaisIniciaisTenda, novoLocalTenda, papelNoKit, previaTendas, quantidadeComumTenda, totalDoLocal } from "./tendas";
 
 const bom5 = [
   { codigo: "TND5-CANT", quantidade: 4 },
@@ -231,5 +231,15 @@ describe("distribuirTendasDoLocal (quadro do local sobre as linhas que já exist
     const linhas = [{ id: "a", quantidade: 1, porUnidade: { fechamento: 3 }, doPedido: true }, { id: "b", quantidade: 1, porUnidade: { fechamento: 1 }, doPedido: true }];
     const r = distribuirTendasDoLocal(linhas, 2, { fechamento: 4 }, ["fechamento"]);
     expect(r.map((l) => l.partes[0].porUnidade.fechamento)).toEqual([3, 1]);
+  });
+});
+
+describe("avisoTotaisDaTenda (auditoria 30/10, B-07)", () => {
+  it("avisa quando as tendas mudam e fechamentos/calhas não; calado quando acompanham ou o local sai", () => {
+    expect(avisoTotaisDaTenda({ tendas: 3, fechamentos: 6, calhas: 3 }, { tendas: 4, fechamentos: 6, calhas: 3 }, true)).toBe("As tendas foram de 3 para 4, mas 6 fechamentos e 3 calhas não mudaram (1 tenda fica sem calha). Confira antes de salvar.");
+    expect(avisoTotaisDaTenda({ tendas: 3, fechamentos: 6, calhas: 3 }, { tendas: 4, fechamentos: 8, calhas: 4 }, true)).toBeNull();
+    expect(avisoTotaisDaTenda({ tendas: 2, fechamentos: 0, calhas: 0 }, { tendas: 3, fechamentos: 0, calhas: 0 }, false)).toBeNull();
+    expect(avisoTotaisDaTenda({ tendas: 2, fechamentos: 4, calhas: 0 }, { tendas: 0, fechamentos: 4, calhas: 0 }, false)).toBeNull();
+    expect(avisoTotaisDaTenda({ tendas: 2, fechamentos: 1, calhas: 0 }, { tendas: 3, fechamentos: 1, calhas: 0 }, false)).toBe("As tendas foram de 2 para 3, mas 1 fechamento não mudou. Confira antes de salvar.");
   });
 });
