@@ -3,6 +3,19 @@ import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
 import { IndicadorLink } from "./indicador-link";
 
+/**
+ * Contêiner de tabela larga que rola de lado (comparação da OS, impressões, listas largas no celular).
+ * É uma região com nome e entra no Tab: quem não usa mouse nem toque rola com as setas. Sem isso as colunas
+ * cortadas ficavam fora de alcance (WCAG 2.1.1; auditoria 28/10 nº 67 / A-P2-12). Na impressão não rola.
+ */
+export function TabelaRolavel({ rotulo, children, className }: { rotulo: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div role="region" aria-label={rotulo} tabIndex={0} className={cn("overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent print:overflow-visible", className)}>
+      {children}
+    </div>
+  );
+}
+
 /** Caption visualmente oculta, exigida pelo handoff (§8) em toda tabela. */
 export function CaptionOculta({ children }: { children: React.ReactNode }) {
   return <caption className="sr-only">{children}</caption>;

@@ -9,6 +9,7 @@ import { montarFolhaSeparacao, standsDaOs, type SecaoFolha } from "@/domain/folh
 import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { formatarDataHora, formatarPeriodo } from "@/lib/format";
 import { Icone } from "@/components/ui/icons";
+import { TabelaRolavel } from "@/components/ui/tabela";
 import { ImprimirBotao } from "./imprimir-botao";
 import { obterSeparacao } from "@/server/services/separacao";
 import { pecaDeEstruturaLocada } from "@/server/export/os-estrutura";
@@ -39,7 +40,7 @@ const fmt = (n: number) => n.toLocaleString("pt-BR");
 const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${fmt(n)} ${unidade}` : fmt(n));
 
 function Rolagem({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-x-auto print:overflow-visible">{children}</div>;
+  return <TabelaRolavel rotulo="Tabela da OS">{children}</TabelaRolavel>;
 }
 
 export default async function ImpressaoOsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
