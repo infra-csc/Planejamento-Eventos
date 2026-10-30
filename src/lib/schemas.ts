@@ -167,11 +167,23 @@ export const usuarioSchema = z.object({
 
 export const areaSchema = z.object({ nome: texto(60), ativo: bool });
 
+/**
+ * Número das configurações. Campo apagado é erro (antes `Number("")` virava 0 e gravava sem aviso) e as
+ * mensagens dizem a faixa em português (antes "Too big: expected number to be <=168") (auditoria 30/10, parte D N7 e N8).
+ */
+const numeroConfig = (min: number, max: number, unidade: "horas" | "dias") => {
+  const faixa = `Use um número inteiro de ${min} a ${max} ${unidade}.`;
+  return z
+    .union([z.number(), z.string().trim()], { error: "Informe um número." })
+    .refine((v) => v !== "", "Informe um número.")
+    .pipe(z.coerce.number<string | number>({ error: faixa }).int(faixa).min(min, faixa).max(max, faixa));
+};
+
 export const configuracoesSchema = z.object({
-  sla_resposta_horas: z.coerce.number().int().min(1).max(720),
-  aviso_prazo_horas: z.coerce.number().int().min(0).max(168),
-  antecedencia_reuniao_horas: z.coerce.number().int().min(0).max(168),
-  lembrete_reuniao_dias: z.coerce.number().int().min(0).max(30),
+  sla_resposta_horas: numeroConfig(1, 720, "horas"),
+  aviso_prazo_horas: numeroConfig(0, 168, "horas"),
+  antecedencia_reuniao_horas: numeroConfig(0, 168, "horas"),
+  lembrete_reuniao_dias: numeroConfig(0, 30, "dias"),
   bloquear_encerramento_com_pendentes: bool,
 });
 

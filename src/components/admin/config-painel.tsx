@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox, Input } from "@/components/ui/field";
-import { toast, toastErro } from "@/components/ui/toast";
+import { toast } from "@/components/ui/toast";
 import { salvarConfigAction } from "@/app/(app)/admin/actions";
 
 type Valores = Record<string, string>;
@@ -24,14 +24,19 @@ export function ConfigPainel({ valores }: { valores: Valores }) {
 
   const salvar = () =>
     iniciar(async () => {
-      const r = await salvarConfigAction({ ...Object.fromEntries(LINHAS.map((l) => [l.chave, Number(v[l.chave])])), bloquear_encerramento_com_pendentes: v.bloquear_encerramento_com_pendentes === "true" });
+      // Vai o texto do campo, como digitado: `Number("")` virava 0 e o campo apagado gravava 0 sem aviso (auditoria 30/10, parte D N7).
+      const r = await salvarConfigAction({ ...Object.fromEntries(LINHAS.map((l) => [l.chave, v[l.chave] ?? ""])), bloquear_encerramento_com_pendentes: v.bloquear_encerramento_com_pendentes === "true" });
       if (!r.ok) {
-        setErros(r.campos ?? {});
-        toastErro(r.erro);
+        const campos = r.campos ?? {};
+        setErros(campos);
+        // Um aviso só, trocado a cada tentativa (antes empilhava um por clique; parte D N8), e o foco no 1º campo com erro.
+        toast(r.erro, { tipo: "erro", duracao: 7000, grupo: "config" });
+        const primeiro = LINHAS.find((l) => campos[l.chave]);
+        if (primeiro) document.getElementById(primeiro.chave)?.focus();
         return;
       }
       setErros({});
-      toast(r.mensagem ?? "Configurações salvas");
+      toast(r.mensagem ?? "Configurações salvas", { grupo: "config" });
     });
 
   return (
