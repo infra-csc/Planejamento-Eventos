@@ -91,10 +91,10 @@ export function DadosReuniaoForm({ eventoId, valores, editavel, onSalvo }: { eve
       <RotuloGrupo className="!mb-0">Carga e público · opcionais</RotuloGrupo>
       {campo("publicoEsperado", "Público esperado", "Ex.: 11000")}
       <div className="grid grid-cols-1 gap-x-3 gap-y-3.5 min-[420px]:grid-cols-2">
-        {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14h")}
-        {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 6h")}
-        {campo("arenaDescarrega", "Arena descarrega", "Ex.: 09/06 às 22h")}
-        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 8h")}
+        {campo("caminhaoCarrega", "Caminhão carrega", "Ex.: 08/06 às 14:00")}
+        {campo("caminhaoSai", "Caminhão sai", "Ex.: 09/06 às 06:00")}
+        {campo("arenaDescarrega", "Arena descarrega", "Ex.: 09/06 às 22:00")}
+        {campo("kitDescarrega", "Kit descarrega", "Ex.: 10/06 às 08:00")}
       </div>
       <p className="m-0 -mt-1.5 text-rotulo text-muted">Kit = material de consumo.</p>
       {editavel && (

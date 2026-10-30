@@ -38,13 +38,14 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
           const feito = !cancelado && i < idx;
           const agora = !cancelado && i === idx;
           return (
-            <li key={p.titulo} className="min-w-0" aria-current={agora ? "step" : undefined} title={agora ? undefined : `${p.titulo} · ${p.quando} · ${p.detalhe}`}>
+            <li key={p.titulo} className="min-w-0" aria-current={agora ? "step" : undefined} title={`${p.titulo} · ${p.quando} · ${p.detalhe}`}>
               <span aria-hidden className={cn("block h-1 rounded-full", feito ? "bg-ink-3" : agora ? "bg-accent" : "bg-line-strong")} />
               <span className="sr-only">{feito ? "Fase concluída: " : agora ? "Fase atual: " : "Próxima fase: "}</span>
               <span className="mt-2 hidden sm:block">
                 <span className={cn("block truncate text-pequeno", agora ? "font-semibold text-ink" : feito ? "font-medium text-ink-2" : "text-muted")}>{p.titulo}</span>
                 <span className="numero block truncate text-rotulo text-muted">{p.quando}</span>
-                {agora && <span className="mt-0.5 block truncate text-rotulo text-ink-2">{p.detalhe}</span>}
+                {/* O detalhe da fase atual quebra em 2 linhas em vez de sumir em reticências a 768 px (auditoria 30/10, B-36). */}
+                {agora && <span className="mt-0.5 line-clamp-2 block text-rotulo text-ink-2">{p.detalhe}</span>}
               </span>
               <span className="sr-only sm:hidden">
                 {p.titulo}, {p.quando}, {p.detalhe}

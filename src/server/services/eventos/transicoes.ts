@@ -214,7 +214,7 @@ function descricaoHistorico(acao: AcaoEvento, just: string | null, osNumero: num
 
 function mensagemNotificacao(acao: AcaoEvento, nome: string, just: string | null, osNumero: number | null) {
   const mensagens: Record<AcaoEvento, [string, string]> = {
-    INICIAR_REUNIAO: [`Reunião de OS iniciada: ${nome}`, "Envios de necessidades pausados enquanto a logística consolida a ata."],
+    INICIAR_REUNIAO: [`Reunião de OS iniciada: ${nome}`, "Envios de necessidades pausados enquanto a logística confere a ata."],
     VOLTAR_PREPARACAO: [`Reunião adiada: ${nome}`, `${just?.replace(/[.!]+$/, "")}. As áreas voltam a poder enviar necessidades.`],
     FECHAR_ATA: [`Ata fechada: ${nome}`, `OS v${osNumero} gerada. Alterações agora entram como solicitações respondidas por item.`],
     ENCERRAR: [`Evento encerrado para alterações: ${nome}`, "Nenhuma solicitação nova é aceita a partir de agora."],
@@ -238,7 +238,8 @@ export async function transicionarEvento(usuario: UsuarioAtual, id: string, acao
     const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, id) });
     if (!ev) throw new NaoEncontradoError("Evento");
     if (!transicaoPermitida(ev.status, acao)) {
-      throw new DomainError(`Ação "${t.label}" não é possível no estado atual do evento.`);
+      // Dizer o que fazer: quase sempre outra pessoa (ou outra aba) já mudou a fase (auditoria 28/10, nº 81).
+      throw new DomainError(`Não dá para “${t.label}” agora: o evento mudou de fase. Atualize a página.`);
     }
     const cfg = await obterConfiguracoes(tx);
     const agora = new Date();

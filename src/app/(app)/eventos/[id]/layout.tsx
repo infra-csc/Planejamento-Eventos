@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
-import { contarItensPendentesPreReuniao, resumoAbasEvento, solicitacoesPendentes } from "@/server/services/eventos";
+import { resumoAbasEvento, solicitacoesPendentes } from "@/server/services/eventos";
 import { obterEventoCache } from "@/server/cache";
 import { getDb } from "@/server/db";
 import { daMinhaArea, pode } from "@/domain/permissions";
 import { statusExibicao } from "@/domain/evento";
 import { NaoEncontradoError } from "@/domain/errors";
-import { diaMes, diaMesHora, diaMesISO, hojeISO, isoSP, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, diaMesISO, hojeISO, hora, isoSP, periodoCurto } from "@/lib/format";
 import { EventoStatusBadge, Tag } from "@/components/ui/badge";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
@@ -46,10 +46,10 @@ export default async function EventoLayout({ children, params }: { children: Rea
     if (e instanceof NaoEncontradoError) notFound();
     throw e;
   });
-  // Só contagens: este layout roda em todas as abas do evento.
-  const [resumo, pendentesPre, abertasTodas, cfg, nVeiculos] = await Promise.all([
+  // Só contagens: este layout roda em todas as abas do evento. (A contagem de itens pré-reunião pendentes saiu: o
+  // cabeçalho não a usa, e era a 3ª consulta sobre as mesmas solicitações; auditoria 28/10, nº 148.)
+  const [resumo, abertasTodas, cfg, nVeiculos] = await Promise.all([
     resumoAbasEvento(usuario, id),
-    contarItensPendentesPreReuniao(id),
     getDb().then((db) => solicitacoesPendentes(db, id)),
     obterConfiguracoesCache(),
     pode(usuario, "carga.ver") ? contarVeiculosCarga(id) : Promise.resolve(0),
@@ -59,6 +59,9 @@ export default async function EventoLayout({ children, params }: { children: Rea
   const base = `/eventos/${ev.id}`;
   const { versaoOs, preEnviadas } = resumo;
   const nLinhas = resumo.linhas;
+  // A fase fala da ata congelada, não das linhas de hoje (auditoria 30/10, B-09).
+  const nAta = resumo.linhasAtaFechada;
+  const hoje = hojeISO();
   const alteracoesAbertas = abertas.filter((s) => s.tipo === "ALTERACAO").length;
 
   const passos = [
@@ -70,7 +73,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
     {
       titulo: "Reunião de OS",
       quando: diaMesHora(ev.dataReuniao),
-      detalhe: ev.ataFechadaEm ? `ata fechada com ${nLinhas} ${nLinhas === 1 ? "linha" : "linhas"}` : ev.status === "EM_REUNIAO" ? (isoSP(ev.reuniaoIniciadaEm ?? ev.dataReuniao) < hojeISO() ? `aberta desde ${diaMes(ev.reuniaoIniciadaEm ?? ev.dataReuniao)} · ata por fechar` : "acontecendo agora") : "aguardando",
+      detalhe: ev.ataFechadaEm ? (nAta == null ? "ata fechada" : `ata fechada com ${nAta} ${nAta === 1 ? "linha" : "linhas"}`) : ev.status === "EM_REUNIAO" ? (isoSP(ev.reuniaoIniciadaEm ?? ev.dataReuniao) < hoje ? `aberta desde ${diaMes(ev.reuniaoIniciadaEm ?? ev.dataReuniao)} · ata por fechar` : "acontecendo agora") : "aguardando",
     },
     {
       titulo: "Aberto a alterações",
@@ -142,7 +145,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
             evento={{ id: ev.id, codigo: ev.codigo, nome: ev.nome, status: ev.status }}
             perfil={usuario.perfil}
             podeSolicitar={pode(usuario, "solicitacao.criar")}
-            pendentesPreReuniao={pendentesPre}
+            datas={{ hoje, diaReuniao: isoSP(ev.dataReuniao), quandoReuniao: `${diaMes(ev.dataReuniao)} às ${hora(ev.dataReuniao)}`, diaEvento: ev.dataInicio }}
             solicitacoesAbertas={abertas.map((s) => s.codigo)}
             bloquearEncerramentoComPendentes={cfg.bloquear_encerramento_com_pendentes === "true"}
             corrigeDireto={pode(usuario, "ata.ajustar")}

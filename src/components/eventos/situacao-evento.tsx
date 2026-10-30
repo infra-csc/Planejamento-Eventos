@@ -21,7 +21,7 @@ export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { e
               <span className="block text-pequeno text-muted">O evento volta para preparação e as áreas podem enviar de novo.</span>
             </span>
             <Button variant="secondary" size="md" onClick={() => setAberto("VOLTAR_PREPARACAO")}>
-              Voltar para preparação
+              Adiar reunião
             </Button>
           </div>
         )}
@@ -45,7 +45,7 @@ export function SituacaoEvento({ eventoId, codigo, status, conferidas = 0 }: { e
               ? "O evento e as solicitações em aberto são cancelados. As áreas são notificadas."
               : `As áreas voltam a poder enviar necessidades até a nova data da reunião.${conferidas > 0 ? ` As ${conferidas} ${conferidas === 1 ? "conferência já feita é descartada" : "conferências já feitas são descartadas"} e a lista de presentes também: a próxima reunião confere tudo de novo.` : ""}`
           }
-          confirmLabel={aberto === "CANCELAR" ? "Cancelar evento" : "Voltar para preparação"}
+          confirmLabel={aberto === "CANCELAR" ? "Cancelar evento" : "Adiar reunião"}
           // "Cancelar" ao lado de "Cancelar evento" ficava ambíguo: sair sem fazer nada é "Voltar".
           cancelLabel={aberto === "CANCELAR" ? "Voltar" : undefined}
           danger={aberto === "CANCELAR"}

@@ -98,8 +98,9 @@ export function EventoForm({ valores, cancelarHref }: { valores: EventoFormValor
         <SubmitButton size="lg" className="max-md:flex-1">
           {valores.id ? "Salvar alterações" : "Criar evento"}
         </SubmitButton>
+        {/* "Cancelar" ao lado de "Cancelar evento" (zona de exceção) tinha efeitos opostos (auditoria 30/10, B-33). */}
         <ButtonLink href={cancelarHref} variant="ghost" size="lg" className="no-underline">
-          Cancelar
+          Voltar sem salvar
         </ButtonLink>
       </div>
     </ActionForm>

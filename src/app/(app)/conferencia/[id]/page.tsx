@@ -8,7 +8,8 @@ import { obterEventoCache } from "@/server/cache";
 import { acompanhantesDaAta, obterConferencia } from "@/server/services/conferencia";
 import { NaoEncontradoError } from "@/domain/errors";
 import { pode } from "@/domain/permissions";
-import { diaMesHora, periodoCurto } from "@/lib/format";
+import { diaMes, diaMesHora, hojeISO, hora, isoSP, periodoCurto } from "@/lib/format";
+import { avisoReuniaoAntecipada } from "@/domain/evento";
 import { EventoStatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Icone } from "@/components/ui/icons";
@@ -86,6 +87,7 @@ export default async function ConferenciaPage({ params }: { params: Promise<{ id
         vazia={linhas.length === 0}
         presentesOk={Boolean(ev.reuniaoPresentes?.trim())}
         iniciadaEm={ev.status === "EM_REUNIAO" && ev.reuniaoIniciadaEm ? diaMesHora(ev.reuniaoIniciadaEm) : null}
+        avisoAntecipada={ev.status === "PREPARACAO" ? avisoReuniaoAntecipada(hojeISO(), isoSP(ev.dataReuniao), `${diaMes(ev.dataReuniao)} às ${hora(ev.dataReuniao)}`) : null}
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">

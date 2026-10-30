@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { escopoRascunhos } from "../solicitacoes/escopo";
-import { eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
+import { ataVersoes, eventoItens, eventos, historico, osVersoes, solicitacaoItens, solicitacoes, type EventoStatus } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError } from "@/domain/errors";
 import { areasDoUsuario, pode } from "@/domain/permissions";
@@ -134,7 +134,7 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
   const db = await getDb();
   // Quem vê todas não conta rascunho de outra área (ainda não foi enviado); o admin vê tudo.
   const escopoArea = pode(usuario, "solicitacao.ver_todas") ? (usuario.perfil === "ADMIN" ? undefined : escopoRascunhos(usuario)) : inArray(solicitacoes.areaId, minhasOuNenhuma(usuario));
-  const [[linhas], sols, versaoOs] = await Promise.all([
+  const [[linhas], sols, versaoOs, [ata]] = await Promise.all([
     db
       .select({ n: count() })
       .from(eventoItens)
@@ -145,10 +145,20 @@ export async function resumoAbasEvento(usuario: UsuarioAtual, eventoId: string) 
       .where(and(eq(solicitacoes.eventoId, eventoId), eq(solicitacoes.excluida, false), escopoArea))
       .groupBy(solicitacoes.tipo, solicitacoes.status),
     numeroOsAtual(db, eventoId),
+    // Linhas da ata congelada (a última fechada): a fase "Reunião de OS" dizia "ata fechada com 20 linhas" contando as
+    // linhas de hoje, e a ata tinha 18 (auditoria 30/10, B-09). Só o tamanho da lista, sem trazer o JSON.
+    db
+      .select({ n: sql<number>`jsonb_array_length(${ataVersoes.conteudo} -> 'linhas')` })
+      .from(ataVersoes)
+      .where(eq(ataVersoes.eventoId, eventoId))
+      .orderBy(desc(ataVersoes.numero))
+      .limit(1),
   ]);
   const soma = (xs: typeof sols) => xs.reduce((a, s) => a + Number(s.n), 0);
   return {
     linhas: Number(linhas?.n ?? 0),
+    /** Linhas da ata fechada (`null` antes do fechamento). */
+    linhasAtaFechada: ata ? Number(ata.n ?? 0) : null,
     solicitacoes: soma(sols),
     preEnviadas: soma(sols.filter((s) => s.tipo === "PRE_REUNIAO" && s.status !== "RASCUNHO" && s.status !== "CANCELADA")),
     versaoOs,
