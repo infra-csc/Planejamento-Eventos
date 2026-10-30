@@ -39,8 +39,8 @@ const obs = "w-[34%] py-1.5 align-top not-print:max-sm:hidden";
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 const qtd = (n: number, unidade: string) => (unidade && unidade !== "un" ? `${fmt(n)} ${unidade}` : fmt(n));
 
-function Rolagem({ children }: { children: React.ReactNode }) {
-  return <TabelaRolavel rotulo="Tabela da OS">{children}</TabelaRolavel>;
+function Rolagem({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return <TabelaRolavel rotulo={rotulo}>{children}</TabelaRolavel>;
 }
 
 export default async function ImpressaoOsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
@@ -108,7 +108,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       {os.semSetor.length > 0 && (
         <section className="mb-8 break-inside-avoid">
           <h3 className="mb-2 mt-0 text-destaque font-semibold">Materiais fora de catálogo</h3>
-          <Rolagem>
+          <Rolagem rotulo="Materiais fora de catálogo">
             {/* Cinco colunas não cabem em 375 px: no celular esta rola de lado; as de peça cabem sem Obs. */}
             <table className={`${tabela} min-w-[420px]`}>
               <thead>
@@ -158,7 +158,7 @@ function TabelaSecao({ secao, sub = false }: { secao: SecaoFolha; sub?: boolean 
   return (
     <section className="mb-8 break-inside-avoid">
       {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 text-destaque font-semibold">{secao.titulo}</h3>}
-      <Rolagem>
+      <Rolagem rotulo={secao.titulo}>
         <table className={tabela}>
           <thead>
             <tr className={cabecalho}>
