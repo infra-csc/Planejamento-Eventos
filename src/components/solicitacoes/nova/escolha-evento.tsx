@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { hojeISO } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/layout";
 import { Tag } from "@/components/ui/badge";
@@ -132,7 +133,13 @@ export function EscolhaEvento({
                     Entra direto na OS{evento.janelaAte ? <span className="numero"> · janela até {evento.janelaAte.split("-").reverse().slice(0, 2).join("/")}</span> : null}
                   </span>
                 ) : ehAlteracao ? (
+                  // Janela já fechada: dizer antes de a pessoa montar o pedido, não só depois de enviar (auditoria 30/10, A N6).
                   <span>
+                    {evento.janelaAte && evento.janelaAte < hojeISO() && (
+                      <>
+                        <span className="numero font-medium text-warning">Janela encerrada em {evento.janelaAte.split("-").reverse().slice(0, 2).join("/")}</span> — a logística decide se atende ·{" "}
+                      </>
+                    )}
                     Resposta em até <span className="numero font-medium">{slaHoras}h</span> após o envio
                   </span>
                 ) : (

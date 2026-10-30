@@ -4,9 +4,10 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Aviso } from "@/components/ui/layout";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { avisarTextoCortado } from "@/components/ui/aviso-corte";
 import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
-import { hora } from "@/lib/format";
+import { hojeISO, hora } from "@/lib/format";
 import { Passo } from "./passo";
 import { agruparItensNovos, ehAcompanhante, irPara, sugerirTitulo } from "./utilidades";
 import type { EstadoSalvo } from "./use-autosave-solicitacao";
@@ -101,6 +102,12 @@ export function ResumoEnvio({
           ) : undefined
         }
       >
+        {/* Janela de alterações já fechada: o aviso também perto do botão de enviar (auditoria 30/10, parte A N6). */}
+        {evento?.tipo === "ALTERACAO" && !evento.entraDireto && evento.janelaAte && evento.janelaAte < hojeISO() && (
+          <p className="m-0 border-b border-line-soft px-cartao py-2.5 text-pequeno text-warning">
+            Janela de alterações encerrada em <span className="numero">{evento.janelaAte.split("-").reverse().slice(0, 2).join("/")}</span>: a logística decide se atende.
+          </p>
+        )}
         {itens.length > 0 && (
           <ul className="m-0 max-h-[200px] list-none overflow-y-auto border-b border-line-soft p-0">
             {grupos.map(({ chave, itens: doGrupo }) => {
@@ -141,6 +148,7 @@ export function ResumoEnvio({
               id="titulo"
               value={titulo}
               maxLength={120}
+              onPaste={avisarTextoCortado}
               onChange={(e) => {
                 setTitulo(e.target.value);
                 if (erroTitulo && e.target.value.trim()) setErroTitulo(null);
@@ -155,7 +163,7 @@ export function ResumoEnvio({
             />
           </Field>
           <Field label="Observação" htmlFor="observacao" optional>
-            <Textarea id="observacao" value={observacao} maxLength={1000} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[64px]" />
+            <Textarea id="observacao" value={observacao} maxLength={1000} onPaste={avisarTextoCortado} onChange={(e) => setObservacao(e.target.value)} placeholder="Contexto que ajuda a logística a responder." className="min-h-[64px]" />
           </Field>
 
           {pendencias.length > 0 ? (

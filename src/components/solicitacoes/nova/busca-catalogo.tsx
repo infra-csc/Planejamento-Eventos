@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/layout";
 import { TabsControladas } from "@/components/ui/tabs-nav";
 import { Stepper } from "@/components/ui/stepper";
 import { Field, Input } from "@/components/ui/field";
+import { avisarTextoCortado } from "@/components/ui/aviso-corte";
 import { Icone } from "@/components/ui/icons";
 import { Codigo, Numero } from "@/components/ui/numero";
 import { toastSucesso } from "@/components/ui/toast";
@@ -248,6 +249,7 @@ export function BuscaCatalogo({
                   }}
                   placeholder="Ex.: Fechamento lateral de tenda 10×10"
                   maxLength={160}
+                  onPaste={avisarTextoCortado}
                   aria-invalid={Boolean(erroAvulso) || undefined}
                 />
                 <Button variant="secondary" size="md" onClick={adicionarAvulso}>

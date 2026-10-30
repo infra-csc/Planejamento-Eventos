@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/field";
+import { avisarTextoCortado } from "@/components/ui/aviso-corte";
 import { IconButton } from "@/components/ui/icon-button";
 import { Icone } from "@/components/ui/icons";
 import { Numero } from "@/components/ui/numero";
@@ -142,6 +143,7 @@ export function QuadroTendas({
                       id={`tenda-local-${n}`}
                       value={l.local}
                       maxLength={60}
+                      onPaste={avisarTextoCortado}
                       onChange={(e) => mudar(n, { local: e.target.value })}
                       placeholder="Ex.: Depósito"
                       list={idSugestoes}

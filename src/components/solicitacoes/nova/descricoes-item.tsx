@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Input } from "@/components/ui/field";
+import { avisarTextoCortado } from "@/components/ui/aviso-corte";
 import { ajustarDescricoes, descricoesEsperadas, TAMANHO_DESCRICAO } from "@/domain/descricoes-itens";
 import { ErroCampo } from "./passo";
 
@@ -116,6 +117,7 @@ export function DescricoesItem({
             <Input
               value={d}
               maxLength={TAMANHO_DESCRICAO}
+              onPaste={avisarTextoCortado}
               onChange={(e) => definir(n, e.target.value)}
               aria-label={unica ? `Descrição de ${item.rotulo}` : `Descrição da unidade ${n + 1} de ${item.rotulo}`}
               aria-invalid={destacarVazias && !d.trim() ? true : undefined}
