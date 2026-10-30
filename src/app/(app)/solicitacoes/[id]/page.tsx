@@ -40,7 +40,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
   const sp = await searchParams;
   const s = await obterSolicitacaoCache(usuario, id).catch((e) => {
     if (e instanceof NaoEncontradoError) notFound();
-    if (e instanceof DomainError && e.code === "SEM_PERMISSAO") redirect("/sem-permissao");
+    // O motivo não é o perfil: é o pedido ser de outra área ou ainda rascunho (auditoria 28/10, nº 106).
+    if (e instanceof DomainError && e.code === "SEM_PERMISSAO") redirect("/sem-permissao?motivo=solicitacao");
     throw e;
   });
 
@@ -108,6 +109,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     // Tenda na ata se ajusta na conferência (tendas, fechamentos e calhas por local), não por "parte" aqui.
     corrigivel: corrigivel && i.status !== "EM_ANALISE" && !(naAta && tenda),
     aguardandoReuniao: naAta,
+    pedidoComo: i.operacao === "ADICIONAR" && (i.projetoId || i.pecaId) ? (i.descricaoLivre?.trim() || null) : null,
   };
   });
   // O mesmo item pedido para vários locais vira um grupo (nome + total, uma linha por local), na ordem em
@@ -155,7 +157,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     return i ? descricaoItem(i) : null;
   };
   // Rascunho e devolvida ainda não estão na fila: o status do item não faz sentido antes do envio.
-  const semStatus = STATUS_EDITAVEIS.includes(s.status);
+  // Cancelada também: o item ficava "Em análise" numa solicitação que saiu da fila (auditoria 30/10, A N21).
+  const semStatus = STATUS_EDITAVEIS.includes(s.status) || s.status === "CANCELADA";
   // Alteração dentro da janela: entrou direto na OS, sem avaliação (nenhum item tem quem respondeu).
   const entrouDireto = s.tipo === "ALTERACAO" && s.status === "RESPONDIDA" && s.itens.length > 0 && s.itens.every((i) => i.status === "ATENDIDO" && !i.respondidoPorId);
   const editavelNaJanela = dono && entrouDireto && podeEditarEnviada(s, s.evento, hojeISO());
@@ -183,10 +186,12 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                 </ButtonLink>
               ) : (
                 <span aria-disabled="true" className={buttonClasses({ variant: "bloqueado", size: "sm" })}>
-                  Fila zerada
+                  {/* Na última, ainda se responde a aberta: "Fila zerada" só quando ela já saiu da fila (nº 101). */}
+                  {idx >= 0 ? "Última da fila" : "Fila zerada"}
                 </span>
               )}
-              <Link href={`/solicitacoes/${s.id}`} className="text-pequeno text-on-dark-3 no-underline hover:text-white">
+              {/* Alvo de 40 px no celular (tinha 24×18; auditoria 28/10, nº 59). */}
+              <Link href={`/solicitacoes/${s.id}`} className="inline-flex items-center rounded-controle px-1.5 text-pequeno text-on-dark-3 no-underline hover:text-white focus-visible:outline-accent-light max-md:min-h-10 max-md:px-2.5">
                 Sair
               </Link>
             </>
@@ -210,7 +215,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
         description={
           <>
             {s.tipo === "PRE_REUNIAO" ? "Necessidade pré-reunião" : "Alteração pós-ata"} ·{" "}
-            <Link href={`/eventos/${s.eventoId}`} className="link">
+            {/* Link no meio da frase sublinhado: só pela cor (1,06:1) não se distinguia (auditoria 28/10, nº 62). */}
+            <Link href={`/eventos/${s.eventoId}`} className="link underline underline-offset-2">
               {s.evento.codigo} {s.evento.nome}
             </Link>{" "}
             · {s.area.nome} · {s.criadoPor.nome}
@@ -246,7 +252,8 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
             id={s.id}
             codigo={s.codigo}
             podeDevolver={ehLogistica && faseOk && podeDevolver(s.status, algumRespondido)}
-            podeAtenderTudo={respondivel && pendentes > 0}
+            // Com 1 item pendente, "Atender tudo" repetia o botão do item (auditoria 28/10, nº 102).
+            podeAtenderTudo={respondivel && pendentes > 1}
             pendentes={pendentes}
             podeEditar={(editavel && s.evento.status !== "CANCELADO" && s.evento.status !== "ENCERRADO") || (dono && podeEditarEnviada(s, s.evento, hojeISO()))}
             podeEnviar={editavel && s.itens.length > 0 && Boolean(s.titulo?.trim()) && aceitaSolicitacao(s.evento.status, s.tipo)}
@@ -287,7 +294,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
       {editavel && aceitaSolicitacao(s.evento.status, s.tipo) && (s.itens.length === 0 || !s.titulo?.trim()) && (
         <Aviso className="mb-cartao" titulo="Falta preencher antes de enviar">
           {s.itens.length === 0 ? "Adicione ao menos um item" : "Dê um título para a logística identificar a solicitação na fila"} em{" "}
-          <Link href={`/solicitacoes/nova?rascunho=${s.id}`} className="link">
+          <Link href={`/solicitacoes/nova?rascunho=${s.id}`} className="link underline underline-offset-2">
             Editar itens
           </Link>
           .
@@ -298,10 +305,11 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
           O rascunho continua salvo. {s.tipo === "PRE_REUNIAO" ? "Necessidades só entram com o evento em preparação." : "Alterações só entram com o evento aberto."}
         </Aviso>
       )}
-      {ehLogistica && naAta && (
+      {/* Rascunho ainda não está na ata (N12, auditoria 30/10). */}
+      {ehLogistica && naAta && enviada && (
         <Aviso className="mb-cartao">
           Estes itens já estão na ata. A logística confere e ajusta na{" "}
-          <Link href={`/conferencia/${s.eventoId}`} className="link">
+          <Link href={`/conferencia/${s.eventoId}`} className="link underline underline-offset-2">
             conferência da ata
           </Link>{" "}
           do evento.
@@ -310,7 +318,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
 
       {!pode(usuario, "ata.consolidar") && enviada && foraCatalogo.length > 0 && (
         <Aviso className="mb-cartao">
-          {foraCatalogo.length === 1 ? "Um item foi descrito à mão" : `${foraCatalogo.length} itens foram descritos à mão`}. A logística vai vincular ao catálogo ou cadastrar a peça, e você será avisado.
+          {foraCatalogo.length === 1 ? "Um item foi descrito à mão" : `${foraCatalogo.length} itens foram descritos à mão`}. A logística vai vincular ao catálogo ou cadastrar a peça, e você recebe um aviso.
         </Aviso>
       )}
 

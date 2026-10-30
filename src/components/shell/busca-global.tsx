@@ -4,7 +4,6 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
-import { ChipMono } from "@/components/ui/badge";
 import { Icone, Spinner } from "@/components/ui/icons";
 import { EmptyState, Kbd } from "@/components/ui/layout";
 import type { ResultadoBusca } from "@/server/services/busca";
@@ -17,13 +16,30 @@ const assinar = (f: () => void) => {
   return () => ouvintes.delete(f);
 };
 
-export function abrirBuscaGlobal() {
+/**
+ * Onde o foco volta ao fechar. Guardado na abertura: aberta por Ctrl K com o foco no <body>, ou pela gaveta do
+ * celular (que fecha), o Radix devolvia o foco ao <body> ou a um botão escondido (auditoria 28/10, nº 136).
+ */
+let retornoFoco: HTMLElement | null = null;
+
+export function abrirBuscaGlobal(retorno?: HTMLElement | null) {
+  retornoFoco = retorno ?? (document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null);
   aberto = true;
   emitir();
 }
 function definirAberto(v: boolean) {
-  aberto = v;
+  if (v) return abrirBuscaGlobal();
+  aberto = false;
   emitir();
+}
+
+/** Devolve o foco a quem abriu a busca; se não houver (ou sumiu), ao conteúdo da página. */
+function devolverFoco(e: Event) {
+  e.preventDefault();
+  const alvo = retornoFoco;
+  retornoFoco = null;
+  if (alvo?.isConnected && (alvo.checkVisibility?.({ visibilityProperty: true }) ?? true)) alvo.focus();
+  else document.getElementById("conteudo")?.focus();
 }
 
 /**
@@ -113,6 +129,7 @@ export function BuscaGlobal() {
         <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--z-busca)] bg-scrim" />
         <DialogPrimitive.Content
           className="fixed left-1/2 top-[14vh] z-[calc(var(--z-busca)+1)] w-[min(620px,92vw)] -translate-x-1/2 animate-fade-up-rapido overflow-hidden rounded-modal border border-line-strong bg-surface shadow-popover focus:outline-none"
+          onCloseAutoFocus={devolverFoco}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
@@ -128,7 +145,8 @@ export function BuscaGlobal() {
         >
           <DialogPrimitive.Title className="sr-only">Buscar ou executar</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Busque eventos, solicitações, peças e projetos, ou execute uma ação.</DialogPrimitive.Description>
-          <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5">
+          {/* O campo não tem borda própria: o foco aparece como um filete vinho embaixo da faixa (auditoria 28/10, nº 135). */}
+          <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5 focus-within:shadow-[inset_0_-2px_0_var(--color-accent)]">
             <Icone nome="busca" className="text-ink-3" />
             <input
               autoFocus
@@ -149,9 +167,12 @@ export function BuscaGlobal() {
             <span aria-hidden className={cn("text-ink-3 transition-opacity duration-150", buscando ? "opacity-100" : "opacity-0")}>
               <Spinner tamanho={14} />
             </span>
-            <Kbd>esc</Kbd>
+            {/* Teclas só onde há teclado: no celular, fecha tocando fora (auditoria 28/10, nº 130). */}
+            <span className="max-md:hidden">
+              <Kbd>esc</Kbd>
+            </span>
           </div>
-          <div className="flex gap-4 border-b border-line-row px-4 py-[7px] text-rotulo text-meta">
+          <div className="flex gap-4 border-b border-line-row px-4 py-[7px] text-rotulo text-meta max-md:hidden">
             <span>
               <span className="font-mono">↑ ↓</span> navegar
             </span>
@@ -183,9 +204,8 @@ export function BuscaGlobal() {
                       onMouseEnter={() => setSel(i)}
                       className={cn("flex w-full cursor-pointer items-center gap-3 rounded-controle border-0 px-2.5 py-[9px] text-left max-md:min-h-11", ativo ? "opcao-ativa" : "bg-transparent")}
                     >
-                      <ChipMono tom={r.tag === "ação" ? "accent" : "control"} className="shrink-0 uppercase tracking-wider">
-                        {r.tag}
-                      </ChipMono>
+                      {/* Tipo em caixa-alta na fonte normal, como o título do grupo: mono é só para código e tecla (nº 131). */}
+                      <span className={cn("inline-flex shrink-0 items-center whitespace-nowrap rounded-chip px-1.5 py-px text-micro font-semibold uppercase tracking-[0.08em]", r.tag === "ação" ? "bg-accent-bg text-accent" : "bg-control text-ink-3")}>{r.tag}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-corpo font-medium text-ink">{r.titulo}</span>
                         <span className="block truncate text-pequeno text-muted">{r.sub}</span>
@@ -200,6 +220,10 @@ export function BuscaGlobal() {
             ))}
             {carregado && termo.trim() && resultados.length === 0 && <EmptyState compact title={`Nada encontrado para “${termo.trim()}”`} description="Tente o código (SOL-0001, EVT-0002) ou outra palavra do nome." />}
           </div>
+          {/* Região viva montada com o diálogo (vazia): o leitor de tela ouve quantos resultados vieram ou que nada foi encontrado (nº 136). */}
+          <p role="status" className="sr-only">
+            {carregado && termo.trim() ? (resultados.length === 0 ? `Nada encontrado para ${termo.trim()}` : `${resultados.length} ${resultados.length === 1 ? "resultado" : "resultados"}`) : ""}
+          </p>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

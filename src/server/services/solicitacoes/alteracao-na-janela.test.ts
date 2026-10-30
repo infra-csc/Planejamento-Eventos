@@ -9,7 +9,7 @@ delete process.env.DATABASE_URL;
 
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventos, notificacoes } from "@/server/db/schema";
+import { eventos, historico, notificacoes } from "@/server/db/schema";
 import { descricoesIguais } from "@/domain/descricoes-itens";
 import { criarPeca, dia, enviarSolicitacao, eventoAberto, migrarBanco, montarElenco, type Elenco } from "@/test/apoio";
 import { alterarQuantidadeLinha, obterLinhasAta } from "../eventos";
@@ -56,6 +56,18 @@ describe("alteração dentro da janela", () => {
     expect(await avisosLogistica(/^Alteração na OS/)).toBe(avisosAntes + 1);
   });
 
+  it("o histórico diz que entrou na OS, sem prazo e sem 'atendido' no nome de quem pediu (auditoria 28/10 nº 105, 30/10 A N27)", async () => {
+    const { ev } = await eventoAberto(E.logistica, pecaBase, E.areas.a.id, { janelaAberta: true });
+    const s = await enviarSolicitacao(E.requisitante, E.admin, ev.id, [item(pecaA, 2)]);
+    const db = await getDb();
+    const envio = await db.query.historico.findFirst({ where: and(eq(historico.entidadeId, s.id), eq(historico.acao, "ENVIADA")) });
+    expect(envio?.descricao).toMatch(/— 1 item$/);
+    const doItem = await db.query.historico.findMany({ where: eq(historico.entidadeId, s.itens[0].id) });
+    expect(doItem.map((h) => h.acao)).toContain("ENTROU_NA_OS");
+    expect(doItem.map((h) => h.acao)).not.toContain("RESPONDIDO");
+    expect(doItem.find((h) => h.acao === "ENTROU_NA_OS")?.descricao).toMatch(/entrou direto na OS \(2\)$/);
+  });
+
   it("fora da janela continua esperando a decisão da logística", async () => {
     const { ev } = await eventoAberto(E.logistica, pecaBase, E.areas.a.id, { janelaAberta: true });
     await definirJanela(ev.id, dia(-1));
@@ -63,6 +75,11 @@ describe("alteração dentro da janela", () => {
     expect(s.status).toBe("ENVIADA");
     expect(s.foraDaJanela).toBe(true);
     expect(await qtdDe(ev.id, pecaA)).toBe(0);
+    // "Fora da janela" sem caixa-alta (auditoria 28/10, nº 88).
+    const db = await getDb();
+    const envio = await db.query.historico.findFirst({ where: and(eq(historico.entidadeId, s.id), eq(historico.acao, "ENVIADA")) });
+    expect(envio?.descricao).toContain("fora da janela de alterações");
+    expect(await avisosLogistica(/^Fora da janela: /)).toBeGreaterThan(0);
   });
 
   it("quem pediu troca, inclui e tira itens durante a janela; cada edição gera versão e avisa a logística", async () => {

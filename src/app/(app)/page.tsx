@@ -4,7 +4,7 @@ import { requireUsuario } from "@/server/auth/session";
 import { dadosPainel, type DadosPainel, type ItemAgenda, type ItemFila } from "@/server/services/dashboard";
 import { pode, type UsuarioPermissao } from "@/domain/permissions";
 import { prazoInfo, COR_TOM } from "@/lib/prazo";
-import { dataExtenso } from "@/lib/format";
+import { dataExtenso, diaMesHora } from "@/lib/format";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Marcador, PageHeader, Section } from "@/components/ui/layout";
 import { Badge, ChipMono, ForaJanelaTag } from "@/components/ui/badge";
@@ -48,6 +48,13 @@ function TituloContado({ texto, n }: { texto: string; n: number }) {
 
 /** Prazo numa linha: a parte forte (atrasada / em 5h / rascunho) e a data, que quebra para baixo no celular. */
 function Prazo({ f, agora }: { f: ItemFila; agora: Date }) {
+  // Pré-reunião na ata: não tem prazo de resposta, espera a reunião de OS.
+  if (f.naAtaAte)
+    return (
+      <span className="numero text-pequeno text-info">
+        <span className="whitespace-nowrap font-medium">na ata</span> <span className="whitespace-nowrap">reunião {diaMesHora(f.naAtaAte)}</span>
+      </span>
+    );
   const pi = prazoInfo(f, agora);
   const aberta = STATUS_ABERTOS.includes(f.status);
   const forte = pi.vencido ? "atrasada" : pi.label;
@@ -101,18 +108,21 @@ function TabelaFila({ fila, agora, rapida, comArea, rotulo }: { fila: ItemFila[]
             return (
               <LinhaLink key={f.id} href={`/solicitacoes/${f.id}`} rotulo={`Abrir ${f.codigo} — ${titulo}`}>
                 <th scope="row" className={`${celula} max-w-0 pl-cartao pr-3 text-left font-normal`}>
-                  <span className="flex min-w-0 items-baseline gap-2">
+                  {/* Cartão estreito (celular): o código fica em cima e o título usa a largura toda, em até 2 linhas;
+                      ao lado do código ele ficava com 5–6 letras a 375 px (auditoria 28/10, nº 8). */}
+                  <span className="flex min-w-0 flex-col @lg:flex-row @lg:items-baseline @lg:gap-2">
                     <Codigo className="shrink-0 text-pequeno text-ink-3">{f.codigo}</Codigo>
-                    <span className="truncate text-corpo font-medium text-ink" title={`${titulo} · ${itens}`}>
+                    <span className="break-words text-corpo font-medium text-ink @max-lg:line-clamp-2 @lg:truncate" title={`${titulo} · ${itens}`}>
                       {titulo}
                     </span>
                   </span>
-                  {/* "Fora da janela" na linha de baixo: ao lado do título, o selo espremia o nome até "Ba…". */}
+                  {/* "Fora da janela" na linha de baixo: ao lado do título, o selo espremia o nome até "Ba…".
+                      No estreito, o item do ✓ desce para baixo do selo (ficava com 1 letra). */}
                   {(f.foraDaJanela || pendente) && (
-                    <span className="mt-1 flex min-w-0 items-center gap-2 text-pequeno text-ink-2">
+                    <span className="mt-1 flex min-w-0 flex-col items-start gap-0.5 text-pequeno text-ink-2 @lg:flex-row @lg:items-center @lg:gap-2">
                       {f.foraDaJanela && <ForaJanelaTag className="shrink-0" />}
                       {pendente && (
-                        <span className="truncate" title={pendente}>
+                        <span className="max-w-full break-words @max-lg:line-clamp-2 @lg:truncate" title={pendente}>
                           {pendente}
                         </span>
                       )}
@@ -193,18 +203,21 @@ function Agenda({ itens }: { itens: ItemAgenda[] }) {
                   className="flex min-h-10 items-center gap-3 px-cartao py-2 no-underline transition-colors duration-150 hover:bg-subtle"
                 >
                   {/* O dia aparece na primeira linha dele; nas seguintes fica só para o leitor de tela (a coluna lê como agenda). */}
+                  {/* Dia e hora numa linha só, numa coluna larga o bastante: com a hora quebrando, as linhas com e sem
+                      hora tinham alturas diferentes (auditoria 28/10, nº 113). */}
                   {i > 0 && itens[i - 1].dia === a.dia ? (
-                    <span className="w-11 shrink-0">
+                    <span className="w-[76px] shrink-0">
                       <span className="sr-only">{a.dia}</span>
                     </span>
                   ) : (
-                    <span className="numero w-11 shrink-0 text-pequeno font-medium text-ink-2">{a.dia}</span>
+                    <span className="numero w-[76px] shrink-0 whitespace-nowrap text-pequeno font-medium text-ink-2">{a.dia}</span>
                   )}
                   <Marcador cor={TIPO_AGENDA[a.tipo].cor} quadrado={a.tipo === "reuniao"} className="!mt-0" />
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                  {/* Uma linha de altura fixa que quebra: quando sobram menos de 60 px, o "onde" desce para a 2ª linha,
+                      que fica escondida (antes aparecia cortado numa letra só). No celular fica só no title. */}
+                  <span className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-2 overflow-hidden">
                     <span className="max-w-full shrink-0 truncate text-corpo font-medium text-ink">{a.titulo}</span>
-                    {/* O "onde" usa o espaço que sobra e corta primeiro; no celular fica só no title. */}
-                    {sub && <span className="hidden min-w-0 truncate text-pequeno text-muted sm:block">{sub}</span>}
+                    {sub && <span className="hidden min-w-[60px] flex-1 truncate text-pequeno text-muted sm:block">{sub}</span>}
                   </span>
                 </Link>
               </li>
@@ -296,7 +309,7 @@ function acoesOperacao(d: Operacao, usuario: UsuarioPermissao, responde: boolean
       tom: "info",
       n: <Numero valor={d.reunioes.amanha.n} />,
       titulo: plural(d.reunioes.amanha.n, "reunião de OS amanhã", "reuniões de OS amanhã"),
-      detalhe: d.reunioes.amanha.horas,
+      detalhe: d.reunioes.amanha.detalhe,
       href: "/eventos?reuniao=amanha",
     });
   }
@@ -399,12 +412,12 @@ function RespostasRecebidas({ respostas }: { respostas: Requisitante["respostas"
                     <span className="mt-0.5 block truncate text-pequeno text-muted @lg:hidden">{r.eventoNome}</span>
                   </th>
                   <td className={`${celula} hidden max-w-0 px-3 @lg:table-cell`}>
-                    <span className="block truncate text-pequeno text-ink-2" title={r.naAta ? r.eventoNome : `${r.eventoNome} · respondida por ${r.respondidoPor}`}>
+                    <span className="block truncate text-pequeno text-ink-2" title={`${r.eventoNome} · respondida por ${r.respondidoPor}`}>
                       {r.eventoNome}
                     </span>
                   </td>
                   <td className={`${celula} px-3 last:pr-cartao`}>
-                    <Badge tom={r.naAta ? "info" : r.ressalvas > 0 ? "warning" : "success"}>{r.naAta ? "Na ata" : r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "Tudo atendido"}</Badge>
+                    <Badge tom={r.ressalvas > 0 ? "warning" : "success"}>{r.ressalvas > 0 ? `${r.ressalvas} com ressalva` : "Tudo atendido"}</Badge>
                   </td>
                 </LinhaLink>
               );
@@ -492,12 +505,18 @@ export default async function PainelPage() {
 
       {d.tipo === "operacao" && (
         <>
-          <Agora acoes={acoesOperacao(d, usuario, responde, agora)} vazio={{ titulo: "Nada urgente agora", descricao: "Sem atrasos, sem solicitações aguardando e sem reunião hoje." }} />
+          {/* A Gestão acompanha e não age (não inicia reunião nem responde): "Precisa de você agora" dizia o contrário (auditoria 28/10, nº 27). */}
+          <Agora
+            titulo={usuario.perfil === "GESTAO" ? "Para acompanhar" : undefined}
+            acoes={acoesOperacao(d, usuario, responde, agora)}
+            vazio={{ titulo: "Nada urgente agora", descricao: "Sem atrasos, sem solicitações aguardando e sem reunião hoje." }}
+          />
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)] lg:items-start">
             <Section
-              // Gestão acompanha, não responde: "Fila de resposta" dizia o contrário.
-              titulo={<TituloContado texto={responde ? "Fila de resposta" : "Aguardando a logística"} n={d.fila.length} />}
+              // Gestão acompanha, não responde ("Aguardando a logística"). Para quem responde, o mesmo nome da aba da lista:
+              // "Fila de resposta" era um 4º nome para o mesmo estado (auditoria 28/10, nº 25).
+              titulo={<TituloContado texto={responde ? "Aguardando resposta" : "Aguardando a logística"} n={d.fila.length} />}
               acoes={
                 responde && d.fila.length > 0 ? (
                   <ButtonLink href={`/solicitacoes/${d.fila[0].id}?fila=1`} variant="secondary" size="sm" className="no-underline">
@@ -513,13 +532,13 @@ export default async function PainelPage() {
                   title="Fila zerada"
                   description="Nenhuma solicitação aguardando resposta."
                   action={
-                    <Link href="/solicitacoes" className="link text-corpo">
+                    <Link href="/solicitacoes?filtro=TODAS" className="link text-corpo">
                       Ver todas as solicitações
                     </Link>
                   }
                 />
               ) : (
-                <TabelaFila fila={d.fila} agora={agora} rapida={responde} comArea rotulo={responde ? "Fila de resposta, por prazo" : "Aguardando a logística, por prazo"} />
+                <TabelaFila fila={d.fila} agora={agora} rapida={responde} comArea rotulo={responde ? "Aguardando resposta, por prazo" : "Aguardando a logística, por prazo"} />
               )}
             </Section>
 

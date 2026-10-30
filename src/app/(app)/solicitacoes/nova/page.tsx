@@ -128,7 +128,7 @@ export default async function NovaSolicitacaoPage({ searchParams }: { searchPara
       />
       {semArea && (
         <Aviso tom="warning" titulo="Sua área ainda não foi definida" className="mb-4">
-          Para pedir, o seu usuário precisa estar ligado a uma área. Peça ao administrador para definir a sua área em Administração › Usuários.
+          Para pedir, o seu usuário precisa estar ligado a uma área. Fale com o administrador para definir a sua área em Administração › Usuários.
         </Aviso>
       )}
       <NovaSolicitacaoForm

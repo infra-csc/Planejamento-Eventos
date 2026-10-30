@@ -25,7 +25,8 @@ export class NaoEncontradoError extends DomainError {
 }
 
 export class SemPermissaoError extends DomainError {
-  constructor(message = "Você não tem permissão para executar esta ação.") {
+  // Diz a quem recorrer (auditoria 28/10, nº 176); mantém "permissão", que os testes procuram.
+  constructor(message = "Seu perfil não tem permissão para isto. Se precisar, fale com o administrador.") {
     super(message, "SEM_PERMISSAO");
   }
 }

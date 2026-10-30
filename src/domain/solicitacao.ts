@@ -21,6 +21,8 @@ export const SOLICITACAO_TIPO_LABEL: Record<SolicitacaoTipo, string> = {
 
 /** Observação gravada no item que entrou na ata sozinho (pedido pré-reunião): as exportações não repetem. */
 export const OBS_REGISTRADO_NA_ATA = "Registrado na ata automaticamente; conferido pela logística na reunião de OS.";
+/** Observação automática da alteração que entrou direto na OS: a tela não a mostra como "Logística: …" (ninguém respondeu). */
+export const OBS_ENTROU_NA_OS = "Entrou direto na OS: alteração dentro da janela.";
 
 export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
   EM_ANALISE: "Em análise",
@@ -234,7 +236,7 @@ export function calcularEfeitoLinha(antes: EstadoItemResposta, novo: { status: I
     return { acao: "atualizar", ativo: true, quantidade: nova, quantidadeAnterior: null };
   }
 
-  if (!linha) throw new DomainError("A linha da ata referenciada não existe mais.");
+  if (!linha) throw new DomainError("A linha da ata escolhida não existe mais. Escolha outra linha ou tire o item da solicitação.");
 
   if (antes.operacao === "ALTERAR_QUANTIDADE") {
     const anterior = antes.quantidadeAnterior ?? linha.quantidade;

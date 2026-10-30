@@ -5,7 +5,7 @@ import { contarNaoLidas } from "@/server/services/notificacoes";
 import { executarVerificacoesSeNecessario } from "@/server/jobs/verificacoes";
 import { getDb } from "@/server/db";
 import { solicitacoes } from "@/server/db/schema";
-import { pode } from "@/domain/permissions";
+import { ehRequisitante, pode } from "@/domain/permissions";
 import { podeGerenciarEstoque } from "@/domain/estoque";
 import { TELAS_INATIVAS } from "@/domain/telas";
 import { AppShell, type NavItem } from "@/components/shell/app-shell";
@@ -42,7 +42,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     // Carga e descarga do galpão: só logística e administrador.
     ...(pode(usuario, "carga.ver") ? [{ href: "/carga-descarga", label: "Carga e descarga", secao: "Operação" }] : []),
-    ...(pode(usuario, "arena.ver") ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
+    // Arena 3D no menu só para a operação: para as áreas solicitantes a lista não tinha ligação com a tarefa delas.
+    // A página continua aberta a todos (o mapa do evento é aberto pela página do evento). Auditoria 28/10, nº 107.
+    ...(pode(usuario, "arena.ver") && !ehRequisitante(usuario.perfil) ? [{ href: "/arena", label: "Arena 3D", secao: "Operação" }] : []),
     // Módulo Ativação (estoque, retornos e reformas): a própria área Ativação e o administrador.
     ...(podeGerenciarEstoque(usuario) ? [{ href: "/ativacao", label: "Ativação", secao: "Operação", ativoEm: ["/estoque"] }] : []),
     ...(!TELAS_INATIVAS.consolidacao && pode(usuario, "consolidacao.ver") ? [{ href: "/consolidacao", label: "Demanda de peças", secao: "Operação" }] : []),

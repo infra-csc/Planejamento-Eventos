@@ -14,7 +14,7 @@ import { Numero } from "@/components/ui/numero";
 import { TELAS_INATIVAS } from "@/domain/telas";
 import { toast, toastErro, toastSucesso } from "@/components/ui/toast";
 import { agruparDescricoes } from "@/domain/descricoes-itens";
-import { OBS_REGISTRADO_NA_ATA } from "@/domain/solicitacao";
+import { OBS_ENTROU_NA_OS, OBS_REGISTRADO_NA_ATA } from "@/domain/solicitacao";
 import { LIMITES } from "@/domain/constantes";
 import { agruparLocaisTenda } from "@/domain/agrupamento-pedido";
 import { desfazerRespostaAction, responderItemAction, type DadosResposta } from "@/app/(app)/solicitacoes/actions";
@@ -47,6 +47,8 @@ export type ItemParaResposta = {
   acompanhante?: { codigo: string; fator: number; texto: string };
   /** Pré-reunião com a ata aberta: mostra "Na ata · aguarda conferência" em vez de "Atendido". */
   aguardandoReuniao?: boolean;
+  /** Item descrito à mão que a logística vinculou ao catálogo: o texto que a área escreveu. */
+  pedidoComo?: string | null;
 };
 
 type Edicao = { id: string; modo: "PARCIAL" | "NAO_ATENDIDO" | "CORRIGIR" };
@@ -140,7 +142,14 @@ export function RespostaProvider({
           resolve(true);
           return;
         }
-        const msg = dados.status === "ATENDIDO" && !dados.justificativa ? `${item.descricao} atendido — ${sufixoToast}` : `${d.codigo} · item respondido — ${sufixoToast}`;
+        // "Atendido: Tenda 3×3 m", sem concordar com o nome do item ("Tenda … atendido"); a correção diz que corrigiu
+        // (antes, "item respondido") — auditoria 30/10, parte A N16 e N17.
+        const msg =
+          item.status !== "EM_ANALISE"
+            ? `${d.codigo} · resposta corrigida — ${sufixoToast}`
+            : dados.status === "ATENDIDO" && !dados.justificativa
+              ? `Atendido: ${item.descricao} — ${sufixoToast}`
+              : `${d.codigo} · item respondido — ${sufixoToast}`;
         toastSucesso(msg, {
           desfazer: d.podeDesfazer
             ? async () => {
@@ -205,6 +214,8 @@ function faixaParcial(item: ItemParaResposta) {
   return { min: 1, max: item.quantidadeSolicitada - 1 };
 }
 const temParcial = (item: ItemParaResposta) => item.operacao !== "REMOVER" && faixaParcial(item).max >= faixaParcial(item).min;
+/** Frase que o sistema grava sozinho (entrou na ata / direto na OS): não é resposta de ninguém. */
+const obsAutomatica = (obs: string | null | undefined) => obs?.trim() === OBS_REGISTRADO_NA_ATA || obs?.trim() === OBS_ENTROU_NA_OS;
 
 /** Mensagem de erro no padrão do Field. */
 function Erro({ id, children }: { id: string; children: React.ReactNode }) {
@@ -223,7 +234,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
   const faixa = faixaParcial(item);
   const [qtd, setQtd] = useState<number>(corrigir && item.quantidadeAtendida ? item.quantidadeAtendida : Math.min(faixa.max, Math.max(faixa.min, item.quantidadeSolicitada - 1)));
   // A frase automática da pré-reunião não é motivo de ninguém: o campo começa vazio.
-  const obsInicial = corrigir && item.observacaoLogistica?.trim() !== OBS_REGISTRADO_NA_ATA ? (item.observacaoLogistica ?? "") : "";
+  const obsInicial = corrigir && !obsAutomatica(item.observacaoLogistica) ? (item.observacaoLogistica ?? "") : "";
   const [obs, setObs] = useState(obsInicial);
   const [pendencia, setPendencia] = useState(corrigir ? item.pendenciaCompra : modo === "PARCIAL");
   const [justificativa, setJustificativa] = useState("");
@@ -286,7 +297,7 @@ function PainelEdicao({ item, modo }: { item: ItemParaResposta; modo: Edicao["mo
           ["PARCIAL", "Parcial"],
           ["NAO_ATENDIDO", "Não atendido"],
         ];
-  const tituloPainel = corrigir ? "Corrigir resposta" : status === "PARCIAL" ? "Atender parcialmente" : "Não atender";
+  const tituloPainel = corrigir ? (item.aguardandoReuniao ? "Ajustar" : "Corrigir resposta") : status === "PARCIAL" ? "Atender parcialmente" : "Não atender";
   const aoEnter = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -465,10 +476,12 @@ export function GrupoItens({ itens, semStatus = false }: { itens: ItemParaRespos
         <div className="ml-cartao border-l-2 border-line-soft">
           {locais.map(({ local, itens: partes }, localIndex) => (
             <section key={`${local ?? "sem-local"}-${localIndex}`} aria-label={local ? `Local: ${local}` : "Local não informado"} className="min-w-0 border-b border-line-row last:border-b-0">
-              <h3 className="m-0 flex min-w-0 items-center gap-1.5 break-words px-4 pb-2 pt-3 text-pequeno font-semibold text-ink-2">
+              {/* No celular, o resumo do local ("1 tenda · sem fechamento · sem calha") desce para a 2ª linha em vez de ser
+                  cortado na borda (auditoria 28/10, nº 109). */}
+              <h3 className="m-0 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 break-words px-4 pb-2 pt-3 text-pequeno font-semibold text-ink-2">
                 <Icone nome="local" className="size-3.5 shrink-0 text-ink-3" />
                 {local || <span className="font-normal text-muted">Local não informado</span>}
-                <span className="ml-auto shrink-0 pl-2 text-rotulo font-normal text-muted">
+                <span className="ml-auto shrink-0 pl-2 text-rotulo font-normal text-muted max-sm:ml-5 max-sm:basis-full max-sm:pl-0">
                   {somenteAdicoes ? (
                     <>
                       <Numero valor={partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0)} /> {partes.reduce((soma, i) => soma + i.quantidadeSolicitada, 0) === 1 ? "tenda" : "tendas"}
@@ -590,7 +603,9 @@ export function ItemResposta({
   const podeResponder = emAnalise && item.respondivel;
   const temContexto = Boolean(item.descricoes?.some((d) => d.trim()) || item.justificativa);
   // A frase automática do pedido pré-reunião se repetia em todo item depois da reunião: só a observação escrita aparece.
-  const observacao = naAta ? (estadoNoGrupo ? null : "Aguarda conferência na reunião de OS.") : item.observacaoLogistica?.trim() === OBS_REGISTRADO_NA_ATA ? null : item.observacaoLogistica;
+  // A frase automática da alteração que entrou direto na OS saía como "Logística: …", mas ninguém respondeu; o aviso do
+  // topo da página já diz isso (auditoria 28/10, nº 105).
+  const observacao = naAta ? (estadoNoGrupo ? null : "Aguarda conferência na reunião de OS.") : obsAutomatica(item.observacaoLogistica) ? null : item.observacaoLogistica;
   const rotuloOp = ROTULO_OPERACAO[item.operacao];
 
   return (
@@ -598,7 +613,9 @@ export function ItemResposta({
       tabIndex={0}
       role="group"
       data-item-resposta={item.id}
-      aria-label={`${item.descricao}${localNoGrupo && parte ? `, parte ${parte}` : emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? ". Atalhos: A atende, P parcial, N não atende" : ""}`}
+      // A parte da tenda diz o local ("Buffet" e "Camarim" eram os dois "parte 1") e só os atalhos que valem: sem
+      // parcial possível, o P não é anunciado (auditoria 30/10, parte A N23).
+      aria-label={`${item.descricao}${localNoGrupo ? `${item.destino ? ` em ${item.destino}` : ""}${parte && !unicaNoLocal ? `, tenda ${parte}` : ""}` : emGrupo && item.destino ? ` em ${item.destino}` : ""}, ${textoQuantidade(item)}${podeResponder ? `. Atalhos: A atende${temParcial(item) ? ", P parcial" : ""}, N não atende` : ""}`}
       aria-current={selecionado ? "true" : undefined}
       onClick={() => setFoco(item.id)}
       onFocus={(e) => {
@@ -661,6 +678,12 @@ export function ItemResposta({
               </span>
             )}
           </p>
+          {/* Depois do vínculo, a área continua vendo o que escreveu (o diálogo promete que o texto fica guardado; 30/10, A N25). */}
+          {item.pedidoComo && item.pedidoComo.trim() !== item.descricao.trim() && (
+            <p className="mb-0 mt-1 break-words text-pequeno text-ink-2">
+              <span className="text-muted">Pedido como: </span>“{item.pedidoComo}”
+            </p>
+          )}
           {item.ajustes && !(item.tenda && unicaNoLocal) && (
             <p className="mb-0 mt-1 text-pequeno text-ink-2">
               {!item.tenda && <span className="text-muted">Peças ajustadas: </span>}
@@ -757,7 +780,8 @@ export function ItemResposta({
               {observacao}
             </span>
           )}
-          {item.pendenciaCompra && !naAta && <Tag tom="warning">pendência de compra/locação</Tag>}
+          {/* Tela de pendências desligada: a marca não leva a lugar nenhum (auditoria 28/10, nota do TXT §8). */}
+          {item.pendenciaCompra && !naAta && !TELAS_INATIVAS.pendencias && <Tag tom="warning">pendência de compra/locação</Tag>}
           {item.corrigivel && (
             <Button
               variant="link"
@@ -769,7 +793,8 @@ export function ItemResposta({
                 setEdicao({ id: item.id, modo: "CORRIGIR" });
               }}
             >
-              {naAta ? "Ajustar" : "Corrigir resposta"}
+              {/* Um verbo só para o que já está na ata (antes, no mesmo pedido, um item "Ajustar" e outro "Corrigir resposta"; nº 105). */}
+              {item.aguardandoReuniao ? "Ajustar" : "Corrigir resposta"}
             </Button>
           )}
         </div>

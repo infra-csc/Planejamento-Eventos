@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { focarConteudoSePerdido } from "@/components/shell/foco";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastErro, toastSucesso } from "@/components/ui/toast";
@@ -42,6 +43,14 @@ export function AcoesSolicitacao({
   const [pendente, iniciar] = useTransition();
   // Dois cliques no mesmo tick chegam antes do re-render com `pendente`; o ref segura o segundo.
   const emVoo = useRef(false);
+  // Enviar e "Atender tudo" somem com o próprio botão: terminada a ação, o foco vai ao conteúdo, não ao <body>
+  // (auditoria 30/10, parte A N8).
+  const agiu = useRef(false);
+  useEffect(() => {
+    if (pendente || !agiu.current) return;
+    agiu.current = false;
+    focarConteudoSePerdido();
+  }, [pendente]);
 
   return (
     <>
@@ -68,6 +77,7 @@ export function AcoesSolicitacao({
           onClick={() => {
             if (emVoo.current) return;
             emVoo.current = true;
+            agiu.current = true;
             iniciar(async () => {
               try {
                 const r = await atenderTudoAction(id);
@@ -96,13 +106,14 @@ export function AcoesSolicitacao({
           variant="primary"
           size="lg"
           loading={pendente}
-          onClick={() =>
+          onClick={() => {
+            agiu.current = true;
             iniciar(async () => {
               const r = await enviarRascunhoAction(id);
               if (r.ok) toastSucesso(r.dados?.entrouNaOs ? `${codigo} entrou direto na OS — a logística foi avisada` : `${codigo} enviada para a logística`);
               else toastErro(r.erro);
-            })
-          }
+            });
+          }}
         >
           Enviar
         </Button>
@@ -119,7 +130,7 @@ export function AcoesSolicitacao({
           reasonPlaceholder="Ex.: faltou o destino das torres de som"
           action={devolverSolicitacaoAction}
           hidden={{ solicitacaoId: id }}
-          onSuccess={() => proximaHref && router.push(proximaHref)}
+          onSuccess={() => (proximaHref ? router.push(proximaHref) : focarConteudoSePerdido())}
         />
       )}
       {dialogo === "cancelar" && (
@@ -131,10 +142,12 @@ export function AcoesSolicitacao({
           confirmLabel="Cancelar solicitação"
           cancelLabel="Voltar"
           danger
-          reasonLabel="Motivo"
+          // Opcional dito no rótulo (antes nada dizia que dava para deixar em branco; auditoria 30/10, A N22).
+          reasonLabel="Motivo (opcional)"
           reasonRequired={false}
           action={cancelarSolicitacaoAction}
           hidden={{ solicitacaoId: id }}
+          onSuccess={focarConteudoSePerdido}
         />
       )}
       {dialogo === "excluir" && (

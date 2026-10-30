@@ -95,7 +95,7 @@ export function useAutosaveSolicitacao({
         setEstadoSalvo({ tipo: "erro", msg: r.campos ? (Object.values(r.campos)[0] ?? r.erro) : r.erro });
       }
     } catch {
-      setEstadoSalvo({ tipo: "erro", msg: "sem conexão com o servidor. Tentaremos de novo na próxima alteração." });
+      setEstadoSalvo({ tipo: "erro", msg: "sem conexão com o servidor. O rascunho tenta salvar de novo na próxima alteração." });
     }
   };
   /* Guarda a versão mais recente para salvar ao sair da página (link da sidebar cancela o debounce). */

@@ -51,7 +51,7 @@ const NOMES: Record<string, string> = {
   admin: "Administração",
   notificacoes: "Notificações",
   perfil: "Meu perfil",
-  "sem-permissao": "Sem acesso",
+  "sem-permissao": "Sem permissão", // o mesmo nome do título da página (auditoria 28/10, nº 173)
 };
 
 export function Trilha() {

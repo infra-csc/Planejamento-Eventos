@@ -11,7 +11,7 @@ import { ESTADO_INICIAL } from "@/lib/action";
 
 const PERFIS_DEMO = [
   { nome: "Marina Castro", perfil: "Logística", email: "marina.castro@nortemkt.com.br" },
-  { nome: "Paulo Ribeiro", perfil: "Requisitante", email: "paulo.ribeiro@nortemkt.com.br" },
+  { nome: "Paulo Ribeiro", perfil: "Solicitante", email: "paulo.ribeiro@nortemkt.com.br" },
   { nome: "Helena Prado", perfil: "Gestão", email: "helena.prado@nortemkt.com.br" },
   { nome: "Bruno Tavares", perfil: "Cenografia", email: "bruno.tavares@nortemkt.com.br" },
   { nome: "Administrador do Sistema", perfil: "Administrador", email: "admin@nortemkt.com.br" },
@@ -42,6 +42,9 @@ export function LoginForm({
   const emailRef = useRef<HTMLInputElement>(null);
   const senhaRef = useRef<HTMLInputElement>(null);
   const campos = !state.ok ? state.campos : undefined;
+  // "E-mail ou senha inválidos": os dois campos ficam marcados como errados para o leitor de tela, e o formulário leva
+  // o foco ao e-mail (antes nenhum campo era marcado; auditoria 28/10, nº 47).
+  const erroCredenciais = !state.ok && !campos ? true : undefined;
 
   const entrarComo = (email: string) => {
     if (!emailRef.current || !senhaRef.current) return;
@@ -72,10 +75,10 @@ export function LoginForm({
       <ActionForm ref={formRef} action={action} noValidate>
         <input type="hidden" name="next" value={next} />
         <Field label="E-mail" htmlFor="email" error={campos?.email}>
-          <Input ref={emailRef} id="email" name="email" type="email" autoComplete="email" required autoFocus placeholder="voce@nortemkt.com.br" />
+          <Input ref={emailRef} id="email" name="email" type="email" autoComplete="email" required autoFocus placeholder="voce@nortemkt.com.br" aria-invalid={erroCredenciais} />
         </Field>
         <Field label="Senha" htmlFor="senha" error={campos?.senha} className="mt-4">
-          <Input ref={senhaRef} id="senha" name="senha" type="password" autoComplete="current-password" required />
+          <Input ref={senhaRef} id="senha" name="senha" type="password" autoComplete="current-password" required aria-invalid={erroCredenciais} />
         </Field>
         <div className="mt-5 flex flex-col gap-3">
           <FormError message={!state.ok && !campos ? state.erro : null} />

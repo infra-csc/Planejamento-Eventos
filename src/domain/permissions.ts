@@ -126,7 +126,7 @@ export function ehRequisitante(perfil: Perfil): boolean {
 }
 
 export const PERFIL_LABEL: Record<Perfil, string> = {
-  REQUISITANTE: "Requisitante",
+  REQUISITANTE: "Solicitante", // o nome que o resto do app usa ("Solicitante · Produção"); auditoria 28/10, nº 74
   CENOGRAFIA: "Cenografia",
   LOGISTICA: "Logística",
   GESTAO: "Gestão",

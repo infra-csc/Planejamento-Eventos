@@ -13,7 +13,10 @@ export const metadata: Metadata = { title: "Meu perfil" };
 export default async function PerfilPage({ searchParams }: { searchParams: Promise<{ trocar?: string }> }) {
   const [u, sp] = await Promise.all([requireUsuario(), searchParams]);
   const sessoes = await contarSessoesAtivas(u.id);
-  const trocar = Boolean(u.trocarSenha) || sp.trocar === "1";
+  // "Sua senha atual é provisória" só para quem tem senha provisória: com ?trocar=1 e senha própria, a seção da
+  // senha só abre aberta (auditoria 30/10, A N26).
+  const trocar = Boolean(u.trocarSenha);
+  const abrirSenha = sp.trocar === "1";
   return (
     <div className="max-w-3xl">
       <PageHeader title="Meu perfil" divisor />
@@ -66,13 +69,13 @@ export default async function PerfilPage({ searchParams }: { searchParams: Promi
           </div>
         </Section>
 
-        {/* O acesso normal é pelo portal Norte; a senha do app só serve para quem entra direto com e-mail e senha. */}
+        {/* O acesso normal é pelo Portal NORTE (o mesmo nome do login; auditoria 28/10, nº 89); a senha do app só serve para quem entra direto com e-mail e senha. */}
         {!trocar && (
-          <details className="group rounded-cartao border border-line bg-surface">
+          <details open={abrirSenha} className="group rounded-cartao border border-line bg-surface">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-cartao py-3.5 [&::-webkit-details-marker]:hidden">
               <span>
                 <span className="block text-corpo font-semibold text-ink">Senha do app</span>
-                <span className="block text-pequeno text-muted">Quem entra pelo portal Norte não precisa. Só para quem entra direto com e-mail e senha.</span>
+                <span className="block text-pequeno text-muted">Quem entra pelo Portal NORTE não precisa. Só para quem entra direto com e-mail e senha.</span>
               </span>
               <Icone nome="chevron-baixo" className="shrink-0 text-ink-3 transition-transform duration-150 group-open:rotate-180" />
             </summary>

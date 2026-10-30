@@ -20,6 +20,7 @@ import { SinoNotificacoes } from "./sino-notificacoes";
 import { Trilha } from "./trilha";
 import { BuscaGlobal, abrirBuscaGlobal } from "./busca-global";
 import { BarraNavegacao } from "./barra-navegacao";
+import { focarConteudoSePerdido } from "./foco";
 
 export type NavItem = { href: string; label: string; contagem?: number | null; secao?: string; ativoEm?: string[]; exato?: boolean };
 
@@ -88,7 +89,13 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
       <IconeNav href={item.href} />
       <span className={cn("flex-1 text-left", compacto && "sr-only")}>{item.label}</span>
       {temContagem && !compacto && <ChipMono tom="accent">{item.contagem}</ChipMono>}
-      {temContagem && compacto && <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-accent" />}
+      {/* Recolhido, o ponto é só visual: o número vai em texto para o leitor de tela (auditoria 28/10, nº 138). */}
+      {temContagem && compacto && (
+        <>
+          <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-accent" />
+          <span className="sr-only">{` (${item.contagem})`}</span>
+        </>
+      )}
     </Link>
   );
 }
@@ -107,7 +114,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           toastErro(r.erro ?? "Não foi possível trocar de perfil.");
           return;
         }
-        router.refresh();
+        // Em "Sem permissão" (a página que o perfil visto não abria), voltar a administrador leva ao painel,
+        // em vez de deixar a pessoa numa tela de recusa que já não vale (auditoria 30/10, A N24).
+        if (pathname === "/sem-permissao") router.replace("/");
+        else router.refresh();
       } catch {
         toastErro("Não foi possível falar com o servidor. Tente de novo.");
       }
@@ -124,10 +134,33 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
   const botaoMenuRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLElement>(null);
   // Fechar pelo Esc ou pelo fundo devolve o foco ao botão de menu; ao seguir um link, o foco segue a navegação.
+  // O foco volta depois de renderizar: com a gaveta aberta o cabeçalho fica `inert` e não aceita foco.
+  const devolverFocoRef = useRef(false);
   const fecharMenu = (devolverFoco: boolean) => {
+    devolverFocoRef.current = devolverFoco;
     setMenuAberto(false);
-    if (devolverFoco) botaoMenuRef.current?.focus();
   };
+  useEffect(() => {
+    if (menuAberto || !devolverFocoRef.current) return;
+    devolverFocoRef.current = false;
+    botaoMenuRef.current?.focus();
+  }, [menuAberto]);
+  // Busca aberta pela gaveta: a gaveta fecha antes, para não ficar aberta atrás da busca com dois campos
+  // sobrepostos, e ao fechar a busca o foco volta ao botão de menu (auditoria 28/10, nº 48).
+  const abrirBusca = () => {
+    if (!menuAberto) return abrirBuscaGlobal();
+    setMenuAberto(false);
+    abrirBuscaGlobal(botaoMenuRef.current);
+  };
+  // Navegou (inclusive por uma ação que redireciona: enviar, excluir, atender tudo no modo fila) e o foco se perdeu
+  // com a página antiga: vai para o conteúdo novo, não para o começo do documento (auditoria 30/10, parte A N8).
+  // Na primeira carga não mexe: o Tab começa no "Pular para o conteúdo".
+  const rotaAnterior = useRef(pathname);
+  useEffect(() => {
+    if (rotaAnterior.current === pathname) return;
+    rotaAnterior.current = pathname;
+    focarConteudoSePerdido();
+  }, [pathname]);
   // No desktop a sidebar pode ficar recolhida (só ícones); a preferência fica no navegador.
   const [recolhido, setRecolhido] = useState(false);
   useEffect(() => {
@@ -146,18 +179,25 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
   };
   useEffect(() => {
     if (!menuAberto) return;
-    // Gaveta aberta: o foco entra nela, no primeiro link.
-    menuRef.current?.querySelector<HTMLElement>("a[href]")?.focus();
+    // Gaveta aberta: o foco entra nela, no primeiro link. Espera um quadro: enquanto a gaveta ainda está
+    // `invisible` o foco não pega e ficava no botão de menu (auditoria 28/10, nº 49).
+    const quadro = requestAnimationFrame(() => menuRef.current?.querySelector<HTMLElement>("a[href]")?.focus());
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      devolverFocoRef.current = true;
       setMenuAberto(false);
-      botaoMenuRef.current?.focus();
     };
     window.addEventListener("keydown", onKey);
+    // Passou para o desktop com a gaveta aberta: fecha, senão o conteúdo ficaria `inert`.
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const aoMudar = () => desktop.matches && setMenuAberto(false);
+    desktop.addEventListener("change", aoMudar);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      cancelAnimationFrame(quadro);
       window.removeEventListener("keydown", onKey);
+      desktop.removeEventListener("change", aoMudar);
       document.body.style.overflow = overflow;
     };
   }, [menuAberto]);
@@ -177,6 +217,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         ref={menuRef}
         id="menu-principal"
         aria-label="Menu principal"
+        // Gaveta aberta (só abaixo de 1024 px) é um diálogo modal: o Tab não sai para o conteúdo de trás (nº 49).
+        role={menuAberto ? "dialog" : undefined}
+        aria-modal={menuAberto ? true : undefined}
         onClick={(e) => {
           // Clicou num link da gaveta: fecha ao navegar.
           if ((e.target as HTMLElement).closest("a")) fecharMenu(false);
@@ -214,7 +257,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
 
         <button
           type="button"
-          onClick={abrirBuscaGlobal}
+          onClick={abrirBusca}
           title={recolhido ? "Buscar ou executar (Ctrl K)" : undefined}
           aria-label={recolhido ? "Buscar ou executar" : undefined}
           className={cn(
@@ -223,8 +266,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           )}
         >
           <Icone nome="busca" />
-          <span className={cn("flex-1 text-left", recolhido && "lg:sr-only")}>Buscar ou executar</span>
-          <span className={cn(recolhido && "lg:hidden")}>
+          {/* Uma linha só ao lado do atalho (quebrava em 2 a 1280/1440); no celular, sem o "Ctrl K" (sem teclado). Auditoria 28/10, nº 112 e 130. */}
+          <span className={cn("min-w-0 flex-1 truncate whitespace-nowrap text-left", recolhido && "lg:sr-only")}>Buscar ou executar</span>
+          <span className={cn("max-lg:hidden", recolhido && "lg:hidden")}>
             <Kbd>
               <AtalhoBusca />
             </Kbd>
@@ -249,7 +293,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         </nav>
 
         <div className={cn("flex items-center gap-2.5 border-t border-line py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
-          <p className={cn("m-0 flex-1 text-rotulo text-meta", recolhido && "lg:sr-only")}>
+          <p className={cn("m-0 min-w-0 flex-1 truncate whitespace-nowrap text-rotulo text-meta", recolhido && "lg:sr-only")}>
             <Atualizado key={pathname} /> · v0.2
           </p>
           <form action={logoutAction}>
@@ -265,7 +309,8 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Com a gaveta aberta, cabeçalho e conteúdo ficam `inert`: fora do Tab e do leitor de tela (nº 49). */}
+      <div inert={menuAberto} className="flex min-w-0 flex-1 flex-col">
         <header className="no-print sticky top-0 z-[var(--z-header)] flex h-14 items-center gap-2 border-b border-line bg-page/90 px-4 backdrop-blur-sm sm:gap-3.5 lg:px-5 xl:px-7">
           <button
             ref={botaoMenuRef}

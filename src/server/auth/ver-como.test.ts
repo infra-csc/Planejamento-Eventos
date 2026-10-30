@@ -119,6 +119,6 @@ describe("agindo em ver como", { timeout: 60_000 }, () => {
       .from(historico)
       .where(and(eq(historico.entidade, "solicitacao"), eq(historico.entidadeId, r.id), eq(historico.acao, "RASCUNHO_CRIADO")));
     expect(h.usuarioId).toBe(E.admin.id);
-    expect(h.verComo).toBe(`Requisitante · ${E.areas.a.nome}`);
+    expect(h.verComo).toBe(`Solicitante · ${E.areas.a.nome}`);
   });
 });

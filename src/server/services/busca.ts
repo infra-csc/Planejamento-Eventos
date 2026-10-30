@@ -82,7 +82,8 @@ export async function buscar(usuario: UsuarioAtual, termoBruto: string): Promise
   }
   const deHoje = reunioes.find((e) => isoSP(e.dataReuniao) === hojeISO());
   if (deHoje) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Abrir conferência da ata de hoje", sub: `${deHoje.nome} · ${hora(deHoje.dataReuniao)}`, href: `/conferencia/${deHoje.id}` });
-  if (atrasadas) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Ver solicitações atrasadas", sub: `${Number(atrasadas[0]?.n ?? 0)} em atraso`, href: "/solicitacoes?filtro=ATRASADAS" });
+  // `atrasadas` é a lista do count: o atalho só aparece quando há atraso de fato ("0 em atraso" saía sempre; 30/10, A N18).
+  if (Number(atrasadas?.[0]?.n ?? 0) > 0) acoes.push({ grupo: "Ações", tag: "ação", titulo: "Ver solicitações atrasadas", sub: `${Number(atrasadas?.[0]?.n ?? 0)} em atraso`, href: "/solicitacoes?filtro=ATRASADAS" });
   const acoesFiltradas = t ? acoes.filter((a) => combinaBusca(`${a.titulo} ${a.sub}`, t)) : acoes;
 
   const resEventos: ResultadoBusca[] = evs.map((e) => ({ grupo: "Eventos", tag: "evento", titulo: e.nome, sub: `${e.codigo} · ${EVENTO_STATUS_LABEL[e.status]}`, href: `/eventos/${e.id}` }));

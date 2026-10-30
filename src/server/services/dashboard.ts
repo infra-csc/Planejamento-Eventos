@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, between, count, desc, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { areas, eventoItens, eventos, historico, solicitacaoItens, solicitacoes, usuarios, type EventoStatus, type ItemOperacao, type SolicitacaoStatus, type SolicitacaoTipo } from "@/server/db/schema";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
@@ -26,6 +26,8 @@ export type ItemFila = {
   /** Alteração enviada depois da janela: destaque para a logística decidir. */
   foraDaJanela: boolean;
   pendenteUnico: { id: string; descricao: string; quantidade: number; destino: string | null; operacao: ItemOperacao } | null;
+  /** Necessidade pré-reunião já na ata, esperando a reunião (data da reunião): está em andamento, não respondida. */
+  naAtaAte?: Date | null;
 };
 
 export type ItemAgenda = { chave: string; ordem: number; dia: string; titulo: string; sub: string; tipo: "reuniao" | "carga" | "montagem"; href: string };
@@ -74,8 +76,13 @@ export async function dadosPainel(usuario: UsuarioAtual) {
   const req = ehRequisitante(usuario.perfil);
 
   // Consulta preguiçosa do Drizzle: só roda quando entra no Promise.all do ramo, junto com as demais.
+  // Só o que o painel usa: eventos em andamento (reuniões, contagens) e os que têm carga ou montagem na quinzena.
+  // Antes vinham todos os eventos não cancelados, e a lista crescia com o uso (auditoria 28/10, nº 145).
   const consultaEventos = db.query.eventos.findMany({
-    where: ne(eventos.status, "CANCELADO"),
+    where: or(
+      inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"]),
+      and(ne(eventos.status, "CANCELADO"), or(between(eventos.dataCarga, hoje, limite14), between(eventos.dataMontagem, hoje, limite14))),
+    ),
     columns: { id: true, codigo: true, nome: true, cliente: true, local: true, status: true, dataReuniao: true, dataCarga: true, dataMontagem: true },
   });
 
@@ -156,10 +163,16 @@ export async function dadosPainel(usuario: UsuarioAtual) {
               or(
                 inArray(solicitacoes.status, [...STATUS_EDITAVEIS, ...STATUS_ABERTOS]),
                 and(eq(solicitacoes.status, "RESPONDIDA"), gt(solicitacoes.respondidaEm, new Date(agora.getTime() - 7 * 86_400_000))),
+                // Pré-reunião na ata esperando a reunião (mesmo enviada há mais de 7 dias): continua em andamento.
+                and(
+                  eq(solicitacoes.status, "RESPONDIDA"),
+                  eq(solicitacoes.tipo, "PRE_REUNIAO"),
+                  inArray(solicitacoes.eventoId, db.select({ id: eventos.id }).from(eventos).where(inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO"]))),
+                ),
               ),
             ),
             with: {
-              evento: { columns: { id: true, nome: true, status: true } },
+              evento: { columns: { id: true, nome: true, status: true, dataReuniao: true } },
               area: { columns: { nome: true } },
               itens: {
                 ...colunasItemFila,
@@ -173,15 +186,17 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     ]);
     const agenda = montarAgenda(evs);
     const ordemStatus: Partial<Record<SolicitacaoStatus, number>> = { DEVOLVIDA: 0, RASCUNHO: 1, EM_ANALISE: 2, ENVIADA: 2 };
+    // Necessidade pré-reunião com a ata ainda aberta não foi avaliada: entrou na ata e espera a reunião.
+    const naAta = (s: { tipo: "PRE_REUNIAO" | "ALTERACAO"; evento: { status: EventoStatus } }) => aguardaReuniao(s.tipo, s.evento.status);
+    // A pré-reunião na ata fica em "em andamento" (esperando a reunião), não em "Respostas recebidas": a logística
+    // ainda não respondeu nada e o pedido recém-enviado aparecia como resposta (auditoria 28/10, nº 26).
     const fila = minhas
-      .filter((s) => STATUS_EDITAVEIS.includes(s.status) || STATUS_ABERTOS.includes(s.status))
-      .map(paraFila)
+      .filter((s) => STATUS_EDITAVEIS.includes(s.status) || STATUS_ABERTOS.includes(s.status) || (s.status === "RESPONDIDA" && naAta(s)))
+      .map((s) => ({ ...paraFila(s), naAtaAte: s.status === "RESPONDIDA" && naAta(s) ? s.evento.dataReuniao : null }))
       .sort((a, b) => (ordemStatus[a.status] ?? 9) - (ordemStatus[b.status] ?? 9) || porPrazo(a, b));
     const aguardando = minhas.filter((s) => STATUS_ABERTOS.includes(s.status)).length;
     const rascunhos = minhas.filter((s) => STATUS_EDITAVEIS.includes(s.status));
-    // Necessidade pré-reunião com a ata ainda aberta não foi avaliada: entrou na ata e espera a reunião.
-    const naAta = (s: { tipo: "PRE_REUNIAO" | "ALTERACAO"; evento: { status: EventoStatus } }) => aguardaReuniao(s.tipo, s.evento.status);
-    const respondidas = minhas.filter((s) => s.status === "RESPONDIDA").sort((a, b) => (b.respondidaEm?.getTime() ?? 0) - (a.respondidaEm?.getTime() ?? 0));
+    const respondidas = minhas.filter((s) => s.status === "RESPONDIDA" && !naAta(s)).sort((a, b) => (b.respondidaEm?.getTime() ?? 0) - (a.respondidaEm?.getTime() ?? 0));
     const ressalvas = (s: (typeof minhas)[number]) => s.itens.filter((i) => i.status === "PARCIAL" || i.status === "NAO_ATENDIDO").length;
     const recentes7 = respondidas.filter((s) => s.respondidaEm && agora.getTime() - s.respondidaEm.getTime() <= 7 * 86_400_000);
     const comRessalva7 = recentes7.filter((s) => ressalvas(s) > 0).length;
@@ -197,7 +212,7 @@ export async function dadosPainel(usuario: UsuarioAtual) {
         aguardando,
         rascunhos: rascunhos.length,
         temDevolvida: rascunhos.some((s) => s.status === "DEVOLVIDA"),
-        respondidas7: recentes7.filter((s) => !naAta(s)).length,
+        respondidas7: recentes7.length,
         comRessalva7,
         aceitando: nPrep + nAberto,
         nPrep,
@@ -209,7 +224,6 @@ export async function dadosPainel(usuario: UsuarioAtual) {
         titulo: s.titulo,
         eventoNome: s.evento.nome,
         ressalvas: ressalvas(s),
-        naAta: naAta(s),
         respondidoPor: s.itens.find((i) => i.respondidoPor)?.respondidoPor?.nome ?? "logística",
       })),
     };
@@ -283,7 +297,8 @@ export async function dadosPainel(usuario: UsuarioAtual) {
     reunioes: {
       abertas: { n: reunioesAbertas.length, nomes: nomes(reunioesAbertas) },
       naoIniciadas: { n: naoIniciadas.length, nomes: nomes(naoIniciadas) },
-      amanha: { n: amanha.length, horas: [...new Set(amanha.map((e) => hora(e.dataReuniao)))].join(", ") },
+      // Qual evento, não só a hora ("1 reunião de OS amanhã · 14:00" não dizia de quem; auditoria 30/10, A N19).
+      amanha: { n: amanha.length, horas: [...new Set(amanha.map((e) => hora(e.dataReuniao)))].join(", "), detalhe: amanha.length ? `${nomes(amanha)} · ${[...new Set(amanha.map((e) => hora(e.dataReuniao)))].join(", ")}` : "" },
     },
     metricas: {
       aguardando: fila.length,

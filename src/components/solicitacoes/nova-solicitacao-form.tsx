@@ -167,7 +167,7 @@ export function NovaSolicitacaoForm({
 
   const escolherEvento = (e: EventoOpcao) => {
     if (rascunhoIdRef.current && e.id !== eventoId) {
-      toast(edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação" : "Para trocar de evento, exclua este rascunho e crie outro");
+      toast(edicaoEnviada ? "O evento de um pedido já enviado não muda. Para outro evento, faça uma nova solicitação" : "Para trocar de evento, exclua este rascunho (em Solicitações › Rascunhos e devolvidas) e crie outro");
       return;
     }
     const mantidos = itens.filter((i) => i.operacao === "ADICIONAR" || (e.tipo === "ALTERACAO" && (linhasPorEvento[e.id] ?? []).some((x) => x.id === i.eventoItemId)));
@@ -195,7 +195,8 @@ export function NovaSolicitacaoForm({
   const removerItem = (item: ItemNovo) => {
     const posicao = itens.findIndex((x) => x.chave === item.chave);
     setItens((l) => l.filter((x) => x.chave !== item.chave));
-    toast(`${item.rotulo} removido da solicitação`, {
+    // "Item removido: …", sem concordar com o nome do item ("Tenda 5×5 m removido"; auditoria 30/10, A N16).
+    toast(`Item removido: ${item.rotulo}`, {
       desfazer: () => setItens((l) => (l.some((x) => x.chave === item.chave) ? l : [...l.slice(0, posicao), item, ...l.slice(posicao)])),
     });
   };
@@ -205,7 +206,7 @@ export function NovaSolicitacaoForm({
     const antes = itens;
     const chaves = new Set(lista.map((x) => x.chave));
     setItens((l) => l.filter((x) => !chaves.has(x.chave)));
-    toast(`${rotulo} removido da solicitação`, { desfazer: () => setItens(antes) });
+    toast(`Item removido: ${rotulo}`, { desfazer: () => setItens(antes) });
   };
 
   const validarTitulo = (v: string) => setErroTitulo(v.trim() ? null : "Dê um título para a logística identificar a solicitação na fila.");
@@ -354,7 +355,8 @@ export function NovaSolicitacaoForm({
         <div className="flex min-w-0 flex-col gap-4">
           {/* 1 · Evento */}
           <EscolhaEvento
-            temRascunho={Boolean(rascunho)}
+            // Depois que o rascunho se salva sozinho, "Trocar evento" some: a troca era ignorada (auditoria 30/10, A N20).
+            temRascunho={Boolean(rascunho || codigoRascunho)}
             edicaoEnviada={edicaoEnviada}
             eventos={eventos}
             evento={evento}
@@ -417,7 +419,7 @@ export function NovaSolicitacaoForm({
         open={confirmarDescarte}
         onOpenChange={setConfirmarDescarte}
         title="Descartar as alterações?"
-        description={`O que você mudou agora se perde. ${rascunho?.codigo ?? "O pedido"} continua como foi enviado.`}
+        description={`O que você mudou agora se perde. ${rascunho?.codigo ? `A solicitação ${rascunho.codigo}` : "A solicitação"} continua como foi enviada.`}
         confirmLabel="Descartar alterações"
         cancelLabel="Continuar editando"
         danger
@@ -436,7 +438,7 @@ export function NovaSolicitacaoForm({
         title="Trocar de evento?"
         description={
           troca
-            ? `${troca.descartados} ${troca.descartados === 1 ? "item referencia" : "itens referenciam"} a ata do evento anterior e ${troca.descartados === 1 ? "será removido" : "serão removidos"} da solicitação.`
+            ? `${troca.descartados} ${troca.descartados === 1 ? "item vem" : "itens vêm"} da ata do evento anterior e ${troca.descartados === 1 ? "sai" : "saem"} da solicitação.`
             : undefined
         }
         confirmLabel="Trocar de evento"

@@ -200,7 +200,16 @@ export async function responderNaTransacao(
  * banco com o evento travado: linhas novas num insert, linhas existentes em dois updates, itens num
  * update e o histórico num insert. A versão da OS e o aviso à área ficam com quem chama (uma vez só).
  */
-export async function atenderPendentesNaTransacao(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string) {
+export async function atenderPendentesNaTransacao(
+  tx: Executor,
+  usuario: UsuarioAtual,
+  solicitacaoId: string,
+  /**
+   * Entrada automática (pré-reunião na ata, alteração dentro da janela): o histórico diz "entrou na ata/na OS", não
+   * "atendido" — ninguém avaliou, e a Atividade punha o "atendido" no nome de quem pediu (auditoria 28/10, nº 105).
+   */
+  automatico?: { acao: "REGISTRADO_NA_ATA" | "ENTROU_NA_OS"; texto: string },
+) {
   const s = await tx.query.solicitacoes.findFirst({
     where: and(eq(solicitacoes.id, solicitacaoId), eq(solicitacoes.excluida, false)),
     with: {
@@ -320,8 +329,8 @@ export async function atenderPendentesNaTransacao(tx: Executor, usuario: Usuario
         eventoId: s.eventoId,
         entidade: "solicitacao_item",
         entidadeId: i.id,
-        acao: "RESPONDIDO",
-        descricao: descricaoResposta(s.codigo, descricaoItem(i), r, i.quantidadeSolicitada, null),
+        acao: automatico?.acao ?? "RESPONDIDO",
+        descricao: automatico ? `${s.codigo} · ${descricaoItem(i)}: ${automatico.texto} (${i.quantidadeSolicitada})` : descricaoResposta(s.codigo, descricaoItem(i), r, i.quantidadeSolicitada, null),
         usuarioId: usuario.id,
         dadosAntes: null,
         dadosDepois: r,

@@ -193,6 +193,7 @@ export function BuscaCatalogo({
   const [limite, setLimite] = useState(POR_PAGINA);
   const visiveis = resultados.slice(0, limite);
   const restantes = resultados.length - visiveis.length;
+  const algumaFoto = visiveis.some((r) => Boolean(r.capaId));
   const linhasFiltradas = useMemo(() => {
     return busca.trim() ? linhas.filter((l) => combinaBusca(l.nome, busca)) : linhas;
   }, [busca, linhas]);
@@ -346,8 +347,9 @@ export function BuscaCatalogo({
                         (r.capaId ? (
                           <ImagemZoom src={`/api/anexos/${r.capaId}`} alt={r.nome} className="h-10 w-14 shrink-0 overflow-hidden rounded-controle border border-line max-sm:hidden" />
                         ) : (
-                          // Sem foto: espaço vazio (para alinhar), sem a caixa cinza com ícone em quase toda linha, como na Biblioteca.
-                          <span aria-hidden className="h-10 w-14 shrink-0 max-sm:hidden" />
+                          // Sem foto: espaço vazio só quando alguma linha da página tem foto (para alinhar); sem nenhuma,
+                          // nada de coluna vazia — a mesma regra da Biblioteca (auditoria 28/10, nº 120).
+                          algumaFoto && <span aria-hidden className="h-10 w-14 shrink-0 max-sm:hidden" />
                         ))}
                       <div className="min-w-0 flex-1 basis-48">
                         <p className="m-0 flex min-w-0 items-baseline gap-2">
@@ -377,12 +379,14 @@ export function BuscaCatalogo({
                         </p>
                       </div>
                       {kit ? (
-                        <Button variant="secondary" size="sm" className="ml-auto shrink-0" onClick={() => setTendaAberta(r.id)} aria-label={`${jaNaLista ? "Editar" : "Pedir"} ${r.nome} por local`}>
+                        // O nome lido começa pelo texto do botão (comando de voz; auditoria 28/10, nº 61).
+                        <Button variant="secondary" size="sm" className="ml-auto shrink-0" onClick={() => setTendaAberta(r.id)} aria-label={`${jaNaLista ? "Editar tendas" : "Pedir por local"}: ${r.nome}`}>
                           {jaNaLista ? "Editar tendas" : "Pedir por local"}
                         </Button>
                       ) : (
                         <span
-                          className="ml-auto flex shrink-0 items-center gap-2 transition-opacity duration-150 [@media(hover:hover)]:opacity-60 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-within:opacity-100"
+                          // Sem esmaecer fora do hover: com opacidade 60 % o "+/−" ficava com ~2,5:1 de contraste (nº 139).
+                          className="ml-auto flex shrink-0 items-center gap-2"
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
                               e.preventDefault();

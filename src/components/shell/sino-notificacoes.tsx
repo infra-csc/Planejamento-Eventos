@@ -92,7 +92,15 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
   const pendentes = lista ? lista.filter((n) => !n.lida).length : naoLidas;
 
   return (
-    <div ref={raiz} className="relative">
+    <div
+      ref={raiz}
+      className="relative"
+      // O foco saiu do sino e do painel (Tab depois da última notificação): fecha, para o painel não ficar
+      // cobrindo a página atrás do foco (auditoria 28/10, nº 50).
+      onBlur={(e) => {
+        if (aberto && e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) setAberto(false);
+      }}
+    >
       <button
         ref={botaoRef}
         type="button"
@@ -143,10 +151,13 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
                     !n.lida ? "bg-selected" : "bg-transparent",
                   )}
                 >
-                  <span aria-hidden className={cn("mt-1.5 size-[7px] shrink-0 rounded-full", n.lida ? "bg-transparent" : n.prazo ? "bg-danger" : "bg-accent")} />
+                  {/* Aviso de prazo com relógio, não só com outra cor de ponto (auditoria 28/10, nº 138). */}
+                  <span aria-hidden className="mt-0.5 grid size-4 shrink-0 place-items-center">
+                    {!n.lida && n.prazo ? <Icone nome="relogio" className="text-danger" /> : <span className={cn("size-[7px] rounded-full", n.lida ? "bg-transparent" : "bg-accent")} />}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className={cn("block text-corpo text-ink", !n.lida && "font-medium")}>
-                      {!n.lida && <span className="sr-only">Não lida: </span>}
+                      {!n.lida && <span className="sr-only">{n.prazo ? "Não lida, prazo: " : "Não lida: "}</span>}
                       {n.titulo}
                     </span>
                     <span className="mt-0.5 block text-pequeno text-ink-3">{n.mensagem}</span>

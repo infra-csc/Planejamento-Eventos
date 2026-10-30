@@ -19,7 +19,8 @@ export default function NaoEncontradoApp() {
           Erro <span className="numero">404</span>
         </p>
         <h1 className="m-0 text-titulo font-semibold tracking-[-0.01em] text-ink">Não encontrado</h1>
-        <p className="m-0 mt-1.5 text-corpo text-ink-2">Este registro não existe, foi excluído ou o endereço está incompleto.</p>
+        {/* Também cobre telas desligadas: "registro" sozinho não servia para uma página (auditoria 28/10, nº 58). */}
+        <p className="m-0 mt-1.5 text-corpo text-ink-2">Esta página ou registro não existe, foi excluído ou o endereço está incompleto.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <ButtonLink href="/" variant="primary" size="lg" className="no-underline">
             Ir para o painel
