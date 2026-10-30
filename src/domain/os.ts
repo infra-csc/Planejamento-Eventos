@@ -116,7 +116,10 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
     avulsosPorSetor.set(s, []);
   }
 
-  const acumular = (setor: Setor, peca: { id: string; codigo: string; nome: string; unidade: string }, qtd: number, origem: string) => {
+  // Projetos somados por origem ("Quadro de fotos · GV"): linhas iguais juntam peças E projetos. Antes a soma
+  // juntava pelo texto com o "× N" da primeira linha: 4 quadros de 1 viravam "Quadro × 1 → 8" (auditoria 30/10, B-01).
+  const projetosNaOrigem = new Map<string, number>();
+  const acumular = (setor: Setor, peca: { id: string; codigo: string; nome: string; unidade: string }, qtd: number, origem: string, projetos?: number) => {
     const mapa = porSetor.get(setor)!;
     let linha = mapa.get(peca.id);
     if (!linha) {
@@ -124,9 +127,15 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
       mapa.set(peca.id, linha);
     }
     linha.total += qtd;
-    const existente = linha.origens.find((o) => o.descricao === origem);
-    if (existente) existente.quantidade += qtd;
-    else linha.origens.push({ descricao: origem, quantidade: qtd });
+    const chave = `${peca.id}|${origem}`;
+    const n = projetos === undefined ? undefined : (projetosNaOrigem.get(chave) ?? 0) + projetos;
+    if (n !== undefined) projetosNaOrigem.set(chave, n);
+    const descricao = n === undefined ? origem : `${origem} × ${n}`;
+    const existente = linha.origens.find((o) => o.descricao === origem || o.descricao.startsWith(`${origem} × `));
+    if (existente) {
+      existente.quantidade += qtd;
+      existente.descricao = descricao;
+    } else linha.origens.push({ descricao, quantidade: qtd });
   };
 
   const projetosOs: OsProjeto[] = [];
@@ -135,9 +144,9 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
     if (l.quantidade <= 0) continue;
     if (l.tipo === "PROJETO" && l.projeto) {
       // Com o local ("Tenda 5×5 m · GV × 3"): sem ele, a composição juntava locais diferentes pela quantidade.
-      const origem = `${l.projeto.nome}${l.destino?.trim() ? ` · ${l.destino.trim()}` : ""} × ${l.quantidade}`;
+      const origem = `${l.projeto.nome}${l.destino?.trim() ? ` · ${l.destino.trim()}` : ""}`;
       for (const b of l.projeto.bom) {
-        acumular(b.setor, { id: b.pecaId, codigo: b.codigo, nome: b.nome, unidade: b.unidade }, b.quantidade * l.quantidade, origem);
+        acumular(b.setor, { id: b.pecaId, codigo: b.codigo, nome: b.nome, unidade: b.unidade }, b.quantidade * l.quantidade, origem, l.quantidade);
       }
       projetosOs.push({
         codigo: l.projeto.codigo,

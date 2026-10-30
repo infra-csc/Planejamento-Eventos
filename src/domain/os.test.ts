@@ -32,6 +32,17 @@ describe("calcularOS", () => {
     expect(cubo.origens).toHaveLength(3);
   });
 
+  it("linhas iguais somam peças e projetos na origem: 4 quadros de 1 são “× 4”, não “× 1” (auditoria 30/10, B-01)", () => {
+    const quadro = (id: string, quantidade: number, destino: string | null = null): LinhaAta => ({ id, tipo: "PROJETO", quantidade, destino, areaNome: "Produção", projeto: { codigo: "PJ-Q", nome: "Quadro de fotos", versao: 1, bom: [bomPortico[1]] } });
+    const os = calcularOS([quadro("1", 1), quadro("2", 1), quadro("3", 1), quadro("4", 1), quadro("5", 2, "GV")]);
+    const box = os.setores[0].linhas.find((l) => l.codigo === "BOX-600")!;
+    expect(box.total).toBe(30);
+    expect(box.origens).toEqual([
+      { descricao: "Quadro de fotos × 4", quantidade: 20 },
+      { descricao: "Quadro de fotos · GV × 2", quantidade: 10 },
+    ]);
+  });
+
   it("separa setores e itens sem peça de catálogo", () => {
     const linhas: LinhaAta[] = [
       { id: "1", tipo: "PECA", quantidade: 2, destino: null, areaNome: null, peca: { id: "t1", codigo: "TND-MASTRO", nome: "Mastro", setor: "TENDA", unidade: "un" } },
