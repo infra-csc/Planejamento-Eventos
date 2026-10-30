@@ -67,16 +67,19 @@ export async function listarPecas(usuario: UsuarioAtual, filtro: FiltroPecas = {
 export async function obterPeca(usuario: UsuarioAtual, id: string) {
   exigir(usuario, "catalogo.ver");
   const db = await getDb();
-  const p = await db.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } });
+  // As três leituras correm juntas (antes uma esperava a outra; auditoria 28/10, nº 147).
+  const [p, anexos, usos] = await Promise.all([
+    db.query.pecas.findFirst({ where: eq(pecas.id, id), with: { grupo: { columns: { nome: true } } } }),
+    db.select({ id: pecaAnexos.id, tipo: pecaAnexos.tipo, nomeArquivo: pecaAnexos.nomeArquivo, tamanho: pecaAnexos.tamanho }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, id)).orderBy(asc(pecaAnexos.criadoEm)),
+    // projetos ativos que usam a peça (na versão atual)
+    db
+      .select({ id: projetos.id, nome: projetos.nome, codigo: projetos.codigo, quantidade: projetoItens.quantidade })
+      .from(projetoItens)
+      .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
+      .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
+      .where(and(eq(projetoItens.pecaId, id), eq(projetos.ativo, true))),
+  ]);
   if (!p) throw new NaoEncontradoError("Peça");
-  const anexos = await db.select({ id: pecaAnexos.id, tipo: pecaAnexos.tipo, nomeArquivo: pecaAnexos.nomeArquivo, tamanho: pecaAnexos.tamanho }).from(pecaAnexos).where(eq(pecaAnexos.pecaId, id)).orderBy(asc(pecaAnexos.criadoEm));
-  // projetos ativos que usam a peça (na versão atual)
-  const usos = await db
-    .select({ id: projetos.id, nome: projetos.nome, codigo: projetos.codigo, quantidade: projetoItens.quantidade })
-    .from(projetoItens)
-    .innerJoin(projetoVersoes, eq(projetoItens.versaoId, projetoVersoes.id))
-    .innerJoin(projetos, and(eq(projetoVersoes.projetoId, projetos.id), eq(projetoVersoes.numero, projetos.versaoAtual)))
-    .where(and(eq(projetoItens.pecaId, id), eq(projetos.ativo, true)));
   const { grupo, ...resto } = p;
   return { ...resto, prova: grupo?.nome ?? null, anexos, usos };
 }

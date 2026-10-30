@@ -136,7 +136,9 @@ export async function obterProjeto(usuario: UsuarioAtual, id: string) {
         grupo: { columns: { id: true, nome: true } },
         criadoPor: { columns: { id: true, nome: true } },
         anexos: { columns: { id: true, tipo: true, nomeArquivo: true, mime: true, tamanho: true, criadoEm: true }, orderBy: [asc(anexos.criadoEm)] },
-        versoes: { with: { itens: { with: { peca: true } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
+        // Só o que as telas mostram da peça (código, nome, setor, unidade, situação): antes ia a peça inteira em cada
+        // linha de cada versão (auditoria 28/10, nº 146).
+        versoes: { with: { itens: { with: { peca: { columns: { id: true, codigo: true, nome: true, setor: true, unidade: true, ativo: true } } } }, criadoPor: { columns: { id: true, nome: true } } }, orderBy: [desc(projetoVersoes.numero)] },
       },
     }),
     // eventos não encerrados que usam versões antigas (MEL-02)

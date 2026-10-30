@@ -25,6 +25,7 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
       type="button"
       role="radio"
       aria-checked={ativo}
+      tabIndex={ativo ? 0 : -1}
       onClick={onClick}
       className={cn(
         "flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-controle border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
@@ -43,7 +44,19 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Origem da peça" className="flex flex-col gap-2 sm:flex-row">
+      {/* Setas trocam a opção e só a escolhida fica no Tab, como um grupo de rádio (auditoria 28/10, nº 66). */}
+      <div
+        role="radiogroup"
+        aria-label="Origem da peça"
+        className="flex flex-col gap-2 sm:flex-row"
+        onKeyDown={(e) => {
+          if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+          e.preventDefault();
+          setDeProva((v) => !v);
+          const botoes = e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]");
+          requestAnimationFrame(() => botoes[deProva ? 0 : 1]?.focus());
+        }}
+      >
         {opcao(!deProva, "Do galpão", "Acervo de uso geral, serve para qualquer evento.", () => setDeProva(false))}
         {/* Um nome para o agrupamento: "grupo da biblioteca", com a prova como exemplo (auditoria 28/10, nº 79). */}
         {opcao(deProva, "De um grupo (prova)", "Feita para um evento específico (ex.: com a marca da prova).", () => setDeProva(true))}
