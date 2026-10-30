@@ -1,14 +1,15 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventos, historico, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
+import { eventos, solicitacaoItens, solicitacoes, usuarios } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, SemPermissaoError, ValidacaoError } from "@/domain/errors";
 import { aceitaSolicitacao } from "@/domain/evento";
 import { podeEditarSolicitacao } from "@/domain/permissions";
-import { OBS_REGISTRADO_NA_ATA, podeCancelar, podeDevolver } from "@/domain/solicitacao";
+import { OBS_ENTROU_NA_OS, OBS_REGISTRADO_NA_ATA, podeCancelar, podeDevolver } from "@/domain/solicitacao";
 import { diaMesISO, formatarDataHora, hojeISO } from "@/lib/format";
 import { bloquearEvento, notificar, obterConfiguracoes, registrarHistorico, usuariosDaArea, usuariosLogistica, type Executor } from "../support";
 import { faltamDescricoes } from "@/domain/descricoes-itens";
+import { contarItensPedido } from "@/domain/agrupamento-pedido";
 import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarFaseResposta, verificarJanelaPreReuniao } from "./comum";
 import { atenderPendentesNaTransacao } from "./resposta";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
@@ -26,17 +27,14 @@ import { gerarOsVersao } from "../os";
  */
 export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string) {
   // Em lote: mesmo resultado de responder "atendido" item a item.
-  const { pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId);
+  // O histórico já sai como "entrou na ata" (não "atendido" no nome de quem pediu).
+  const { pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId, { acao: "REGISTRADO_NA_ATA", texto: "entrou na ata" });
   if (pendentes.length) {
     const ids = pendentes.map((p) => p.id);
     await tx
       .update(solicitacaoItens)
       .set({ respondidoPorId: null, observacaoLogistica: OBS_REGISTRADO_NA_ATA })
       .where(inArray(solicitacaoItens.id, ids));
-    await tx
-      .update(historico)
-      .set({ acao: "REGISTRADO_NA_ATA" })
-      .where(and(eq(historico.entidade, "solicitacao_item"), inArray(historico.entidadeId, ids), eq(historico.acao, "RESPONDIDO")));
   }
   const s = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.id, solicitacaoId), columns: { eventoId: true } });
   if (s) await sincronizarRegrasAta(tx, s.eventoId, null);
@@ -49,18 +47,14 @@ export async function registrarPreReuniaoNaAta(tx: Executor, usuario: UsuarioAtu
  * na edição feita por quem pediu enquanto a janela está aberta. Retorna quantos itens entraram.
  */
 export async function aplicarAlteracaoNaJanela(tx: Executor, usuario: UsuarioAtual, solicitacaoId: string, motivoVersao: string) {
-  const { s, pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId);
+  const { s, pendentes } = await atenderPendentesNaTransacao(tx, usuario, solicitacaoId, { acao: "ENTROU_NA_OS", texto: "entrou direto na OS" });
   if (pendentes.length) {
     const ids = pendentes.map((p) => p.id);
     // Sem "respondido por": ninguém da logística avaliou. Uma correção depois grava quem corrigiu.
     await tx
       .update(solicitacaoItens)
-      .set({ respondidoPorId: null, observacaoLogistica: "Entrou direto na OS: alteração dentro da janela." })
+      .set({ respondidoPorId: null, observacaoLogistica: OBS_ENTROU_NA_OS })
       .where(inArray(solicitacaoItens.id, ids));
-    await tx
-      .update(historico)
-      .set({ acao: "ENTROU_NA_OS" })
-      .where(and(eq(historico.entidade, "solicitacao_item"), inArray(historico.entidadeId, ids), eq(historico.acao, "RESPONDIDO")));
     await sincronizarRegrasAta(tx, s.eventoId, null);
     await gerarOsVersao(tx, s.eventoId, "RESPOSTA_SOLICITACAO", usuario.id, `${s.codigo} · ${motivoVersao}`);
   }
@@ -139,12 +133,18 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     const foraDaJanela = s.tipo === "ALTERACAO" && Boolean(s.evento.janelaAlteracoesAte) && hojeISO() > String(s.evento.janelaAlteracoesAte);
     // Recalculado a cada envio: uma devolvida reenviada dentro de uma janela estendida deixa de estar "fora".
     await tx.update(solicitacoes).set({ foraDaJanela }).where(eq(solicitacoes.id, id));
+    // Itens contados como a tela mostra: a tenda em 3 locais é 1 item (auditoria 30/10, A N15).
+    const nItens = contarItensPedido(s.itens).total;
+    const textoItens = `${nItens} ${nItens === 1 ? "item" : "itens"}`;
+    // Alteração dentro da janela entra direto na OS: não tem prazo de resposta para registrar (30/10, A N27).
+    const entraDireto = s.tipo === "ALTERACAO" && !foraDaJanela;
     await registrarHistorico(tx, {
       eventoId: s.eventoId,
       entidade: "solicitacao",
       entidadeId: id,
       acao: "ENVIADA",
-      descricao: `${s.codigo} enviada pela ${s.area.nome}${usuario.perfil === "ADMIN" ? " (pelo administrador)" : ""} — ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}${foraDaJanela ? " · FORA DA JANELA de alterações" : ` · prazo ${formatarDataHora(prazo)}`}`,
+      // "Fora da janela" sem caixa-alta, como no resto do app (auditoria 28/10, nº 88).
+      descricao: `${s.codigo} enviada pela ${s.area.nome}${usuario.perfil === "ADMIN" ? " (pelo administrador)" : ""} — ${textoItens}${foraDaJanela ? " · fora da janela de alterações" : entraDireto ? "" : ` · prazo ${formatarDataHora(prazo)}`}`,
       usuarioId: usuario.id,
     });
 
@@ -167,7 +167,7 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
         usuarioIds: await usuariosLogistica(tx),
         tipo: "SOLICITACAO_ENVIADA",
         titulo: `Registrado na ata: ${s.codigo} · ${s.area.nome}`,
-        mensagem: `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. Confira e ajuste na reunião de OS.`,
+        mensagem: `${s.evento.nome} · ${textoItens}. Confira e ajuste na reunião de OS.`,
         link: `/solicitacoes/${id}`,
       });
       return { codigo: s.codigo, prazo, registradaNaAta: true, foraDaJanela: false, entrouNaOs: false };
@@ -175,7 +175,7 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
 
     // Dentro da janela: entra direto na OS, sem aprovação. A logística só é avisada.
     if (!foraDaJanela) {
-      const n = s.itens.length;
+      const n = nItens;
       await aplicarAlteracaoNaJanela(tx, usuario, id, `alteração da ${s.area.nome} dentro da janela (${n} ${n === 1 ? "item" : "itens"})`);
       await notificar(tx, {
         usuarioIds: await usuariosLogistica(tx),
@@ -190,8 +190,8 @@ export async function enviarSolicitacao(usuario: UsuarioAtual, id: string) {
     await notificar(tx, {
       usuarioIds: await usuariosLogistica(tx),
       tipo: "SOLICITACAO_FORA_JANELA",
-      titulo: `FORA DA JANELA: ${s.codigo} · ${s.area.nome}`,
-      mensagem: `${s.evento.nome} · ${s.itens.length} ${s.itens.length === 1 ? "item" : "itens"}. A janela de alterações terminou em ${diaMesISO(String(s.evento.janelaAlteracoesAte))}; a logística decide se atende.`,
+      titulo: `Fora da janela: ${s.codigo} · ${s.area.nome}`,
+      mensagem: `${s.evento.nome} · ${textoItens}. A janela de alterações terminou em ${diaMesISO(String(s.evento.janelaAlteracoesAte))}; a logística decide se atende.`,
       link: `/solicitacoes/${id}`,
     });
     return { codigo: s.codigo, prazo, registradaNaAta: false, foraDaJanela, entrouNaOs: false };

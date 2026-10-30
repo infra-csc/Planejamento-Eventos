@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { agruparItensPedido, agruparLocaisTenda } from "./agrupamento-pedido";
+import { agruparItensPedido, agruparLocaisTenda, contarItensPedido } from "./agrupamento-pedido";
+
+describe("contagem de itens do pedido (auditoria 30/10, A N15)", () => {
+  const item = (projetoId: string, status: string) => ({ operacao: "ADICIONAR", projetoId, pecaId: null, eventoItemId: null, descricaoLivre: null, status });
+
+  it("a tenda em 3 locais conta como 1 item, como na tela da solicitação", () => {
+    expect(contarItensPedido([item("tenda", "EM_ANALISE"), item("tenda", "EM_ANALISE"), item("tenda", "EM_ANALISE")])).toEqual({ total: 1, respondidos: 0 });
+  });
+
+  it("o item só conta como respondido quando todas as linhas dele foram respondidas", () => {
+    expect(contarItensPedido([item("tenda", "ATENDIDO"), item("tenda", "EM_ANALISE"), item("palco", "PARCIAL")])).toEqual({ total: 2, respondidos: 1 });
+  });
+});
 
 const linha = (id: string, destino: string | null, ajustes: string, descricao = "Tenda 5×5 m", tenda = true) => ({ id, destino, ajustes, descricao, tenda });
 

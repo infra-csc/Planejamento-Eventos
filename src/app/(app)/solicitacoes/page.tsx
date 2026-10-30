@@ -19,6 +19,9 @@ import { CaptionOculta, Paginacao, Th, ThOrdenavel } from "@/components/ui/tabel
 import { LinhaLink } from "@/components/ui/linha-link";
 import { IndicadorLink } from "@/components/ui/indicador-link";
 import { Codigo } from "@/components/ui/numero";
+import { Icone } from "@/components/ui/icons";
+import { AvisoExcluido } from "@/components/solicitacoes/aviso-excluido";
+import { Suspense } from "react";
 import { ContagemAoVivo } from "@/components/ui/contagem-ao-vivo";
 
 export const metadata: Metadata = { title: "Solicitações" };
@@ -39,7 +42,7 @@ const diaBrasilia = isoSP;
 export default async function SolicitacoesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filtro?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; q?: string; area?: string; tipo?: string; reuniao?: string }>;
+  searchParams: Promise<{ filtro?: string; ordem?: string; dir?: string; pagina?: string; evento?: string; q?: string; area?: string; tipo?: string; reuniao?: string; excluido?: string }>;
 }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
@@ -47,8 +50,10 @@ export default async function SolicitacoesPage({
   const veTodas = pode(usuario, "solicitacao.ver_todas");
   const ehLogistica = pode(usuario, "solicitacao.responder");
   const podeCriar = pode(usuario, "solicitacao.criar");
-  // "Todas" é a porta de entrada: o resto são recortes dela.
-  const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : "TODAS";
+  // "Todas" é a porta de entrada das áreas. Quem responde abre em "Aguardando resposta", ordenada por prazo: em
+  // "Todas" a única atrasada ficava no fim da lista (auditoria 28/10, nº 25).
+  const filtroPadrao: FiltroLista = ehLogistica ? "ABERTAS" : "TODAS";
+  const filtro: FiltroLista = (FILTROS_LISTA as readonly string[]).includes(sp.filtro ?? "") ? (sp.filtro as FiltroLista) : filtroPadrao;
   const eventoId = sp.evento && /^[\w-]{1,64}$/.test(sp.evento) ? sp.evento : null;
   const busca = sp.q?.trim().slice(0, 80) || null;
   // `\w`: o id da área é um UUID (letras, números e hífen); com `[w-]` o filtro de área nunca valia.
@@ -113,7 +118,7 @@ export default async function SolicitacoesPage({
   };
 
   const vazio = {
-    NA_ATA: ["Nenhum pedido na ata", "Pedidos pré-reunião enviados ficam aqui até a reunião de OS do evento."],
+    NA_ATA: ["Nenhuma solicitação na ata", "Solicitações pré-reunião enviadas ficam aqui até a reunião de OS do evento."],
     ABERTAS: ["Nada aguardando resposta", veTodas ? "Quando uma área enviar uma solicitação, ela entra aqui ordenada por prazo." : "O que sua área enviar aparece aqui até a logística responder."],
     ATRASADAS: ["Nenhuma solicitação atrasada", "Solicitações abertas que passarem do prazo aparecem aqui."],
     RASCUNHO: ["Nenhum rascunho ou devolução", "Rascunhos salvos e solicitações devolvidas para ajuste aparecem aqui."],
@@ -123,6 +128,11 @@ export default async function SolicitacoesPage({
 
   return (
     <>
+      {sp.excluido && /^SOL-\d{1,8}$/.test(sp.excluido) && (
+        <Suspense fallback={null}>
+          <AvisoExcluido codigo={sp.excluido} />
+        </Suspense>
+      )}
       <PageHeader
         title="Solicitações"
         divisor
@@ -135,6 +145,8 @@ export default async function SolicitacoesPage({
             )}
             {podeCriar && (
               <ButtonLink href="/solicitacoes/nova" variant="primary" size="lg" className="no-underline">
+                {/* Com "+", como no painel (auditoria 28/10, nº 115). */}
+                <Icone nome="mais" />
                 Nova solicitação
               </ButtonLink>
             )}
@@ -187,21 +199,21 @@ export default async function SolicitacoesPage({
         <TabsNav
           rotulo="Situação das solicitações"
           className="mb-0 px-2 pt-1"
-          tabs={FILTROS_LISTA.map((v) => ({ href: hrefCom("/solicitacoes", params, { filtro: v === "TODAS" ? null : v, pagina: null }), label: ROTULO_FILTRO[v], n: pag.contagens[v], ativo: filtro === v }))}
+          tabs={FILTROS_LISTA.map((v) => ({ href: hrefCom("/solicitacoes", params, { filtro: v === filtroPadrao ? null : v, pagina: null }), label: ROTULO_FILTRO[v], n: pag.contagens[v], ativo: filtro === v }))}
         />
         {pag.total === 0 ? (
           <EmptyState
-            title={busca ? `Nada encontrado para “${busca}”` : comFiltro ? "Nada com esses filtros" : vazio[0]}
+            title={busca ? `Nada encontrado para “${busca}”` : comFiltro ? "Nada com estes filtros" : vazio[0]}
             description={busca ? "Confira o código ou tente outra palavra do título." : comFiltro ? "Tire um filtro ou troque a aba." : vazio[1]}
             icone={busca || comFiltro ? "busca" : undefined}
             action={
               busca || comFiltro ? (
-                <Link href={filtro === "TODAS" ? "/solicitacoes" : `/solicitacoes?filtro=${filtro}`} className="link text-corpo">
+                <Link href={filtro === filtroPadrao ? "/solicitacoes" : `/solicitacoes?filtro=${filtro}`} className="link text-corpo">
                   Limpar filtros
                 </Link>
               ) : filtro === "ABERTAS" && pag.contagens.RASCUNHO > 0 ? (
                 <Link href="/solicitacoes?filtro=RASCUNHO" className="link text-corpo">
-                  Você tem {pag.contagens.RASCUNHO} {pag.contagens.RASCUNHO === 1 ? "rascunho ou devolvida" : "rascunhos ou devolvidas"} esperando você
+                  {pag.contagens.RASCUNHO} {pag.contagens.RASCUNHO === 1 ? "rascunho ou devolvida esperando você" : "rascunhos ou devolvidas esperando você"}
                 </Link>
               ) : undefined
             }
@@ -216,7 +228,8 @@ export default async function SolicitacoesPage({
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="flex min-w-0 items-baseline gap-2">
                         <Codigo className="shrink-0 text-pequeno text-ink-3">{s.codigo}</Codigo>
-                        <span className="truncate text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
+                        {/* Até 2 linhas: numa só, o título ficava com 10–15 letras e o toque não tem title (auditoria 28/10, nº 24). */}
+                        <span className="line-clamp-2 break-words text-corpo font-medium text-ink">{s.titulo || "sem título"}</span>
                       </span>
                       <SolicitacaoStatusTexto status={s.status} naAta={aguardaReuniao(s.tipo, s.evento.status)} />
                     </span>

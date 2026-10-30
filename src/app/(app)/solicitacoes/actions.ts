@@ -97,13 +97,15 @@ export async function devolverSolicitacaoAction(_prev: ActionResult, formData: F
 export async function excluirRascunhoAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const usuario = await requireUsuario();
   const id = String(formData.get("solicitacaoId") ?? "");
+  let codigo: string;
   try {
-    await excluirRascunho(usuario, id);
+    ({ codigo } = await excluirRascunho(usuario, id));
   } catch (e) {
     return tratarErro(e);
   }
   revalidarTudo();
-  redirect("/solicitacoes?filtro=RASCUNHO");
+  // A lista confirma a exclusão ("Rascunho SOL-0007 excluído"): antes o redirecionamento chegava sem aviso (30/10, A N22).
+  redirect(`/solicitacoes?filtro=RASCUNHO&excluido=${encodeURIComponent(codigo)}`);
 }
 
 /** Editar necessidade pré-reunião já enviada (antes da reunião): troca itens e linhas da ata de uma vez. */

@@ -7,6 +7,7 @@ import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { NaoEncontradoError, SemPermissaoError } from "@/domain/errors";
 import { areasDoUsuario, pode, podeVerSolicitacao } from "@/domain/permissions";
 import { STATUS_ABERTOS } from "@/domain/solicitacao";
+import { contarItensPedido } from "@/domain/agrupamento-pedido";
 import { kitDaTenda } from "@/domain/tendas";
 import { escopoRascunhos } from "./escopo";
 
@@ -47,14 +48,15 @@ export async function listarSolicitacoes(usuario: UsuarioAtual, filtro: FiltroSo
       evento: { columns: { id: true, codigo: true, nome: true, status: true } },
       area: true,
       criadoPor: { columns: { id: true, nome: true } },
-      itens: { columns: { id: true, status: true } },
+      itens: { columns: { id: true, status: true, operacao: true, projetoId: true, pecaId: true, eventoItemId: true, descricaoLivre: true } },
     },
     orderBy: [desc(solicitacoes.atualizadoEm)],
   });
   return rows.map((r) => ({
     ...r,
-    totalItens: r.itens.length,
-    itensRespondidos: r.itens.filter((i) => i.status !== "EM_ANALISE").length,
+    // Contados como a solicitação mostra (a tenda em 3 locais é 1 item); auditoria 30/10, A N15.
+    totalItens: contarItensPedido(r.itens).total,
+    itensRespondidos: contarItensPedido(r.itens).respondidos,
   }));
 }
 
@@ -203,13 +205,16 @@ export async function paginarSolicitacoes(
       evento: { columns: { id: true, codigo: true, nome: true, status: true, dataReuniao: true } },
       area: true,
       criadoPor: { columns: { id: true, nome: true } },
-      itens: { columns: { id: true, status: true } },
+      itens: { columns: { id: true, status: true, operacao: true, projetoId: true, pecaId: true, eventoItemId: true, descricaoLivre: true } },
     },
   });
   const posicao = new Map(ids.map((id, i) => [id, i]));
   const itens = rows
     .sort((a, b) => (posicao.get(a.id) ?? 0) - (posicao.get(b.id) ?? 0))
-    .map((r) => ({ ...r, totalItens: r.itens.length, itensRespondidos: r.itens.filter((i) => i.status !== "EM_ANALISE").length }));
+    .map((r) => {
+      const n = contarItensPedido(r.itens);
+      return { ...r, totalItens: n.total, itensRespondidos: n.respondidos };
+    });
   return { itens, pagina, paginas, total, de, porPagina: opcoes.porPagina, contagens };
 }
 

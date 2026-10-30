@@ -131,7 +131,8 @@ export function AcoesSolicitacao({
           confirmLabel="Cancelar solicitação"
           cancelLabel="Voltar"
           danger
-          reasonLabel="Motivo"
+          // Opcional dito no rótulo (antes nada dizia que dava para deixar em branco; auditoria 30/10, A N22).
+          reasonLabel="Motivo (opcional)"
           reasonRequired={false}
           action={cancelarSolicitacaoAction}
           hidden={{ solicitacaoId: id }}

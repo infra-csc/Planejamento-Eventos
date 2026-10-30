@@ -17,7 +17,7 @@ import { carregarEditavel, MSG_DESCRICOES, MSG_TITULO_OBRIGATORIO, verificarJane
 import { aplicarAlteracaoNaJanela, enviarSolicitacao, registrarPreReuniaoNaAta } from "./envio";
 import { aplicarEfeito } from "./resposta";
 
-export const MSG_SEM_AREA = "Seu usuário ainda não está ligado a uma área. Peça ao administrador para definir a sua área (Administração › Usuários).";
+export const MSG_SEM_AREA = "Seu usuário ainda não está ligado a uma área. Fale com o administrador para definir a sua área (Administração › Usuários).";
 
 /* ------------------------------------------------------------------ */
 /* Rascunho                                                             */
@@ -31,7 +31,7 @@ async function criarRascunhoTx(tx: Executor, usuario: UsuarioAtual, eventoId: st
   const areaId = admin ? (areaEscolhida ?? usuario.areaId) : usuario.areaId;
   if (!areaId) throw new ValidacaoError(admin ? "Escolha a área que está pedindo." : MSG_SEM_AREA, admin ? { areaId: "Escolha a área." } : undefined);
   const area = await tx.query.areas.findFirst({ where: and(eq(areas.id, areaId), eq(areas.ativo, true)), columns: { id: true } });
-  if (!area) throw new ValidacaoError(admin ? "Área inativa ou inexistente." : "Sua área está desativada. Peça ao administrador.", admin ? { areaId: "Escolha outra área." } : undefined);
+  if (!area) throw new ValidacaoError(admin ? "Área inativa ou inexistente." : "Sua área está inativa. Fale com o administrador para reativá-la ou mudar a sua área.", admin ? { areaId: "Escolha outra área." } : undefined);
   const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, eventoId) });
   if (!ev) throw new NaoEncontradoError("Evento");
   const tipo = tipoSolicitacaoParaStatus(ev.status);
@@ -150,10 +150,11 @@ export async function salvarItem(usuario: UsuarioAtual, solicitacaoId: string, i
 
 export async function excluirRascunho(usuario: UsuarioAtual, id: string) {
   const db = await getDb();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const s = await carregarEditavel(tx, usuario, id, { permitirEventoFechado: true, travar: true });
-    if (s.status !== "RASCUNHO") throw new DomainError("Só rascunhos podem ser excluídos. Use cancelar.");
+    if (s.status !== "RASCUNHO") throw new DomainError("Só rascunhos podem ser excluídos. Para tirar uma solicitação já enviada, use “Cancelar solicitação”.");
     await tx.update(solicitacoes).set({ excluida: true }).where(and(eq(solicitacoes.id, id), eq(solicitacoes.status, "RASCUNHO")));
+    return { codigo: s.codigo };
   });
 }
 
