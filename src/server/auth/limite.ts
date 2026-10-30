@@ -8,13 +8,27 @@ import { DomainError } from "@/domain/errors";
 export type Regra = { chave: string; maximo: number };
 
 /**
- * IP do cliente atrás do proxy do Replit: o ÚLTIMO valor de x-forwarded-for é o que o proxy
- * acrescentou (os anteriores podem ter sido enviados pelo próprio cliente).
+ * Quantos proxies confiáveis ficam na frente do app (`PROXIES_CONFIAVEIS`, padrão 1 = só o do Replit). Cada
+ * proxy acrescenta um valor ao fim do x-forwarded-for; o IP do cliente é o que o proxy mais externo viu. Com o
+ * número fixo em 1, atrás de outro proxy o cliente escolhia o próprio "IP" e escapava do limite por IP
+ * (endurecimento E1 da auditoria de segurança 28/10).
  */
+export function proxiesConfiaveis(): number {
+  const n = Number.parseInt(process.env.PROXIES_CONFIAVEIS ?? "", 10);
+  return Number.isInteger(n) && n >= 1 && n <= 10 ? n : 1;
+}
+
+/** IP do cliente a partir do x-forwarded-for: o n-ésimo valor contando do fim (n = proxies confiáveis). */
+export function ipDoEncaminhamento(xff: string | null, proxies = proxiesConfiaveis()): string | null {
+  const lista = xff?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  if (lista.length === 0) return null;
+  // Menos valores que proxies: o cabeçalho não passou por todos; fica o mais antigo que chegou.
+  return lista[Math.max(0, lista.length - proxies)];
+}
+
 export async function ipCliente(): Promise<string> {
   const h = await headers();
-  const xff = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
-  return xff[xff.length - 1] || h.get("x-real-ip") || "desconhecido";
+  return ipDoEncaminhamento(h.get("x-forwarded-for")) || h.get("x-real-ip") || "desconhecido";
 }
 
 /**

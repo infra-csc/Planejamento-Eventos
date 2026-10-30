@@ -4,7 +4,7 @@ import sharp from "sharp";
 /*
  * Entrega de arquivos guardados (anexos de projeto, fotos de peça): miniaturas sob demanda e a resposta
  * com cabeçalhos de segurança. Os arquivos nunca mudam (só são incluídos e removidos), então o id
- * identifica o conteúdo para sempre e o cache é longo.
+ * identifica o conteúdo para sempre e o ETag responde 304 sem ler o banco.
  */
 
 /** Larguras de miniatura aceitas (px). Fora disso, serve o original. */
@@ -13,7 +13,12 @@ export const LARGURAS = new Set([160, 320, 640]);
 const miniaturas = new Map<string, Uint8Array>();
 const MAX_MINIATURAS = 600;
 
-export const CACHE = "private, max-age=86400, immutable";
+/**
+ * 5 minutos, como a planta da arena: com 1 dia e "immutable", quem perdia o acesso (troca de área, conta
+ * desativada, saiu) ainda abria o arquivo pelo cache do navegador (endurecimento E3 da auditoria de segurança
+ * 28/10). Depois disso o navegador revalida: a permissão é conferida antes do 304.
+ */
+export const CACHE = "private, max-age=300";
 
 export const ehImagem = (mime: string) => mime.startsWith("image/") && mime !== "image/svg+xml";
 export const nomeWebp = (nome: string) => nome.replace(/\.[^.]+$/, "") + ".webp";

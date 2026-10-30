@@ -66,6 +66,9 @@ describe("editar descrição na conferência", () => {
     expect(restrito.origem?.descricoesPorUnidade).toBeNull();
     // Código e situação do pedido de outra área ficam escondidos também no rótulo (auditoria 30/10, B-05).
     expect(restrito.origem?.codigo).toBeNull();
+    // Nem o id da solicitação de outra área sai no payload (endurecimento E7 da auditoria de segurança 28/10).
+    expect(restrito.origem?.solicitacaoId).toBeNull();
+    expect((await detalheLinha(E.requisitante, eventoId, l.id)).origem?.solicitacaoId).toBeTruthy();
     expect(restrito.origemLabel).toBe("Pedido de área");
     expect((await detalheLinha(E.requisitante, eventoId, l.id)).origemLabel).toMatch(/^SOL-/);
   });
