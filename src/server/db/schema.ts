@@ -686,6 +686,8 @@ export type OsConteudo = {
   projetos?: OsProjeto[];
   /** Peças pedidas soltas, fora de projeto (ausente em OS antigas). */
   individuais?: Array<{ codigo: string; nome: string; setor: Setor; unidade: string; quantidade: number; destino: string | null; area: string | null }>;
+  /** Materiais pedidos pela área Kit: outro local de entrega, em lista própria e fora das somas acima (só nas OS que têm). */
+  kit?: OsConteudo;
 };
 
 /* ------------------------------------------------------------------ */

@@ -1,4 +1,4 @@
-import { SETOR_LABEL, individuaisAgrupadas, osParaLeitura, textoLocais } from "@/domain/os";
+import { ROTULO_KIT, SETOR_LABEL, individuaisAgrupadas, osParaLeitura, textoLocais } from "@/domain/os";
 import type { OsConteudo, OsLinha } from "@/server/db/schema";
 import { GRUPO_LABEL, grupoDoCodigo, totaisPorGrupo, type MapaGrupos } from "@/domain/grupos-material";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -329,7 +329,7 @@ export function OsVisoes({
           );
         })}
 
-      {visao === "totais" && os.setores.length === 0 && (
+      {visao === "totais" && os.setores.length === 0 && !os.kit && (
         <Section>
           <EmptyState compact title="Nenhuma peça nesta versão" description="A ata não tem linhas que somem peças do catálogo." />
         </Section>
@@ -378,6 +378,55 @@ export function OsVisoes({
           </RodapeTabela>
         </Section>
       )}
+
+      {visao !== "composicao" && os.kit && <SecaoKit kit={os.kit} />}
     </>
+  );
+}
+
+/** O que a área Kit pediu: outro local de entrega, então fica fora das somas acima, em qualquer leitura. */
+function SecaoKit({ kit }: { kit: OsConteudo }) {
+  const pecas = kit.setores.flatMap((s) => s.linhas).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return (
+    <Section titulo={ROTULO_KIT} sub="Outro local de entrega: lista à parte, fora das somas e da folha de separação dos demais materiais.">
+      <div className="overflow-x-auto">
+        <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
+          <CaptionOculta>{ROTULO_KIT}</CaptionOculta>
+          <thead>
+            <tr>
+              <Th className="pl-cartao">Peça</Th>
+              <Th className="hidden md:table-cell md:w-[40%]">Composição</Th>
+              <Th largura={110} alinhar="right">
+                Total
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {pecas.map((l) => (
+              <tr key={l.pecaId} className="hover:bg-subtle">
+                <th scope="row" className={`${base} pl-cartao pr-3 text-left text-corpo font-normal text-ink`}>
+                  {l.nome}
+                  <span className="mt-0.5 block text-rotulo text-muted md:hidden">{l.origens.map(origemTexto).join(" · ")}</span>
+                </th>
+                <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{l.origens.map(origemTexto).join(" · ")}</td>
+                <td className={tdTotal}>
+                  <Total n={l.total} unidade={l.unidade} />
+                </td>
+              </tr>
+            ))}
+            {kit.semSetor.map((a, i) => (
+              <tr key={i} className="hover:bg-subtle">
+                <th scope="row" className={`${base} pl-cartao pr-3 text-left text-corpo font-normal text-ink`}>
+                  {a.descricao}
+                  <span className="mt-0.5 block text-rotulo text-muted md:hidden">Fora do catálogo{a.destino ? ` · ${a.destino}` : ""}</span>
+                </th>
+                <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>Fora do catálogo{a.destino ? ` · ${a.destino}` : ""}</td>
+                <td className={tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
   );
 }

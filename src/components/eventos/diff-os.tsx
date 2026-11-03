@@ -77,7 +77,7 @@ export function DiffOs({ titulo, sub, diff, vazio, acoes }: { titulo: string; su
                   const t = tipoDe(d);
                   const delta = d.depois - d.antes;
                   return (
-                    <tr key={d.codigo} className="hover:bg-subtle">
+                    <tr key={`${d.kit ? "kit:" : ""}${d.codigo}`} className="hover:bg-subtle">
                       <td className="border-b border-line-row py-2 pl-cartao pr-3 max-sm:hidden">
                         <Tag tom={TOM[t]}>{t}</Tag>
                       </td>

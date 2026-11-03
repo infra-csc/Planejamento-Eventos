@@ -6,11 +6,11 @@ delete process.env.DATABASE_URL;
 
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, osVersoes, pecas, projetos } from "@/server/db/schema";
-import { criarPeca, criarProjeto, fecharAta, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
+import { areas, eventoItens, osVersoes, pecas, projetos, solicitacoes } from "@/server/db/schema";
+import { criarPeca, criarProjeto, enviarSolicitacao, fecharAta, itemAvulso, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
 import { ajustarLinhaNaConferencia, definirExtraDaRegra, obterConferencia } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
-import { aplicarCavaleteRetoNasAtasFechadas, aplicarGradesDoPrismaNasAtasFechadas, ressincronizarAtasAbertas } from "./eventos/regras-kit";
+import { aplicarCavaleteRetoNasAtasFechadas, aplicarGradesDoPrismaNasAtasFechadas, passarPedidoParaKit, ressincronizarAtasAbertas } from "./eventos/regras-kit";
 
 let E: Elenco;
 let estande: string;
@@ -199,5 +199,65 @@ describe("regras da logística na ata", () => {
     expect((await regras(ev.id))["cavalete-reto"]).toBe(8);
     expect(await versoes()).toBe(antes + 1);
     expect(await aplicarCavaleteRetoNasAtasFechadas("teste:cavalete:1")).toEqual({ feito: false });
+  });
+});
+
+describe("o que acompanha um pedido do Kit vai para o Kit (03/11)", () => {
+  let kit: { id: string };
+  beforeAll(async () => {
+    [kit] = await (await getDb()).insert(areas).values({ nome: "Kit" }).returning();
+  });
+
+  it("cavaletes dos pranchões do Kit ficam em linha própria da área Kit; a linha geral conta só os demais pedidos", async () => {
+    const db = await getDb();
+
+    const pranchao = (await db.select().from(pecas).where(eq(pecas.codigo, "PRANCHÃO-220")))[0];
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 1, E.areas.a.id);
+    const doKit = await incluirPeca(E.logistica, ev.id, pranchao.id, 3, kit.id);
+    const cavaletes = async () => (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "cavalete-reto")))).filter((l) => l.ativo).map((l) => [l.areaId, l.quantidade]).sort((a, b) => Number(b[1]) - Number(a[1]));
+    expect(await cavaletes()).toEqual([[kit.id, 6], [null, 2]]);
+    const { calcularOsAtual } = await import("./os");
+    const os = await calcularOsAtual(db, ev.id);
+    const totalDe = (c: typeof os | undefined) => c?.setores.flatMap((s) => s.linhas).find((l) => l.codigo === "CAV-RETO")?.total;
+    expect(totalDe(os)).toBe(2);
+    expect(totalDe(os.kit)).toBe(6);
+    // Sai o pedido do Kit: sai também o cavalete dele, e a linha geral não muda.
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    await ajustarLinhaNaConferencia(E.admin, ev.id, doKit.id, 0, "Teste");
+    expect(await cavaletes()).toEqual([[null, 2]]);
+  });
+
+  it("evento sem nada do Kit segue com uma linha só, como antes", async () => {
+    const db = await getDb();
+    const pranchao = (await db.select().from(pecas).where(eq(pecas.codigo, "PRANCHÃO-220")))[0];
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 2, E.areas.a.id);
+    const ls = (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "cavalete-reto"))));
+    expect(ls.map((l) => [l.areaId, l.quantidade])).toEqual([[null, 4]]);
+  });
+
+  it("passa o pedido para a área Kit uma vez só e gera a versão da OS, com os itens na lista à parte", async () => {
+    const db = await getDb();
+
+    const ev = await novoEvento(E.logistica);
+    const s = await enviarSolicitacao(E.requisitante, E.logistica, ev.id, [itemAvulso("Saco de brinde", 5)]);
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    await fecharAta(E.admin, ev.id);
+    const { codigo } = (await db.select({ codigo: solicitacoes.codigo }).from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0];
+    const versoes = async () => db.select().from(osVersoes).where(eq(osVersoes.eventoId, ev.id));
+    const antes = (await versoes()).length;
+    expect(await passarPedidoParaKit(codigo, "teste:kit:1")).toEqual({ feito: true, linhas: 1 });
+    const depois = await versoes();
+    expect(depois.length).toBe(antes + 1);
+    const ultima = depois.sort((a, b) => b.numero - a.numero)[0].conteudo;
+    expect(ultima.semSetor).toEqual([]);
+    expect(ultima.kit?.semSetor.map((x) => x.descricao)).toEqual(["Saco de brinde"]);
+    expect((await db.select().from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0].areaId).toBe(kit.id);
+    expect(await passarPedidoParaKit(codigo, "teste:kit:1")).toEqual({ feito: false });
+  });
+
+  it("em banco sem o pedido, só fica a marca", async () => {
+    expect(await passarPedidoParaKit("SOL-NAO-EXISTE", "teste:kit:2")).toEqual({ feito: true, linhas: 0 });
   });
 });

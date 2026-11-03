@@ -63,7 +63,8 @@ export function consolidar(
   const confirmada = new Map<string, Map<string, number>>();
   for (const ev of eventos) {
     const m = new Map<string, number>();
-    for (const s of ev.os.setores) for (const l of s.linhas) m.set(l.pecaId, (m.get(l.pecaId) ?? 0) + l.total);
+    // O Kit tem lista própria, mas as peças saem do mesmo estoque.
+    for (const s of [...ev.os.setores, ...(ev.os.kit?.setores ?? [])]) for (const l of s.linhas) m.set(l.pecaId, (m.get(l.pecaId) ?? 0) + l.total);
     confirmada.set(ev.id, m);
   }
 

@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { configuracoes, eventoItens, eventos, pecas } from "@/server/db/schema";
+import { areas, configuracoes, eventoItens, eventos, pecas, solicitacaoItens, solicitacoes } from "@/server/db/schema";
+import { ehAreaKit } from "@/domain/os";
 import { calcularRegrasKit, REGRAS_KIT } from "@/domain/regras-kit";
 import { registrarHistorico, type Executor } from "../support";
 
@@ -16,84 +17,91 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
   if (!ev || (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO" && !(opcoes.ataFechada && ev.status === "ABERTO"))) return 0;
   const linhas = await tx.query.eventoItens.findMany({
     where: eq(eventoItens.eventoId, eventoId),
-    with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } } },
+    with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } }, area: { columns: { nome: true } } },
   });
-  const alvo = calcularRegrasKit(
-    linhas
-      .filter((l) => l.ativo && !l.regra)
-      .map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot })),
-  );
   const ps = await tx
     .select({ id: pecas.id, codigo: pecas.codigo, nome: pecas.nome })
     .from(pecas)
     .where(inArray(pecas.codigo, REGRAS_KIT.map((r) => r.codigoPeca)));
   let mudancas = 0;
   const agora = new Date();
-  for (const r of alvo) {
-    if (opcoes.soRegras && !opcoes.soRegras.includes(r.regra)) continue;
-    const p = ps.find((x) => x.codigo === r.codigoPeca);
-    if (!p) continue;
-    const existente = linhas.find((l) => l.regra === r.regra);
-    const antes = existente?.ativo ? existente.quantidade : 0;
-    if (r.aDefinir) {
-      // Linha "a definir": entra com 0 quando a regra vale e sai quando deixa de valer; o número é da conferência.
-      if (existente?.regraManual || Boolean(existente?.ativo) === Boolean(r.presente)) continue;
-      let id = existente?.id;
+  // O que acompanha um item vai para o mesmo local: o Kit tem as próprias linhas de regra, contadas só sobre os pedidos dele.
+  const doKit = (l: (typeof linhas)[number]) => ehAreaKit(l.area?.nome);
+  const areaKit = linhas.find(doKit)?.areaId ?? null;
+  for (const grupoKit of areaKit ? [false, true] : [false]) {
+    const doGrupo = linhas.filter((l) => doKit(l) === grupoKit);
+    const rotulo = grupoKit ? "Regra da logística · Kit" : "Regra da logística";
+    const alvo = calcularRegrasKit(
+      doGrupo
+        .filter((l) => l.ativo && !l.regra)
+        .map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot })),
+    );
+    for (const r of alvo) {
+      if (opcoes.soRegras && !opcoes.soRegras.includes(r.regra)) continue;
+      const p = ps.find((x) => x.codigo === r.codigoPeca);
+      if (!p) continue;
+      const existente = doGrupo.find((l) => l.regra === r.regra);
+      const antes = existente?.ativo ? existente.quantidade : 0;
+      if (r.aDefinir) {
+        // Linha "a definir": entra com 0 quando a regra vale e sai quando deixa de valer; o número é da conferência.
+        if (existente?.regraManual || Boolean(existente?.ativo) === Boolean(r.presente)) continue;
+        let id = existente?.id;
+        if (!existente) {
+          const [nova] = await tx.insert(eventoItens).values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: 0, origem: "AJUSTE_LOGISTICA", regra: r.regra, areaId: grupoKit ? areaKit : null, criadoPorId: usuarioId }).returning({ id: eventoItens.id });
+          id = nova.id;
+        } else {
+          await tx
+            .update(eventoItens)
+            .set(r.presente ? { ativo: true, quantidade: 0, pecaId: p.id, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora } : { ativo: false, removidoEm: agora, removidoPorId: usuarioId, conferidoEm: null, conferidoPorId: null })
+            .where(eq(eventoItens.id, existente.id));
+        }
+        await registrarHistorico(tx, {
+          eventoId,
+          entidade: "evento_item",
+          entidadeId: id!,
+          acao: "REGRA_KIT",
+          descricao: r.presente ? `${rotulo} (${r.descricao}): ${p.nome} entrou a definir` : `${rotulo}: ${p.nome} saiu (sem tenda na ata)`,
+          usuarioId,
+          dadosAntes: { ativo: Boolean(existente?.ativo) },
+          dadosDepois: { ativo: Boolean(r.presente), regra: r.regra },
+        });
+        mudancas++;
+        continue;
+      }
+      // Mesma quantidade e mesma peça: nada a fazer (a peça muda quando a regra troca, ex.: tina 500 → 1000 l).
+      if (existente?.regraManual || (antes === r.quantidade && (!existente || existente.pecaId === p.id))) continue;
+      if (r.quantidade === 0 && !existente?.ativo) continue;
+      let linhaId: string;
       if (!existente) {
-        const [nova] = await tx.insert(eventoItens).values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: 0, origem: "AJUSTE_LOGISTICA", regra: r.regra, criadoPorId: usuarioId }).returning({ id: eventoItens.id });
-        id = nova.id;
+        const [nova] = await tx
+          .insert(eventoItens)
+          .values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: r.quantidade, origem: "AJUSTE_LOGISTICA", regra: r.regra, areaId: grupoKit ? areaKit : null, criadoPorId: usuarioId })
+          .returning({ id: eventoItens.id });
+        linhaId = nova.id;
       } else {
+        linhaId = existente.id;
+        // Quantidade mudou: precisa conferir de novo.
         await tx
           .update(eventoItens)
-          .set(r.presente ? { ativo: true, quantidade: 0, pecaId: p.id, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora } : { ativo: false, removidoEm: agora, removidoPorId: usuarioId, conferidoEm: null, conferidoPorId: null })
+          .set(
+            r.quantidade === 0
+              ? { ativo: false, removidoEm: agora, removidoPorId: usuarioId, conferidoEm: null, conferidoPorId: null }
+              : { ativo: true, quantidade: r.quantidade, pecaId: p.id, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora },
+          )
           .where(eq(eventoItens.id, existente.id));
       }
       await registrarHistorico(tx, {
         eventoId,
         entidade: "evento_item",
-        entidadeId: id!,
+        entidadeId: linhaId,
         acao: "REGRA_KIT",
-        descricao: r.presente ? `Regra da logística (${r.descricao}): ${p.nome} entrou a definir` : `Regra da logística: ${p.nome} saiu (sem tenda na ata)`,
+        descricao: `${rotulo} (${r.descricao}): ${p.nome} ${antes} → ${r.quantidade}`,
         usuarioId,
-        dadosAntes: { ativo: Boolean(existente?.ativo) },
-        dadosDepois: { ativo: Boolean(r.presente), regra: r.regra },
+        dadosAntes: { quantidade: antes },
+        dadosDepois: { quantidade: r.quantidade, regra: r.regra },
       });
       mudancas++;
-      continue;
     }
-    // Mesma quantidade e mesma peça: nada a fazer (a peça muda quando a regra troca, ex.: tina 500 → 1000 l).
-    if (existente?.regraManual || (antes === r.quantidade && (!existente || existente.pecaId === p.id))) continue;
-    if (r.quantidade === 0 && !existente?.ativo) continue;
-    let linhaId: string;
-    if (!existente) {
-      const [nova] = await tx
-        .insert(eventoItens)
-        .values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: r.quantidade, origem: "AJUSTE_LOGISTICA", regra: r.regra, criadoPorId: usuarioId })
-        .returning({ id: eventoItens.id });
-      linhaId = nova.id;
-    } else {
-      linhaId = existente.id;
-      // Quantidade mudou: precisa conferir de novo.
-      await tx
-        .update(eventoItens)
-        .set(
-          r.quantidade === 0
-            ? { ativo: false, removidoEm: agora, removidoPorId: usuarioId, conferidoEm: null, conferidoPorId: null }
-            : { ativo: true, quantidade: r.quantidade, pecaId: p.id, removidoEm: null, removidoPorId: null, conferidoEm: null, conferidoPorId: null, atualizadoEm: agora },
-        )
-        .where(eq(eventoItens.id, existente.id));
-    }
-    await registrarHistorico(tx, {
-      eventoId,
-      entidade: "evento_item",
-      entidadeId: linhaId,
-      acao: "REGRA_KIT",
-      descricao: `Regra da logística (${r.descricao}): ${p.nome} ${antes} → ${r.quantidade}`,
-      usuarioId,
-      dadosAntes: { quantidade: antes },
-      dadosDepois: { quantidade: r.quantidade, regra: r.regra },
-    });
-    mudancas++;
   }
   return mudancas;
 }
@@ -153,3 +161,33 @@ export const aplicarGradesDoPrismaNasAtasFechadas = (chave = "regras:grade-prism
  */
 export const aplicarCavaleteRetoNasAtasFechadas = (chave = "regras:cavalete-reto-atas-fechadas:2026-10-26") =>
   aplicarRegraNasAtasFechadas("cavalete-reto", chave, "Cavaletes retos (1 pranchão ou mesa de medalha = 2 cavaletes)");
+
+/**
+ * 03/11: um pedido feito por quem é do Kit, mas que saiu com a área antiga (SOL-0209, do EVT-0242, em Ativação), passa
+ * para a área Kit, com a nova versão da OS. Uma vez só, ao subir; em banco sem esse pedido, só fica a marca. As linhas de
+ * regra da ata fechada ficam como estão (a testeira 5×5 do EVT-0242 foi ajustada à mão).
+ */
+export async function passarPedidoParaKit(codigo = "SOL-0209", chave = "dados:sol-0209-area-kit:2026-11-03"): Promise<{ feito: false } | { feito: true; linhas: number }> {
+  const { gerarOsVersao } = await import("../os");
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const [marca] = await tx.insert(configuracoes).values({ chave, valor: JSON.stringify({ status: "em andamento" }) }).onConflictDoNothing({ target: configuracoes.chave }).returning({ chave: configuracoes.chave });
+    if (!marca) return { feito: false };
+    const sol = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.codigo, codigo), columns: { id: true, eventoId: true, areaId: true } });
+    const kit = (await tx.select({ id: areas.id, nome: areas.nome }).from(areas)).find((a) => ehAreaKit(a.nome));
+    let linhas = 0;
+    if (sol && kit && sol.areaId !== kit.id) {
+      await tx.update(solicitacoes).set({ areaId: kit.id }).where(eq(solicitacoes.id, sol.id));
+      const itens = await tx.select({ id: solicitacaoItens.id }).from(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, sol.id));
+      if (itens.length) {
+        const movidas = await tx.update(eventoItens).set({ areaId: kit.id }).where(inArray(eventoItens.solicitacaoItemId, itens.map((i) => i.id))).returning({ id: eventoItens.id });
+        linhas = movidas.length;
+      }
+      await registrarHistorico(tx, { eventoId: sol.eventoId, entidade: "solicitacao", entidadeId: sol.id, acao: "AREA_DO_PEDIDO", descricao: `${codigo} passou para a área Kit: materiais em lista à parte (${linhas} ${linhas === 1 ? "linha" : "linhas"} da ata)`, usuarioId: null });
+      const ev = await tx.query.eventos.findFirst({ where: eq(eventos.id, sol.eventoId), columns: { status: true } });
+      if (linhas && ev?.status === "ABERTO") await gerarOsVersao(tx, sol.eventoId, "AJUSTE_LOGISTICA", null, `Materiais do Kit em lista à parte (${codigo})`);
+    }
+    await tx.update(configuracoes).set({ valor: JSON.stringify({ status: "feito", em: new Date().toISOString(), linhas }) }).where(eq(configuracoes.chave, chave));
+    return { feito: true, linhas };
+  });
+}

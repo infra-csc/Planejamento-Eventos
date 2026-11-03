@@ -62,6 +62,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "cantoneira_universal", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Pedido do Kit que saiu com a área antiga (SOL-0209): passa para a área Kit, com nova versão da OS (uma vez só).
+    try {
+      const { passarPedidoParaKit } = await import("@/server/services/eventos/regras-kit");
+      const r = await passarPedidoParaKit();
+      if (r.feito) console.log(JSON.stringify({ nivel: "info", evento: "pedido_passou_para_kit", linhas: r.linhas }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "pedido_passou_para_kit", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Atas fechadas antes de o pranchão voltar ao cavalete reto (20/10): cavaletes dos pranchões (uma vez só, com nova OS).
     try {
       const { aplicarCavaleteRetoNasAtasFechadas } = await import("@/server/services/eventos/regras-kit");

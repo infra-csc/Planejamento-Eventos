@@ -11,7 +11,7 @@ import { toastErro, toastSucesso } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import { marcarOsEnviadaAction } from "@/app/(app)/eventos/actions";
 
-type Diferenca = { codigo: string; nome: string; antes: number; depois: number };
+type Diferenca = { codigo: string; nome: string; antes: number; depois: number; kit?: boolean };
 
 /**
  * Envio da OS ao carregamento. Depois de enviada, o que entra vira "complemento": a logística
@@ -75,8 +75,8 @@ export function EnvioOs({
                   {enviada.diff.slice(0, 6).map((d) => {
                     const delta = d.depois - d.antes;
                     return (
-                      <li key={d.codigo} className="flex items-baseline gap-2 border-b border-line-row px-2.5 py-1.5 text-pequeno last:border-b-0" title={d.nome}>
-                        <Codigo className="min-w-0 flex-1 truncate text-ink-2">{d.codigo}</Codigo>
+                      <li key={`${d.kit ? "kit:" : ""}${d.codigo}`} className="flex items-baseline gap-2 border-b border-line-row px-2.5 py-1.5 text-pequeno last:border-b-0" title={d.nome}>
+                        <Codigo className="min-w-0 flex-1 truncate text-ink-2">{d.kit ? "Kit " : ""}{d.codigo}</Codigo>
                         <span className="numero text-muted">
                           {d.antes} → <span className="text-ink">{d.depois}</span>
                         </span>

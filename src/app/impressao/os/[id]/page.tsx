@@ -1,4 +1,4 @@
-import { osParaLeitura } from "@/domain/os";
+import { osParaLeitura, ROTULO_KIT } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -113,6 +113,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           Estrutura locada no local: box truss Q30, tendas e estaio (tina, pallet de ferro, cinta catraca, malote, estaca e corda){separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
         </p>
       )}
+      {os.kit && <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">{ROTULO_KIT}: lista à parte, em Exportar. Não entram nesta folha.</p>}
       {antesDaMarcenaria.map((secao) => (
         <TabelaSecao key={secao.id} secao={secao} />
       ))}
