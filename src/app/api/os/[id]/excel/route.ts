@@ -30,7 +30,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   const setorDe = new Map(os.setores.flatMap((s) => s.linhas.map((l) => [l.codigo, s.setor] as const)));
   const setorLabel = (setor: string | undefined) => (setor ? (SETOR_LABEL[setor as keyof typeof SETOR_LABEL] ?? setor) : "—");
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
   const cab = `OS ${ev.codigo} · ${ev.nome} · ${versao}`;
   const rodape = `Separado por: ______________   Conferido por: ______________   Gerado ${formatarDataHora(new Date())} por ${geradaPor}`;
@@ -41,7 +41,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Resumo ---------- */
   const capa = wb.addWorksheet("Resumo", { views: [{ showGridLines: false }] });
   [24, 30, 14, 14, 24, 30].forEach((w, i) => (capa.getColumn(i + 1).width = w));
-  let l = faixaTitulo(capa, 6, "NORTE MKT · PLANEJAMENTO DE EVENTOS", `Ordem de serviço · ${ev.codigo}`, `${ev.nome} · ${versao}`);
+  let l = faixaTitulo(capa, 6, "NORTELOG", `Ordem de serviço · ${ev.codigo}`, `${ev.nome} · ${versao}`);
   const fimEsq = blocoDados(
     capa,
     l,

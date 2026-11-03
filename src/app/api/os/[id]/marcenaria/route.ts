@@ -66,7 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
   const ws = abaOsMarcenaria(wb, { nome: ev.nome, dataCarga: ev.dataCarga, responsavelEvento: ev.responsavel.nome }, d, { pecas: fotosPecas, projetos: fotosProjetos });
 

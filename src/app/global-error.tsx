@@ -16,13 +16,12 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   return (
     <html lang="pt-BR">
       <body>
-        <title>Erro · Planejamento</title>
+        <title>Erro · NorteLog</title>
         <main className="flex min-h-screen items-center justify-center bg-page px-6">
           <div role="alert" className="max-w-[440px]">
             <div className="mb-6 flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/selo-app.svg" alt="" aria-hidden width={24} height={24} className="block size-6 shrink-0" />
-              <span className="text-pequeno font-semibold uppercase tracking-[0.18em] text-ink">Norte Mkt</span>
+              <img src="/logo-nortelog.svg" alt="NorteLog" className="block h-6 w-auto shrink-0" />
             </div>
             <h1 className="m-0 text-pagina font-semibold tracking-[-0.025em]">Algo deu errado</h1>
             <p className="mb-0 mt-2 text-secao leading-relaxed text-ink-2">O sistema não conseguiu abrir esta tela. O erro foi registrado; tente de novo e, se continuar, avise o administrador.</p>

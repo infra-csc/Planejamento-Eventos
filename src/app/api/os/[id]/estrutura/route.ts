@@ -57,7 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const imagens = pode(usuario, "projeto.ver") ? await todasAsImagensDoCatalogo("projeto", dados.abas.map((a) => a.codigo), LARGURA_IMAGEM, 6) : new Map<string, Imagem[]>();
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
   // O exceljs não grava resultado 0 em cache: recalcular ao abrir evita total vazio em coluna zerada.
   wb.calcProperties.fullCalcOnLoad = true;

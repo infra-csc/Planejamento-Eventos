@@ -28,10 +28,9 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     <div className="grid min-h-screen bg-page lg:grid-cols-[1.1fr_1fr]">
       <div className="flex flex-col justify-between gap-8 bg-dark px-6 py-6 text-white sm:px-10 lg:px-16 lg:py-14">
         <div className="flex items-center gap-2.5">
-          {/* Selo da NORTE (quadrado branco com o N na cor do app): funciona no painel escuro. */}
+          {/* Versão branca do logo: é a do kit para fundo escuro. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/selo-app.svg" alt="" aria-hidden width={32} height={32} className="block size-8 shrink-0" />
-          <span className="text-corpo font-semibold uppercase tracking-[0.18em] text-white">Norte Mkt</span>
+          <img src="/logo-nortelog-branco.svg" alt="NorteLog" className="block h-8 w-auto shrink-0" />
         </div>
         <div className="max-w-[440px] max-lg:hidden">
           <p className="mb-5 mt-0 text-metrica font-semibold tracking-[-0.03em]">Da reunião de OS ao caminhão carregado, em um só lugar.</p>

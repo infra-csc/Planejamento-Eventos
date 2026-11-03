@@ -1,8 +1,8 @@
 <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="g" x1="40" y1="140" x2="140" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#4a1120"/><stop offset="1" stop-color="#8e2740"/></linearGradient></defs>
+  <!-- Selo NorteLog (03/11): símbolo do kit final sobre o quadrado branco do kit do Portal. -->
   <rect x="0.5" y="0.5" width="99" height="99" rx="22" fill="#fff" stroke="#e2e8f0"/>
-  <g transform="translate(50 50) scale(0.56) translate(-90 -90)">
-    <path d="M40 140V40h24l52 64V40h24v100h-24L64 76v64H40z" fill="url(#g)"/>
-    <rect x="116" y="40" width="24" height="28" rx="4" fill="#FF3C00"/>
+  <g transform="translate(50 50) scale(0.17) translate(-200 -188)">
+    <path fill="#242424" d="M247.33 128.11C247.18 127.96 247.06 127.84 246.91 127.69C180.95 61.7302 93.27 25.4102 0 25.4102V123.09V374.58H93.68H97.68V142.83C174.43 175.3 231.82 244.82 247.34 328.84C250.07 343.68 251.51 358.97 251.51 374.59H349.19C349.19 281.52 313.01 194.01 247.34 128.11H247.33Z" transform="matrix(0.9737098344693281 0 0 0.9737098344693281 30 5.2580331061343735)"/>
+    <path fill="#F06A2A" d="M281.63 93.8195L281.65 93.8495L281.68 93.8695C308.61 120.88 331.17 151.1 349.03 183.63V25.5195H190.89C223.66 43.4995 254.05 66.2395 281.21 93.3995L281.63 93.8195Z" transform="matrix(0.9737098344693281 0 0 0.9737098344693281 30 5.2580331061343735)"/>
   </g>
 </svg>

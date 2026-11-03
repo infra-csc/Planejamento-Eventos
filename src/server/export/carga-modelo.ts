@@ -20,7 +20,7 @@ const letra = (i: number) => {
  */
 export function montarModeloCarga(eventos: ReadonlyArray<EventoCarga & { ativo: boolean }>, hoje: string) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
 
   // Próximos primeiro (desde a semana passada), depois os mais antigos.

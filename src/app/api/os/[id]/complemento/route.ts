@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!comp) return erroDownload(request, 400, "A OS ainda não foi marcada como enviada ao carregamento", `/eventos/${id}/os`);
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   const ws = wb.addWorksheet("Complemento", { views: [{ state: "frozen", ySplit: 9, showGridLines: false }] });
   const cab = `Complemento da OS ${ev.codigo} · ${ev.nome} · desde a v${comp.numero}`;
   faixaTitulo(ws, 7, "NORTE MKT", "Complemento da OS", `${ev.codigo} · ${ev.nome} · o que mudou desde a v${comp.numero}, enviada em ${formatarDataHora(comp.enviadaEm)}`);

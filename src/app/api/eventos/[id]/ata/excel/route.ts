@@ -56,13 +56,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const rodape = `Logística: ______________________   Cliente / gestão: ______________________   Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`;
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
 
   /* ---------- Ata ---------- */
   const ws = wb.addWorksheet("Ata", { views: [{ showGridLines: false }] });
   [22, 30, 10, 22, 22, 22, 22].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  let l = faixaTitulo(ws, 7, "NORTE MKT · PLANEJAMENTO DE EVENTOS", `Ata da reunião de OS · ${ev.codigo}`, `${ev.nome} · ${rotuloVersao}${reu?.fechadaEm ? ` · fechada em ${formatarDataHora(reu.fechadaEm)}` : " · ainda não fechada"}`);
+  let l = faixaTitulo(ws, 7, "NORTELOG", `Ata da reunião de OS · ${ev.codigo}`, `${ev.nome} · ${rotuloVersao}${reu?.fechadaEm ? ` · fechada em ${formatarDataHora(reu.fechadaEm)}` : " · ainda não fechada"}`);
   const fimEsq = blocoDados(
     ws,
     l,

@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const reu = ata.reuniao;
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Norte Mkt · Planejamento de Eventos";
+  wb.creator = "NorteLog";
   wb.created = new Date();
   wb.calcProperties.fullCalcOnLoad = true;
   const ws = abaListaMateriais(

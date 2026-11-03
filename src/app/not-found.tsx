@@ -17,8 +17,7 @@ export default async function NotFound() {
       <div className="flex w-full max-w-md animate-fade-up flex-col items-center text-center">
         <div className="mb-8 flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/selo-app.svg" alt="" aria-hidden width={24} height={24} className="block size-6 shrink-0" />
-          <span className="text-pequeno font-semibold uppercase tracking-[0.18em] text-ink">Norte Mkt</span>
+          <img src="/logo-nortelog.svg" alt="NorteLog" className="block h-6 w-auto shrink-0" />
         </div>
         <span aria-hidden className="mb-4 grid size-11 place-items-center rounded-full bg-surface text-ink-3">
           <Icone nome="busca" tamanho={20} />

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
   // `template`: páginas com título próprio (Editar evento) ganham o código do evento e o sufixo do app.
   // Evento inexistente: a aba dizia "Evento" e a página "Não encontrado" (auditoria 30/10, parte D N26).
-  return ev ? { title: { default: `${ev.codigo} ${ev.nome}`, template: `%s · ${ev.codigo} · Planejamento` } } : { title: naoExiste ? "Página não encontrada" : "Evento" };
+  return ev ? { title: { default: `${ev.codigo} ${ev.nome}`, template: `%s · ${ev.codigo} · NorteLog` } } : { title: naoExiste ? "Página não encontrada" : "Evento" };
 }
 
 const plural = (n: number, s: string, p: string) => (n === 0 ? null : `${n} ${n === 1 ? s : p}`);

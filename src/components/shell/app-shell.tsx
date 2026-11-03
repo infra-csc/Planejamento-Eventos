@@ -233,14 +233,12 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         )}
       >
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
-          <Link href="/" title="Planejamento · Norte Mkt" className="flex min-w-0 flex-1 items-center gap-[9px] no-underline">
-            {/* Selo da NORTE: quadrado branco com o N na cor do app (kit de identidade do Portal; o favicon é src/app/icon.svg). */}
+          <Link href="/" title="NorteLog" aria-label="NorteLog, página inicial" className="flex min-w-0 flex-1 items-center no-underline">
+            {/* Menu aberto: o logo inteiro. Recolhido (só no desktop): o selo, que cabe no trilho. O favicon é src/app/icon.svg. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/selo-app.svg" alt="" aria-hidden width={32} height={32} className="block size-8 shrink-0" />
-            <span className={cn("min-w-0", recolhido && "lg:sr-only")}>
-              <span className="block text-micro font-semibold uppercase tracking-[0.16em] text-meta">Norte Mkt</span>
-              <span className="block text-corpo font-semibold tracking-[-0.01em] text-ink">Planejamento</span>
-            </span>
+            <img src="/logo-nortelog.svg" alt="" aria-hidden width={160} height={32} className={cn("block h-auto w-full max-w-[160px]", recolhido && "lg:hidden")} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/selo-app.svg" alt="" aria-hidden width={32} height={32} className={cn("size-8 shrink-0", recolhido ? "hidden lg:block" : "hidden")} />
           </Link>
           {/* Recolher/expandir: só no desktop (abaixo de lg a sidebar é gaveta). */}
           <button
