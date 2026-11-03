@@ -91,6 +91,7 @@ const ROTULO_ACAO: Record<string, string> = {
   ARENA_POSICAO_DESFEITA: "Posição desfeita",
   DESCRICAO_EDITADA: "Descrição alterada",
   REGRA_KIT: "Regra da logística",
+  AREA_DO_PEDIDO: "Área do pedido corrigida",
   DESATIVADO: "Desativado",
 };
 

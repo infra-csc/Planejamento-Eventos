@@ -3,7 +3,7 @@ import { requirePermissao } from "@/server/auth/session";
 import { calcularOsAoVivo, complementoOs, listarOsResumo, obterConteudosOs } from "@/server/services/os";
 import { EnvioOs } from "@/components/eventos/envio-os";
 import { obterEventoCache } from "@/server/cache";
-import { diffOS, RESUMO_SEM_MUDANCA, resumoVersaoOs, type DiffLinha } from "@/domain/os";
+import { diffOS, RESUMO_SEM_MUDANCA, ROTULO_KIT, resumoVersaoOs, type DiffLinha } from "@/domain/os";
 import { diaMesHora } from "@/lib/format";
 import { hrefCom } from "@/lib/url";
 import { ButtonLink } from "@/components/ui/button";
@@ -37,12 +37,13 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
 export const metadata: Metadata = { title: "Ordem de serviço" };
 
 /** As exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
-function exportacoesOs(id: string, qs: string, previa = false): Exportacao[] {
+function exportacoesOs(id: string, qs: string, previa = false, temKit = false): Exportacao[] {
   return [
     { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e fora do catálogo, com coluna de separação." },
     { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "OS de estrutura", descricao: "Igual à planilha da cenografia: TOTAL, SOMATORIA e uma aba por projeto." },
     { tipo: "xlsx", href: `/api/os/${id}/marcenaria${qs}`, rotulo: "OS de marcenaria", descricao: "Igual à planilha da cenografia: seções, item, peças e quantidade." },
     { tipo: "imprimir", href: `/impressao/os/${id}${qs}`, rotulo: previa ? "Imprimir prévia" : "Imprimir", descricao: "Folha de separação com assinaturas, pronta para PDF." },
+    ...(temKit ? [{ tipo: "xlsx" as const, href: `/api/os/${id}/kit${qs}`, rotulo: ROTULO_KIT, descricao: "Lista à parte com o que a área Kit pediu: outro local de entrega, fora das demais listas." }] : []),
   ];
 }
 
@@ -58,7 +59,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
     // Antes do fechamento da ata, a logística confere o que a OS vai conter: mesma leitura, calculada ao vivo da ata em construção.
     const previa = await calcularOsAoVivo(id);
     const visao = visaoDe(sp.visao);
-    const temAlgo = previa.setores.length > 0 || previa.semSetor.length > 0;
+    const temAlgo = previa.setores.length > 0 || previa.semSetor.length > 0 || Boolean(previa.kit);
     // Celular: aviso, exportações e só então a prévia (longa); desktop: exportações fixas na coluna da direita.
     return (
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr] lg:items-start">
@@ -67,7 +68,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         </Aviso>
         {temAlgo && pode(usuario, "os.exportar") && (
           <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true)} />
+            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true, Boolean(previa.kit))} />
             {quadroSeparacao}
           </div>
         )}
@@ -190,7 +191,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
             eventoId={id}
             versaoAtual={atual.numero}
             podeEnviar={pode(usuario, "ata.ajustar") && (ev.status === "ABERTO" || ev.status === "ENCERRADO")}
-            enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois })), avulsosNovos: complemento.avulsosNovos.length } : null}
+            enviada={complemento ? { numero: complemento.numero, enviadaEm: diaMesHora(complemento.enviadaEm), enviadaPor: complemento.enviadaPor, diff: complemento.diff.map((d) => ({ codigo: d.codigo, nome: d.nome, antes: d.antes, depois: d.depois, kit: d.kit })), avulsosNovos: complemento.avulsosNovos.length } : null}
           />
         </Section>
         {pode(usuario, "os.exportar") && (
@@ -201,7 +202,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
                 {exibida.numero === atual.numero ? " · versão atual" : ` · de ${diaMesHora(exibida.geradaEm)}`}
               </>
             }
-            itens={exportacoesOs(id, qsExport)}
+            itens={exportacoesOs(id, qsExport, false, Boolean(os.kit))}
           />
         )}
         {quadroSeparacao}

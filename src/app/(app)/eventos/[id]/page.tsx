@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireUsuario } from "@/server/auth/session";
 import { obterHistoricoEvento, obterLinhasAta, opcoesReferenciasResumidas } from "@/server/services/eventos";
 import { listarOsResumo, totalPecasOs } from "@/server/services/os";
-import { calcularOS } from "@/domain/os";
+import { calcularOS, ehAreaKit } from "@/domain/os";
 import { montarEdicaoOs } from "@/components/eventos/edicao-os-evento";
 import { slugArenaDoEvento } from "@/server/services/arenas";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
@@ -83,7 +83,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   // As leituras por peça saem das mesmas linhas da lista (a mesma conta de `calcularOsAoVivo`, sem ir de novo ao banco):
   // cada linha da leitura aponta para a linha da ata que a gerou, e admin e logística corrigem dali também.
   const osAgora = leitura === "lista" ? null : calcularOS(linhas);
-  const edicaoOs = osAgora && editavel ? montarEdicaoOs({ eventoId: id, linhas, os: osAgora, ataFechada: Boolean(ev.ataFechadaEm), opcoes, podeCadastrar: pode(usuario, "catalogo.gerenciar") }) : undefined;
+  const edicaoOs = osAgora && editavel ? montarEdicaoOs({ eventoId: id, linhas: linhas.filter((l) => !ehAreaKit(l.areaNome)), os: osAgora, ataFechada: Boolean(ev.ataFechadaEm), opcoes, podeCadastrar: pode(usuario, "catalogo.gerenciar") }) : undefined;
 
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   // Para fechar a ata contam só as obrigatórias ("a definir" e estaiamento ficam de fora).

@@ -1,3 +1,4 @@
+import { ROTULO_KIT } from "@/domain/os";
 import type { OsConteudo } from "@/server/db/schema";
 import { montarOsEstrutura, type BlocoTenda } from "./os-estrutura";
 
@@ -21,6 +22,8 @@ export type AtaLista = {
   arena: SecaoLista;
   /** Itens fora do catálogo (separação manual). Vazia quando não há nenhum: a planilha não desenha a seção. */
   outros: SecaoLista;
+  /** O que a área Kit pediu: seção própria, fora das somas das outras. */
+  kit: SecaoLista;
 };
 
 /** PERCURSO, como na ata (rótulo → código no catálogo; sem código = linha só para preencher à mão). */
@@ -115,7 +118,13 @@ export function montarAtaLista(os: OsConteudo): AtaLista {
     total: estrutura.estruturas.reduce((a, e) => a + e.quantidade, 0) + contrapeso.reduce((a, l) => a + l.quantidade, 0),
   };
 
-  return { percurso, tendas: estrutura.tendas, boxTruss, ativacao, arena, outros };
+  const kitLinhas = [
+    ...(os.kit?.setores ?? []).flatMap((s) => s.linhas.map((l) => ({ item: l.nome, quantidade: l.total as number | null, obs: l.origens.map((o) => o.descricao).join(" / ") || null }))),
+    ...(os.kit?.semSetor ?? []).map((x) => ({ item: x.descricao, quantidade: x.quantidade as number | null, obs: x.destino?.trim() || null })),
+  ];
+  const kit: SecaoLista = { titulo: ROTULO_KIT.toLocaleUpperCase("pt-BR"), linhas: kitLinhas, total: kitLinhas.reduce((a, l) => a + (l.quantidade ?? 0), 0) };
+
+  return { percurso, tendas: estrutura.tendas, boxTruss, ativacao, arena, outros, kit };
 }
 
 /** Locais em que o projeto (pelo nome em maiúsculas) foi pedido, para a coluna OBS do BOX TRUSS. */

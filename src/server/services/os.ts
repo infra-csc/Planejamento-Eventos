@@ -139,8 +139,8 @@ export async function obterConteudosOs(eventoId: string, numeros: number[]): Pro
   // Versões gravadas guardam o nome da época: a leitura mostra o nome de hoje do catálogo.
   const nome = await nomesAtuais(
     db,
-    rows.flatMap((r) => r.conteudo.setores.flatMap((s) => s.linhas.map((l) => l.pecaId))),
-    rows.flatMap((r) => [...(r.conteudo.projetos ?? []).flatMap((p) => p.pecas.map((x) => x.codigo)), ...(r.conteudo.individuais ?? []).map((x) => x.codigo)]),
+    rows.flatMap((r) => [r.conteudo, ...(r.conteudo.kit ? [r.conteudo.kit] : [])].flatMap((c) => c.setores.flatMap((s) => s.linhas.map((l) => l.pecaId)))),
+    rows.flatMap((r) => [r.conteudo, ...(r.conteudo.kit ? [r.conteudo.kit] : [])].flatMap((c) => [...(c.projetos ?? []).flatMap((p) => p.pecas.map((x) => x.codigo)), ...(c.individuais ?? []).map((x) => x.codigo)])),
   );
   return new Map(rows.map((r) => [r.numero, renomearPecasOs(r.conteudo, nome)]));
 }
@@ -154,10 +154,11 @@ export async function totalPecasOs(eventoId: string, numero: number): Promise<nu
   const [r] = await db
     .select({
       total: sql<number | null>`(select sum((l->>'total')::numeric) from jsonb_array_elements(coalesce(${osVersoes.conteudo}->'setores', '[]'::jsonb)) s, jsonb_array_elements(coalesce(s->'linhas', '[]'::jsonb)) l)`,
+      kit: sql<number | null>`(select sum((l->>'total')::numeric) from jsonb_array_elements(coalesce(${osVersoes.conteudo}->'kit'->'setores', '[]'::jsonb)) s, jsonb_array_elements(coalesce(s->'linhas', '[]'::jsonb)) l)`,
     })
     .from(osVersoes)
     .where(and(eq(osVersoes.eventoId, eventoId), eq(osVersoes.numero, numero)));
-  return Number(r?.total ?? 0);
+  return Number(r?.total ?? 0) + Number(r?.kit ?? 0);
 }
 
 export async function numeroOsAtual(ex: Executor, eventoId: string): Promise<number> {
@@ -231,7 +232,7 @@ export async function complementoOs(eventoId: string) {
     enviadaPor: enviada.enviadaPor?.nome ?? null,
     diff,
     /** Itens fora do catálogo que entraram depois do envio (não somam peças, mas embarcam). */
-    avulsosNovos: agora.semSetor.filter((a) => !enviada.conteudo.semSetor.some((b) => b.descricao === a.descricao && b.quantidade === a.quantidade)),
+    avulsosNovos: [...agora.semSetor, ...(agora.kit?.semSetor ?? [])].filter((a) => ![...enviada.conteudo.semSetor, ...(enviada.conteudo.kit?.semSetor ?? [])].some((b) => b.descricao === a.descricao && b.quantidade === a.quantidade)),
   };
 }
 export type ComplementoOs = NonNullable<Awaited<ReturnType<typeof complementoOs>>>;

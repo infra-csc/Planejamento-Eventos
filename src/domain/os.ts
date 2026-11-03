@@ -21,6 +21,10 @@ export type LinhaAta = {
   regra?: string | null;
 };
 
+/** Nome da lista à parte (03/11, logística): o Kit recebe em outro local e não se mistura com os demais materiais. */
+export const ROTULO_KIT = "Materiais KIT";
+export const ehAreaKit = (areaNome: string | null | undefined) => areaNome?.trim().toLowerCase() === "kit";
+
 /**
  * O prisma comum são 2 grades 2×1, que a regra do prisma já soma na grade: nas leituras da OS (tela, Excel, folha)
  * ele não sai como item próprio. O prisma aéreo e os outros continuam.
@@ -41,6 +45,7 @@ export function renomearPecasOs(os: OsConteudo, nome: NomeAtual): OsConteudo {
     setores: os.setores.map((s) => ({ ...s, linhas: s.linhas.map((l) => ({ ...l, nome: nome(l.pecaId, l.codigo) ?? l.nome })) })),
     projetos: os.projetos?.map((p) => ({ ...p, pecas: p.pecas.map((x) => ({ ...x, nome: nome(undefined, x.codigo) ?? x.nome })) })),
     individuais: os.individuais?.map((x) => ({ ...x, nome: nome(undefined, x.codigo) ?? x.nome })),
+    ...(os.kit ? { kit: renomearPecasOs(os.kit, nome) } : {}),
   };
 }
 
@@ -91,6 +96,7 @@ export function osParaLeitura(bruta: OsConteudo): OsConteudo {
     ...os,
     setores: os.setores.map((s) => ({ ...s, linhas: semPrismaComum(s.linhas) })).filter((s) => s.linhas.length > 0 || s.avulsos.length > 0),
     individuais: os.individuais ? semPrismaComum(os.individuais) : os.individuais,
+    ...(os.kit ? { kit: osParaLeitura(os.kit) } : {}),
   };
 }
 
@@ -107,7 +113,14 @@ export function descricaoLinha(l: LinhaAta): string {
   return l.descricaoLivre ?? "Item fora do catálogo";
 }
 
+/** A OS do evento: o que a área Kit pediu sai em `kit` e não entra nas somas nem nas listas dos demais materiais. */
 export function calcularOS(linhas: LinhaAta[]): OsConteudo {
+  const os = calcularLista(linhas.filter((l) => !ehAreaKit(l.areaNome)));
+  const kit = linhas.filter((l) => ehAreaKit(l.areaNome) && l.quantidade > 0);
+  return kit.length ? { ...os, kit: calcularLista(kit) } : os;
+}
+
+function calcularLista(linhas: LinhaAta[]): OsConteudo {
   const porSetor = new Map<Setor, Map<string, OsLinha>>();
   const avulsosPorSetor = new Map<Setor, OsSetor["avulsos"]>();
   const semSetor: OsConteudo["semSetor"] = [];
@@ -179,13 +192,14 @@ export function calcularOS(linhas: LinhaAta[]): OsConteudo {
   return { setores, semSetor, projetos: projetosOs, individuais };
 }
 
-export type DiffLinha = { codigo: string; nome: string; setor: Setor; antes: number; depois: number };
+export type DiffLinha = { codigo: string; nome: string; setor: Setor; antes: number; depois: number; /** A peça da lista do Kit, que conta à parte da mesma peça nos demais materiais. */ kit?: boolean };
 
 /** Compara duas versões de OS: o que mudou por peça (MEL-07). */
 export function diffOS(antes: OsConteudo, depois: OsConteudo): DiffLinha[] {
   const idx = (os: OsConteudo) => {
-    const m = new Map<string, { codigo: string; nome: string; setor: Setor; total: number }>();
+    const m = new Map<string, { codigo: string; nome: string; setor: Setor; total: number; kit?: boolean }>();
     for (const s of os.setores) for (const l of s.linhas) m.set(l.pecaId, { codigo: l.codigo, nome: l.nome, setor: s.setor, total: l.total });
+    for (const s of os.kit?.setores ?? []) for (const l of s.linhas) m.set(`kit:${l.pecaId}`, { codigo: l.codigo, nome: `${l.nome} (Kit)`, setor: s.setor, total: l.total, kit: true });
     return m;
   };
   const a = idx(antes);
@@ -199,7 +213,7 @@ export function diffOS(antes: OsConteudo, depois: OsConteudo): DiffLinha[] {
     const depoisQ = lb?.total ?? 0;
     if (antesQ !== depoisQ) {
       const ref = (lb ?? la)!;
-      out.push({ codigo: ref.codigo, nome: ref.nome, setor: ref.setor, antes: antesQ, depois: depoisQ });
+      out.push({ codigo: ref.codigo, nome: ref.nome, setor: ref.setor, antes: antesQ, depois: depoisQ, ...(ref.kit ? { kit: true } : {}) });
     }
   }
   return out.sort((x, y) => x.codigo.localeCompare(y.codigo, "pt-BR"));
@@ -214,7 +228,7 @@ export const RESUMO_SEM_MUDANCA = "sem mudança nas quantidades";
  */
 function resumirDiff(diff: DiffLinha[]): string {
   if (diff.length === 0) return RESUMO_SEM_MUDANCA;
-  const partes = diff.slice(0, 3).map((d) => `${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
+  const partes = diff.slice(0, 3).map((d) => `${d.kit ? "Kit " : ""}${d.codigo} ${d.depois - d.antes > 0 ? "+" : "−"}${Math.abs(d.depois - d.antes)}`);
   const resto = diff.length - 3;
   return partes.join(" · ") + (resto > 0 ? ` · e mais ${resto} ${resto === 1 ? "peça" : "peças"}` : "");
 }
@@ -222,7 +236,7 @@ function resumirDiff(diff: DiffLinha[]): string {
 /** Texto da lista de versões: o que mudou em relação à anterior, ou o tamanho da primeira. */
 export function resumoVersaoOs(anterior: OsConteudo | null, atual: OsConteudo): string {
   if (!anterior) {
-    const n = atual.setores.reduce((a, s) => a + s.linhas.length, 0);
+    const n = [...atual.setores, ...(atual.kit?.setores ?? [])].reduce((a, s) => a + s.linhas.length, 0);
     return `${n} ${n === 1 ? "tipo de peça" : "tipos de peça"}`;
   }
   return resumirDiff(diffOS(anterior, atual));
@@ -280,8 +294,10 @@ export function textoLocais(locais: PecaSoltaAgrupada["locais"]): string {
 }
 
 export function totalPecas(os: OsConteudo): number {
-  return os.setores.reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
+  return [...os.setores, ...(os.kit?.setores ?? [])].reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
 }
+
+const VAZIA: OsConteudo = { setores: [], semSetor: [] };
 
 /** Igualdade semântica entre duas OS (JSONB não preserva a ordem das chaves, então não dá para comparar strings). */
 export function osIguais(a: OsConteudo, b: OsConteudo): boolean {
@@ -291,5 +307,5 @@ export function osIguais(a: OsConteudo, b: OsConteudo): boolean {
       .map((x) => `${x.descricao}|${x.quantidade}|${x.destino ?? ""}|${x.area ?? ""}`)
       .sort()
       .join("\n");
-  return chave(a) === chave(b);
+  return chave(a) === chave(b) && chave(a.kit ?? VAZIA) === chave(b.kit ?? VAZIA);
 }

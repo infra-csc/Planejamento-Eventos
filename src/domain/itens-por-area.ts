@@ -24,6 +24,7 @@ const TENDAS: ListaDaArea = {
 };
 
 const LISTAS: Record<string, ListaDaArea[]> = {
+  kit: [TENDAS],
   producao: [
     { titulo: "Percurso", codigos: ["CAV-TRANSITO", "COCHO", "CAV-COCHO", "CONE-G", "CONE-P", "RAMPA-MAD", "PRISMA"] },
     { titulo: "Arena", codigos: ["PALETEIRA", "GERADOR", "CARRINHO-PLAT", "LIXEIRA-ARAM", "LIXEIRA-BAG", "MESA-1X1", "TINA-500", "CAV-RETO"] },
