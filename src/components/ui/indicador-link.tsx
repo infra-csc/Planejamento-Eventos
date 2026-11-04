@@ -18,7 +18,7 @@ export function IndicadorLink({ className, lugar = "ao-lado", fundo = "bg-white/
   const { pending } = useLinkStatus();
   useSinalizarNavegacao(pending);
   const visivel = pending ? "opacity-100 delay-100" : "opacity-0";
-  if (lugar === "sublinhado") return <span aria-hidden className={cn("pointer-events-none absolute inset-x-0 -bottom-0.5 h-0.5 bg-accent transition-opacity duration-150", pending && "animate-esqueleto", visivel, className)} />;
+  if (lugar === "sublinhado") return <span aria-hidden className={cn("pointer-events-none absolute inset-x-0 -bottom-0.5 h-0.5 bg-marca transition-opacity duration-150", pending && "animate-esqueleto", visivel, className)} />;
   if (lugar === "sobre")
     return (
       <span aria-hidden className={cn("pointer-events-none absolute inset-0 grid place-items-center rounded-[inherit] text-ink-2 transition-opacity duration-150", fundo, visivel, className)}>

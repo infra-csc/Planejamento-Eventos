@@ -94,7 +94,7 @@ export function NovaArenaForm({ eventos, arenas, eventoInicial }: { eventos: Eve
                 key={o.valor}
                 className={cn(
                   "flex cursor-pointer gap-2.5 rounded-cartao border px-cartao py-3 transition-colors duration-150 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent max-md:min-h-10",
-                  partida === o.valor ? "border-accent bg-accent-bg" : "border-line bg-surface hover:bg-subtle",
+                  partida === o.valor ? "border-marca bg-accent-bg" : "border-line bg-surface hover:bg-subtle",
                   o.valor === "copiar" && arenas.length === 0 && "cursor-not-allowed opacity-60 hover:bg-surface",
                 )}
               >

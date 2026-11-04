@@ -111,7 +111,7 @@ function geometriaPessoa() {
   return g;
 }
 
-const CORES_ROUPA = [0x2f3a4a, 0x8e2740, 0xe9e5df, 0x4f4849, 0x5e7d6a, 0x3d6b82, 0xc9b27c, 0x6b4f57];
+const CORES_ROUPA = [0x2f3a4a, 0xf06a2a, 0xe9e5df, 0x4f4849, 0x5e7d6a, 0x3d6b82, 0xc9b27c, 0x6b4f57];
 
 function sementeira(semente: number) {
   let s = semente;

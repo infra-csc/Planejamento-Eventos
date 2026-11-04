@@ -1,4 +1,4 @@
-# Design system — Planejamento de Eventos
+# Design system — NorteLog
 
 Base visual e de interação do app. Os tokens vivem em `src/app/globals.css` (bloco `@theme`); os
 componentes, em `src/components/ui/*` e `src/components/shell/*`. Este documento diz **o que usar e
@@ -6,7 +6,8 @@ quando**. Regra geral: se um valor não tem token, ou ele não deveria existir, 
 proponha o token aqui antes de escrever `text-[13px]` ou `#abc123` numa página.
 
 Referência de maturidade: produtos SaaS sóbrios (densidade de informação alta, pouca cor, estado
-sempre visível). Não copiamos nenhum.
+sempre visível). Não copiamos nenhum. Marca: kit final do NorteLog (03/11/2026), grafite `#242424` e laranja `#F06A2A`;
+os arquivos ficam em `public/` e o redesign é acompanhado em `docs/redesign/`.
 
 ---
 
@@ -16,33 +17,40 @@ sempre visível). Não copiamos nenhum.
 
 | Papel | Token (classe) | Valor | Uso |
 |---|---|---|---|
-| Fundo da página | `page` | `#f1efee` | fundo atrás dos cartões |
+| Fundo da página | `page` | `#f0f1f2` | fundo atrás dos cartões |
 | Superfície | `surface` | `#ffffff` | cartões, modais, campos |
-| Superfície sutil | `subtle` | `#faf8f8` | cabeçalho de tabela, rodapé de cartão/modal, hover de linha |
-| Selecionado | `selected` | `#faf6f6` | linha escolhida, notificação não lida |
-| Trilho de controle | `control` | `#e9e4e3` | trilho das pílulas, chip de contador neutro |
-| Tinta 1 | `ink` | `#2a1418` | texto principal, títulos |
-| Tinta 2 | `ink-2` | `#4f4849` | texto de corpo secundário, rótulos de campo |
-| Tinta 3 | `ink-3` | `#6d6566` | ícones, abas inativas, texto de apoio |
-| Apoio | `muted` / `meta` | `#6b6263` / `#6f6366` | descrição, metadado, placeholder |
+| Superfície sutil | `subtle` | `#f6f7f7` | cabeçalho de tabela, rodapé de cartão/modal, hover de linha, notificação não lida |
+| Selecionado | `selected` | `#fff4ea` | linha escolhida |
+| Trilho de controle | `control` | `#e4e6e7` | trilho das pílulas, chip de contador neutro |
+| Tinta 1 | `ink` | `#242424` | texto principal, títulos |
+| Tinta 2 | `ink-2` | `#45484a` | texto de corpo secundário, rótulos de campo |
+| Tinta 3 | `ink-3` | `#63676a` | ícones, abas inativas, texto de apoio |
+| Apoio | `muted` / `meta` | `#63676a` | descrição, metadado, placeholder |
 | Linhas | `line`, `line-strong`, `line-soft`, `line-row`, `line-faint` | | divisórias (da mais forte à mais fraca) |
-| Borda de campo | `line-control` | `#958b8d` | borda de input/select (3:1, WCAG 1.4.11) |
-| **Marca** | `accent` / `accent-hover` | `#8e2740` / `#6d1d31` | **só** ação principal, seleção (aba/página atual, item escolhido) e anel de foco |
-| Marca suave | `accent-bg`, `accent-border`, `accent-light` | | fundo de seleção; `accent-light` é a marca sobre fundo escuro |
+| Borda de campo | `line-control` | `#868b8e` | borda de input/select (3:1, WCAG 1.4.11) |
+| **Marca** | `marca` / `marca-hover`, com `on-marca` | `#f06a2a` / `#f4804b`, `#242424` | **fundo** de ação principal, item escolhido e detalhes. O texto em cima é sempre grafite (`on-marca`) |
+| Marca legível | `accent` / `accent-hover` | `#b8460f` / `#963809` | **texto**, link e anel de foco sobre fundo claro. O laranja do logo não passa como texto (3,09:1) |
+| Marca suave | `accent-bg`, `accent-border`, `accent-light` | | fundo de seleção; `accent-light` é o laranja sobre o grafite |
 | Sucesso | `success`, `success-bg`, `success-border` | `#136c41` | concluído, atendido, conferido |
 | Atenção | `warning`, `warning-bg`, `warning-border` | `#7a5f00` | aguardando, em análise, parcial, ajustado |
-| Erro | `danger`, `danger-bg`, `danger-border`, `danger-input` | `#a8400f` | erro, atraso, recusa, ação destrutiva (laranja-queimado: o vinho da marca é vizinho do vermelho) |
+| Erro | `danger`, `danger-bg`, `danger-border`, `danger-input` | `#b3261e` | erro, atraso, recusa, ação destrutiva. Vermelho: laranja aqui seria lido como a marca |
 | Informação | `info`, `info-bg`, `info-border` | `#2f6680` | em andamento, enviado, informativo |
-| Neutro | `neutral-bg` | `#f0eceb` | selo neutro, rascunho, cancelado |
-| Escuro | `dark`, `dark-2..4`, `on-dark-2..4` | | banner escuro, toast, cartão "como funciona" |
+| Neutro | `neutral-bg` | `#eceeef` | selo neutro, rascunho, cancelado |
+| Escuro | `dark`, `dark-2..4`, `on-dark-2..4` | `#242424`… | menu lateral, banner escuro, toast |
 | Véu | `scrim`, `scrim-forte` | | atrás de modal/gaveta/busca; lightbox |
 
-**Regra da marca:** o vinho não indica estado. "Enviada", "Aberto", "Na ata" usam `info`; o vinho fica
+**Regra da marca:** o laranja não indica estado. "Enviada", "Aberto", "Na ata" usam `info`; o laranja fica
 para "é aqui que você age" e "é isto que está escolhido".
+
+**Marca sem parecer o Miró (sistema da gráfica, com grafite e laranja quase iguais).** O que nos diferencia, e não
+deve ser desfeito: menu lateral grafite; botão principal laranja com texto grafite; cinza neutro, sem tom quente;
+cantos retos (6 px); títulos em fonte condensada; canto triangular do símbolo no item escolhido. Do Miró, evite:
+botão quase preto, fundo off-white quente, menu branco, Space Grotesk, raio de 9 px, pílulas coloridas e modal de
+trabalho com cabeçalho escuro.
 
 ### 1.2 Tipografia — 6 papéis (+ métrica)
 
-Fonte: Geist (sans) para tudo; Roboto Mono **só para códigos** (SOL-0001, EVT-0002, código de peça,
+Fonte: Barlow Condensed 600 (`font-titulo`) em títulos e números de painel, conversando com o nome no logo: `text-manchete` 32/36 (h1 de módulo), `text-manchete-sm` 26/30 (h1 de detalhe), `text-dialogo` 22/26 (título de diálogo e subpágina), `text-bloco` 19/24 (título de cartão), `text-indicador` 34/38 (número de painel). Geist (sans) para o resto; Roboto Mono **só para códigos** (SOL-0001, EVT-0002, código de peça,
 versão v3) e teclas (`Kbd`). Nada abaixo de 11.5 px. Sem degraus de meio pixel.
 
 | Papel | Classe | Tamanho / altura de linha | Uso |
@@ -76,8 +84,8 @@ grandes com `tracking-[-0.02em]`.
 
 - Espaço: escala do Tailwind (4 px). Recorrentes: `px-cartao` (18 px, recuo lateral de cartão/tabela),
   `top-topo-fixo` (76 px, painel fixo sob o cabeçalho). Entre blocos de página: `mb-4`/`mb-5`.
-- Raio: `rounded-chip` 5 (selo, chip) · `rounded-controle` 8 (botão, campo, pílula, item de menu) ·
-  `rounded-cartao` 10 (cartão, popover, toast) · `rounded-modal` 12 (modal, busca).
+- Raio: `rounded-chip` 3 (selo, chip) · `rounded-controle` 5 (botão, campo, pílula, item de menu) ·
+  `rounded-cartao` 6 (cartão, popover, toast) · `rounded-modal` 8 (modal, busca).
 - Sombra: `shadow-pill` (pílula ativa) · `shadow-popover` (menu, lista, painel do sino) · `shadow-modal` · `shadow-toast`.
   Cartões não têm sombra — têm borda `line`.
 - Camadas (utilitário z-index com as variáveis --z-header, --z-tela-cheia, --z-popover, --z-busca, --z-dialogo, --z-toast, --z-progresso): header 20 · tela-cheia 50 · popover 55 · busca 60 · diálogo 65 · toast 70 · progresso 75.
@@ -111,15 +119,15 @@ conjunto; prefira `<Icone>` em código novo. Não desenhe `<svg>` à mão em pá
 
 | Variante | Quando | Aparência |
 |---|---|---|
-| `primary` | **a** ação da tela/diálogo (Salvar, Enviar, Nova solicitação). No máximo **uma** por área visível. | vinho, texto branco; hover vinho escuro |
+| `primary` | **a** ação da tela/diálogo (Salvar, Enviar, Nova solicitação). No máximo **uma** por área visível. | laranja da marca, texto grafite semibold; hover mais claro |
 | `secondary` | ações de apoio (Cancelar, Exportar, Responder em sequência) | branco com contorno |
 | `ghost` | ações terciárias, barras de ferramentas, "mais opções" | sem fundo; hover cinza |
-| `link` | ação dentro de uma frase ou rodapé ("Limpar", "Ver todas") | texto vinho, sublinha no hover (o `.link` de texto fica sempre sublinhado, § 7) |
+| `link` | ação dentro de uma frase ou rodapé ("Limpar", "Ver todas") | texto `accent`, sublinha no hover (o `.link` de texto fica sempre sublinhado, § 7) |
 | `dark` | neutro de peso, para usos específicos (o antigo primary escuro) — ex.: ação forte ao lado de um primary | escuro, texto branco |
-| `danger` | confirmar ação destrutiva (dentro do diálogo) | laranja-queimado cheio |
-| `dangerOutline` | gatilho de ação destrutiva (abre a confirmação) | contorno laranja |
+| `danger` | confirmar ação destrutiva (dentro do diálogo) | vermelho cheio |
+| `dangerOutline` | gatilho de ação destrutiva (abre a confirmação) | contorno vermelho |
 | `atender` / `parcial` / `recusar` | resposta de item (semânticas) | fundo suave da cor |
-| `onDark` / `pink` / `bloqueado` | sobre superfície escura (banner, cartão escuro) | foco em rosa |
+| `onDark` / `pink` / `bloqueado` | sobre superfície escura (banner, cartão escuro; `pink` é laranja da marca com texto grafite, o nome ficou do tema antigo) | foco em `accent-light` |
 
 Tamanhos: `xs` 27 · `sm` 30 · `md` 34 · `lg` 36 · `xl` 38 · `full` 42 (px, desktop). **Abaixo de `md`
 todo botão tem no mínimo 40 px** (`max-md:min-h-10`), exceto `link`.
@@ -227,7 +235,7 @@ depende de um item escolhido some, e a lista ocupa a largura.
 
 ## 6. Carregamento na navegação
 
-- Barra fina (2 px, vinho) no topo do shell sempre que uma navegação passa de 120 ms: clique em link interno,
+- Barra fina (2 px, laranja da marca) no topo do shell sempre que uma navegação passa de 120 ms: clique em link interno,
   aba, pílula, página, ordenação, linha clicável, busca e filtro na URL (`shell/barra-navegacao.tsx`).
 - Indicador local no item clicado (via `useLinkStatus` do `next/link`): aba pulsa o sublinhado; pílula,
   página e ordenação mostram spinner por cima; item do menu troca o ícone por spinner; linha esmaece.
@@ -249,8 +257,8 @@ depende de um item escolhido some, e a lista ocupa a largura.
 - **Links de texto** (`.link`) ficam sempre sublinhados (traço da marca a 40 %, cheio no hover): só a cor não separa o link
   do texto em volta (WCAG 1.4.1).
 - **Tabela que rola de lado:** `TabelaRolavel rotulo="…"` — região com nome que entra no Tab, para rolar pelo teclado.
-- **Superfície escura** (`BannerEscuro`, `Section tom="dark"`): todo foco dentro dela usa o anel rosa (`accent-light`);
-  o vinho sobre o escuro dá 1,87:1.
+- **Superfície escura** (`BannerEscuro`, `Section tom="dark"`): todo foco dentro dela (e no menu lateral) usa o anel `accent-light`;
+  o `accent` sobre o escuro não tem contraste.
 - **Texto e sinais em cinza claro:** `line-*` é só para linhas e bordas. "—" de valor vazio e texto esmaecido usam
   `text-meta` (5,75:1), nunca `text-line-strong` (1,5:1) nem `opacity-60` sobre texto. Estado (inativo, escolhido, prazo)
   nunca só pela cor: junte texto, ícone ou forma.
@@ -269,30 +277,27 @@ depende de um item escolhido some, e a lista ocupa a largura.
 
 | Texto / elemento | Fundo | Razão |
 |---|---|---|
-| branco (botão primary) | `accent` #8e2740 | 8.35 |
-| branco (primary hover/active) | `accent-hover` #6d1d31 | 11.23 |
-| `accent` (link, aba, Tag) | branco / `page` / `selected` | 8.35 / 7.29 / 7.79 |
-| `accent` (contador ativo, página atual) | `accent-bg` | 6.93 |
-| anel de foco `accent` | branco / `page` | 8.35 / 7.29 (≥ 3) |
-| anel de foco `accent-light` | `dark` | 6.03 (≥ 3) |
-| `ink` (botão pink) | `accent-light` | 6.03 |
+| `on-marca` grafite (botão primary) | `marca` #f06a2a / `marca-hover` | 5.03 / 5.94 |
+| ✗ branco sobre `marca`, `marca` como texto sobre branco | | 3.09: **não use** para texto |
+| `accent` (link, Tag) | branco / `page` / `selected` | 5.36 / 4.74 / 4.94 |
+| `accent` (contador ativo, página atual) | `accent-bg` | 4.76 |
+| `marca` como detalhe gráfico (sublinhado de aba, trilho de fase, com texto junto) | `page` / branco | 2.73 / 3.09: nunca como único sinal |
+| anel de foco `accent` | branco / `page` | 5.36 / 4.74 (≥ 3) |
+| anel de foco e item ativo `accent-light` | `dark` / `dark-2` | 5.03 / 3.99 (≥ 3) |
+| branco (item ativo do menu) | `dark-2` | 12.33 |
+| `on-dark-2` / `on-dark-3` / `on-dark-4` (menu) | `dark` | 9.53 / 7.70 / 6.12 |
 | `info` (Badge/Aviso info) | `info-bg` / branco | 5.36 / 6.30 |
-| `success` | `success-bg` / branco / `subtle` | 5.75 / 6.46 / 6.11 |
-| `warning` | `warning-bg` / branco / `subtle` | 5.33 / 6.06 / 5.73 |
-| `danger` | `danger-bg` / branco / `subtle` | 5.42 / 6.17 / 5.83 |
-| branco (botão danger, toast de erro) | `danger` | 6.17 |
-| `ink-2` (Badge neutro) | `neutral-bg` / branco | 7.60 / 8.91 |
-| `ink-3` (Tag, ícones) | branco / `subtle` / `neutral-bg` | 5.67 / 5.36 / 4.83 |
-| `ink-3` (ChipMono `control`) | `control` | 4.50 (no limite; não escureça o trilho) |
-| `muted` (Badge muted, descrições) | `neutral-bg` / `subtle` / `page` | 5.04 / 5.59 / 5.16 |
-| `meta` (contador de pílula, placeholder) | `control` / branco / `page` | 4.56 / 5.75 / 5.02 |
-| `success-light` (ícone do toast de sucesso) | `dark` | 9.48 |
-| `on-dark-2` / `on-dark-3` | `dark` | 8.67 / 7.19 |
-| branco (toast) | `dark` | 17.33 |
-| borda de campo `line-control` | branco | 3.30 (≥ 3) |
-| anel de foco de campo (`accent`, 2 px com a borda) | branco | 8.35 (≥ 3) |
-| `meta` ("—" de valor vazio) | branco / `subtle` | 5.75 / 5.43 |
-| ✗ `line-strong` como texto ou borda de caixa de seleção | branco | 1.50 — **não use** para texto nem controle |
+| `success` | `success-bg` / branco / `subtle` | 5.75 / 6.46 / 6.02 |
+| `warning` | `warning-bg` / branco / `subtle` | 5.33 / 6.06 / 5.65 |
+| `danger` | `danger-bg` / branco / `subtle` | 5.48 / 6.54 / 6.09 |
+| branco (botão danger, toast de erro) | `danger` | 6.54 |
+| `ink-2` (Badge neutro) | `neutral-bg` / branco | 7.92 / 9.22 |
+| `ink-3` (Tag, ícones) | branco / `subtle` / `neutral-bg` / `page` | 5.71 / 5.32 / 4.90 / 5.05 |
+| `ink-3` (ChipMono `control`) | `control` | 4.56 |
+| `success-light` (ícone do toast de sucesso) | `dark` | 8.49 |
+| branco (toast) | `dark` | 15.52 |
+| borda de campo `line-control` | branco | 3.44 (≥ 3) |
+| ✗ `line-strong` como texto ou borda de caixa de seleção | branco | abaixo de 3: **não use** para texto nem controle |
 
 ---
 
@@ -323,7 +328,8 @@ depende de um item escolhido some, e a lista ocupa a largura.
 | 30/10 | "+" nos botões de criar (nº 115) | Todo botão de criação leva o "+". | 4 telas com e 4 sem. |
 | 30/10 | Rodapé de diálogo (nº 132) | Um tamanho: 36 px (`lg`). | Formulários em 34 e confirmações em 36. |
 | 30/10 | Link de texto (nº 62) | Sempre sublinhado, discreto. | Contraste 1,06:1 entre link e texto (WCAG 1.4.1). |
-| **pendente** | Menu lateral claro × escuro do handoff (nº 56) | **Não decidido — não trocar o tema.** Hoje o menu é claro; o handoff e `docs/02-entregaveis.md` falam em "barra lateral escura". A equipe decide; depois registrar aqui, no design-log, e atualizar o entregável. | O relatório pede decidir antes de mexer, sem recomendar um lado. |
+| 03/11 | Menu lateral claro × escuro (nº 56) | **Escuro**, em grafite, com logo branco e canto triangular da marca no item escolhido. | Decisão do dono do produto ao aprovar a prévia do redesign; também separa o NorteLog do Miró, de menu branco. |
+| 03/11 | Cor de erro | **Vermelho** `#b3261e`, em vez de laranja-queimado. | A marca virou laranja: erro laranja seria lido como marca. |
 | **pendente** | Acentos nas planilhas Excel no modelo da cenografia (nº 84) | **Não mudar** até a cenografia confirmar ("ATA DE REUNIAO", "RESPONSAVEL PELA O.S", "SOMATORIA" copiam a planilha deles). As outras exportações seguem o glossário (§ 10). | Recomendado acentuar, só depois de confirmar com a equipe. |
 
 ---

@@ -3,7 +3,7 @@ import type ExcelJS from "exceljs";
 type TemaTabela = NonNullable<ExcelJS.TableProperties["style"]>["theme"];
 
 /** Paleta do app em ARGB, para as pastas Excel ficarem com a mesma cara do sistema. */
-export const COR = { vinho: "FF8E2740", escuro: "FF2A1418", cinza: "FFF0ECEB", linha: "FFE4DEDD", texto2: "FF6B6263", branco: "FFFFFFFF", claro: "FFFAF8F8" };
+export const COR = { marca: "FFB8460F", escuro: "FF242424", cinza: "FFECEEEF", linha: "FFDCDFE0", texto2: "FF63676A", branco: "FFFFFFFF", claro: "FFFAF8F8" };
 
 export const CHECK = "☐";
 
@@ -22,14 +22,14 @@ export function faixaTitulo(ws: ExcelJS.Worksheet, cols: number, empresa: string
   ws.mergeCells(2, 1, 2, cols);
   ws.mergeCells(3, 1, 3, cols);
   ws.getCell(1, 1).value = empresa;
-  ws.getCell(1, 1).font = { bold: true, size: 9, color: { argb: "FFE0798F" } };
+  ws.getCell(1, 1).font = { bold: true, size: 9, color: { argb: "FFF06A2A" } };
   ws.getCell(1, 1).alignment = { vertical: "middle", indent: 1 };
   ws.getCell(2, 1).value = titulo;
   ws.getCell(2, 1).font = { bold: true, size: 18, color: { argb: COR.branco } };
   ws.getCell(2, 1).alignment = { vertical: "middle", indent: 1 };
   ws.getRow(2).height = 30;
   ws.getCell(3, 1).value = subtitulo;
-  ws.getCell(3, 1).font = { size: 10, color: { argb: "FFD9CDD0" } };
+  ws.getCell(3, 1).font = { size: 10, color: { argb: "FFC9CBCC" } };
   ws.getCell(3, 1).alignment = { vertical: "middle", indent: 1 };
   ws.getRow(3).height = 18;
   return 5;
@@ -60,7 +60,7 @@ export function blocoDados(ws: ExcelJS.Worksheet, linha: number, col: number, pa
 export function tituloSecao(ws: ExcelJS.Worksheet, linha: number, cols: number, texto: string, sub?: string) {
   const c = ws.getCell(linha, 1);
   c.value = texto;
-  c.font = { bold: true, size: 12, color: { argb: COR.vinho } };
+  c.font = { bold: true, size: 12, color: { argb: COR.marca } };
   c.alignment = { vertical: "middle" };
   ws.mergeCells(linha, 1, linha, cols);
   ws.getRow(linha).height = 22;

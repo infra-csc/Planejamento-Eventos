@@ -296,7 +296,7 @@ function LocalTenda({
         </div>
         <span className="hidden justify-end md:flex" aria-live="polite">
           {situacao === "salvando" ? (
-            <span className="size-3.5 animate-spin rounded-full border-2 border-line-strong border-t-accent" role="status" aria-label="Salvando" />
+            <span className="size-3.5 animate-spin rounded-full border-2 border-line-strong border-t-marca" role="status" aria-label="Salvando" />
           ) : situacao === "salvo" ? (
             <span role="status" aria-label="Salvo" title="Salvo e conferido">
               <Icone nome="check-circulo" className="size-4 text-success" />

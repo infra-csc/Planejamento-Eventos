@@ -32,7 +32,7 @@ export function VersoesOs({ versoes }: { versoes: VersaoOsView[] }) {
           key={v.numero}
           className={cn(
             "relative border-b border-l-2 border-line-row border-l-transparent py-3 pl-4 pr-cartao transition-colors duration-150 last:border-b-0 hover:bg-subtle",
-            v.exibida && "border-l-accent bg-selected",
+            v.exibida && "border-l-marca bg-selected",
             !v.exibida && v.base && "border-l-accent-muted",
           )}
         >

@@ -146,7 +146,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   /* ---------- Pedidos das áreas ---------- */
   if (ata.solicitacoesPreReuniao.length > 0) {
     const ws2 = wb.addWorksheet("Pedidos das áreas", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-    faixaTitulo(ws2, 7, "NORTE MKT", "Pedidos das áreas", `${cab} · o que cada área enviou antes da reunião`);
+    faixaTitulo(ws2, 7, "NORTELOG", "Pedidos das áreas", `${cab} · o que cada área enviou antes da reunião`);
     tabela(
       ws2,
       "PedidosAreas",

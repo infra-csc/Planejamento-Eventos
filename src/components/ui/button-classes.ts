@@ -31,7 +31,7 @@ export type ButtonVariant =
 export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "full";
 
 const variantes: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white border-accent hover:bg-accent-hover hover:border-accent-hover active:bg-accent-hover",
+  primary: "bg-marca text-on-marca border-marca font-semibold hover:bg-marca-hover hover:border-marca-hover active:bg-marca-hover",
   secondary: "bg-surface text-ink border-line-strong hover:bg-subtle hover:border-line-control active:bg-neutral-bg",
   ghost: "bg-transparent text-ink-2 border-transparent hover:bg-black/[0.04] hover:text-ink active:bg-black/[0.07]",
   link: "bg-transparent border-transparent text-accent hover:text-accent-hover hover:underline underline-offset-2",

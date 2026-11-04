@@ -120,7 +120,7 @@ export function PecaForm({
           {valores.id ? "Salvar" : "Cadastrar peça"}
         </SubmitButton>
         <ButtonLink href={cancelarHref} variant="ghost" size="lg" className="no-underline">
-          Cancelar
+          Voltar sem salvar
         </ButtonLink>
       </div>
     </ActionForm>

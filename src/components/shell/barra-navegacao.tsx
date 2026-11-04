@@ -49,7 +49,7 @@ export function BarraNavegacao() {
 
   return (
     <div aria-hidden className={cn("no-print pointer-events-none fixed inset-x-0 top-0 z-[var(--z-progresso)] h-0.5 overflow-hidden transition-opacity duration-150", visivel ? "opacity-100" : "opacity-0")}>
-      <div className={cn("h-full w-2/5 bg-accent motion-reduce:w-full motion-reduce:opacity-60", visivel && "animate-progresso motion-reduce:animate-none")} />
+      <div className={cn("h-full w-2/5 bg-marca motion-reduce:w-full motion-reduce:opacity-60", visivel && "animate-progresso motion-reduce:animate-none")} />
     </div>
   );
 }

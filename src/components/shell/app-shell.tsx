@@ -8,7 +8,6 @@ import { iniciais } from "@/lib/format";
 import { PERFIL_LABEL } from "@/domain/permissions";
 import type { UsuarioAtual } from "@/server/auth/autorizacao";
 import { Dropdown, DropdownContent, DropdownItem, DropdownLabel, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
-import { ChipMono } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/layout";
 import { Icone, Spinner, type NomeIcone } from "@/components/ui/icons";
@@ -81,18 +80,19 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
       title={compacto ? `${item.label}${temContagem ? ` (${item.contagem})` : ""}` : undefined}
       className={cn(
         "relative flex w-full items-center gap-2.5 rounded-controle border border-transparent py-2 text-corpo no-underline transition-colors duration-150 max-lg:min-h-10",
-        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-light",
         compacto ? "justify-center px-0" : "px-2.5",
-        ativo ? "bg-control font-medium text-ink [&_svg]:text-accent" : "text-ink-2 hover:bg-subtle hover:text-ink [&_svg]:text-ink-3 hover:[&_svg]:text-ink-2",
+        ativo ? "bg-dark-2 font-semibold text-white [&_svg]:text-marca" : "text-on-dark-2 hover:bg-dark-4 hover:text-white [&_svg]:text-on-dark-4 hover:[&_svg]:text-on-dark-2",
       )}
     >
+      {ativo && <span aria-hidden className="canto-marca" />}
       <IconeNav href={item.href} />
       <span className={cn("flex-1 text-left", compacto && "sr-only")}>{item.label}</span>
-      {temContagem && !compacto && <ChipMono tom="accent">{item.contagem}</ChipMono>}
+      {temContagem && !compacto && <span className="numero rounded-chip bg-marca px-1.5 py-px text-rotulo font-semibold text-on-marca">{item.contagem}</span>}
       {/* Recolhido, o ponto é só visual: o número vai em texto para o leitor de tela (auditoria 28/10, nº 138). */}
       {temContagem && compacto && (
         <>
-          <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-accent" />
+          <span aria-hidden className="absolute right-2.5 top-2 size-[7px] rounded-full bg-marca" />
           <span className="sr-only">{` (${item.contagem})`}</span>
         </>
       )}
@@ -225,7 +225,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           if ((e.target as HTMLElement).closest("a")) fecharMenu(false);
         }}
         className={cn(
-          "no-print flex h-screen w-[236px] shrink-0 flex-col border-r border-line bg-surface transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0",
+          "no-print flex h-screen w-[236px] shrink-0 flex-col border-r border-dark bg-dark transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0 [&_:focus-visible]:!outline-accent-light",
           recolhido ? "lg:w-[64px]" : "lg:w-[200px] xl:w-[236px]",
           "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-[calc(var(--z-busca)+1)] max-lg:shadow-popover",
           // Fechada no mobile: fora da tela e fora do Tab/leitor de tela (invisible some depois da transição).
@@ -234,11 +234,11 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
       >
         <div className={cn("flex items-center pb-[18px] pt-5", recolhido ? "lg:flex-col lg:gap-3 lg:px-0" : "gap-2 pl-cartao pr-3")}>
           <Link href="/" title="NorteLog" aria-label="NorteLog, página inicial" className="flex min-w-0 flex-1 items-center no-underline">
-            {/* Menu aberto: o logo inteiro. Recolhido (só no desktop): o selo, que cabe no trilho. O favicon é src/app/icon.svg. */}
+            {/* Sobre o grafite, as versões brancas do kit. Menu aberto: o logo inteiro. Recolhido (só no desktop): o símbolo. O favicon é src/app/icon.svg. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-nortelog.svg" alt="" aria-hidden width={160} height={32} className={cn("block h-auto w-full max-w-[160px]", recolhido && "lg:hidden")} />
+            <img src="/logo-nortelog-branco.svg" alt="" aria-hidden width={160} height={32} className={cn("block h-auto w-full max-w-[160px]", recolhido && "lg:hidden")} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/selo-app.svg" alt="" aria-hidden width={32} height={32} className={cn("size-8 shrink-0", recolhido ? "hidden lg:block" : "hidden")} />
+            <img src="/nortelog-simbolo-branco.svg" alt="" aria-hidden width={32} height={32} className={cn("size-8 shrink-0", recolhido ? "hidden lg:block" : "hidden")} />
           </Link>
           {/* Recolher/expandir: só no desktop (abaixo de lg a sidebar é gaveta). */}
           <button
@@ -247,7 +247,7 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             aria-pressed={recolhido}
             aria-label="Recolher menu"
             title={recolhido ? "Expandir menu" : "Recolher menu"}
-            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-ink-3 transition-colors duration-150 hover:bg-subtle hover:text-ink lg:grid"
+            className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-on-dark-3 transition-colors duration-150 hover:bg-dark-4 hover:text-white lg:grid"
           >
             <Icone nome={recolhido ? "expandir" : "recolher"} />
           </button>
@@ -259,30 +259,30 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           title={recolhido ? "Buscar ou executar (Ctrl K)" : undefined}
           aria-label={recolhido ? "Buscar ou executar" : undefined}
           className={cn(
-            "mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-line bg-subtle py-2 text-corpo text-ink-3 transition-colors duration-150 hover:border-line-strong hover:text-ink-2 max-lg:min-h-10",
+            "mb-3.5 flex cursor-pointer items-center gap-2 rounded-controle border border-dark-3 bg-dark-4 py-2 text-corpo text-on-dark-3 transition-colors duration-150 hover:border-on-dark-4 hover:text-white max-lg:min-h-10",
             recolhido ? "mx-2.5 justify-center px-0" : "mx-3 px-2.5",
           )}
         >
           <Icone nome="busca" />
-          {/* Uma linha só ao lado do atalho (quebrava em 2 a 1280/1440); no celular, sem o "Ctrl K" (sem teclado). Auditoria 28/10, nº 112 e 130. */}
-          <span className={cn("min-w-0 flex-1 truncate whitespace-nowrap text-left", recolhido && "lg:sr-only")}>Buscar ou executar</span>
+          {/* "Buscar" à vista (o texto inteiro cortava em "Buscar ou exe…" ao lado do atalho); o resto fica para o leitor de tela. No celular, sem o "Ctrl K". */}
+          <span className={cn("min-w-0 flex-1 truncate whitespace-nowrap text-left", recolhido && "lg:sr-only")}>Buscar<span className="sr-only"> ou executar</span></span>
           <span className={cn("max-lg:hidden", recolhido && "lg:hidden")}>
-            <Kbd>
+            <Kbd escuro>
               <AtalhoBusca />
             </Kbd>
           </span>
         </button>
 
-        <nav aria-label="Principal" className={cn("flex-1 overflow-y-auto", recolhido ? "px-2.5" : "px-3")}>
+        <nav aria-label="Principal" className={cn("flex-1 overflow-y-auto [scrollbar-color:var(--color-dark-3)_transparent]", recolhido ? "px-2.5" : "px-3")}>
           {nav.map((item, i) => {
             const mostrarSecao = item.secao && nav.slice(0, i).every((n) => n.secao !== item.secao);
             return (
               <div key={item.href}>
                 {mostrarSecao &&
                   (recolhido ? (
-                    <hr className="mx-2 my-2.5 border-0 border-t border-line" />
+                    <hr className="mx-2 my-2.5 border-0 border-t border-dark-3" />
                   ) : (
-                    <p className="mb-1.5 mt-[18px] px-2.5 text-micro font-semibold uppercase tracking-[0.14em] text-meta">{item.secao}</p>
+                    <p className="mb-1.5 mt-[18px] px-2.5 text-micro font-semibold uppercase tracking-[0.14em] text-on-dark-4">{item.secao}</p>
                   ))}
                 <ItemNav item={item} ativo={estaAtivo(item)} compacto={recolhido} />
               </div>
@@ -290,15 +290,15 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           })}
         </nav>
 
-        <div className={cn("flex items-center gap-2.5 border-t border-line py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
-          <p className={cn("m-0 min-w-0 flex-1 truncate whitespace-nowrap text-rotulo text-meta", recolhido && "lg:sr-only")}>
+        <div className={cn("flex items-center gap-2.5 border-t border-dark-3 py-3", recolhido ? "flex-col px-2" : "px-cartao")}>
+          <p className={cn("m-0 min-w-0 flex-1 truncate whitespace-nowrap text-rotulo text-on-dark-4", recolhido && "lg:sr-only")}>
             <Atualizado key={pathname} /> · v0.2
           </p>
           <form action={logoutAction}>
             <button
               type="submit"
               title="Sair"
-              className="flex cursor-pointer items-center gap-1.5 rounded-controle border-0 bg-transparent px-1.5 py-1 text-rotulo text-ink-3 transition-colors duration-150 hover:bg-subtle hover:text-ink max-lg:min-h-10"
+              className="flex cursor-pointer items-center gap-1.5 rounded-controle border-0 bg-transparent px-1.5 py-1 text-rotulo text-on-dark-3 transition-colors duration-150 hover:bg-dark-4 hover:text-white max-lg:min-h-10"
             >
               <Icone nome="sair" />
               <span className={cn(recolhido && "sr-only")}>Sair</span>

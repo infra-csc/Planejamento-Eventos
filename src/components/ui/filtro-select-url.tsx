@@ -34,7 +34,7 @@ export function FiltroSelectUrl({ param, opcoes, rotulo, todas, className }: { p
         onValueChange={ir}
         aria-label={rotulo}
         ordenarAlfabetico={false}
-        className={cn(atual && "border-accent text-accent")}
+        className={cn(atual && "border-marca text-accent")}
         opcoes={[{ value: "", label: todas }, ...opcoes]}
       />
     </div>

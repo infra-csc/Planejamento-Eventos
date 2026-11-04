@@ -130,7 +130,7 @@ export function EstoqueTela({ itens, catalogo }: { itens: ItemEstoqueTela[]; cat
               tabIndex={filtro === f ? 0 : -1}
               type="button"
               onClick={() => setFiltro(f)}
-              className={cn("-mb-px inline-flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 py-2.5 text-pequeno max-md:min-h-10", filtro === f ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink", !visivelNoCelular(f) && "max-sm:hidden")}
+              className={cn("-mb-px inline-flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 py-2.5 text-pequeno max-md:min-h-10", filtro === f ? "border-marca font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink", !visivelNoCelular(f) && "max-sm:hidden")}
             >
               {rotulo}
               <span className="numero rounded-chip bg-control px-1.5 text-rotulo text-ink-3">{contar(f)}</span>

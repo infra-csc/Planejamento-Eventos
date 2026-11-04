@@ -232,7 +232,7 @@ export function Plano2D({
             )}
           </g>
           {camadas.zonas &&
-            arena.currais.map((c) => <polygon key={c.id} points={pts(poligonoFaixa(c.eixo, c.largura))} fill={c.cor} stroke="#2a1418" strokeOpacity={0.35} strokeWidth={0.6} />)}
+            arena.currais.map((c) => <polygon key={c.id} points={pts(poligonoFaixa(c.eixo, c.largura))} fill={c.cor} stroke="#242424" strokeOpacity={0.35} strokeWidth={0.6} />)}
           {camadas.zonas &&
             arena.zonas
               .filter((z) => z.tipo === "apoio" || z.tipo === "restrita")
@@ -259,7 +259,7 @@ export function Plano2D({
             const emFoco = realce?.foco.has(p.id) ?? false;
             const apagado = Boolean(realce) && !divergente;
             const rotulo = rotulosVisiveis.has(p.id);
-            const cor = apagado ? "#c3bcbc" : divergente ? "#a8400f" : CATEGORIAS[p.categoria].cor;
+            const cor = apagado ? "#c3bcbc" : divergente ? "#b3261e" : CATEGORIAS[p.categoria].cor;
             const emArraste = arrastando?.id === p.id;
             const [px, pz] = posicaoDe(p);
             const manual = edicao?.editadas.has(p.id) ?? false;
@@ -313,17 +313,17 @@ export function Plano2D({
                   }
                 }}
               >
-                {divergente && <circle r={13} fill="none" stroke="#a8400f" strokeWidth={emFoco ? 2 : 1.5} strokeDasharray="3 3" opacity={emFoco ? 1 : 0.7} />}
-                {edicao && <circle r={emArraste ? 16 : 11} fill={emArraste ? "rgba(142,39,64,.12)" : "transparent"} stroke={manual || emArraste ? "#8e2740" : "#8e274055"} strokeWidth={1.5} strokeDasharray={manual ? undefined : "2 2"} />}
+                {divergente && <circle r={13} fill="none" stroke="#b3261e" strokeWidth={emFoco ? 2 : 1.5} strokeDasharray="3 3" opacity={emFoco ? 1 : 0.7} />}
+                {edicao && <circle r={emArraste ? 16 : 11} fill={emArraste ? "rgba(184,70,15,.12)" : "transparent"} stroke={manual || emArraste ? "#b8460f" : "#b8460f55"} strokeWidth={1.5} strokeDasharray={manual ? undefined : "2 2"} />}
                 {seta && (
-                  <g transform={`rotate(${-emGraus(giro)})`} stroke={ativo ? "#8e2740" : "#6d6566"} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" pointerEvents="none">
+                  <g transform={`rotate(${-emGraus(giro)})`} stroke={ativo ? "#b8460f" : "#6d6566"} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" pointerEvents="none">
                     <line x1={0} y1={-12} x2={0} y2={-19} />
                     <path d="M -3 -16 L 0 -20 L 3 -16" />
                   </g>
                 )}
                 <circle r={apagado ? 4 : divergente ? 7 : ativo ? 8 : 5.5} fill={cor} stroke="#fff" strokeWidth={ativo || emFoco ? 3 : 2} />
                 {rotulo && (
-                  <text x={divergente ? 16 : 9} y={4} fontSize={12} fontFamily="var(--font-geist), Arial, sans-serif" fontWeight={ativo || emFoco || p.id === passando ? 600 : 500} fill="#2a1418" paintOrder="stroke" stroke="#f7f5f2" strokeWidth={3}>
+                  <text x={divergente ? 16 : 9} y={4} fontSize={12} fontFamily="var(--font-geist), Arial, sans-serif" fontWeight={ativo || emFoco || p.id === passando ? 600 : 500} fill="#242424" paintOrder="stroke" stroke="#f7f5f2" strokeWidth={3}>
                     {p.nome}
                     {qtd && (
                       // Quantidade não é código: número tabular em 12 px, sem fonte mono (auditoria 28/10, nº 117).
@@ -338,7 +338,7 @@ export function Plano2D({
           })}
           {medidaA && pontaB && (
             <g pointerEvents="none">
-              <line x1={medidaA[0]} y1={medidaA[1]} x2={pontaB[0]} y2={pontaB[1]} stroke="#8e2740" strokeWidth={2} strokeDasharray="7 5" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity={medicao?.b ? 1 : 0.7} />
+              <line x1={medidaA[0]} y1={medidaA[1]} x2={pontaB[0]} y2={pontaB[1]} stroke="#b8460f" strokeWidth={2} strokeDasharray="7 5" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity={medicao?.b ? 1 : 0.7} />
               {distancia(medidaA, pontaB) > 0 && (
                 <g transform={`translate(${(medidaA[0] + pontaB[0]) / 2} ${(medidaA[1] + pontaB[1]) / 2}) scale(${1 / vista.s})`}>
                   {(() => {
@@ -346,7 +346,7 @@ export function Plano2D({
                     const w = larguraTexto(texto, 11, true) + 14;
                     return (
                       <>
-                        <rect x={-w / 2} y={-10} width={w} height={20} rx={10} fill="#8e2740" stroke="#fff" strokeWidth={1.5} />
+                        <rect x={-w / 2} y={-10} width={w} height={20} rx={10} fill="#b8460f" stroke="#fff" strokeWidth={1.5} />
                         <text x={0} y={4} textAnchor="middle" fontSize={11} fontWeight={600} fontFamily="var(--font-geist), Arial, sans-serif" fill="#fff">
                           {texto}
                         </text>
@@ -361,7 +361,7 @@ export function Plano2D({
             [medidaA, medicao?.b].map((q, i) =>
               q ? (
                 <g key={i} transform={`translate(${q[0]} ${q[1]}) scale(${1 / vista.s})`} pointerEvents="none">
-                  <circle r={4.5} fill="#fff" stroke="#8e2740" strokeWidth={2.5} />
+                  <circle r={4.5} fill="#fff" stroke="#b8460f" strokeWidth={2.5} />
                 </g>
               ) : null,
             )}

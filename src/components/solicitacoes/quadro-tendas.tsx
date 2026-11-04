@@ -179,7 +179,7 @@ export function QuadroTendas({
                           onFocus={(e) => e.target.select()}
                           aria-label={`${p.rotulo} em ${nomeLinha}`}
                           title={alterado ? `Padrão: ${padrao}` : undefined}
-                          className={cn("numero mx-auto !w-16 text-center max-sm:mx-0 max-sm:!w-full [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-accent font-medium text-accent")}
+                          className={cn("numero mx-auto !w-16 text-center max-sm:mx-0 max-sm:!w-full [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", alterado && "border-marca font-medium text-accent")}
                         />
                       </td>
                     );

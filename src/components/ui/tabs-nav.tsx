@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { Icone } from "./icons";
 import { IndicadorLink } from "./indicador-link";
 
-export type Aba = { href: string; label: string; n?: number | string | null; exact?: boolean; /** Força o estado ativo (abas por query string, onde o pathname não muda). */ ativo?: boolean };
+export type Aba = { href: string; label: string; n?: number | string | null; exact?: boolean; /** Subpágina que pertence a esta aba e não é filha do endereço dela (o item, na Visão geral). */ tambemEm?: string; /** Força o estado ativo (abas por query string, onde o pathname não muda). */ ativo?: boolean };
 
 /*
  * Aba: 14/20 + 9 px em cima e embaixo + sublinhado de 2 px = 40 px (alvo de toque sem mudar o desktop).
@@ -17,7 +17,7 @@ const abaCls = (ativo: boolean) =>
   cn(
     "relative -mb-px flex min-h-10 cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-t-controle border-0 border-b-2 bg-transparent px-3.5 py-[9px] text-corpo no-underline transition-colors duration-150",
     "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
-    ativo ? "border-accent font-medium text-ink" : "border-transparent text-ink-3 hover:border-line-strong hover:text-ink",
+    ativo ? "border-marca font-medium text-ink" : "border-transparent text-ink-3 hover:border-line-strong hover:text-ink",
   );
 
 function Contador({ n, ativo }: { n: number | string | null | undefined; ativo: boolean }) {
@@ -99,7 +99,7 @@ export function TabsNav({ tabs, className, rotulo = "Seções do evento" }: { ta
     <div className={cn("relative", semMargem(className) && "mb-5")}>
       <nav ref={ref} style={estilo} className={cn(trilho, className)} aria-label={rotulo}>
         {tabs.map((t) => {
-          const ativo = t.ativo ?? (t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/"));
+          const ativo = t.ativo ?? ((t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/")) || (t.tambemEm != null && pathname.startsWith(t.tambemEm + "/")));
           return (
             <Link key={t.href} href={t.href} aria-current={ativo ? "page" : undefined} className={abaCls(ativo)}>
               {t.label}

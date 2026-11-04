@@ -32,7 +32,7 @@ export function DiaBotao({ dia, numero, hoje, doMes, itens }: { dia: string; num
           // A área de clique cobre a célula do dia inteira: clicar em qualquer espaço vazio abre o resumo.
           "after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
           // O fundo vem só daqui: com "bg-transparent" fixo junto, o dia de hoje ficava branco no branco.
-          ehHoje ? "bg-accent font-semibold text-white hover:bg-accent-hover" : doMes ? "bg-transparent font-medium text-ink hover:bg-control" : "bg-transparent text-meta hover:bg-control",
+          ehHoje ? "bg-marca font-semibold text-on-marca hover:bg-marca-hover" : doMes ? "bg-transparent font-medium text-ink hover:bg-control" : "bg-transparent text-meta hover:bg-control",
         )}
       >
         {numero}
@@ -116,7 +116,7 @@ function Faixa({ it }: { it: ItemCalendario }) {
       </span>
       <span aria-hidden className="flex gap-0.5">
         {Array.from({ length: Math.min(f.total, 31) }, (_, i) => (
-          <span key={i} className={cn("h-1.5 w-2.5 rounded-xs", i + 1 === f.dia ? "bg-accent" : "bg-line-strong")} />
+          <span key={i} className={cn("h-1.5 w-2.5 rounded-xs", i + 1 === f.dia ? "bg-marca" : "bg-line-strong")} />
         ))}
       </span>
       <Codigo>{it.evento.codigo}</Codigo>

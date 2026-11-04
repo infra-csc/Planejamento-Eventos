@@ -7,7 +7,7 @@ import { NaoEncontradoError } from "@/domain/errors";
 import { obterItemAtivacaoCache } from "@/app/(app)/ativacao/consultas";
 import { diaMes, diaMesHora, formatarData, periodoCurto } from "@/lib/format";
 import { adicionarAnexoEstoqueAction, removerAnexoEstoqueAction } from "@/app/(app)/ativacao/actions";
-import { PageHeader, Section, Metric, MetricStrip } from "@/components/ui/layout";
+import { EmptyState, PageHeader, Section, Metric, MetricStrip } from "@/components/ui/layout";
 import { Tag } from "@/components/ui/badge";
 import { Codigo } from "@/components/ui/numero";
 import { AnexosPeca } from "@/components/catalogo/anexos-peca";
@@ -97,7 +97,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
           duas vezes ("Nada em reforma agora." em cima de "Este item nunca foi para reforma."). */}
       <Section titulo="Eventos" sub={d.eventos.length ? "Pedido na ata ou na OS, até o retorno ser registrado." : undefined}>
         {d.eventos.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">{item.peca ? "Nenhum evento pede ou leva este item agora." : "Vincule o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."}</p>
+          <EmptyState compact title={item.peca ? "Nenhum evento pede ou leva este item agora." : "Vincule o item a uma peça do catálogo (Editar item, no topo) para ele sair com a OS."} />
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
             {d.eventos.map((e) => (
@@ -127,7 +127,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       <Section titulo="Reformas" sub={reformasAbertas.length ? `${reformasAbertas.reduce((a, r) => a + r.quantidade, 0)} em reforma agora.` : d.reformas.length ? "Nada em reforma agora." : undefined}>
         {d.reformas.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">Este item nunca foi para reforma.</p>
+          <EmptyState compact title="Este item nunca foi para reforma." />
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
             {d.reformas.map((r) => {
@@ -178,7 +178,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       <Section titulo="Retornos">
         {d.retornos.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">Nenhum retorno registrado.</p>
+          <EmptyState compact title="Nenhum retorno registrado." />
         ) : (
           <ul className="m-0 list-none divide-y divide-line-row p-0">
             {d.retornos.map((r) => (
@@ -203,7 +203,7 @@ export default async function ItemAtivacaoPage({ params }: { params: Promise<{ i
 
       <Section titulo="Histórico" sub={d.historico.length >= 30 ? "Últimas 30 mudanças." : undefined}>
         {d.historico.length === 0 ? (
-          <p className="m-0 px-cartao py-4 text-pequeno text-muted">Sem registros.</p>
+          <EmptyState compact title="Sem registros." />
         ) : (
           <ol className="m-0 list-none divide-y divide-line-row p-0">
             {d.historico.map((h) => (

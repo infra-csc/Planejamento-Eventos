@@ -102,7 +102,7 @@ function BotaoAjustar({ nome, onClick, tenda }: { nome: string; onClick: () => v
   );
 }
 
-const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "avulso" } as const;
+const TAG_TIPO = { PROJETO: "projeto", PECA: "peça", AVULSO: "fora do catálogo" } as const;
 
 /** Projeto com versão nova na Biblioteca: quem ajusta atualiza a linha com um clique (fica no histórico). */
 export function BadgeVersao({ l, eventoId, podeAtualizar }: { l: Pick<LinhaAtaView, "id" | "nome" | "versao" | "versaoAtual" | "pecasAjustadas">; eventoId: string; podeAtualizar: boolean }) {

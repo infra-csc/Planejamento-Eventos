@@ -144,7 +144,7 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                   <>
                     <span aria-hidden className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-neutral-bg">
                       <Icone nome={icone} className={cor} />
-                      {naoLida && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-selected bg-accent" />}
+                      {naoLida && <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-subtle bg-marca" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-3">
@@ -163,8 +163,8 @@ export default async function NotificacoesPage({ searchParams }: { searchParams:
                     </span>
                   </>
                 );
-                // Não lida: fundo e filete na cor da marca à esquerda (o fundo sozinho quase não aparecia).
-                const classe = cn("flex w-full items-start gap-3 border-b border-line-row px-cartao py-3 text-left", naoLida ? "bg-selected shadow-[inset_3px_0_0_var(--color-accent)]" : "bg-transparent");
+                // Não lida: fundo sutil e filete na cor da marca à esquerda (a lista toda em laranja pesava).
+                const classe = cn("flex w-full items-start gap-3 border-b border-line-row px-cartao py-3 text-left", naoLida ? "bg-subtle shadow-[inset_3px_0_0_var(--color-marca)]" : "bg-transparent");
                 // A linha inteira abre o destino (e marca como lida); sem destino, é só leitura.
                 return (
                   <li key={n.id} className="[&:last-child>*]:border-b-0 [&:last-child_button]:border-b-0">

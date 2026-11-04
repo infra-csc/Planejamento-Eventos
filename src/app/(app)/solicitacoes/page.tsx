@@ -88,7 +88,7 @@ export default async function SolicitacoesPage({
       return { texto: `reunião ${rotuloReuniao(s.evento.dataReuniao)}`, cor: diaBrasilia(s.evento.dataReuniao) === hojeBr ? "var(--color-info)" : "var(--color-ink-2)" };
     }
     const pi = prazoInfo(s, agora);
-    if (pi.label === "—" || pi.label === "rascunho" || pi.label === "sem prazo") return { texto: "—", cor: "var(--color-line-strong)", title: "Sem prazo correndo" };
+    if (pi.label === "—" || pi.label === "rascunho" || pi.label === "sem prazo") return { texto: "—", cor: "var(--color-line-control)", title: "Sem prazo correndo" };
     if (pi.vencido) return { texto: `atrasada ${pi.sub}`, cor: COR_TOM[pi.tom], pulsar: true };
     return { texto: `até ${pi.sub}`, cor: COR_TOM[pi.tom], title: `Prazo de resposta ${pi.label}` };
   };

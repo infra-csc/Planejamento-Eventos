@@ -101,7 +101,7 @@ function PlantaImpressa({ arena, slug, temPlanta, pontos }: { arena: Arena; slug
         </g>
       )}
       {arena.currais.map((c) => (
-        <polygon key={c.id} points={pts(poligonoFaixa(c.eixo, c.largura))} fill={c.cor} stroke="#2a1418" strokeOpacity={0.45} strokeWidth={u * 0.25} />
+        <polygon key={c.id} points={pts(poligonoFaixa(c.eixo, c.largura))} fill={c.cor} stroke="#242424" strokeOpacity={0.45} strokeWidth={u * 0.25} />
       ))}
       {arena.zonas
         .filter((z) => z.tipo === "apoio" || z.tipo === "restrita")
@@ -127,9 +127,9 @@ function PlantaImpressa({ arena, slug, temPlanta, pontos }: { arena: Arena; slug
 
       {/* Norte: a planta tem z crescendo para o sul, então o norte é para cima. */}
       <g transform={`translate(${nx} ${ny})`}>
-        <circle r={u * 5.5} fill="#fff" fillOpacity={0.9} stroke="#2a1418" strokeWidth={u * 0.25} />
-        <polygon points={`0,${-u * 4} ${u * 2},${u * 2} 0,${u * 0.8} ${-u * 2},${u * 2}`} fill="#2a1418" />
-        <text y={u * 8} textAnchor="middle" dominantBaseline="central" fontSize={u * 3} fontWeight={700} fontFamily={FONTE} fill="#2a1418" paintOrder="stroke" stroke="#fff" strokeWidth={u * 0.8}>
+        <circle r={u * 5.5} fill="#fff" fillOpacity={0.9} stroke="#242424" strokeWidth={u * 0.25} />
+        <polygon points={`0,${-u * 4} ${u * 2},${u * 2} 0,${u * 0.8} ${-u * 2},${u * 2}`} fill="#242424" />
+        <text y={u * 8} textAnchor="middle" dominantBaseline="central" fontSize={u * 3} fontWeight={700} fontFamily={FONTE} fill="#242424" paintOrder="stroke" stroke="#fff" strokeWidth={u * 0.8}>
           N
         </text>
       </g>
@@ -137,12 +137,12 @@ function PlantaImpressa({ arena, slug, temPlanta, pontos }: { arena: Arena; slug
       {/* Escala gráfica em metros, no mesmo sistema de coordenadas da planta. */}
       <g>
         <rect x={ex - u * 1.5} y={ey - u * 5.5} width={escala + u * 3} height={u * 8.5} fill="#fff" fillOpacity={0.9} />
-        <rect x={ex} y={ey} width={escala / 2} height={u * 1.2} fill="#2a1418" />
-        <rect x={ex + escala / 2} y={ey} width={escala / 2} height={u * 1.2} fill="#fff" stroke="#2a1418" strokeWidth={u * 0.2} />
-        <text x={ex} y={ey - u * 1.4} textAnchor="start" fontSize={u * 2.4} fontFamily={FONTE} fill="#2a1418">
+        <rect x={ex} y={ey} width={escala / 2} height={u * 1.2} fill="#242424" />
+        <rect x={ex + escala / 2} y={ey} width={escala / 2} height={u * 1.2} fill="#fff" stroke="#242424" strokeWidth={u * 0.2} />
+        <text x={ex} y={ey - u * 1.4} textAnchor="start" fontSize={u * 2.4} fontFamily={FONTE} fill="#242424">
           0
         </text>
-        <text x={ex + escala} y={ey - u * 1.4} textAnchor="end" fontSize={u * 2.4} fontFamily={FONTE} fill="#2a1418">
+        <text x={ex + escala} y={ey - u * 1.4} textAnchor="end" fontSize={u * 2.4} fontFamily={FONTE} fill="#242424">
           {escala} m
         </text>
       </g>
@@ -187,7 +187,7 @@ function Legenda({ arena, pontos }: { arena: Arena; pontos: PontoArena[] }) {
         {arena.currais.map((c) => (
           <li key={c.id} className="flex items-center gap-1.5">
             <Amostra>
-              <rect x={1} y={1} width={20} height={10} fill={c.cor} stroke="#2a1418" strokeOpacity={0.45} />
+              <rect x={1} y={1} width={20} height={10} fill={c.cor} stroke="#242424" strokeOpacity={0.45} />
             </Amostra>
             <span>
               {c.nome} <span className="text-neutral-500">· {c.metros} m</span>
@@ -217,7 +217,9 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
       <section className="flex h-[188mm] flex-col break-after-page">
         <header className="mb-3 flex items-end justify-between gap-6 border-b border-black pb-2">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-widest">Norte Mkt · Mapa de montagem</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-1 block h-5 w-auto" />
+            <p className="text-[10px] uppercase tracking-widest">Mapa de montagem</p>
             <h1 className="mt-0.5 truncate text-lg font-semibold">{ev.nome}</h1>
             <p className="mt-0.5 text-[11px] text-neutral-600">{[data, ev.local || null, ev.montagem ? `Montagem: ${ev.montagem}` : null].filter(Boolean).join(" · ") || "—"}</p>
           </div>

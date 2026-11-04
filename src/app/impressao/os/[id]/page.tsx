@@ -84,8 +84,10 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         <ImprimirBotao />
       </div>
       <header className="mb-6 border-b border-ink pb-4">
-        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Norte Mkt · Ordem de serviço</p>
-        <h1 className="mb-0 mt-1 text-pagina font-semibold tracking-[-0.02em]">{ev.nome}</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-2.5 block h-6 w-auto" />
+        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Ordem de serviço</p>
+        <h1 className="mb-0 mt-1 font-titulo text-manchete font-semibold">{ev.nome}</h1>
         <dl className="mb-0 mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-pequeno sm:grid-cols-4">
           <div>
             <dt className="text-ink-3">Evento</dt>

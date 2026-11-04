@@ -536,7 +536,7 @@ export function CalendarioCarga({
             const ehHoje = d === hoje;
             const zonas = ZONAS.map((z) => ({ ...z, partes: z.tipos.map((t) => [t, lista.filter((o) => o.tipo === t)] as const).filter(([, l]) => l.length > 0) })).filter((z) => z.partes.length > 0);
             return (
-              <article key={d} aria-label={`${diaSemana(d)} ${diaMesTexto(d)}${ehHoje ? ", hoje" : ""}`} className={cn("flex min-w-0 flex-col rounded-cartao border bg-surface", ehHoje ? "border-accent shadow-[0_0_0_1px_var(--color-accent)]" : "border-line", i >= 5 && !ehHoje && "bg-subtle/60")}>
+              <article key={d} aria-label={`${diaSemana(d)} ${diaMesTexto(d)}${ehHoje ? ", hoje" : ""}`} className={cn("flex min-w-0 flex-col rounded-cartao border bg-surface", ehHoje ? "border-marca shadow-[0_0_0_1px_var(--color-accent)]" : "border-line", i >= 5 && !ehHoje && "bg-subtle/60")}>
                 <header className="flex items-start justify-between gap-2 border-b border-line-soft px-2.5 py-2">
                   <div>
                     <p className={cn("m-0 text-micro font-semibold uppercase tracking-[0.08em]", ehHoje ? "text-accent" : "text-muted")}>

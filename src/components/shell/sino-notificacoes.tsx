@@ -148,12 +148,12 @@ export function SinoNotificacoes({ naoLidas }: { naoLidas: number }) {
                   onClick={() => abrir(n)}
                   className={cn(
                     "flex w-full cursor-pointer items-start gap-3 border-0 border-b border-line-row px-4 py-3 text-left transition-colors duration-150 last:border-b-0 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
-                    !n.lida ? "bg-selected" : "bg-transparent",
+                    !n.lida ? "bg-subtle" : "bg-transparent",
                   )}
                 >
                   {/* Aviso de prazo com relógio, não só com outra cor de ponto (auditoria 28/10, nº 138). */}
                   <span aria-hidden className="mt-0.5 grid size-4 shrink-0 place-items-center">
-                    {!n.lida && n.prazo ? <Icone nome="relogio" className="text-danger" /> : <span className={cn("size-[7px] rounded-full", n.lida ? "bg-transparent" : "bg-accent")} />}
+                    {!n.lida && n.prazo ? <Icone nome="relogio" className="text-danger" /> : <span className={cn("size-[7px] rounded-full", n.lida ? "bg-transparent" : "bg-marca")} />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={cn("block text-corpo text-ink", !n.lida && "font-medium")}>

@@ -110,7 +110,7 @@ function DialogImportar({ onFechar }: { onFechar: () => void }) {
         )}
 
         <label
-          className={cn("flex cursor-pointer flex-wrap items-center gap-3 rounded-cartao border border-dashed px-4 py-3 transition-colors hover:border-accent hover:bg-selected", lendo ? "border-accent bg-selected" : "border-line-strong bg-subtle")}
+          className={cn("flex cursor-pointer flex-wrap items-center gap-3 rounded-cartao border border-dashed px-4 py-3 transition-colors hover:border-marca hover:bg-selected", lendo ? "border-marca bg-selected" : "border-line-strong bg-subtle")}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();

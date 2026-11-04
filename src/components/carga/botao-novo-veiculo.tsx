@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Icone } from "@/components/ui/icons";
 import { BotaoNovo } from "@/components/admin/novo-via-url";
 
 /**
@@ -13,9 +12,6 @@ export function BotaoNovoVeiculo() {
   const pathname = usePathname();
   if (pathname !== "/carga-descarga") return null;
   return (
-    <BotaoNovo>
-      <Icone nome="mais" />
-      Novo veículo
-    </BotaoNovo>
+    <BotaoNovo>Novo veículo</BotaoNovo>
   );
 }

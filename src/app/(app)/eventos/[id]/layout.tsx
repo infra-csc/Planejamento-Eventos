@@ -100,7 +100,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
   ];
 
   const abas: Aba[] = [
-    { href: base, label: "Visão geral", exact: true },
+    { href: base, label: "Visão geral", exact: true, tambemEm: `${base}/itens` },
     // Fechada, a ata é o registro da reunião (ex.: 7 linhas) e o número das linhas de agora (11) a contradizia:
     // o contador só vale enquanto ela está sendo montada.
     { href: `${base}/ata`, label: "Ata", n: ev.ataFechadaEm ? null : nLinhas },

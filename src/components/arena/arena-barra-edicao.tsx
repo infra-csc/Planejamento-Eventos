@@ -104,7 +104,7 @@ export function BarraEdicao({
       <div role="status" className="flex min-w-0 flex-1 items-center gap-2 text-pequeno text-ink-3 max-sm:order-last max-sm:basis-full">
         {medindo ? (
           <>
-            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-white">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-marca text-on-marca">
               <IconeRegua className="size-3" />
             </span>
             <span className="min-w-0 truncate">
@@ -125,7 +125,7 @@ export function BarraEdicao({
           </>
         ) : colocando ? (
           <>
-            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent text-micro font-semibold text-white">2</span>
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-marca text-micro font-semibold text-on-marca">2</span>
             <span className="min-w-0 truncate">
               Clique no mapa onde fica <span className="font-medium text-ink">{colocando.nome}</span>
             </span>
@@ -190,7 +190,7 @@ export function BarraEdicao({
       {editando && menuItens && !colocando && !medindo && (
         <div role="dialog" aria-label="Adicionar ao mapa" className="absolute left-3 top-[calc(100%+6px)] z-30 w-[min(560px,calc(100%-24px))] rounded-cartao border border-line bg-surface p-3 shadow-popover animate-fade-up-rapido">
           <p className="m-0 flex items-center gap-2 text-pequeno font-medium text-ink">
-            <span className="grid size-5 place-items-center rounded-full bg-accent text-micro font-semibold text-white">1</span>
+            <span className="grid size-5 place-items-center rounded-full bg-marca text-micro font-semibold text-on-marca">1</span>
             O que você quer pôr no mapa?
           </p>
           <p className="mb-2.5 ml-7 mt-0.5 text-rotulo text-muted">Escolha e depois clique no lugar. Dá para arrastar para acertar.</p>

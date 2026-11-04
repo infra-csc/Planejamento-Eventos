@@ -116,7 +116,7 @@ const TOM_ITEM: Record<ItemStatus, Tom> = {
 };
 
 export const COR_ITEM: Record<ItemStatus, string> = {
-  EM_ANALISE: "var(--color-line-strong)",
+  EM_ANALISE: "var(--color-line-control)",
   ATENDIDO: "var(--color-success)",
   PARCIAL: "var(--color-warning)",
   NAO_ATENDIDO: "var(--color-danger)",
