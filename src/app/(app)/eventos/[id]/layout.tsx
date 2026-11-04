@@ -16,6 +16,7 @@ import { LinhaTempo } from "@/components/eventos/fases";
 import { AcoesEvento } from "@/components/eventos/acoes-evento";
 import { obterConfiguracoesCache } from "@/server/cache";
 import { contarVeiculosCarga } from "@/server/services/carga-descarga";
+import { obterCarregamento } from "@/server/services/carregamento";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const usuario = await getUsuarioAtual();
@@ -107,6 +108,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
     ...(pode(usuario, "ata.consolidar") && (ev.status === "PREPARACAO" || ev.status === "EM_REUNIAO") ? [{ href: `/conferencia/${ev.id}`, label: "Conferência" }] : []),
     { href: `${base}/solicitacoes`, label: "Solicitações", n: resumo.solicitacoes },
     ...(pode(usuario, "os.ver") ? [{ href: `${base}/os`, label: "OS", n: versaoOs ? `v${versaoOs}` : null }] : []),
+    // O que foi de fato no caminhão: depois da ata, todos veem; logística e administrador alteram.
+    ...(ev.ataFechadaEm ? [{ href: `${base}/carregamento`, label: "Carregamento", n: Object.keys(await obterCarregamento(ev.id)).length || null }] : []),
     // Carga e descarga do galpão: só logística e administrador.
     ...(pode(usuario, "carga.ver") ? [{ href: `${base}/carga`, label: "Carga", n: nVeiculos || null }] : []),
     { href: `${base}/historico`, label: "Histórico" },

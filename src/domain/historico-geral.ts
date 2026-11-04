@@ -92,6 +92,7 @@ const ROTULO_ACAO: Record<string, string> = {
   DESCRICAO_EDITADA: "Descrição alterada",
   REGRA_KIT: "Regra da logística",
   AREA_DO_PEDIDO: "Área do pedido corrigida",
+  CARREGAMENTO_AJUSTE: "Carregamento alterado",
   DESATIVADO: "Desativado",
 };
 

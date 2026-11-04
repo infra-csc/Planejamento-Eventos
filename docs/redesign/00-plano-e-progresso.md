@@ -37,17 +37,17 @@ Para continuar depois de uma interrupção: ler este arquivo, `git diff 1ee5c6f`
 depois de ver os estados e modais dela.
 
 - [x] Base visual em todas as 47 telas fotografadas
-- [~] Painel, Eventos, evento (visão geral, OS), Conferência, Calendário, Solicitação (detalhe), Carga, Notificações: vistos em tamanho real, falta passar pelos estados e modais de cada uma
-- [ ] Evento: Ata, Solicitações, Carga, Histórico, Editar, Item
-- [ ] Solicitações: lista, nova
-- [ ] Biblioteca, projeto, peça
-- [ ] Arena 3D: lista, nova, mapa
-- [ ] Carga e descarga: cadastro
-- [ ] Ativação: estoque, retornos, reformas, item
-- [ ] Histórico, Perfil
-- [ ] Administração: usuários, áreas, configurações
-- [ ] Impressões: OS, ata, arena (logo aplicado; falta ver o PDF)
+- [~] Vistas em tamanho real, falta passar pelos estados e modais de cada uma: Painel, Eventos, evento (visão geral, Ata, OS, Carregamento), Conferência, Calendário, Solicitações (lista, detalhe, nova), Biblioteca, Arena (mapa), Carga, Ativação (estoque), Histórico, Notificações, Administração (usuários)
+- [ ] Só na varredura em miniatura: evento (Solicitações, Carga, Histórico, Editar, Item), projeto, peça, Arena (lista, nova), Carga (cadastro), Ativação (retornos, reformas, item), Perfil, Administração (áreas, configurações)
+- [~] Impressões: OS e ata vistas em modo de impressão, com o logo; PDF gerado, mas não aberto; arena não vista
 - [x] Login, recuperar e redefinir senha: fora do escopo, só tokens
+
+## Pedido à parte: aba Carregamento (04/11)
+
+Não é redesign: é função nova, pedida pela logística. Na folha de estrutura é onde se carrega o caminhão, e nem sempre vai o que foi pedido.
+Aba Carregamento no evento, depois da ata: logística e administrador alteram o carregado, com observação opcional; quem pediu é avisado e vê a diferença; a OS não muda, nem gera versão.
+A OS de estrutura e a folha de separação da versão atual saem com o carregado e listam as mudanças. Guardado em `configuracoes`, sem migração. Materiais KIT ainda não entram.
+O carregamento por veículo (fase 3 do briefing NorteLog) continua por fazer; estes dados são o ponto de partida.
 
 ## Fora do redesign (mudam regra ou comportamento)
 
@@ -73,8 +73,12 @@ Atualizar a cada lote, só com o que foi executado de fato.
 - Varredura visual a 1440, 820 e 390 px: 47 telas com admin, sem erro 500 e sem rolagem lateral. Solicitante: 6 telas a 1440 px.
 - Diff contra `1ee5c6f`: em rotas de API, só o texto "NORTE MKT" → "NORTELOG" no título das planilhas; em `src/domain` e `src/server`, só valores de cor. Nenhum `actions.ts`, serviço, autenticação, banco ou proxy alterado.
 
+**04/11, segundo lote e aba Carregamento (sem commit, em `redesign/nortelog`):**
+- Vitest: 846 passaram, 3 ignorados (849). Playwright: 38 de 38, com a aba nova na varredura dos seis perfis.
+- Fluxo da aba testado na tela: logística altera, quem pediu recebe o aviso e vê a diferença, a OS e a versão não mudam, a folha sai com o carregado, com e sem observação; a 390 px sem rolagem lateral.
+
 **Não testado:** PDF real das impressões e Excel abertos no programa (ver o logo e as cores no arquivo final); estados de erro e carregamento uma a uma; Arena 3D com interação; perfis cenografia e gestão com olhar visual (só a varredura automática).
 
 ## Próximo passo
 
-Revisão estrutural do que falta no checklist: Biblioteca, Ativação, Arena, Administração, Nova solicitação, depois estados e modais de cada tela. Depois, duplicações (etapa 12) e o refinamento crítico (etapa 9). Antes de publicar: abrir PDF e Excel finais.
+Passar pelos estados e modais tela a tela (a amostra tem 12 de cerca de 60 janelas), duplicações (etapa 12) e refinamento (etapa 9). Antes de publicar de novo: abrir o PDF no leitor.
