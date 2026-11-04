@@ -92,21 +92,6 @@ export function CarregamentoTela({
       <Section
         titulo="O que mudou no carregamento"
         sub="Diferenças em relação ao que foi pedido. A OS continua igual."
-        acoes={
-          podeExportar && (
-            <>
-              {/* <a> comum: o Link do Next pré-carregaria o arquivo inteiro a cada visita à aba. */}
-              <a href={`/api/os/${eventoId}/estrutura`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
-                <Icone nome="download" />
-                Folha de estrutura
-              </a>
-              <a href={`/impressao/os/${eventoId}`} className={buttonClasses({ variant: "ghost", size: "sm", className: "no-underline" })}>
-                <Icone nome="imprimir" />
-                Imprimir
-              </a>
-            </>
-          )
-        }
       >
         {mudancas.length === 0 ? (
           <EmptyState compact title="Nada mudou: o carregamento está igual ao pedido." />
@@ -131,6 +116,23 @@ export function CarregamentoTela({
               </li>
             ))}
           </ul>
+        )}
+        {podeExportar && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-line-soft bg-subtle px-cartao py-2.5">
+            {/* <a> comum: o Link do Next pré-carregaria o arquivo inteiro a cada visita à aba. */}
+            <a href={`/api/os/${eventoId}/estrutura`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+              <Icone nome="download" />
+              Folha de estrutura
+            </a>
+            <a href={`/impressao/os/${eventoId}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+              <Icone nome="imprimir" />
+              Folha de separação
+            </a>
+            <a href={`/impressao/carregamento/${eventoId}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "no-underline" })}>
+              <Icone nome="imprimir" />
+              Folha de descarregamento
+            </a>
+          </div>
         )}
       </Section>
 

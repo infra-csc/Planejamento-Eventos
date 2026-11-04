@@ -22,14 +22,14 @@ Para continuar depois de uma interrupção: ler este arquivo, `git diff 1ee5c6f`
 | 2. Marca | Feita | Logo, símbolo branco e favicon do kit, sem alteração; prints, Excel e página de erro de download |
 | 3. Design system | Feita na base | Tokens em `globals.css`, doc em `docs/design-system.md`. Faltam as duplicações fora de `ui/` (48 botões, 46 tabelas à mão) |
 | 4. Estrutura global | Feita | Menu grafite, canto da marca, itens e permissões iguais; cabeçalho do evento mais baixo |
-| 5. Páginas | Em andamento | Todas herdam a base; revisão estrutural tela a tela no checklist abaixo |
-| 6. Modais e estados | Em andamento | 12 de 15 fotografados; base dos modais aplicada; vazios padronizados nos casos do mapa |
+| 5. Páginas | Feita na base | Todas vistas em tamanho real com a marca nova; o que restou no mapa muda regra (ver abaixo) |
+| 6. Modais e estados | Em andamento | 37 de cerca de 60 janelas abertas e vistas; vazios, 404, sem permissão e carregando vistos; erro de servidor não reproduzido |
 | 7. UX | Em andamento | R3, R14, R15 (item), R17, R18, R19 e parte de R20 |
 | 8. Responsividade | Em andamento | Varredura a 390 e 820 px sem rolagem lateral; falta olhar tela a tela |
-| 9. Refinamento | A fazer | |
+| 9. Refinamento | Feita | Títulos numa tipografia só, espaços, cor como categoria, folhas impressas |
 | 10. Teste visual | Em andamento | 47 telas a 1440 e 390 px com admin; 6 telas com solicitante |
 | 11. QA e regressão | Em andamento | Ver "Testes" |
-| 12. Consistência final | A fazer | |
+| 12. Consistência final | Parcial | Sem cor antiga no código e nos comentários, exceto a Arena; botões e tabelas à mão ficam: trocar traz risco de regressão sem mudar o que se vê |
 
 ## Checklist de páginas
 
@@ -37,9 +37,9 @@ Para continuar depois de uma interrupção: ler este arquivo, `git diff 1ee5c6f`
 depois de ver os estados e modais dela.
 
 - [x] Base visual em todas as 47 telas fotografadas
-- [~] Vistas em tamanho real, falta passar pelos estados e modais de cada uma: Painel, Eventos, evento (visão geral, Ata, OS, Carregamento), Conferência, Calendário, Solicitações (lista, detalhe, nova), Biblioteca, Arena (mapa), Carga, Ativação (estoque), Histórico, Notificações, Administração (usuários)
-- [ ] Só na varredura em miniatura: evento (Solicitações, Carga, Histórico, Editar, Item), projeto, peça, Arena (lista, nova), Carga (cadastro), Ativação (retornos, reformas, item), Perfil, Administração (áreas, configurações)
-- [~] Impressões: OS e ata vistas em modo de impressão, com o logo; PDF gerado, mas não aberto; arena não vista
+- [x] Todas as telas vistas em tamanho real, em computador; em celular e tablet, pela varredura
+- [~] Estados e janelas: 37 de cerca de 60 janelas
+- [x] Impressões: OS, ata, mapa da arena e descarregamento abertas em PDF
 - [x] Login, recuperar e redefinir senha: fora do escopo, só tokens
 
 ## Pedido à parte: aba Carregamento (04/11)
@@ -47,6 +47,7 @@ depois de ver os estados e modais dela.
 Não é redesign: é função nova, pedida pela logística. Na folha de estrutura é onde se carrega o caminhão, e nem sempre vai o que foi pedido.
 Aba Carregamento no evento, depois da ata: logística e administrador alteram o carregado, com observação opcional; quem pediu é avisado e vê a diferença; a OS não muda, nem gera versão.
 A OS de estrutura e a folha de separação da versão atual saem com o carregado e listam as mudanças. Guardado em `configuracoes`, sem migração. Materiais KIT ainda não entram.
+A aba imprime a folha de descarregamento: os blocos da folha de estrutura, com os ajustes e a coluna Voltou em branco.
 O carregamento por veículo (fase 3 do briefing NorteLog) continua por fazer; estes dados são o ponto de partida.
 
 ## Fora do redesign (mudam regra ou comportamento)
@@ -77,8 +78,10 @@ Atualizar a cada lote, só com o que foi executado de fato.
 - Vitest: 846 passaram, 3 ignorados (849). Playwright: 38 de 38, com a aba nova na varredura dos seis perfis.
 - Fluxo da aba testado na tela: logística altera, quem pediu recebe o aviso e vê a diferença, a OS e a versão não mudam, a folha sai com o carregado, com e sem observação; a 390 px sem rolagem lateral.
 
-**Não testado:** PDF real das impressões e Excel abertos no programa (ver o logo e as cores no arquivo final); estados de erro e carregamento uma a uma; Arena 3D com interação; perfis cenografia e gestão com olhar visual (só a varredura automática).
+**04/11, últimos ajustes:** Vitest 847 passaram, 3 ignorados (850). Playwright 38 de 38, com a folha de descarregamento e o menu que recolhe sozinho. Menu testado na tela: tempo, mouse em cima, troca de página, manter aberto, recolhido à mão e celular.
+
+**Não testado:** Excel aberto no programa (só lido por biblioteca); erro de servidor e carregamento em todas as telas; Arena 3D com interação; janelas restantes.
 
 ## Próximo passo
 
-Passar pelos estados e modais tela a tela (a amostra tem 12 de cerca de 60 janelas), duplicações (etapa 12) e refinamento (etapa 9). Antes de publicar de novo: abrir o PDF no leitor.
+Decidir o login (decisões em aberto). Se quiser fechar 100%: abrir as janelas restantes.

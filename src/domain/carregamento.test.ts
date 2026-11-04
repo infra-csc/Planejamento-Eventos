@@ -79,3 +79,12 @@ describe("carregamento: o que foi no caminhão, sem mudar a OS", () => {
     expect(l.ajuste?.pedidoNaHora).toBe(44);
   });
 });
+
+describe("folha de descarregamento: os blocos da folha de estrutura, com os ajustes", () => {
+  it("a mesma conta do Excel: o que foi carregado, não o que foi pedido", () => {
+    const os = calcularOS([projeto("a", 10), solta("s", 4)]);
+    const d = montarOsEstrutura(aplicarCarregamento(os, ajuste("BOX-1000", 30)));
+    expect(d.pecas.find((p) => p.codigo === "BOX-1000")?.total).toBe(30);
+    expect(montarOsEstrutura(os).pecas.find((p) => p.codigo === "BOX-1000")?.total).toBe(44);
+  });
+});

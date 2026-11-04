@@ -127,7 +127,7 @@ conjunto; prefira `<Icone>` em código novo. Não desenhe `<svg>` à mão em pá
 | `danger` | confirmar ação destrutiva (dentro do diálogo) | vermelho cheio |
 | `dangerOutline` | gatilho de ação destrutiva (abre a confirmação) | contorno vermelho |
 | `atender` / `parcial` / `recusar` | resposta de item (semânticas) | fundo suave da cor |
-| `onDark` / `pink` / `bloqueado` | sobre superfície escura (banner, cartão escuro; `pink` é laranja da marca com texto grafite, o nome ficou do tema antigo) | foco em `accent-light` |
+| `onDark` / `marcaSobreEscuro` / `bloqueado` | sobre superfície escura (banner, cartão escuro) | foco em `accent-light` |
 
 Tamanhos: `xs` 27 · `sm` 30 · `md` 34 · `lg` 36 · `xl` 38 · `full` 42 (px, desktop). **Abaixo de `md`
 todo botão tem no mínimo 40 px** (`max-md:min-h-10`), exceto `link`.
@@ -329,6 +329,7 @@ depende de um item escolhido some, e a lista ocupa a largura.
 | 30/10 | Rodapé de diálogo (nº 132) | Um tamanho: 36 px (`lg`). | Formulários em 34 e confirmações em 36. |
 | 30/10 | Link de texto (nº 62) | Sempre sublinhado, discreto. | Contraste 1,06:1 entre link e texto (WCAG 1.4.1). |
 | 03/11 | Menu lateral claro × escuro (nº 56) | **Escuro**, em grafite, com logo branco e canto triangular da marca no item escolhido. | Decisão do dono do produto ao aprovar a prévia do redesign; também separa o NorteLog do Miró, de menu branco. |
+| 04/11 | Menu recolhe sozinho | Depois de 20 s na mesma página (constante `AUTO_RECOLHER_MS`), no desktop. Mouse ou foco no menu seguram; recolhido, abre por cima sem mover a página; ao mudar de página, abre de novo. | Pedido do dono do produto: mais largura para o conteúdo. |
 | 03/11 | Cor de erro | **Vermelho** `#b3261e`, em vez de laranja-queimado. | A marca virou laranja: erro laranja seria lido como marca. |
 | **pendente** | Acentos nas planilhas Excel no modelo da cenografia (nº 84) | **Não mudar** até a cenografia confirmar ("ATA DE REUNIAO", "RESPONSAVEL PELA O.S", "SOMATORIA" copiam a planilha deles). As outras exportações seguem o glossário (§ 10). | Recomendado acentuar, só depois de confirmar com a equipe. |
 

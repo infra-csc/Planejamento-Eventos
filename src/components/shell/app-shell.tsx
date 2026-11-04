@@ -100,6 +100,9 @@ function ItemNav({ item, ativo, compacto }: { item: NavItem; ativo: boolean; com
   );
 }
 
+/** Tempo na mesma página até o menu lateral recolher sozinho. */
+const AUTO_RECOLHER_MS = 20_000;
+
 export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: { usuario: UsuarioAtual; nav: NavItem[]; naoLidas: number; children: React.ReactNode; verComo?: { areasSolicitantes: Array<{ id: string; nome: string }>; areaCenografia: string | null } | null }) {
   const vendoComo = Boolean(usuario.verComo);
   // Trocar de perfil recarrega a tela no servidor: a barra de carregamento do topo acompanha a troca
@@ -162,15 +165,35 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
     focarConteudoSePerdido();
   }, [pathname]);
   // No desktop a sidebar pode ficar recolhida (só ícones); a preferência fica no navegador.
-  const [recolhido, setRecolhido] = useState(false);
+  const [fixoRecolhido, setFixoRecolhido] = useState(false);
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- preferência lida uma vez, só no cliente
-      setRecolhido(localStorage.getItem("npe_menu_recolhido") === "1");
+      setFixoRecolhido(localStorage.getItem("npe_menu_recolhido") === "1");
     } catch {}
   }, []);
+  // Tempo na mesma página: o menu recolhe sozinho e dá a largura ao conteúdo; ao mudar de página, abre de novo. Com o mouse
+  // ou o foco no menu ele não recolhe; recolhido sozinho, abre por cima do conteúdo enquanto o mouse estiver nele.
+  const [autoRecolhidoEm, setAutoRecolhidoEm] = useState<string | null>(null);
+  const [mantidoAbertoEm, setMantidoAbertoEm] = useState<string | null>(null);
+  const [noMenu, setNoMenu] = useState(false);
+  const autoRecolhido = !fixoRecolhido && autoRecolhidoEm === pathname;
+  const sobreposto = autoRecolhido && noMenu;
+  const recolhido = fixoRecolhido || (autoRecolhido && !noMenu);
+  useEffect(() => {
+    if (fixoRecolhido || autoRecolhidoEm === pathname || mantidoAbertoEm === pathname || noMenu || menuAberto) return;
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    const t = setTimeout(() => setAutoRecolhidoEm(pathname), AUTO_RECOLHER_MS);
+    return () => clearTimeout(t);
+  }, [fixoRecolhido, autoRecolhidoEm, mantidoAbertoEm, noMenu, menuAberto, pathname]);
   const alternarRecolhido = () => {
-    setRecolhido((v) => {
+    // Aberto por cima: o botão só fixa o menu aberto até a próxima página.
+    if (sobreposto) {
+      setMantidoAbertoEm(pathname);
+      setAutoRecolhidoEm(null);
+      return;
+    }
+    setFixoRecolhido((v) => {
       try {
         localStorage.setItem("npe_menu_recolhido", v ? "0" : "1");
       } catch {}
@@ -218,6 +241,10 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
         id="menu-principal"
         aria-label="Menu principal"
         // Gaveta aberta (só abaixo de 1024 px) é um diálogo modal: o Tab não sai para o conteúdo de trás (nº 49).
+        onMouseEnter={() => setNoMenu(true)}
+        onMouseLeave={(e) => setNoMenu(e.currentTarget.contains(document.activeElement) && document.activeElement?.matches(":focus-visible") === true)}
+        onFocus={(e) => e.target.matches(":focus-visible") && setNoMenu(true)}
+        onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && !e.currentTarget.matches(":hover") && setNoMenu(false)}
         role={menuAberto ? "dialog" : undefined}
         aria-modal={menuAberto ? true : undefined}
         onClick={(e) => {
@@ -225,8 +252,9 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
           if ((e.target as HTMLElement).closest("a")) fecharMenu(false);
         }}
         className={cn(
-          "no-print flex h-screen w-[236px] shrink-0 flex-col border-r border-dark bg-dark transition-[transform,width,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0 [&_:focus-visible]:!outline-accent-light",
-          recolhido ? "lg:w-[64px]" : "lg:w-[200px] xl:w-[236px]",
+          "no-print flex h-screen w-[236px] shrink-0 flex-col border-r border-dark bg-dark transition-[transform,width,margin,visibility] duration-200 lg:sticky lg:top-0 lg:translate-x-0 [&_:focus-visible]:!outline-accent-light",
+          // Por cima do conteúdo: ocupa 64 px no layout, como recolhido, para a página não pular a cada passada do mouse.
+          sobreposto ? "lg:z-[calc(var(--z-header)+1)] lg:mr-[-172px] lg:w-[236px] lg:shadow-popover" : recolhido ? "lg:w-[64px]" : "lg:w-[200px] xl:w-[236px]",
           "max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-[calc(var(--z-busca)+1)] max-lg:shadow-popover",
           // Fechada no mobile: fora da tela e fora do Tab/leitor de tela (invisible some depois da transição).
           !menuAberto && "max-lg:invisible max-lg:-translate-x-full",
@@ -245,11 +273,11 @@ export function AppShell({ usuario, nav, naoLidas, children, verComo = null }: {
             type="button"
             onClick={alternarRecolhido}
             aria-pressed={recolhido}
-            aria-label="Recolher menu"
-            title={recolhido ? "Expandir menu" : "Recolher menu"}
+            aria-label={sobreposto ? "Manter menu aberto" : "Recolher menu"}
+            title={sobreposto ? "Manter aberto nesta página" : recolhido ? "Expandir menu" : "Recolher menu"}
             className="hidden size-7 shrink-0 cursor-pointer place-items-center rounded-controle border-0 bg-transparent text-on-dark-3 transition-colors duration-150 hover:bg-dark-4 hover:text-white lg:grid"
           >
-            <Icone nome={recolhido ? "expandir" : "recolher"} />
+            <Icone nome={recolhido || sobreposto ? "expandir" : "recolher"} />
           </button>
         </div>
 
