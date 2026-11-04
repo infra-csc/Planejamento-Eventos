@@ -44,7 +44,7 @@ export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; c
 
 export const ZONA_VISUAL: Record<TipoZona, { rotulo: string; cor: string }> = {
   arena: { rotulo: "Arena", cor: "#ddd5c8" },
-  // Cinza-quente neutro: o rosa da marca em superfície grande sobre o gramado lia como erro de impressão.
+  // Cinza-quente neutro: a cor da marca em superfície grande sobre o gramado lia como erro de impressão.
   atletas: { rotulo: "Área de atletas", cor: "#dcd2cc" },
   apoio: { rotulo: "Área de apoio", cor: "#e6dfcf" },
   restrita: { rotulo: "Acesso restrito", cor: "#b3261e" },

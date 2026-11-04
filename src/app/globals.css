@@ -223,7 +223,7 @@
 }
 
 /*
- * Opção ativa de lista, menu e busca (a que o teclado está apontando): fundo de seleção e uma barra vinho de 2 px à
+ * Opção ativa de lista, menu e busca (a que o teclado está apontando): fundo de seleção e uma barra da marca de 2 px à
  * esquerda. Só o fundo cinza dava 1,06:1 contra o branco e quem usa teclado não via onde estava (WCAG 2.4.7/1.4.11,
  * auditoria 28/10). A barra é a cor do anel de foco.
  */

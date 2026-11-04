@@ -163,10 +163,10 @@ export function RodapeTabela({ children, direita, className }: { children: React
 export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
   return (
     // Celular: as ações descem para baixo do texto (lado a lado, o título quebrava palavra por palavra).
-    // Anel de foco rosa em tudo que está dentro: o vinho sobre o fundo escuro dava 1,87:1 (auditoria 28/10 nº 139).
+    // Anel de foco em accent-light em tudo que está dentro: o accent sobre o escuro não tem contraste (auditoria 28/10 nº 139).
     <section className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-cartao bg-dark px-cartao py-4 [&_:focus-visible]:!outline-accent-light", className)} {...rest}>
       <div className="min-w-[min(15rem,100%)] flex-1">
-        {titulo && <h2 className="m-0 text-secao font-semibold text-white">{titulo}</h2>}
+        {titulo && <h2 className="m-0 font-titulo text-bloco font-semibold text-white">{titulo}</h2>}
         {children && <div className="mt-1 text-corpo text-on-dark-3">{children}</div>}
       </div>
       {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}

@@ -66,7 +66,7 @@ function ModalArea({ area, onClose }: { area: A | null; onClose: () => void }) {
   );
 }
 
-const CELULA = "border-b border-line-row px-3 py-3";
+const CELULA = "border-b border-line-row px-3 py-3 first:pl-cartao last:pr-cartao";
 
 export function AreasPainel({ areas, vazio }: { areas: A[]; vazio: { titulo: string; descricao?: string; acao?: React.ReactNode } }) {
   const [modal, setModal] = useState<A | "nova" | null>(null);

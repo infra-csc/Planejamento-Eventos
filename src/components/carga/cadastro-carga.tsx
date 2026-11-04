@@ -63,7 +63,7 @@ export function CadastroCarga({ eventos, veiculos, podeEditar, podeCriarEvento, 
         <section aria-label="Eventos" className={cn("overflow-hidden rounded-cartao border border-line bg-surface md:sticky md:top-[72px]", selecionado && "max-md:hidden")}>
           <header className="flex flex-col gap-2.5 border-b border-line-soft px-3.5 py-3">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="m-0 text-corpo font-semibold">Eventos</h2>
+              <h2 className="m-0 font-titulo text-bloco font-semibold">Eventos</h2>
               {podeCriarEvento && (
                 <ButtonLink href="/eventos/novo" variant="secondary" size="sm">
                   <Icone nome="mais" />
@@ -148,7 +148,7 @@ export function CadastroCarga({ eventos, veiculos, podeEditar, podeCriarEvento, 
               veiculos={porEvento.get(evento.id) ?? []}
               podeEditar={podeEditar}
               cabecalho={
-                <h2 className="m-0 flex flex-wrap items-baseline gap-x-2 text-secao font-semibold tracking-[-0.01em]">
+                <h2 className="m-0 flex flex-wrap items-baseline gap-x-2 font-titulo text-bloco font-semibold">
                   {evento.nome}
                   <span className="numero text-pequeno font-normal text-muted">
                     <Codigo>{evento.codigo}</Codigo> · evento {diaCurto(evento.data).toLowerCase()}

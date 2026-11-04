@@ -56,7 +56,7 @@ export function blocoDados(ws: ExcelJS.Worksheet, linha: number, col: number, pa
   return linha + pares.length;
 }
 
-/** Título de seção dentro da aba (vinho, com linha embaixo). */
+/** Título de seção dentro da aba (cor da marca, com linha embaixo). */
 export function tituloSecao(ws: ExcelJS.Worksheet, linha: number, cols: number, texto: string, sub?: string) {
   const c = ws.getCell(linha, 1);
   c.value = texto;

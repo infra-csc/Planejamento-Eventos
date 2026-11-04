@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 export type Qualidade = "alta" | "leve";
 
-/** Paleta da cena: manhã de prova (largada 06:30), tons terrosos e o vinho da marca só no percurso. */
+/** Paleta da cena: manhã de prova (largada 06:30), tons terrosos e o laranja da marca só no percurso. */
 export const PALETA = {
   ceu: 0xe9e4de,
   gramado: 0xa3ab90,

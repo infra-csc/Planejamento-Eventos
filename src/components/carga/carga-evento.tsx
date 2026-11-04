@@ -52,7 +52,7 @@ export function CargaDoEvento({
     <section className="overflow-hidden rounded-cartao border border-line bg-surface">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-soft px-cartao py-3.5">
         <div className="min-w-0 flex-1 max-sm:basis-full">
-          {cabecalho ?? <h2 className="m-0 text-secao font-semibold tracking-[-0.01em]">Veículos de carga</h2>}
+          {cabecalho ?? <h2 className="m-0 font-titulo text-bloco font-semibold">Veículos de carga</h2>}
           <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-2 text-pequeno text-muted">
             {veiculos.length ? (
               <>

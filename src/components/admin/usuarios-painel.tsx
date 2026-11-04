@@ -240,7 +240,7 @@ function AcoesUsuario({ u, meuId, pendente, onEditar, onAlternar, onVerComo }: {
   );
 }
 
-const CELULA = "border-b border-line-row px-3 py-3";
+const CELULA = "border-b border-line-row px-3 py-3 first:pl-cartao last:pr-cartao";
 
 export function UsuariosPainel({ usuarios, emails, areas, meuId, vazio }: { usuarios: U[]; emails: Array<{ id: string; email: string }>; areas: Array<{ id: string; nome: string }>; meuId: string; vazio: { titulo: string; descricao?: string; acao?: React.ReactNode } }) {
   const [modal, setModal] = useState<U | "novo" | null>(null);

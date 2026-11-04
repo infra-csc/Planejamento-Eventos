@@ -34,7 +34,7 @@ const TOM_ICONE: Record<TomAgora, string> = {
 export function Agora({ acoes, vazio, titulo = "Precisa de você agora" }: { acoes: AcaoAgora[]; vazio: { titulo: string; descricao: string }; titulo?: string }) {
   return (
     <section aria-labelledby="painel-agora" className="mb-5">
-      <h2 id="painel-agora" className="m-0 mb-2 text-secao font-semibold tracking-[-0.01em] text-ink">
+      <h2 id="painel-agora" className="m-0 mb-2 font-titulo text-bloco font-semibold text-ink">
         {titulo}
       </h2>
       {acoes.length === 0 ? (

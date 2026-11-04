@@ -59,7 +59,7 @@ const tamanhos: Record<ButtonSize, string> = {
   full: "h-[42px] w-full px-4 text-destaque rounded-controle",
 };
 
-/** Variantes sobre fundo escuro: o anel de foco usa o rosa (6:1 sobre o vinho escuro; o vinho daria 2:1). */
+/** Variantes sobre fundo escuro: o anel de foco usa accent-light (5:1 sobre o grafite; o accent não teria contraste). */
 const ESCUROS = new Set<ButtonVariant>(["onDark", "pink", "bloqueado"]);
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string }) {

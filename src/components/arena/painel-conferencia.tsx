@@ -36,7 +36,7 @@ export function PainelConferencia({
       <header className="border-b border-line-soft bg-warning-bg px-4 py-[13px]">
         <div className="flex items-start gap-2.5">
           <div className="min-w-0 flex-1">
-            <h2 id="conferencia-titulo" className="m-0 text-destaque font-semibold text-ink">
+            <h2 id="conferencia-titulo" className="m-0 font-titulo text-bloco font-semibold text-ink">
               Conferência planta × ata
             </h2>
             <p role="status" className="m-0 mt-0.5 text-pequeno text-warning">

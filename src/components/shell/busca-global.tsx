@@ -145,7 +145,7 @@ export function BuscaGlobal() {
         >
           <DialogPrimitive.Title className="sr-only">Buscar ou executar</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Busque eventos, solicitações, peças e projetos, ou execute uma ação.</DialogPrimitive.Description>
-          {/* O campo não tem borda própria: o foco aparece como um filete vinho embaixo da faixa (auditoria 28/10, nº 135). */}
+          {/* O campo não tem borda própria: o foco aparece como um filete da marca embaixo da faixa (auditoria 28/10, nº 135). */}
           <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5 focus-within:shadow-[inset_0_-2px_0_var(--color-accent)]">
             <Icone nome="busca" className="text-ink-3" />
             <input

@@ -1,7 +1,7 @@
 import type { TipoCalendario } from "@/server/services/calendario";
 
 /**
- * Cor e rótulo de cada tipo do calendário, pelos tons semânticos do design system (o vinho fica só
+ * Cor e rótulo de cada tipo do calendário, pelos tons semânticos do design system (o laranja fica só
  * para "hoje"): evento = faixa neutra; reunião de OS = info; prazo de resposta = erro; fim da
  * janela = atenção; montagem = sucesso; carga = escuro (neutro de peso).
  */

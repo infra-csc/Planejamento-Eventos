@@ -65,7 +65,7 @@ function marco(e: EventoLista, hoje: string, versaoOs: number): { texto: string;
   if (e.status === "CANCELADO") return { texto: "cancelado" };
   return { texto: versaoOs ? `OS final v${versaoOs}` : "sem OS" };
 }
-// Reunião hoje/amanhã/agora é estado (em andamento): azul de informação; o vinho é só para "aja aqui".
+// Reunião hoje/amanhã/agora é estado (em andamento): azul de informação; o laranja é só para "aja aqui".
 const COR_MARCO = { info: "font-medium text-info", warning: "font-medium text-warning" } as const;
 
 /** Recortes pela reunião de OS (em preparação ou em reunião) e pela data do evento. */

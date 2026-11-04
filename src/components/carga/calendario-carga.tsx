@@ -484,7 +484,7 @@ export function CalendarioCarga({
       {achados ? (
         <section aria-label={`Linha do tempo: ${busca.trim()}`} className="overflow-hidden rounded-cartao border border-line bg-surface">
           <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line-soft px-cartao py-3">
-            <h3 className="m-0 text-secao font-semibold">Linha do tempo · “{busca.trim()}”</h3>
+            <h3 className="m-0 font-titulo text-bloco font-semibold">Linha do tempo · “{busca.trim()}”</h3>
             <span className="text-pequeno text-muted">{achados.length ? `${achados.length} ${achados.length === 1 ? "registro" : "registros"} com os filtros atuais` : "Nada encontrado com os filtros atuais."}</span>
           </header>
           <ol className="m-0 list-none p-0">

@@ -172,7 +172,7 @@ export function MudancasPosAta({
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-line-soft px-cartao py-3.5">
         {/* basis-64: em cartão estreito (celular) o link desce para baixo do título em vez de espremê-lo em 3 linhas. */}
         <div className="min-w-0 flex-1 basis-64">
-          <h2 id="mudancas-titulo" className="m-0 flex items-center gap-2 text-secao font-semibold tracking-[-0.01em]">
+          <h2 id="mudancas-titulo" className="m-0 flex items-center gap-2 font-titulo text-bloco font-semibold">
             <Icone nome="camadas" className="text-info" />
             O que mudou depois da reunião
             {linhas.length > 0 && <Numero valor={linhas.length} className="rounded-chip bg-info-bg px-1.5 text-rotulo font-semibold text-info" />}

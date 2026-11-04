@@ -200,7 +200,7 @@ function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConfe
             </div>
             <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
               <dt className="text-pequeno text-muted">Total</dt>
-              {/* Resultado, não ação: tinta normal (o vinho fica para "aja aqui"). */}
+              {/* Resultado, não ação: tinta normal (o laranja fica para "aja aqui"). */}
               <dd className="numero m-0 text-destaque font-semibold text-ink">{l.quantidade + extra}</dd>
             </div>
           </dl>
@@ -1263,7 +1263,7 @@ export function ConferenciaAta({
                   return [
                     // Item que vem junto de outro: o aviso fica entre a origem e ele, com quanto a regra pede e quanto a ata tem.
                     dep ? (
-                      // Ligação neutra (borda e seta cinza): o vinho fica para "aja aqui"; quando a ata não bate com a regra, a conta fica amarela.
+                      // Ligação neutra (borda e seta cinza): o laranja fica para "aja aqui"; quando a ata não bate com a regra, a conta fica amarela.
                       // Texto corrido (não flex): numa lista estreita a conta quebra no meio da frase, não numa linha começando por "·".
                       <p key={`${chave}:junto`} className="m-0 border-t border-dashed border-line-strong bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
                         <span aria-hidden className="mr-1.5">
