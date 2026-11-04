@@ -68,7 +68,7 @@ export function BannerReuniao({
       acoes={
         emReuniao ? (
           <div className="flex shrink-0 flex-col items-end gap-1.5 max-sm:items-stretch">
-            <Button abreDialogo variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
+            <Button abreDialogo variant={completo ? "marcaSobreEscuro" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
               Fechar ata e gerar OS
             </Button>
             {!completo &&
@@ -85,7 +85,7 @@ export function BannerReuniao({
               ))}
           </div>
         ) : (
-          <Button abreDialogo variant="pink" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
+          <Button abreDialogo variant="marcaSobreEscuro" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
             Iniciar reunião
           </Button>
         )

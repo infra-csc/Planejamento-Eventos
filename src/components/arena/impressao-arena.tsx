@@ -220,7 +220,7 @@ export function ImpressaoArena({ arena, slug, temPlanta, geradoEm }: { arena: Ar
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-1 block h-5 w-auto" />
             <p className="text-[10px] uppercase tracking-widest">Mapa de montagem</p>
-            <h1 className="mt-0.5 truncate text-lg font-semibold">{ev.nome}</h1>
+            <h1 className="mt-0.5 truncate font-titulo text-manchete-sm font-semibold">{ev.nome}</h1>
             <p className="mt-0.5 text-[11px] text-neutral-600">{[data, ev.local || null, ev.montagem ? `Montagem: ${ev.montagem}` : null].filter(Boolean).join(" · ") || "—"}</p>
           </div>
           <div className="shrink-0 text-right text-[10.5px] text-neutral-600">

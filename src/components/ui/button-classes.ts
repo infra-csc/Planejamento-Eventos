@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
  *  - danger        confirmação destrutiva (dentro do diálogo de confirmação).
  *  - dangerOutline gatilho de ação destrutiva (abre a confirmação).
  *  - atender/parcial/recusar  respostas de item (semânticas).
- *  - onDark/pink/bloqueado    sobre superfície escura.
+ *  - onDark/marcaSobreEscuro/bloqueado    sobre superfície escura.
  */
 export type ButtonVariant =
   | "primary"
@@ -25,7 +25,7 @@ export type ButtonVariant =
   | "danger"
   | "dangerOutline"
   | "onDark"
-  | "pink"
+  | "marcaSobreEscuro"
   | "bloqueado";
 
 export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "full";
@@ -42,7 +42,7 @@ const variantes: Record<ButtonVariant, string> = {
   danger: "bg-danger text-white border-danger hover:brightness-90 active:brightness-[0.85]",
   dangerOutline: "bg-transparent text-danger border-danger-border hover:bg-danger-bg",
   onDark: "bg-dark-2 text-white border-dark-2 hover:bg-dark-3",
-  pink: "bg-accent-light text-ink border-accent-light hover:brightness-105",
+  marcaSobreEscuro: "bg-accent-light text-ink border-accent-light hover:brightness-105",
   bloqueado: "bg-dark-2 text-on-dark-2 border-dark-2 cursor-not-allowed",
 };
 
@@ -60,7 +60,7 @@ const tamanhos: Record<ButtonSize, string> = {
 };
 
 /** Variantes sobre fundo escuro: o anel de foco usa accent-light (5:1 sobre o grafite; o accent não teria contraste). */
-const ESCUROS = new Set<ButtonVariant>(["onDark", "pink", "bloqueado"]);
+const ESCUROS = new Set<ButtonVariant>(["onDark", "marcaSobreEscuro", "bloqueado"]);
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string }) {
   return cn(

@@ -181,7 +181,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
                 </span>
               )}
               {proxima ? (
-                <ButtonLink href={`/solicitacoes/${proxima.id}?fila=1`} variant="pink" size="sm" className="no-underline">
+                <ButtonLink href={`/solicitacoes/${proxima.id}?fila=1`} variant="marcaSobreEscuro" size="sm" className="no-underline">
                   Próxima
                 </ButtonLink>
               ) : (

@@ -65,7 +65,7 @@ export default async function ImpressaoAtaPage({ params, searchParams }: { param
         <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-2.5 block h-6 w-auto" />
         <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Ata da reunião de OS</p>
         <h1 className="mb-0 mt-1 font-titulo text-manchete font-semibold">
-          <Codigo>{ev.codigo}</Codigo> · {ev.nome}
+          {ev.codigo} · {ev.nome}
         </h1>
         <p className="numero mb-0 mt-1 text-pequeno text-ink-3">{ata.versao ? `Ata v${ata.versao}${reu?.fechadaEm ? ` · fechada em ${formatarDataHora(reu.fechadaEm)}` : ""}` : "Ata em construção — ainda não fechada"}</p>
       </header>

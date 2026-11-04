@@ -1,6 +1,7 @@
 import { osParaLeitura, ROTULO_KIT } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 import { notFound } from "next/navigation";
 import { NaoEncontradoError } from "@/domain/errors";
 import { obterEventoCache } from "@/server/cache";
@@ -33,7 +34,7 @@ const tabela = "w-full table-fixed sm:min-w-[420px] border-collapse [overflow-wr
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
 // Linha um pouco mais alta: a folha é impressa e a equipe escreve na coluna Obs.
-const linha = "h-9 border-b border-line-strong";
+const linha = "h-9 break-inside-avoid border-b border-line-strong";
 const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 const sep = "w-14 py-1.5 text-center align-top";
@@ -193,7 +194,8 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
 /** Uma seção da folha: peça (com a regra, quando a quantidade vem dela), quantidade, separado e observação à mão. */
 function TabelaSecao({ secao, sub = false }: { secao: SecaoFolha; sub?: boolean }) {
   return (
-    <section className="mb-8 break-inside-avoid">
+    // Só seção curta fica inteira: a longa pulava de página e deixava meia folha em branco.
+    <section className={cn("mb-8", secao.linhas.length <= 12 && "break-inside-avoid")}>
       {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 font-titulo text-bloco font-semibold">{secao.titulo}</h3>}
       <Rolagem rotulo={secao.titulo}>
         <table className={tabela}>
