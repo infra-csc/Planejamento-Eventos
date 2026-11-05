@@ -11,6 +11,7 @@ import { erroDownload } from "@/server/export/resposta-erro";
 import { obterEvento } from "@/server/services/eventos";
 import { mapaGruposPecas } from "@/server/services/grupos-material";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { obterSeparacao } from "@/server/services/separacao";
 
 /** Materiais KIT em Excel: a lista à parte do que a área Kit pediu (versão pedida ou a ata de agora). */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,13 +19,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!usuario) return erroDownload(request, 401, "Sua sessão terminou. Entre de novo e baixe outra vez", "/login");
   if (!pode(usuario, "os.exportar")) return erroDownload(request, 403, "Seu perfil não baixa os materiais do Kit");
   const { id } = await params;
-  const [ev, versoes, mapa] = await Promise.all([
+  const [ev, versoes, mapa, separacao] = await Promise.all([
     obterEvento(usuario, id).catch((e: unknown) => {
       if (e instanceof NaoEncontradoError) return null;
       throw e;
     }),
     listarOsResumo(id),
     mapaGruposPecas(),
+    obterSeparacao(id),
   ]);
   if (!ev) return erroDownload(request, 404, "Evento não encontrado");
   const v = Number(new URL(request.url).searchParams.get("v"));
@@ -33,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { kit } = osParaLeitura(gravado ?? (await calcularOsAtual(await getDb(), id)));
   if (!kit) return erroDownload(request, 404, "Este evento não tem materiais do Kit");
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
-  const wb = pastaMateriaisKit(ev, kit, mapa, rotulo, usuario.nome, formatarDataHora(new Date()));
+  const wb = pastaMateriaisKit(ev, kit, mapa, rotulo, usuario.nome, formatarDataHora(new Date()), { locada: separacao.locada });
   const buffer = await wb.xlsx.writeBuffer();
   return new NextResponse(buffer as ArrayBuffer, {
     headers: {

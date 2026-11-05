@@ -85,6 +85,9 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   const osAgora = leitura === "lista" ? null : calcularOS(linhas);
   const edicaoOs = osAgora && editavel ? montarEdicaoOs({ eventoId: id, linhas: linhas.filter((l) => !ehAreaKit(l.areaNome)), os: osAgora, ataFechada: Boolean(ev.ataFechadaEm), opcoes, podeCadastrar: pode(usuario, "catalogo.gerenciar") }) : undefined;
 
+  // Os projetos e as peças do Kit têm os mesmos ajustes (incluir peça, mais ou menos), só com as linhas da área Kit.
+  const edicaoKit = osAgora?.kit && editavel ? montarEdicaoOs({ eventoId: id, linhas: linhas.filter((l) => ehAreaKit(l.areaNome)), os: osAgora.kit, ataFechada: Boolean(ev.ataFechadaEm), opcoes, podeCadastrar: pode(usuario, "catalogo.gerenciar") }) : undefined;
+
   const projetos = linhas.filter((l) => l.tipo === "PROJETO");
   // Para fechar a ata contam só as obrigatórias ("a definir" e estaiamento ficam de fora).
   const obrigatorias = linhas.filter((l) => !conferenciaOpcional({ tipo: l.tipo, codigo: l.peca?.codigo, quantidade: l.quantidade }));
@@ -234,7 +237,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
             <EmptyState compact title={cancelado ? "Nenhum item" : "Nenhum item ainda"} description={cancelado ? "Evento cancelado: não terá ata nem pedidos." : editavel ?"Os pedidos das áreas entram aqui sozinhos. O que for decidido fora de um pedido entra por “Incluir item”." : "Quando as áreas enviarem necessidades, os itens aparecem aqui."} />
           ) : osAgora ? (
             <div className="flex flex-col gap-4 bg-subtle p-3 sm:p-4">
-              <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} />
+              <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} edicaoKit={edicaoKit} />
             </div>
           ) : (
             <ListaItensEvento eventoId={id} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} quem={(l) => (podeVerOrigem(l) ? (l.origemPor ?? null) : null)} />

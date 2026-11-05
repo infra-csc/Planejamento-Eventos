@@ -1,4 +1,5 @@
 import type { OsConteudo, Setor } from "@/server/db/schema";
+import { setoresComKit } from "@/domain/os";
 
 /**
  * Consolidação por período (handoff §5.13).
@@ -64,7 +65,7 @@ export function consolidar(
   for (const ev of eventos) {
     const m = new Map<string, number>();
     // O Kit tem lista própria, mas as peças saem do mesmo estoque.
-    for (const s of [...ev.os.setores, ...(ev.os.kit?.setores ?? [])]) for (const l of s.linhas) m.set(l.pecaId, (m.get(l.pecaId) ?? 0) + l.total);
+    for (const s of setoresComKit(ev.os)) for (const l of s.linhas) m.set(l.pecaId, (m.get(l.pecaId) ?? 0) + l.total);
     confirmada.set(ev.id, m);
   }
 

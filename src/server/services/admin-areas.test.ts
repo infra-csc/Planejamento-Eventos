@@ -32,6 +32,14 @@ describe("áreas e usuários no admin", () => {
     await salvarArea(E.admin, E.areas.a.id, { nome, ativo: true });
   });
 
+  it("a área Kit não muda de nome: é por ele que os materiais saem na lista à parte", async () => {
+    const kit = await salvarArea(E.admin, null, { nome: "Kit", ativo: true });
+    await expect(salvarArea(E.admin, kit, { nome: "Kit Atleta", ativo: true })).rejects.toBeInstanceOf(ValidacaoError);
+    await expect(salvarArea(E.admin, kit, { nome: "KIT", ativo: true })).resolves.toBe(kit);
+    await expect(salvarArea(E.admin, kit, { nome: "Kit", ativo: false })).resolves.toBe(kit);
+    await salvarArea(E.admin, kit, { nome: "Kit", ativo: true });
+  });
+
   it("troca de área registra os nomes, de e para", async () => {
     const u = E.requisitante;
     await editarUsuario(E.admin, u.id, { nome: u.nome, email: "x@x.com", perfil: "REQUISITANTE", areaId: E.areas.b.id, senha: null, ativo: true });

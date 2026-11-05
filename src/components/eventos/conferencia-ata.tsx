@@ -26,6 +26,7 @@ import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import { GRUPO_LABEL, type GrupoMaterial } from "@/domain/grupos-material";
 import type { AcompanhanteDaAta, LinhaConferencia } from "@/server/services/conferencia";
 import { conferenciaOpcional } from "@/domain/itens-padrao";
+import { ehAreaKit, ROTULO_KIT } from "@/domain/os";
 import { ACOMPANHANTES } from "@/domain/regras-kit";
 import { MARCA_ACOMPANHANTE } from "@/components/solicitacoes/nova/utilidades";
 
@@ -76,7 +77,7 @@ function BotaoCompletar({ eventoId, n }: { eventoId: string; n: AcompanhanteDaAt
       aria-label={`Incluir ${falta} ${n.nome}`}
       onClick={() =>
         iniciar(async () => {
-          const r = await completarAcompanhanteAction(eventoId, n.codigo);
+          const r = await completarAcompanhanteAction(eventoId, n.codigo, n.kit);
           if (!r.ok) return toastErro(r.erro);
           toastSucesso(`${n.nome} × ${falta} incluído`);
         })
@@ -116,10 +117,11 @@ const areaDe = (l: LinhaConferencia) => l.areaNome ?? "Logística";
  * Seção pelo grupo de material, como a lista de materiais da OS (Estrutura, Tendas, Ativação, Percurso,
  * Arena): a mesma peça pedida por várias áreas fica num bloco só, somada, com uma linha por quem pediu.
  */
-const secaoDe = (l: LinhaConferencia) => GRUPO_LABEL[l.grupo];
+const secaoDe = (l: LinhaConferencia) => (ehAreaKit(l.areaNome) ? ROTULO_KIT : GRUPO_LABEL[l.grupo]);
 /** Ordem em que a reunião passa pelos materiais (pedido da logística): seções e filtro seguem esta ordem. */
 const ORDEM_CONFERENCIA: readonly GrupoMaterial[] = ["PERCURSO", "TENDAS", "ESTRUTURA", "MARCENARIA", "ATIVACAO", "ARENA", "OUTROS"];
-const ordemSecao = (s: string) => ORDEM_CONFERENCIA.findIndex((g) => GRUPO_LABEL[g] === s);
+// O Kit, com seção própria (outro local de entrega), vem por último.
+const ordemSecao = (s: string) => (s === ROTULO_KIT ? ORDEM_CONFERENCIA.length : ORDEM_CONFERENCIA.findIndex((g) => GRUPO_LABEL[g] === s));
 /** Quem pediu a linha (ou quem incluiu na reunião). */
 const pessoaDe = (l: LinhaConferencia) => l.origem?.solicitante ?? (l.regra ? "Regra da logística" : (l.incluidaPor ?? "Logística"));
 const porNome = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
@@ -915,10 +917,14 @@ export function ConferenciaAta({
   const secaoDaLinha = useMemo(() => {
     const m = new Map<string, string>();
     for (const a of ACOMPANHANTES) {
-      const bases = linhas.filter((o) => o.codigo && a.bases.includes(o.codigo));
-      if (!bases.length) continue;
-      const alvo = secaoDe(bases.reduce((x, y) => (y.quantidade > x.quantidade ? y : x)));
-      for (const l of linhas) if (l.codigo === a.acompanhante) m.set(l.id, alvo);
+      // O acompanhante fica na seção da origem do mesmo lado: o do Kit com o Kit, o geral com a lista geral.
+      for (const kit of [false, true]) {
+        const doLado = linhas.filter((o) => ehAreaKit(o.areaNome) === kit);
+        const bases = doLado.filter((o) => o.codigo && a.bases.includes(o.codigo));
+        if (!bases.length) continue;
+        const alvo = secaoDe(bases.reduce((x, y) => (y.quantidade > x.quantidade ? y : x)));
+        for (const l of doLado) if (l.codigo === a.acompanhante) m.set(l.id, alvo);
+      }
     }
     return (l: LinhaConferencia) => m.get(l.id) ?? secaoDe(l);
   }, [linhas]);
@@ -1256,10 +1262,11 @@ export function ConferenciaAta({
                   </span>
                 </h3>
                 {itens.flatMap(([chave, ls, dep]) => {
-                  const nec = acompanhantes.find((n) => n.codigo === ls[0].codigo);
+                  const nec = acompanhantes.find((n) => n.codigo === ls[0].codigo && n.kit === ehAreaKit(ls[0].areaNome));
                   // Origem (mesa, pranchão, grade, cocho) cujo acompanhante não tem nenhuma linha na ata: aviso logo abaixo dela.
-                  const semNenhum = acompanhantes.filter((n) => n.naAta === 0 && n.precisa > 0 && ls.some((l) => l.codigo && n.bases.includes(l.codigo)) && !avisados.has(n.codigo));
-                  for (const n of semNenhum) avisados.add(n.codigo);
+                  const chaveAviso = (n: AcompanhanteDaAta) => `${n.kit ? "kit" : "geral"}:${n.codigo}`;
+                  const semNenhum = acompanhantes.filter((n) => n.naAta === 0 && n.precisa > 0 && ls.some((l) => l.codigo && n.bases.includes(l.codigo) && ehAreaKit(l.areaNome) === n.kit) && !avisados.has(chaveAviso(n)));
+                  for (const n of semNenhum) avisados.add(chaveAviso(n));
                   return [
                     // Item que vem junto de outro: o aviso fica entre a origem e ele, com quanto a regra pede e quanto a ata tem.
                     dep ? (
@@ -1274,7 +1281,7 @@ export function ConferenciaAta({
                     ) : null,
                     renderizarItem(chave, ls),
                     ...semNenhum.map((n) => (
-                      <p key={`${chave}:falta:${n.codigo}`} className="m-0 flex items-center gap-x-1.5 border-t border-dashed border-warning-border bg-warning-bg/50 px-cartao py-1.5 text-rotulo text-warning">
+                      <p key={`${chave}:falta:${chaveAviso(n)}`} className="m-0 flex items-center gap-x-1.5 border-t border-dashed border-warning-border bg-warning-bg/50 px-cartao py-1.5 text-rotulo text-warning">
                         <span aria-hidden className="self-start">
                           ↳
                         </span>
@@ -1357,7 +1364,7 @@ export function ConferenciaAta({
           <ExtraPrismaModal
             l={ajustando}
             // A mais: a linha da logística da mesma peça, sem pedido e sem regra (a que este quadro cria).
-            extraAtual={linhas.filter((o) => o.codigo === ajustando.codigo && !o.regraChave && !o.origem && !o.destino).reduce((a, o) => a + o.quantidade, 0)}
+            extraAtual={linhas.filter((o) => o.codigo === ajustando.codigo && !o.regraChave && !o.origem && !o.destino && ehAreaKit(o.areaNome) === ehAreaKit(ajustando.areaNome)).reduce((a, o) => a + o.quantidade, 0)}
             eventoId={eventoId}
             onFechar={() => setAjustando(null)}
           />

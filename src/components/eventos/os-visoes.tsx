@@ -5,7 +5,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { ChipMono } from "@/components/ui/badge";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
-import { Aviso, EmptyState, RodapeTabela, Section } from "@/components/ui/layout";
+import { Aviso, EmptyState, RodapeTabela, RotuloGrupo, Section } from "@/components/ui/layout";
 import { Pills } from "@/components/ui/pills";
 import { CaptionOculta, Th } from "@/components/ui/tabela";
 
@@ -68,8 +68,11 @@ export function OsVisoes({
   composicao,
   semNavegacao = false,
   edicao,
+  edicaoKit,
 }: {
   edicao?: EdicaoOs;
+  /** As mesmas ações, para as linhas da área Kit. */
+  edicaoKit?: EdicaoOs;
   os: OsConteudo;
   visao: VisaoOs;
   hrefVisao: (v: VisaoOs) => string;
@@ -109,7 +112,7 @@ export function OsVisoes({
           {!os.projetos && <Aviso tom="neutro">Esta versão da OS é anterior à visão por projeto. Abra a versão atual para ver.</Aviso>}
           {os.projetos?.length === 0 && (
             <Section>
-              <EmptyState compact title="Nenhum projeto padrão nesta OS" description="Só peças soltas e itens fora do catálogo." />
+              {os.kit?.projetos?.length ? <EmptyState compact title="Nenhum projeto padrão na lista geral" description="Os projetos desta OS são do Kit: estão em Materiais KIT, abaixo." /> : <EmptyState compact title="Nenhum projeto padrão nesta OS" description="Só peças soltas e itens fora do catálogo." />}
             </Section>
           )}
           {os.projetos?.map((p, i) => {
@@ -192,7 +195,7 @@ export function OsVisoes({
           {!os.individuais && <Aviso tom="neutro">Esta versão da OS é anterior à visão de peças soltas. Abra a versão atual para ver.</Aviso>}
           {os.individuais && os.individuais.length === 0 && os.semSetor.length === 0 && (
             <Section>
-              <EmptyState compact title="Nenhuma peça pedida fora de projeto" description="Tudo nesta OS vem de projetos padrão." />
+              {os.kit?.individuais?.length || os.kit?.semSetor.length ? <EmptyState compact title="Nenhuma peça solta na lista geral" description="As peças soltas desta OS são do Kit: estão em Materiais KIT, abaixo." /> : <EmptyState compact title="Nenhuma peça pedida fora de projeto" description="Tudo nesta OS vem de projetos padrão." />}
             </Section>
           )}
           {os.individuais && os.individuais.length > 0 && (
@@ -379,16 +382,31 @@ export function OsVisoes({
         </Section>
       )}
 
-      {visao !== "composicao" && os.kit && <SecaoKit kit={os.kit} />}
+      {/* Com o que mostrar nesta leitura, o Kit usa a mesma tela (e os mesmos ajustes) da lista geral; senão, o resumo por peça. */}
+      {os.kit && ((visao === "projetos" && os.kit.projetos?.length) || (visao === "individuais" && (os.kit.individuais?.length || os.kit.semSetor.length))) ? (
+        <>
+          <RotuloGrupo className="!mb-0 mt-2" contagem="outro local de entrega">
+            {ROTULO_KIT}
+          </RotuloGrupo>
+          <OsVisoes os={os.kit} grupos={grupos} visao={visao} semNavegacao titulo={ROTULO_KIT} hrefVisao={hrefVisao} edicao={edicaoKit} />
+        </>
+      ) : (
+        visao !== "composicao" && os.kit && <SecaoKit kit={os.kit} edicao={edicaoKit} />
+      )}
     </>
   );
 }
 
 /** O que a área Kit pediu: outro local de entrega, então fica fora das somas acima, em qualquer leitura. */
-function SecaoKit({ kit }: { kit: OsConteudo }) {
+function SecaoKit({ kit, edicao }: { kit: OsConteudo; edicao?: EdicaoOs }) {
   const pecas = kit.setores.flatMap((s) => s.linhas).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   return (
     <Section titulo={ROTULO_KIT} sub="Outro local de entrega: lista à parte, fora das somas e da folha de separação dos demais materiais.">
+      {Boolean(kit.projetos?.length) && (
+        <p className="m-0 border-b border-line-soft px-cartao py-2 text-pequeno text-ink-2">
+          <span className="font-medium text-ink">Projetos:</span> {kit.projetos!.map((p) => `${p.nome} × ${p.quantidade}${p.destino ? ` (${p.destino})` : ""}`).join(" · ")}
+        </p>
+      )}
       <div className="overflow-x-auto">
         <table data-responsiva className="w-full border-collapse sm:min-w-[480px]">
           <CaptionOculta>{ROTULO_KIT}</CaptionOculta>
@@ -399,6 +417,11 @@ function SecaoKit({ kit }: { kit: OsConteudo }) {
               <Th largura={110} alinhar="right">
                 Total
               </Th>
+              {edicao && (
+                <Th largura={64}>
+                  <span className="sr-only">Ações</span>
+                </Th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -409,9 +432,10 @@ function SecaoKit({ kit }: { kit: OsConteudo }) {
                   <span className="mt-0.5 block text-rotulo text-muted md:hidden">{l.origens.map(origemTexto).join(" · ")}</span>
                 </th>
                 <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>{l.origens.map(origemTexto).join(" · ")}</td>
-                <td className={tdTotal}>
+                <td className={edicao ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>
                   <Total n={l.total} unidade={l.unidade} />
                 </td>
+                {edicao && <td className={tdAcoes}>{edicao.total?.(l)}</td>}
               </tr>
             ))}
             {kit.semSetor.map((a, i) => (
@@ -421,7 +445,8 @@ function SecaoKit({ kit }: { kit: OsConteudo }) {
                   <span className="mt-0.5 block text-rotulo text-muted md:hidden">Fora do catálogo{a.destino ? ` · ${a.destino}` : ""}</span>
                 </th>
                 <td className={`${td} hidden text-pequeno text-muted md:table-cell`}>Fora do catálogo{a.destino ? ` · ${a.destino}` : ""}</td>
-                <td className={tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
+                <td className={edicao ? tdTotal.replace("pr-cartao", "pr-3") : tdTotal}>{a.quantidade.toLocaleString("pt-BR")}</td>
+                {edicao && <td className={tdAcoes}>{edicao.foraCatalogo?.(i)}</td>}
               </tr>
             ))}
           </tbody>

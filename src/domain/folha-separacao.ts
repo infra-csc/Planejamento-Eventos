@@ -111,7 +111,9 @@ const SECOES: readonly Secao[] = [
 ];
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
-const ehStand = (nome: string) => /^(stand|estande)\b/.test(semAcento(nome));
+export const ehStand = (nome: string) => /^(stand|estande)\b/.test(semAcento(nome));
+/** Cinta catraca pedida no catálogo (qualquer peça com "catraca" no nome). */
+export const ehCintaCatraca = (p: { codigo: string; nome: string }) => ["CINTA-CATRACA", "CINTACATRACA"].includes(p.codigo) || /\bcatraca\b/.test(semAcento(p.nome));
 
 /** Onde fica a peça que a lista não cita: o fim do bloco do grupo dela. */
 function secaoDoResto(p: PecaDaFolha): string {
@@ -129,8 +131,8 @@ function secaoDoResto(p: PecaDaFolha): string {
  */
 export function montarFolhaSeparacao(pecas: readonly PecaDaFolha[], opcoes: { stands: number | null }): SecaoFolha[] {
   const usadas = new Set<string>();
-  // Cinta catraca pedida no catálogo (qualquer peça com "catraca" no nome): soma com as dos stands numa linha só.
-  const cintas = pecas.filter((p) => ["CINTA-CATRACA", "CINTACATRACA"].includes(p.codigo) || /\bcatraca\b/.test(semAcento(p.nome)));
+  // A cinta catraca pedida soma com as dos stands numa linha só.
+  const cintas = pecas.filter(ehCintaCatraca);
   cintas.forEach((p) => usadas.add(p.pecaId));
   const linhas = new Map<string, LinhaFolha[]>(SECOES.map((s) => [s.id, []]));
   const linha = (p: PecaDaFolha): LinhaFolha => ({ chave: p.pecaId, nome: p.nome, unidade: p.unidade, total: p.total });

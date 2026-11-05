@@ -4,6 +4,7 @@ import { getDb } from "@/server/db";
 import { areas, sessoes, solicitacoes, usuarios, type Perfil } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
+import { ehAreaKit } from "@/domain/os";
 import { PERFIL_LABEL, perfilUsaArea } from "@/domain/permissions";
 import { normalizarTexto } from "@/domain/carga-descarga";
 import { hashSenha, verificarSenha } from "@/server/auth/password";
@@ -42,9 +43,13 @@ export async function salvarArea(usuario: UsuarioAtual, id: string | null, dados
   // Sem acento e sem caixa: "Producao" ao lado de "Produção" virava uma segunda área nas listas (auditoria 30/10,
   // parte D N14). São poucas áreas: compara na memória, sem depender de extensão do banco (unaccent).
   const chave = normalizarTexto(dados.nome.trim());
-  const dup = (await db.select({ id: areas.id, nome: areas.nome }).from(areas)).find((a) => normalizarTexto(a.nome.trim()) === chave);
+  const todas = await db.select({ id: areas.id, nome: areas.nome }).from(areas);
+  const dup = todas.find((a) => normalizarTexto(a.nome.trim()) === chave);
   if (dup && dup.id !== id) throw new ValidacaoError(`Já existe a área “${dup.nome}”.`, { nome: `Nome em uso por “${dup.nome}”.` });
   if (id) {
+    // A lista à parte do Kit depende do nome da área: renomear faria os materiais voltarem para a lista geral, sem aviso.
+    const atual = todas.find((a) => a.id === id);
+    if (atual && ehAreaKit(atual.nome) && !ehAreaKit(dados.nome)) throw new ValidacaoError("A área Kit não pode mudar de nome: é por ele que os materiais saem na lista à parte.", { nome: "Mantenha o nome Kit." });
     await db.update(areas).set(dados).where(eq(areas.id, id));
     await registrarHistorico(db, { entidade: "area", entidadeId: id, acao: "EDITADA", descricao: `Área “${dados.nome}” alterada`, usuarioId: usuario.id, dadosDepois: dados });
     return id;

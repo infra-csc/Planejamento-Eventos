@@ -28,6 +28,21 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
   // O que acompanha um item vai para o mesmo local: o Kit tem as próprias linhas de regra, contadas só sobre os pedidos dele.
   const doKit = (l: (typeof linhas)[number]) => ehAreaKit(l.area?.nome);
   const areaKit = linhas.find(doKit)?.areaId ?? null;
+  // O Kit passa a ter a própria linha e a geral foi ajustada à mão: o número pode já contar o que é do Kit. Não dá para
+  // saber quanto, então a linha geral não muda: volta para conferência, com o motivo no histórico.
+  const conferirLinhaGeral = async (regra: string, nomePeca: string) => {
+    const geral = linhas.find((l) => !doKit(l) && l.regra === regra && l.ativo && l.regraManual);
+    if (!geral) return;
+    await tx.update(eventoItens).set({ conferidoEm: null, conferidoPorId: null }).where(eq(eventoItens.id, geral.id));
+    await registrarHistorico(tx, {
+      eventoId,
+      entidade: "evento_item",
+      entidadeId: geral.id,
+      acao: "REGRA_KIT",
+      descricao: `Regra da logística: ${nomePeca} agora tem linha própria no Kit. A linha geral, ajustada à mão para ${geral.quantidade}, não foi recalculada e volta para conferência`,
+      usuarioId,
+    });
+  };
   for (const grupoKit of areaKit ? [false, true] : [false]) {
     const doGrupo = linhas.filter((l) => doKit(l) === grupoKit);
     const rotulo = grupoKit ? "Regra da logística · Kit" : "Regra da logística";
@@ -47,6 +62,7 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
         if (existente?.regraManual || Boolean(existente?.ativo) === Boolean(r.presente)) continue;
         let id = existente?.id;
         if (!existente) {
+          if (grupoKit) await conferirLinhaGeral(r.regra, p.nome);
           const [nova] = await tx.insert(eventoItens).values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: 0, origem: "AJUSTE_LOGISTICA", regra: r.regra, areaId: grupoKit ? areaKit : null, criadoPorId: usuarioId }).returning({ id: eventoItens.id });
           id = nova.id;
         } else {
@@ -73,6 +89,7 @@ export async function sincronizarRegrasAta(tx: Executor, eventoId: string, usuar
       if (r.quantidade === 0 && !existente?.ativo) continue;
       let linhaId: string;
       if (!existente) {
+        if (grupoKit) await conferirLinhaGeral(r.regra, p.nome);
         const [nova] = await tx
           .insert(eventoItens)
           .values({ eventoId, tipo: "PECA", pecaId: p.id, quantidade: r.quantidade, origem: "AJUSTE_LOGISTICA", regra: r.regra, areaId: grupoKit ? areaKit : null, criadoPorId: usuarioId })
@@ -164,10 +181,10 @@ export const aplicarCavaleteRetoNasAtasFechadas = (chave = "regras:cavalete-reto
 
 /**
  * 03/11: um pedido feito por quem é do Kit, mas que saiu com a área antiga (SOL-0209, do EVT-0242, em Ativação), passa
- * para a área Kit, com a nova versão da OS. Uma vez só, ao subir; em banco sem esse pedido, só fica a marca. As linhas de
+ * para a área Kit, com a nova versão da OS. Uma vez só, ao subir; em banco sem esse pedido nesse evento, só fica a marca. As linhas de
  * regra da ata fechada ficam como estão (a testeira 5×5 do EVT-0242 foi ajustada à mão).
  */
-export async function passarPedidoParaKit(codigo = "SOL-0209", chave = "dados:sol-0209-area-kit:2026-11-03"): Promise<{ feito: false } | { feito: true; linhas: number }> {
+export async function passarPedidoParaKit(codigo = "SOL-0209", chave = "dados:sol-0209-area-kit:2026-11-03", eventoCodigo = "EVT-0242"): Promise<{ feito: false } | { feito: true; linhas: number }> {
   const { gerarOsVersao } = await import("../os");
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -175,8 +192,10 @@ export async function passarPedidoParaKit(codigo = "SOL-0209", chave = "dados:so
     if (!marca) return { feito: false };
     const sol = await tx.query.solicitacoes.findFirst({ where: eq(solicitacoes.codigo, codigo), columns: { id: true, eventoId: true, areaId: true } });
     const kit = (await tx.select({ id: areas.id, nome: areas.nome }).from(areas)).find((a) => ehAreaKit(a.nome));
+    // Só o pedido certo: o mesmo código em outro evento (como em outro banco) não é este caso.
+    const evento = sol ? await tx.query.eventos.findFirst({ where: eq(eventos.id, sol.eventoId), columns: { codigo: true } }) : null;
     let linhas = 0;
-    if (sol && kit && sol.areaId !== kit.id) {
+    if (sol && kit && evento?.codigo === eventoCodigo && sol.areaId !== kit.id) {
       await tx.update(solicitacoes).set({ areaId: kit.id }).where(eq(solicitacoes.id, sol.id));
       const itens = await tx.select({ id: solicitacaoItens.id }).from(solicitacaoItens).where(eq(solicitacaoItens.solicitacaoId, sol.id));
       if (itens.length) {

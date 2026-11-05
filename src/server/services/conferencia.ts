@@ -5,7 +5,7 @@ import { getDb } from "@/server/db";
 import { eventoItens, eventos, historico, pecas, solicitacaoItens, solicitacoes, usuarios, type BomSnapshotLinha } from "@/server/db/schema";
 import { exigir, type UsuarioAtual } from "@/server/auth/autorizacao";
 import { DomainError, NaoEncontradoError, ValidacaoError } from "@/domain/errors";
-import { descricaoLinha, resumirAjustes } from "@/domain/os";
+import { descricaoLinha, ehAreaKit, resumirAjustes } from "@/domain/os";
 import { obterLinhasAta } from "./eventos";
 import { gerarOsVersao, montarLinhasAta } from "./os";
 import { responderNaTransacao } from "./solicitacoes";
@@ -176,14 +176,22 @@ export async function acompanhantesDaAta(eventoId: string, ex?: Executor) {
   const db = ex ?? (await getDb());
   const linhas = await db.query.eventoItens.findMany({
     where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.ativo, true)),
-    with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } } },
+    with: { projeto: { columns: { nome: true, categoria: true } }, peca: { columns: { codigo: true } }, area: { columns: { nome: true } } },
   });
-  const nec = necessidadesAcompanhantes(linhas.map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot, regra: l.regra })));
+  // O Kit recebe em outro local: a conta é de cada lado, e a sobra de um não esconde a falta do outro.
+  const contar = (ls: typeof linhas) => necessidadesAcompanhantes(ls.map((l) => ({ tipo: l.tipo, quantidade: l.quantidade, projeto: l.projeto, pecaCodigo: l.peca?.codigo ?? null, bom: l.bomSnapshot, regra: l.regra })));
+  const doKit = linhas.filter((l) => ehAreaKit(l.area?.nome));
+  const nec = [
+    ...contar(linhas.filter((l) => !ehAreaKit(l.area?.nome))).map((n) => ({ ...n, kit: false, areaId: null as string | null })),
+    ...contar(doKit)
+      .filter((n) => n.precisa > 0 || n.naAta > 0)
+      .map((n) => ({ ...n, kit: true, areaId: doKit[0].areaId })),
+  ];
   const nomes = nec.length ? await db.select({ codigo: pecas.codigo, nome: pecas.nome }).from(pecas).where(inArray(pecas.codigo, nec.map((n) => n.codigo))) : [];
   // Peça que o catálogo não tem: a regra não consegue incluir; a tela avisa em vez de oferecer "Incluir".
   return nec.map((n) => {
     const p = nomes.find((x) => x.codigo === n.codigo);
-    return { ...n, nome: p?.nome ?? n.codigo, cadastrada: Boolean(p) };
+    return { ...n, nome: `${p?.nome ?? n.codigo}${n.kit ? " (Kit)" : ""}`, cadastrada: Boolean(p) };
   });
 }
 
@@ -193,21 +201,21 @@ export type AcompanhanteDaAta = Awaited<ReturnType<typeof acompanhantesDaAta>>[n
  * Completa o que vem junto (cavalete, pé) até o que a regra pede: inclui uma linha da logística com o que falta.
  * A falta é contada dentro da transação, com o evento travado: dois cliques (ou duas pessoas) não incluem duas vezes.
  */
-export async function completarAcompanhante(usuario: UsuarioAtual, eventoId: string, codigo: string) {
+export async function completarAcompanhante(usuario: UsuarioAtual, eventoId: string, codigo: string, kit = false) {
   exigir(usuario, "ata.consolidar");
   const db = await getDb();
   return db.transaction(async (tx) => {
     await bloquearEvento(tx, eventoId);
-    const n = (await acompanhantesDaAta(eventoId, tx)).find((x) => x.codigo === codigo);
+    const n = (await acompanhantesDaAta(eventoId, tx)).find((x) => x.codigo === codigo && x.kit === kit);
     const falta = n ? n.precisa - n.naAta : 0;
     if (!n || falta <= 0) throw new DomainError("Nada a completar: a ata já tem o que a regra pede.");
     const peca = await tx.query.pecas.findFirst({ where: eq(pecas.codigo, codigo), columns: { id: true } });
     if (!peca) throw new NaoEncontradoError("Peça");
-    const dados = { referenciaTipo: "PECA" as const, projetoId: null, pecaId: peca.id, descricaoLivre: null, quantidade: falta, destino: null, areaId: null, justificativa: `Completa a regra (${n.texto})` };
+    const dados = { referenciaTipo: "PECA" as const, projetoId: null, pecaId: peca.id, descricaoLivre: null, quantidade: falta, destino: null, areaId: n.areaId, justificativa: `Completa a regra (${n.texto})` };
     const { linha, geraOs, desc, ev } = await incluirLinhaNaTransacao(tx, usuario, eventoId, dados);
     if (geraOs) {
       await gerarOsVersao(tx, eventoId, "AJUSTE_LOGISTICA", usuario.id, `${desc} × ${falta} incluído — ${dados.justificativa}`);
-      await notificarAjusteLinha(tx, { eventoId, areaId: null, tipo: "ATA_AJUSTE", titulo: `Item novo na OS: ${ev.nome}`, mensagem: `A logística incluiu ${desc} × ${falta}. Motivo: ${dados.justificativa}`, mensagemSemMotivo: `A logística incluiu ${desc} × ${falta}.`, link: `/eventos/${eventoId}/itens/${linha.id}`, excetoUsuarioId: usuario.id });
+      await notificarAjusteLinha(tx, { eventoId, areaId: n.areaId, tipo: "ATA_AJUSTE", titulo: `Item novo na OS: ${ev.nome}`, mensagem: `A logística incluiu ${desc} × ${falta}. Motivo: ${dados.justificativa}`, mensagemSemMotivo: `A logística incluiu ${desc} × ${falta}.`, link: `/eventos/${eventoId}/itens/${linha.id}`, excetoUsuarioId: usuario.id });
     }
     await sincronizarRegrasAta(tx, eventoId, null);
     return linha;
@@ -384,16 +392,19 @@ export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: strin
   const ev = await db.query.eventos.findFirst({ where: eq(eventos.id, eventoId), columns: { status: true } });
   if (!ev) throw new NaoEncontradoError("Evento");
   if (ev.status !== "PREPARACAO" && ev.status !== "EM_REUNIAO") throw new DomainError("As grades a mais do prisma são decididas na conferência. Depois da ata, inclua a peça pelo ajuste com justificativa.");
-  const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)) });
+  const regra = await db.query.eventoItens.findFirst({ where: and(eq(eventoItens.id, linhaRegraId), eq(eventoItens.eventoId, eventoId)), with: { area: { columns: { nome: true } } } });
   if (!regra?.regra || !regra.pecaId) throw new NaoEncontradoError("Linha da regra");
   // "A mais" = linha da logística sem pedido e sem local (é assim que este ajuste cria). Grade incluída à mão com
   // local (ex.: "Chegada 6") é outra coisa e não é mexida aqui.
   const linhasAMais = await db.query.eventoItens.findMany({
     where: and(eq(eventoItens.eventoId, eventoId), eq(eventoItens.pecaId, regra.pecaId), eq(eventoItens.ativo, true), isNull(eventoItens.regra), isNull(eventoItens.solicitacaoItemId), isNull(eventoItens.destino)),
     orderBy: (t, { asc }) => [asc(t.criadoEm)],
+    with: { area: { columns: { nome: true } } },
   });
+  // O "a mais" é do lado da linha ajustada: o do Kit vai para o Kit e não se confunde com o da lista geral.
+  const regraDoKit = ehAreaKit(regra.area?.nome);
   const razao = motivo.trim() || "Decidido na reunião (além das do prisma)";
-  const [aMais, ...sobra] = linhasAMais;
+  const [aMais, ...sobra] = linhasAMais.filter((l) => ehAreaKit(l.area?.nome) === regraDoKit);
   if (aMais) {
     // A tela mostra a soma das linhas a mais; com mais de uma (incluídas à mão), o número vale para todas juntas:
     // a primeira fica com ele e as outras saem (antes só a primeira mudava e o total não batia).
@@ -402,7 +413,7 @@ export async function definirExtraDaRegra(usuario: UsuarioAtual, eventoId: strin
     return ajustarQuantidadeLinha(usuario, eventoId, aMais.id, extra, razao, { contexto: "conferencia", quantidadeEsperada: aMais.quantidade });
   }
   if (extra === 0) return null;
-  return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: regra.pecaId, descricaoLivre: null, quantidade: extra, destino: null, areaId: null, justificativa: razao });
+  return incluirLinhaAta(usuario, eventoId, { referenciaTipo: "PECA", projetoId: null, pecaId: regra.pecaId, descricaoLivre: null, quantidade: extra, destino: null, areaId: regraDoKit ? regra.areaId : null, justificativa: razao });
 }
 
 export async function ajustarLinhaNaConferencia(usuario: UsuarioAtual, eventoId: string, linhaId: string, quantidade: number, motivo: string, opcoes: { quantidadeEsperada?: number | null } = {}) {
