@@ -1,7 +1,9 @@
-# Operação em produção (Replit)
+# Operação em produção (VPS)
 
 Guia curto para quem mantém o app no ar: backup, avisos agendados, logs e o checklist antes de
-liberar para a equipe. Os comandos rodam no **Shell** do Replit (ou localmente).
+liberar para a equipe. Os comandos rodam no servidor, na pasta do app (`/opt/planejamento-eventos`),
+como o usuário do serviço — os scripts `npm run …` carregam o `.env` sozinhos. Instalação do
+servidor: **docs/vps.md**.
 
 ## 1. Backup
 
@@ -11,8 +13,8 @@ npm run backup
 
 - Gera `npe-backup-AAAA-MM-DD_HH-MM-SSZ.sql.gz` (data/hora em UTC) na pasta `BACKUP_DIR`
   (padrão `./.data/backups`, que está fora do Git).
-- **Com `pg_dump`** no PATH e `DATABASE_URL` (o caso do Replit: o módulo `postgresql-16` do
-  `.replit` fornece `pg_dump` e `psql`): dump completo — estrutura e dados.
+- **Com `pg_dump`** no PATH e `DATABASE_URL` (no VPS: `apt install postgresql-client-<versão>`, na
+  mesma versão major do servidor ou mais nova — veja `select version()`): dump completo — estrutura e dados.
 - **Sem `pg_dump`**, no PGlite local, ou se o `pg_dump` falhar (ex.: servidor numa versão mais
   nova que o `pg_dump`): exporta **só os dados** (`…-dados.sql.gz`), tabela a tabela em ordem de
   dependência, no formato `COPY … FROM stdin`. O arquivo guarda qual foi a última migração
@@ -22,39 +24,18 @@ npm run backup
 
 ### Onde os arquivos ficam
 
-| Onde roda | O arquivo sobrevive? |
-|---|---|
-| Shell do workspace | Sim, em `.data/backups` do workspace. Baixe (clique direito → Download) e guarde fora do Replit. |
-| Deployment (Scheduled ou Autoscale) | **Não.** O disco do deployment é descartado ao fim da execução. Use o Object Storage. |
+Na pasta `BACKUP_DIR` do próprio VPS (sugestão: `/var/backups/planejamento-eventos`). Um backup só
+no mesmo disco não protege contra a perda do servidor: copie a pasta para fora (rsync/rclone para
+outro servidor ou bucket S3, ou o snapshot do provedor).
 
-**Object Storage do Replit (recomendado para o backup agendado).** O projeto não traz o pacote como
-dependência; para ligar:
-
-1. Abra a ferramenta **Object Storage** do Replit e crie um bucket (vira o bucket padrão do Repl).
-2. `npm install @replit/object-storage` e faça commit do `package.json`/`package-lock.json`.
-3. Defina `BACKUP_OBJECT_STORAGE=true` nos Secrets do deployment que roda o backup.
-
-Com isso, `npm run backup` envia o arquivo para `backups/` no bucket e mantém lá também só os
-`BACKUP_MANTER` mais recentes. Com `BACKUP_OBJECT_STORAGE=true`, qualquer falha no envio faz o
-comando terminar com erro (o agendamento aparece como falho, em vez de "dar certo" sem cópia).
-Sem a variável, o envio só acontece se o pacote estiver instalado, e falhas viram aviso.
-
-> Além do arquivo, confira no painel **Database** do Replit se o seu plano oferece restauração a um
-> ponto no tempo (útil para desfazer um erro de ontem). O arquivo de backup continua sendo a cópia
-> fora do banco.
+> Se o banco continuar no Neon, o painel do Neon oferece restauração a um ponto no tempo (dentro da
+> janela do plano). O arquivo de backup continua sendo a cópia fora do banco.
 
 ### Agendar (diariamente)
 
-Replit → **Deploy** → **Scheduled**:
-
-- **Build command:** `npm ci`
-- **Run command:** `npm run backup`
-- **Schedule:** todo dia às 03:00 de Brasília (`0 6 * * *` em UTC).
-- **Secrets:** `DATABASE_URL` (a mesma do app), `BACKUP_OBJECT_STORAGE=true`.
-
-Se o Repl do app já usa o deployment Autoscale e o Replit não permitir um segundo deployment no
-mesmo Repl, crie um Repl só de tarefas (importando o mesmo repositório do GitHub) com esses Secrets
-e os dois agendamentos deste guia.
+`deploy/systemd/planejamento-eventos-backup.timer` roda `npm run backup` todo dia às 03:00 (horário
+do servidor). Instalação em docs/vps.md. Para ver a última execução:
+`systemctl list-timers` e `journalctl -u planejamento-eventos-backup`.
 
 ## 2. Restaurar (e testar a restauração)
 
@@ -68,7 +49,7 @@ npm run restaurar -- .data/backups/npe-backup-2026-09-23_06-00-00Z.sql.gz --forc
 - **Só dados:** confere se a última migração do banco é a mesma do backup (rode
   `npm run db:migrate` antes; `--ignorar-versao` pula a conferência). Usa `psql` se houver;
   senão, carrega pelo Node — funciona também no PGlite local.
-- Em produção: pare o deployment (ou faça fora do horário de uso), restaure pelo Shell e publique de novo.
+- Em produção: pare o app (`sudo systemctl stop planejamento-eventos`), restaure e suba de novo.
 
 **Teste mensal da restauração (sem tocar em produção).** Um backup que nunca foi restaurado não é
 backup. Na sua máquina:
@@ -86,7 +67,7 @@ DATABASE_URL=postgres://postgres:teste@localhost:5433/postgres npm run dev
 ```
 
 Entre, abra um evento recente e confira ata, OS e solicitações. Para gerar localmente um arquivo
-que o PGlite consiga carregar a partir do Postgres de produção, rode no Shell
+que o PGlite consiga carregar a partir do Postgres de produção, rode no servidor
 `BACKUP_MODO=dados npm run backup`.
 
 ## 3. Avisos agendados (prazos e lembretes)
@@ -105,19 +86,15 @@ navegar ao mesmo tempo não duplica notificações.
 **Configurar:**
 
 1. Gere o segredo: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
-2. Adicione `CRON_SECRET` nos Secrets do **deployment do app** (Autoscale) e do agendamento.
-3. Replit → Deploy → **Scheduled** (no Repl de tarefas, se for o caso):
-   - **Run command:** `curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/verificacoes"`
-   - **Schedule:** a cada 15 minutos (`*/15 * * * *`) — ou de hora em hora, se o custo pesar.
-   - **Secrets:** `CRON_SECRET`, `APP_URL` (URL pública do app, sem barra no fim).
-4. Teste no Shell com o mesmo `curl`: deve voltar `{"ok":true,...}`.
-
-Alternativa sem Replit: um workflow agendado do GitHub Actions (`on: schedule`) com o mesmo `curl`
-e o segredo em *Actions secrets*.
+2. Ponha `CRON_SECRET` e `APP_URL` no `.env` do app e reinicie o serviço.
+3. Ative `deploy/systemd/planejamento-eventos-cron.timer` (a cada 15 minutos; instalação em docs/vps.md).
+   Ele chama `deploy/cron-verificacoes.sh`, que lê o `.env` e faz o `curl` em `http://127.0.0.1:$PORT`.
+4. Teste: `sudo systemctl start planejamento-eventos-cron && journalctl -u planejamento-eventos-cron -n 5`
+   deve mostrar `{"ok":true,...}`.
 
 ## 4. Logs e erros
 
-Erros inesperados viram **uma linha JSON** no log do deployment, no mesmo formato para actions
+Erros inesperados viram **uma linha JSON** no log do app (`journalctl -u planejamento-eventos`), no mesmo formato para actions
 (`src/lib/action.ts`) e para páginas, rotas e o proxy (`src/instrumentation.ts`):
 
 ```json
@@ -145,7 +122,7 @@ na coluna `ver_como` e a descrição termina com "(pelo administrador, vendo com
   (40/15 min); troca da própria senha 5 tentativas/15 min por usuário; redefinições e links de
   acesso 30/hora por administrador. Contagem e registro são atômicos (trava por chave no Postgres).
 - O IP desses limites vem do `x-forwarded-for`: o valor que o proxy da frente acrescentou (o último, com
-  um proxy só, como no Replit). Com outro proxy ou CDN na frente, defina `PROXIES_CONFIAVEIS` com o número
+  um proxy só: o Nginx do VPS). Com outro proxy ou CDN na frente (ex.: Cloudflare + Nginx = 2), defina `PROXIES_CONFIAVEIS` com o número
   de proxies; senão o cliente consegue escolher o próprio "IP" e escapar do limite por IP (o limite por
   e-mail continua valendo).
 
@@ -154,46 +131,25 @@ na coluna `ver_como` e a descrição termina com "(pelo administrador, vendo com
 - **CSP com nonce** montada a cada requisição em `src/proxy.ts` (`src/server/auth/csp.ts`):
   `script-src 'self' 'nonce-…' 'strict-dynamic'`, `style-src 'self' 'unsafe-inline'`,
   `img-src 'self' data: blob:`, `connect-src 'self'`, `worker-src 'self' blob:`,
-  `frame-ancestors 'none'` (no workspace do Replit, o iframe do editor continua liberado),
+  `frame-ancestors 'none'`,
   `base-uri 'self'`, `form-action 'self'`, `object-src 'none'`. As rotas de arquivo
   (`/api/anexos/[id]`, planta da arena) mantêm a própria CSP com `sandbox`.
 - Páginas com nonce precisam ser renderizadas por requisição (o layout de login chama
   `connection()`); uma página gerada no build sairia sem nonce e ficaria sem JavaScript.
-- **Server Actions** aceitas só da própria origem e dos domínios exatos de `REPLIT_DOMAINS`,
-  `REPLIT_DEV_DOMAIN` e `APP_URL` — sem curingas.
+- **Server Actions** aceitas só da própria origem e dos domínios exatos de `APP_URL` e
+  `ORIGENS_EXTRAS` — sem curingas. Atrás do Nginx, ele precisa repassar `Host` e
+  `X-Forwarded-Host`/`-Proto` (ver `deploy/nginx/planejamento-eventos.conf`).
 
 ## 7. Armazenamento de arquivos (anexos e plantas)
 
-Anexos de projeto e plantas de arena passam por `src/server/armazenamento.ts` (`gravar`, `ler`,
-`apagar`). Dois drivers:
+Anexos de projeto, de peças, de estoque e plantas de arena passam por `src/server/armazenamento.ts`
+e ficam na própria coluna bytea (`anexos.conteudo`, `peca_anexos.conteudo`,
+`estoque_anexos.conteudo`, `arenas.planta_imagem`). Entram no backup junto com o resto do banco.
 
-| Driver | Quando | Onde fica o arquivo |
-|---|---|---|
-| `banco` (padrão) | sempre que `ARMAZENAMENTO` não for `replit` | na coluna bytea (`anexos.conteudo`, `arenas.planta_imagem`) — como sempre foi |
-| `replit` | `ARMAZENAMENTO=replit` **e** o pacote `@replit/object-storage` instalado | no Object Storage do Replit; a coluna guarda só a referência `npe-ref:replit:<chave>` |
-
-Não há migração: o valor da coluna diz onde o arquivo está (nenhum PNG/JPG/WebP/PDF começa com
-`npe-ref:`). Por isso dá para ligar e desligar o driver externo a qualquer momento — arquivos antigos
-continuam no banco e são lidos de lá; só os **novos** vão para o destino atual.
-
-Para ligar o Object Storage:
-
-1. No Replit, abra **Object Storage** e crie um bucket para o app (o mesmo do backup serve).
-2. No Shell: `npm i @replit/object-storage` (o projeto não traz o pacote de propósito; o app o
-   carrega por import dinâmico).
-3. Em **Secrets** (workspace e deployment): `ARMAZENAMENTO=replit`.
-4. Reinicie/republique e envie um anexo de teste; ele deve abrir normalmente em Biblioteca → projeto.
-   No log, `ARMAZENAMENTO=replit, mas o pacote … não está instalado` indica o passo 2 pendente (o app
-   segue gravando no banco).
-
-Cuidados:
-
-- **Backup:** com o driver `replit`, `npm run backup` leva só as referências. Os arquivos ficam no
-  bucket (que o Replit mantém); não apague o bucket nem as chaves `anexos/…` e `arenas/…`.
-- **Voltar para o banco:** remova `ARMAZENAMENTO`. Os arquivos já enviados ao bucket continuam sendo
-  lidos de lá enquanto o pacote estiver instalado — não o desinstale antes de trazê-los de volta.
-- Remover anexo, trocar/remover planta e excluir arena apagam também o objeto no bucket; uma falha
-  nessa limpeza vai para o log e deixa só um arquivo órfão.
+O antigo driver de Object Storage do Replit foi removido. Ele só gravava fora do banco com
+`ARMAZENAMENTO=replit` e o pacote `@replit/object-storage` instalado, o que o projeto nunca trouxe.
+Se algum valor ainda for uma referência (`npe-ref:replit:…`), o app avisa que o arquivo precisa ser
+reenviado. Consulta para conferir: docs/vps.md (§ Arquivos enviados).
 
 ## 8. Arena da Eco Run (dados importados)
 
@@ -206,10 +162,10 @@ planta nem exclusão); as posições ajustadas no mapa valem nos dois casos.
 
 ## 9. Checklist de produção
 
-- [ ] Secrets do deployment: `APP_URL` (URL pública), `CRON_SECRET`; `EXIBIR_DEMO` ausente ou `false`; `SEED_DEMO` ausente.
+- [ ] `.env` do servidor: `DATABASE_URL`, `APP_URL` (URL pública com https), `CRON_SECRET`; `EXIBIR_DEMO` ausente ou `false`; `SEED_DEMO` ausente. Permissão `600`.
 - [ ] Primeiro administrador criado com `npm run admin:senha -- <email> <senha>`; nenhum usuário do seed de demonstração no banco de produção.
-- [ ] `npm run db:migrate` aplicado (o run do deployment já faz).
-- [ ] Backup diário agendado **com Object Storage** e um backup manual baixado para fora do Replit.
+- [ ] `npm run db:migrate` aplicado (o `deploy/atualizar.sh` já faz).
+- [ ] Backup diário agendado (timer ativo) e cópia da pasta de backups para fora do VPS.
 - [ ] Restauração testada (seção 2) — anote a data do último teste.
 - [ ] Avisos agendados: `curl` manual devolve 200; agendamento a cada 15 min ativo.
 - [ ] No navegador (produção): login, navegação, menus e diálogos, Arena 3D, impressão da OS e anexos funcionando, sem erros de CSP no console (F12).

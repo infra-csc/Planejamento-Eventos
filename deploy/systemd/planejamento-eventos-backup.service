@@ -1,0 +1,13 @@
+# Backup do banco (npm run backup). Disparado pelo planejamento-eventos-backup.timer.
+[Unit]
+Description=Norte Mkt - backup do banco (Planejamento de Eventos)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=eventos
+Group=eventos
+WorkingDirectory=/opt/planejamento-eventos
+EnvironmentFile=/opt/planejamento-eventos/.env
+ExecStart=/usr/bin/npm run backup

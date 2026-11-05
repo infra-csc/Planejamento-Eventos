@@ -36,9 +36,9 @@ function dt(dias: number, hora = 10): Date {
 }
 
 async function main() {
-  // Senha fixa para todos os perfis, inclusive Administrador: fora da máquina local (Replit, Postgres,
+  // Senha fixa para todos os perfis, inclusive Administrador: fora da máquina local (Postgres,
   // produção) só roda com SEED_DEMO=true explícito. Sem isso, sai sem erro para não quebrar o `setup`.
-  const exposto = process.env.NODE_ENV === "production" || Boolean(process.env.DATABASE_URL || process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS || process.env.REPL_ID);
+  const exposto = process.env.NODE_ENV === "production" || Boolean(process.env.DATABASE_URL);
   if (exposto && process.env.SEED_DEMO !== "true") {
     console.log("Seed de demonstração ignorado: este banco não é local (senha fixa para todos os perfis). Use SEED_DEMO=true só num ambiente de demonstração. Para criar o administrador: npm run admin:senha -- <email> <senha>.");
     return;

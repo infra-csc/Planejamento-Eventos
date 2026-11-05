@@ -1,0 +1,25 @@
+# App Next.js (npm run start) como serviço do systemd.
+# Instalação: docs/vps.md. Ajuste User/WorkingDirectory se usar outro usuário ou pasta.
+[Unit]
+Description=Norte Mkt - Planejamento de Eventos (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eventos
+Group=eventos
+WorkingDirectory=/opt/planejamento-eventos
+EnvironmentFile=/opt/planejamento-eventos/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+# Endurecimento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

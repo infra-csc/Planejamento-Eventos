@@ -8,7 +8,7 @@
 //   npx tsx scripts/importar-ummense.mjs <arquivo.tsv> [--foto-de AAAA-MM-DD] [--origem "texto"] [--saida caminho.json]
 //
 // --foto-de: o dia da extração (padrão: hoje). Aparece na tela ("Foto do
-// Ummense de 15/10"). Depois: commit do JSON e Publish no Replit (sem migração).
+// Ummense de 15/10"). Depois: commit do JSON e novo deploy (sem migração).
 //
 // O TSV tem cabeçalho e as colunas: nome · data (YYYY-MM-DD) · estacao · tags
 // (separadas por |) · patrocinadores ("Nome:COTA|…"). A regra da cidade está

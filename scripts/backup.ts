@@ -3,7 +3,7 @@
  *
  *   npm run backup
  *
- * - Com `pg_dump` no PATH (no Replit, o módulo postgresql-16 do .replit fornece) e DATABASE_URL:
+ * - Com `pg_dump` no PATH (no VPS: apt install postgresql-client, na mesma versão major do servidor) e DATABASE_URL:
  *   dump completo (estrutura + dados), restaurável com `psql`.
  * - Sem pg_dump, sem DATABASE_URL (PGlite local) ou se o pg_dump falhar (versão do servidor mais
  *   nova, por exemplo): exporta só os DADOS, tabela a tabela em ordem de dependência, no formato
@@ -14,8 +14,6 @@
  *   BACKUP_DIR     pasta dos arquivos (padrão: ./.data/backups, fora do Git)
  *   BACKUP_MANTER  quantos backups manter na pasta (padrão: 14; os mais antigos são apagados)
  *   BACKUP_MODO    auto (padrão) | pg_dump | dados
- *   BACKUP_OBJECT_STORAGE  "true" exige o envio ao Object Storage do Replit (falha se não der);
- *                  sem a variável, envia só se o pacote @replit/object-storage estiver instalado.
  *
  * Detalhes, agendamento e teste de restauração: docs/operacao.md.
  */
@@ -205,50 +203,6 @@ async function viaDados(destino: string) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Object Storage do Replit (opcional, sem dependência no package.json) */
-/* ------------------------------------------------------------------ */
-
-type ResultadoOS<T = unknown> = { ok: boolean; value?: T; error?: unknown };
-type ClienteOS = {
-  uploadFromFilename(nome: string, arquivo: string): Promise<ResultadoOS>;
-  list(opcoes?: { prefix?: string }): Promise<ResultadoOS<{ name: string }[]>>;
-  delete(nome: string): Promise<ResultadoOS>;
-};
-
-async function enviarObjectStorage(arquivo: string) {
-  const exigido = process.env.BACKUP_OBJECT_STORAGE === "true";
-  if (process.env.BACKUP_OBJECT_STORAGE === "false") return;
-  let modulo: { Client: new () => ClienteOS };
-  try {
-    // Nome em variável: o pacote não é dependência do projeto (instale com npm i @replit/object-storage).
-    const nomePacote = "@replit/object-storage";
-    modulo = (await import(nomePacote)) as { Client: new () => ClienteOS };
-  } catch {
-    if (exigido) throw new Error("BACKUP_OBJECT_STORAGE=true, mas o pacote @replit/object-storage não está instalado.");
-    console.log("Object Storage: pacote @replit/object-storage não instalado — backup só na pasta local.");
-    return;
-  }
-  try {
-    const cliente = new modulo.Client();
-    const nome = `backups/${path.basename(arquivo)}`;
-    const up = await cliente.uploadFromFilename(nome, arquivo);
-    if (!up.ok) throw new Error(`falha no envio: ${String(up.error)}`);
-    console.log(`Object Storage: enviado ${nome}`);
-    const lista = await cliente.list({ prefix: `backups/${PREFIXO}` });
-    const antigos = (lista.value ?? [])
-      .map((o) => o.name)
-      .sort()
-      .reverse()
-      .slice(MANTER);
-    for (const n of antigos) await cliente.delete(n);
-    if (antigos.length) console.log(`Object Storage: ${antigos.length} backup(s) antigo(s) removido(s).`);
-  } catch (e) {
-    if (exigido) throw e;
-    console.warn(`Object Storage: não foi possível enviar (${(e as Error).message}). O backup ficou só na pasta local.`);
-  }
-}
-
-/* ------------------------------------------------------------------ */
 
 function aplicarRetencao() {
   const arquivos = fs
@@ -293,7 +247,6 @@ async function main() {
   const kb = Math.round(fs.statSync(destino).size / 1024);
   console.log(`Backup gravado: ${destino} (${kb} KB)`);
   aplicarRetencao();
-  await enviarObjectStorage(destino);
 }
 
 main().catch((e) => {

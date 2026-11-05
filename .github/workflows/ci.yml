@@ -27,7 +27,7 @@ jobs:
       - name: Build de produção
         run: npm run build
 
-  # Mesmos fluxos contra um PostgreSQL de verdade (o do Replit é Postgres, não PGlite): migrações,
+  # Mesmos fluxos contra um PostgreSQL de verdade (o de produção é Postgres, não PGlite): migrações,
   # seed, teste de fumaça e ida-e-volta do backup. Não bloqueia o merge enquanto amadurece.
   # Os testes do Vitest continuam no PGlite em memória (os arquivos de teste forçam PGLITE_DATA_DIR).
   postgres:

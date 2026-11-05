@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe("ipDoEncaminhamento", () => {
-  it("com um proxy (Replit), vale o último valor: o que o cliente manda antes não conta", () => {
+  it("com um proxy (Nginx), vale o último valor: o que o cliente manda antes não conta", () => {
     expect(ipDoEncaminhamento("1.1.1.1, 9.9.9.9", 1)).toBe("9.9.9.9");
   });
 

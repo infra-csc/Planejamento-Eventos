@@ -8,7 +8,7 @@ import { DomainError } from "@/domain/errors";
 export type Regra = { chave: string; maximo: number };
 
 /**
- * Quantos proxies confiáveis ficam na frente do app (`PROXIES_CONFIAVEIS`, padrão 1 = só o do Replit). Cada
+ * Quantos proxies confiáveis ficam na frente do app (`PROXIES_CONFIAVEIS`, padrão 1 = só o Nginx do VPS). Cada
  * proxy acrescenta um valor ao fim do x-forwarded-for; o IP do cliente é o que o proxy mais externo viu. Com o
  * número fixo em 1, atrás de outro proxy o cliente escolhia o próprio "IP" e escapava do limite por IP
  * (endurecimento E1 da auditoria de segurança 28/10).

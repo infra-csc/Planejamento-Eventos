@@ -30,9 +30,9 @@ const MAX_POR_IP = 40;
 let hashFicticio: Promise<string> | null = null;
 const obterHashFicticio = () => (hashFicticio ??= hashSenha(gerarToken()));
 
-/** Cookie `Secure` sempre que o app é servido por HTTPS (produção ou o dev exposto do Replit). */
+/** Cookie `Secure` sempre que o app é servido por HTTPS (produção ou APP_URL com https). */
 export function cookieSeguro() {
-  return process.env.NODE_ENV === "production" || Boolean(process.env.REPLIT_DEV_DOMAIN) || (process.env.APP_URL ?? "").startsWith("https://");
+  return process.env.NODE_ENV === "production" || (process.env.APP_URL ?? "").startsWith("https://");
 }
 
 /** Troca de senha obrigatória, exceto no modo demonstração (onde a senha do seed é pública de propósito). */

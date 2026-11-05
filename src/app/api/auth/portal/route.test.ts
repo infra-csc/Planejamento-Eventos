@@ -85,12 +85,12 @@ describe("GET /api/auth/portal", () => {
     expect(cookieGravado.valor).toBeNull();
   });
 
-  it("atrás do proxy do Replit redireciona para o endereço público, nunca para 0.0.0.0:3000", async () => {
+  it("atrás do proxy reverso redireciona para o endereço público, nunca para 0.0.0.0:3000", async () => {
     const guardado = process.env.APP_URL;
     delete process.env.APP_URL;
     try {
-      const r = await GET(new Request("https://0.0.0.0:3000/api/auth/portal?portal_sso=lixo", { headers: { "x-forwarded-host": "planejamento-eventos.replit.app", "x-forwarded-proto": "https" } }));
-      expect(r.headers.get("location")).toBe("https://planejamento-eventos.replit.app/login?erro=portal-invalido");
+      const r = await GET(new Request("https://0.0.0.0:3000/api/auth/portal?portal_sso=lixo", { headers: { "x-forwarded-host": "eventos.exemplo.com.br", "x-forwarded-proto": "https" } }));
+      expect(r.headers.get("location")).toBe("https://eventos.exemplo.com.br/login?erro=portal-invalido");
       process.env.APP_URL = "https://app.exemplo.com/";
       const r2 = await GET(new Request("https://0.0.0.0:3000/api/auth/portal?portal_sso=lixo"));
       expect(r2.headers.get("location")).toBe("https://app.exemplo.com/login?erro=portal-invalido");

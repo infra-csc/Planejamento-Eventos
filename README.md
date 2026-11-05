@@ -38,18 +38,20 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 
 | Variável | Onde | Para quê |
 |---|---|---|
-| `DATABASE_URL` | Replit (automática) | PostgreSQL. Vazia = PGlite local. |
+| `DATABASE_URL` | produção | PostgreSQL (Neon ou Postgres no VPS). Vazia = PGlite local. Fica no `.env` (fora do Git). |
 | `PGLITE_DATA_DIR` | local, opcional | Pasta do PGlite (padrão `./.data/pglite`; `memory://` nos testes). |
-| `APP_URL` | produção | URL pública: links de acesso gerados pelo administrador e origem liberada para Server Actions. |
-| `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração no Replit/produção (qualquer pessoa com o link entra como qualquer perfil, inclusive Administrador). O `.replit` deixa `false`. Local já aparece. |
-| `DB_POOL_MAX` | opcional | Conexões do pool por instância (padrão 10). No Autoscale cada instância abre o seu: instâncias × `DB_POOL_MAX` precisa caber no limite de conexões do Postgres. |
-| `SEED_DEMO` | opcional | `true` permite rodar o seed fora da máquina local (Replit, Postgres, produção). Só num ambiente de demonstração. |
+| `APP_URL` | produção | URL pública (com https): links de acesso gerados pelo administrador e origem liberada para Server Actions. |
+| `ORIGENS_EXTRAS` | opcional | Outros hosts liberados para Server Actions, separados por vírgula (ex.: domínio antigo na transição). |
+| `PORT` / `HOST` | opcional | Porta e endereço do `npm run start` (padrão `3000` e `127.0.0.1`, atrás do Nginx). |
+| `DEV_ORIGENS` | opcional | Hosts extras aceitos pelo `npm run dev` (ex.: IP da rede local). |
+| `EXIBIR_DEMO` | opcional | `true` mostra o login de demonstração com Postgres/produção (qualquer pessoa com o link entra como qualquer perfil, inclusive Administrador). Local (sem `DATABASE_URL`) já aparece. |
+| `DB_POOL_MAX` | opcional | Conexões do pool por instância (padrão 10). Cada processo do app abre o seu: instâncias × `DB_POOL_MAX` precisa caber no limite de conexões do Postgres. |
+| `SEED_DEMO` | opcional | `true` permite rodar o seed fora da máquina local (Postgres, produção). Só num ambiente de demonstração. |
 | `CRON_SECRET` | produção | Segredo da rota `/api/cron/verificacoes` (avisos de prazo e lembretes). Sem ele a rota responde 503. Veja docs/operacao.md. |
 | `PORTAL_SSO_SECRET` | produção | Entrada pelo Portal NORTE (NORTE-App-Hub): igual ao `SESSION_SECRET` do hub, 32+ caracteres. O portal abre `/api/auth/portal?portal_sso=<token>`; o papel escolhido lá vira o perfil aqui a cada entrada. Vazio = desligado. |
 | `PORTAL_URL` | opcional | Endereço do portal, para o link "Entre pelo Portal NORTE" na tela de login. |
 | `BACKUP_DIR` / `BACKUP_MANTER` | opcional | Pasta dos backups (padrão `./.data/backups`) e quantos manter (padrão 14). |
-| `BACKUP_OBJECT_STORAGE` | opcional | `true` exige enviar o backup ao Object Storage do Replit (precisa do pacote `@replit/object-storage`). |
-| `ARMAZENAMENTO` | opcional | `replit` grava anexos e plantas novos no Object Storage (precisa do pacote `@replit/object-storage`); ausente = no banco. Veja docs/operacao.md §7. |
+| `PROXIES_CONFIAVEIS` | opcional | Quantos proxies ficam na frente do app (padrão 1 = Nginx). Veja docs/operacao.md §5. |
 
 ## Regras de negócio que mais importam
 
@@ -83,25 +85,19 @@ As datas do seed são relativas ao dia em que ele roda (reunião "hoje", prazos 
 | `npm run backup` | backup do banco em `.sql.gz` com data no nome (pg_dump quando houver; senão, só os dados), mantém os 14 últimos |
 | `npm run restaurar -- <arquivo> --force` | restaura um backup (**apaga os dados atuais**); sem `--force` só mostra o que faria |
 
-## Replit
+## Produção (VPS)
 
-**Botão Run.** O `.replit` roda `npm run db:migrate && npm run build && npm run start` na porta 3000, com `EXIBIR_DEMO="false"`. O Run **não** roda o seed nem a importação do catálogo (criavam usuários com senha fixa e reescreviam o catálogo). Para atualizar:
+Passo a passo de instalação (Node, Nginx, HTTPS, systemd, backup e avisos agendados): **[docs/vps.md](docs/vps.md)**. Arquivos prontos em `deploy/`.
 
-```bash
-git pull && npm install && npm run db:migrate
-```
+**Atualizar.** No servidor, `deploy/atualizar.sh` faz `git pull`, `npm ci`, `npm run db:migrate`, `npm run build` e reinicia o serviço. O deploy **não** roda o seed nem a importação do catálogo (criavam usuários com senha fixa e reescreviam o catálogo). Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar). Os **eventos reais de 2026** (um por OS de estrutura do SharePoint, com a ata montada a partir dos projetos e das tendas por local) entram com `npm run importar:eventos`; o script é idempotente (identifica cada evento pelo arquivo da OS) e `npm run importar:eventos -- --desfazer` remove tudo que ele criou.
 
-Depois clique em Stop/Run. Peças e projetos novos do catálogo real entram com `npm run importar:catalogo` (rode quando o catálogo do repositório mudar). Os **eventos reais de 2026** (um por OS de estrutura do SharePoint, com a ata montada a partir dos projetos e das tendas por local) entram com `npm run importar:eventos`; o script é idempotente (identifica cada evento pelo arquivo da OS) e `npm run importar:eventos -- --desfazer` remove tudo que ele criou.
+**Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. Enquanto não houver nenhum usuário ativo, a tela de login mostra esse comando. **Senhas provisórias** (usuários do seed, senha definida pelo administrador, ou quem entrar com a senha de demonstração fora do modo demonstração) só abrem **Meu perfil** até a pessoa definir a própria senha. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num ambiente separado, nunca com dados reais.
 
-**Primeiro administrador (banco novo).** `npm run admin:senha -- voce@empresa.com.br UmaSenhaForte` cria (ou redefine) o administrador; os demais usuários são convidados em Administração. Enquanto não houver nenhum usuário ativo, a tela de login mostra esse comando. **Senhas provisórias** (usuários do seed, senha definida pelo administrador, ou quem entrar com a senha de demonstração fora do modo demonstração) só abrem **Meu perfil** até a pessoa definir a própria senha. O seed de demonstração só roda fora da máquina local com `SEED_DEMO=true` — use apenas num Repl separado, nunca com dados reais.
-
-**Deployment (Autoscale).** Build `npm ci && npm run build`; run `npm run db:migrate && npm run start`. Em Secrets, defina `APP_URL` com a URL pública e `CRON_SECRET` (avisos agendados). Para produção sem dados fictícios, rode só `npm run db:migrate` e crie o primeiro administrador com `npm run admin:senha -- <email> <senha>`.
-
-**Login falhando com "Invalid Server Actions request".** A origem do navegador não está liberada. As origens vêm de `REPLIT_DEV_DOMAIN`, `REPLIT_DOMAINS` e `APP_URL` (`next.config.ts`); o `proxy.ts` registra `[origem-action]` no console com origin e host quando eles divergem.
+**Login falhando com "Invalid Server Actions request".** A origem do navegador não está liberada. As origens vêm de `APP_URL` e `ORIGENS_EXTRAS` (`next.config.ts`, lidas no build: rode `npm run build` depois de mudar); o Nginx precisa repassar `Host` e `X-Forwarded-Host`. O `proxy.ts` registra `[origem-action]` no log com origin e host quando eles divergem.
 
 **Sem e-mail no MVP.** Ao criar um usuário, o administrador recebe um link de acesso (7 dias, uso único) para enviar à pessoa. "Esqueci minha senha" não mostra link: avisa os administradores, que geram um novo link na tela de usuários.
 
-**Backup, avisos agendados e checklist de produção.** O banco do Replit é a única cópia: `npm run backup` gera o arquivo, `npm run restaurar` o devolve. Como agendar o backup e os avisos (Scheduled Deployments), onde os arquivos ficam e como testar a restauração: **docs/operacao.md**.
+**Backup, avisos agendados e checklist de produção:** **docs/operacao.md**.
 
 ## Estrutura
 

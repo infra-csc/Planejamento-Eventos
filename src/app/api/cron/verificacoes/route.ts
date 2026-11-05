@@ -4,7 +4,7 @@ import { executarVerificacoesSeNecessario } from "@/server/jobs/verificacoes";
 
 /**
  * Avisos agendados (SLA vencido, prazo próximo, lembrete de reunião) e limpeza de registros
- * vencidos, disparados por um agendador externo — no Replit, um Scheduled Deployment com:
+ * vencidos, disparados por um agendador externo — no VPS, um cron/timer do systemd com:
  *
  *   curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<app>/api/cron/verificacoes
  *

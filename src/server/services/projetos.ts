@@ -327,7 +327,7 @@ export async function anexarArquivo(usuario: UsuarioAtual, projetoId: string, fi
   const db = await getDb();
   const p = await db.query.projetos.findFirst({ where: eq(projetos.id, projetoId) });
   if (!p) throw new NaoEncontradoError("Projeto padrão");
-  // No banco (padrão) a coluna guarda o arquivo; com Object Storage, só a referência (ver armazenamento.ts).
+  // A coluna guarda o arquivo (ver armazenamento.ts).
   const valor = await gravarArquivo(`anexos/${projetoId}/${randomUUID()}`, conteudo);
   let a: { id: string };
   try {

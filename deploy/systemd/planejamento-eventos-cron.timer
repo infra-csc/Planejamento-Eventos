@@ -1,0 +1,9 @@
+[Unit]
+Description=Verificações agendadas do Planejamento de Eventos (a cada 15 min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target

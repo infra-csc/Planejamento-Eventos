@@ -1,5 +1,5 @@
 /**
- * Redefine (ou cria) o administrador no banco atual. Para produção, rode no Shell do Replit:
+ * Redefine (ou cria) o administrador no banco atual. Para produção, rode no servidor (pasta do app, com o .env carregado):
  *
  *   npm run admin:senha -- admin@nortemkt.com.br SuaSenhaNova
  *

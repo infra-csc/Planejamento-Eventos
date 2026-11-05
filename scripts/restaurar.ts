@@ -4,8 +4,8 @@
  *   npm run restaurar -- .data/backups/npe-backup-2026-09-23_03-00-00Z.sql.gz            (só mostra o que faria)
  *   npm run restaurar -- .data/backups/npe-backup-2026-09-23_03-00-00Z.sql.gz --force    (restaura)
  *
- * - Dump completo (pg_dump): precisa de `psql` no PATH e de DATABASE_URL (no Replit, o módulo
- *   postgresql-16 fornece o psql). Recria tabelas e dados.
+ * - Dump completo (pg_dump): precisa de `psql` no PATH e de DATABASE_URL (no VPS: apt install
+ *   postgresql-client). Recria tabelas e dados.
  * - Dump só de dados (arquivo "-dados"): o banco precisa estar com as mesmas migrações do backup
  *   (rode `npm run db:migrate` antes). Usa `psql` se houver; senão, carrega pelo próprio Node
  *   (funciona também no PGlite local). Tudo numa transação: se algo falhar, nada muda.
@@ -147,7 +147,7 @@ async function main() {
 
   if (pgDump) {
     if (!url) throw new Error("Dump completo (pg_dump) só restaura em Postgres: defina DATABASE_URL.");
-    if (!temComando("psql")) throw new Error("psql não encontrado no PATH (no Replit: módulo postgresql-16 no .replit).");
+    if (!temComando("psql")) throw new Error("psql não encontrado no PATH (no VPS: apt install postgresql-client).");
     await viaPsql(url, caminho, true);
     fs.rmSync(".next/cache/fetch-cache", { recursive: true, force: true }); // cache de dados do Next guardaria ids antigos
   console.log("Restauração concluída.");

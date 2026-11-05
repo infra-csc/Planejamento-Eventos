@@ -346,7 +346,7 @@ export async function obterPlanta(usuario: UsuarioAtual, slug: string) {
   const db = await getDb();
   const row = await db.query.arenas.findFirst({ where: eq(arenas.slug, slug), columns: { plantaMime: true, plantaImagem: true, atualizadoEm: true } });
   if (!row?.plantaMime || !row.plantaImagem) return null;
-  // A coluna guarda a imagem (banco) ou a referência ao Object Storage (ver server/armazenamento.ts).
+  // A coluna guarda a imagem (banco) (ver server/armazenamento.ts).
   return { mime: row.plantaMime, bytes: await lerArquivo(row.plantaImagem), versao: row.atualizadoEm.getTime() };
 }
 

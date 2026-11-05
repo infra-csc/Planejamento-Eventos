@@ -28,10 +28,9 @@ describe("montarCsp", () => {
     expect(diretivas(montarCsp("n", { NODE_ENV: "production" }))["script-src"]).not.toContain("unsafe-eval");
   });
 
-  it("iframe do editor só no workspace do Replit; publicado ou local, ninguém embute", () => {
-    expect(ancestraisPermitidos({ REPLIT_DEV_DOMAIN: "x.replit.dev" })).toContain("https://replit.com");
-    expect(ancestraisPermitidos({ REPLIT_DEV_DOMAIN: "x.replit.dev", REPLIT_DEPLOYMENT: "1" })).toBe("'none'");
-    expect(ancestraisPermitidos({})).toBe("'none'");
+  it("ninguém embute o app num iframe", () => {
+    expect(ancestraisPermitidos()).toBe("'none'");
+    expect(diretivas(montarCsp("n", { NODE_ENV: "development" }))["frame-ancestors"]).toBe("'none'");
   });
 
   it("nonce diferente a cada chamada", () => {

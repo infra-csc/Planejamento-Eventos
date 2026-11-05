@@ -80,7 +80,7 @@ export async function todasAsImagensDoCatalogo(origem: "projeto" | "peca", codig
     const valor = conteudoDe.get(m.id);
     if (!valor) continue;
     try {
-      // O valor pode ser o arquivo (banco) ou a referência ao Object Storage.
+      // O valor é o arquivo guardado no banco (ver armazenamento.ts).
       const bruto = await lerArquivo(valor);
       const base = sharp(new Uint8Array(bruto)).rotate().resize({ width: largura, withoutEnlargement: true });
       const extension = m.mime === "image/png" ? "png" : "jpeg";

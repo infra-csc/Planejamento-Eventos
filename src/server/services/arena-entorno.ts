@@ -10,6 +10,8 @@ import { registrarHistorico } from "./support";
 /** Quanto do entorno vem além da borda da planta (metros): o suficiente para a vista em perspectiva ter cidade em volta. */
 const MARGEM_M = 220;
 // Principal e espelhos públicos do Overpass. O principal recusa pedido sem identificação (406) e limita pedidos seguidos (504/429).
+/** Identificação pedida pela política de uso do Overpass: nome do app e, se houver, o endereço público (APP_URL). */
+const USER_AGENT = `NorteMkt-PlanejamentoEventos/1.0${process.env.APP_URL?.trim() ? ` (+${process.env.APP_URL.trim()})` : ""}`;
 const SERVIDORES = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const DOC_ENTORNO = "Entorno 3D";
 
@@ -34,7 +36,7 @@ async function buscarOsm(consulta: string): Promise<ElementoOsm[]> {
       const r = await fetch(tentativas[i], {
         method: "POST",
         body: "data=" + encodeURIComponent(consulta),
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", "User-Agent": "NorteMkt-PlanejamentoEventos/1.0 (+https://planejamento-eventos.replit.app)" },
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", "User-Agent": USER_AGENT },
         signal: AbortSignal.timeout(35_000),
       });
       const texto = await r.text();

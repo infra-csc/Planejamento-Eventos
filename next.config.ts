@@ -1,17 +1,6 @@
 import type { NextConfig } from "next";
 
-/**
- * Domínios do Replit. Em `npm run dev`, o Next 16 bloqueia com 403 os scripts de /_next vindos
- * de outro domínio que não localhost; `**` cobre subdomínios com vários níveis. Vale só no dev.
- */
-const CURINGAS_REPLIT = ["**.replit.dev", "**.repl.co", "**.replit.app"];
-
-/**
- * Server Actions: a própria origem (sempre aceita pelo Next) e, além dela, só os domínios exatos
- * deste app — o domínio publicado (REPLIT_DOMAINS, separado por vírgula), o do workspace
- * (REPLIT_DEV_DOMAIN) e o de APP_URL. Nada de curingas: `*.replit.app` liberaria qualquer app do
- * Replit a disparar actions com o cookie de quem estiver logado aqui.
- */
+/** Host (sem esquema) de uma URL; undefined se vazia ou inválida. */
 function hostDe(url: string | undefined): string | undefined {
   if (!url) return undefined;
   try {
@@ -20,17 +9,34 @@ function hostDe(url: string | undefined): string | undefined {
     return undefined;
   }
 }
+
+/** Lista separada por vírgula, sem vazios, em minúsculas. */
+const lista = (valor: string | undefined) =>
+  (valor ?? "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+
+/**
+ * Server Actions: a própria origem (sempre aceita pelo Next) e, além dela, só os domínios exatos
+ * deste app — o de APP_URL e os de ORIGENS_EXTRAS (hosts separados por vírgula, ex.: um domínio
+ * antigo durante a migração). Nada de curingas: liberaria outros sites a disparar actions com o
+ * cookie de quem estiver logado aqui.
+ */
 const ORIGENS_ACTIONS = [
-  ...new Set(
-    [process.env.REPLIT_DEV_DOMAIN, ...(process.env.REPLIT_DOMAINS ?? "").split(","), hostDe(process.env.APP_URL)]
-      .map((d) => d?.trim().toLowerCase())
-      .filter((d): d is string => Boolean(d) && !d!.includes("*")),
-  ),
+  ...new Set([hostDe(process.env.APP_URL), ...lista(process.env.ORIGENS_EXTRAS)].filter((d): d is string => Boolean(d) && !d!.includes("*"))),
 ];
+
+/**
+ * Em `npm run dev`, o Next 16 bloqueia com 403 os scripts de /_next vindos de outro domínio que não
+ * localhost. Para abrir o dev por outro endereço (IP da rede, túnel), liste os hosts em DEV_ORIGENS.
+ * Vale só no dev.
+ */
+const ORIGENS_DEV = lista(process.env.DEV_ORIGENS);
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
-  allowedDevOrigins: CURINGAS_REPLIT,
+  allowedDevOrigins: ORIGENS_DEV,
   poweredByHeader: false,
   experimental: {
     serverActions: {

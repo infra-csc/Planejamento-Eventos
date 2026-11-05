@@ -8,7 +8,7 @@ import { entrarPeloPortal } from "@/server/auth/portal-entrada";
  */
 
 /**
- * Endereço público do app para o redirecionamento. Atrás do proxy do Replit, `request.url` traz o
+ * Endereço público do app para o redirecionamento. Atrás de um proxy reverso (Nginx), `request.url` traz o
  * host interno (0.0.0.0:3000) — redirecionar para ele manda a pessoa a uma página que não abre.
  * Ordem: APP_URL; depois os cabeçalhos x-forwarded-*; por fim a própria requisição.
  */

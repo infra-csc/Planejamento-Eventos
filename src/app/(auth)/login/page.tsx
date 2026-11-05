@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Entrar" };
 
 /**
  * O bloco "Demonstração — entrar como" faz login com a senha do seed em um clique (ver
- * src/server/auth/demo.ts: local por padrão; Replit e produção só com EXIBIR_DEMO=true).
+ * src/server/auth/demo.ts: local por padrão; com DATABASE_URL ou em produção só com EXIBIR_DEMO=true).
  */
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; redefinida?: string; erro?: string }> }) {
   const sp = await searchParams;

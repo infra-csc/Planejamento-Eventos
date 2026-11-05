@@ -178,7 +178,7 @@ export const pecas = pgTable("pecas", {
 
 /**
  * Fotos (IMAGEM, gravadas reduzidas) e anexos PDF de uma peça do catálogo. Como os anexos dos projetos:
- * a coluna guarda o arquivo no banco ou a referência ao Object Storage (ver armazenamento.ts).
+ * a coluna guarda o arquivo no banco (ver armazenamento.ts).
  */
 export const pecaAnexos = pgTable(
   "peca_anexos",

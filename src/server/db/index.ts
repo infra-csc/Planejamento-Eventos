@@ -7,7 +7,7 @@ import * as schema from "./schema";
 /**
  * Conexão com o banco.
  *
- * - Com DATABASE_URL definida (Replit / produção): PostgreSQL via node-postgres.
+ * - Com DATABASE_URL definida (produção: Neon ou Postgres do VPS): PostgreSQL via node-postgres.
  * - Sem DATABASE_URL (desenvolvimento local): PostgreSQL embutido (PGlite) em ./.data/pglite.
  *
  * O tipo exposto é o mesmo nos dois casos, então serviços e scripts não sabem qual driver está ativo.
@@ -44,7 +44,7 @@ async function connect(): Promise<Conn> {
   if (url) {
     const { drizzle } = await import("drizzle-orm/node-postgres");
     const { Pool } = await import("pg");
-    // Conexões por instância: DB_POOL_MAX (padrão 10). O Autoscale sobe várias instâncias e cada uma
+    // Conexões por instância: DB_POOL_MAX (padrão 10). Cada processo (ex.: instâncias do PM2 em cluster)
     // abre o seu pool: instâncias × DB_POOL_MAX precisa caber no limite de conexões do Postgres.
     const pool = new Pool({ connectionString: url, max: tamanhoPool(), idleTimeoutMillis: 30_000 });
     const db = drizzle(pool, { schema, logger }) as unknown as Db;

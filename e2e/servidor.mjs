@@ -14,8 +14,10 @@ const DIR_BANCO = ".data/e2e";
 
 const env = { ...process.env, PGLITE_DATA_DIR: DIR_BANCO, EXIBIR_DEMO: "true", APP_URL: `http://localhost:${PORTA}` };
 // Nunca contra um Postgres de verdade: o seed tem senha fixa e o banco é apagado a cada execução.
-delete env.DATABASE_URL;
-delete env.SEED_DEMO;
+// Vazias (e não apagadas): variáveis já definidas têm prioridade sobre o .env, que o Next e os
+// scripts (tsx --env-file-if-exists) carregam. Apagadas, o DATABASE_URL do .env voltaria.
+env.DATABASE_URL = "";
+env.SEED_DEMO = "";
 
 function npm(...args) {
   console.log(`[e2e] npm run ${args.join(" ")}`);

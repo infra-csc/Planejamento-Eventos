@@ -15,7 +15,7 @@ const PUBLICAS = ["/login", "/recuperar-senha", "/redefinir-senha", "/api/cron",
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  // Diagnóstico de proxy (Replit): o Next recusa Server Actions quando origin e host não batem.
+  // Diagnóstico de proxy reverso: o Next recusa Server Actions quando origin e host não batem.
   if (request.method === "POST" && request.headers.has("next-action")) {
     const origem = request.headers.get("origin");
     const hostEncaminhado = request.headers.get("x-forwarded-host");

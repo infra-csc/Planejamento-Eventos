@@ -6,7 +6,7 @@ import { getConnection, getDataDir } from "../src/server/db";
  * Apaga todos os dados. Local: remove o diretório do PGlite. Postgres: derruba o schema public.
  * Depois rode `npm run setup`.
  *
- * Com DATABASE_URL (Replit), exige `--force`: o comando apaga o banco inteiro, sem volta.
+ * Com DATABASE_URL (Postgres de produção), exige `--force`: o comando apaga o banco inteiro, sem volta.
  */
 async function main() {
   if (!process.env.DATABASE_URL?.trim()) {

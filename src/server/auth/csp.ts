@@ -7,16 +7,11 @@ export function gerarNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-type Ambiente = { NODE_ENV?: string; REPLIT_DEPLOYMENT?: string; REPLIT_DEV_DOMAIN?: string };
+type Ambiente = { NODE_ENV?: string };
 
-/**
- * Quem pode embutir o app num iframe. Publicado (deployment) ou local: ninguém. No workspace do
- * Replit (dev), o painel Webview do editor mostra o app num iframe de replit.com — sem liberar
- * isso, a pré-visualização do editor fica em branco.
- */
-export function ancestraisPermitidos(env: Ambiente = process.env): string {
-  const workspaceReplit = Boolean(env.REPLIT_DEV_DOMAIN) && env.REPLIT_DEPLOYMENT !== "1";
-  return workspaceReplit ? "'self' https://replit.com https://*.replit.com https://*.replit.dev" : "'none'";
+/** Quem pode embutir o app num iframe: ninguém (`frame-ancestors 'none'`). */
+export function ancestraisPermitidos(): string {
+  return "'none'";
 }
 
 /**
@@ -38,7 +33,7 @@ export function montarCsp(nonce: string, env: Ambiente = process.env): string {
     // Em dev, o recarregamento automático usa WebSocket.
     "connect-src": dev ? "'self' ws: wss:" : "'self'",
     "worker-src": "'self' blob:",
-    "frame-ancestors": ancestraisPermitidos(env),
+    "frame-ancestors": ancestraisPermitidos(),
     "base-uri": "'self'",
     "form-action": "'self'",
     "object-src": "'none'",
