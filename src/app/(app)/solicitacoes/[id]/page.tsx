@@ -1,3 +1,8 @@
+import { eq } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { eventos } from "@/server/db/schema";
+import { grupoDaLinha } from "@/domain/grupos-material";
+import { atendimentoDaLinha, SELO_ATENDE } from "@/domain/logistica";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
@@ -81,6 +86,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     const partes = [`Por tenda: ${f ? plural(f, "fechamento", "fechamentos") : "sem fechamento"}${temCalha(i) ? ` · ${c ? plural(c, "calha", "calhas") : "sem calha"}` : ""}`, outros.length ? `outras peças: ${resumirAjustes(outros)}` : null].filter(Boolean);
     return partes.join(" · ");
   };
+  const estruturaDoEvento = pode(usuario, "projecao.ver") ? ((await (await getDb()).query.eventos.findFirst({ where: eq(eventos.id, s.eventoId), columns: { estrutura: true } }))?.estrutura ?? "PROPRIA") : null;
   const itens: ItemParaResposta[] = s.itens.map((i) => {
     const tenda = ehTendaItem(i);
     return {
@@ -91,6 +97,7 @@ export default async function SolicitacaoPage({ params, searchParams }: { params
     operacao: i.operacao,
     quantidadeSolicitada: i.quantidadeSolicitada,
     quantidadeAtual: i.quantidadeAnterior ?? i.eventoItem?.quantidade ?? null,
+    atende: !estruturaDoEvento || i.operacao === "REMOVER" ? null : SELO_ATENDE[atendimentoDaLinha({ atendePor: i.eventoItem?.atendePor ?? null, grupo: grupoDaLinha({ tipo: i.projetoId ? "PROJETO" : i.pecaId ? "PECA" : "AVULSO", projeto: i.projeto, peca: i.peca }) }, estruturaDoEvento).atendePor],
     destino: i.destino,
     justificativa: i.justificativa?.trim() || null,
     descricoes: i.descricoes ?? null,

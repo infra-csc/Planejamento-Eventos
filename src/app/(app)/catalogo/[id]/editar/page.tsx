@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { pode } from "@/domain/permissions";
 import { requirePermissao } from "@/server/auth/session";
 import { obterPeca } from "@/server/services/catalogo";
 import { listarGruposProjetos } from "@/server/services/projetos";
@@ -64,7 +65,7 @@ export default async function EditarPecaPage({ params, searchParams }: { params:
           <AnexosPeca pecaId={p.id} anexos={p.anexos} podeGerenciar />
         </Section>
       </div>
-      <PecaForm valores={p} usos={p.usos} grupos={grupos} cancelarHref={volta} />
+      <PecaForm valores={p} usos={p.usos} grupos={grupos} cancelarHref={volta} camposLogistica={pode(usuario, "logistica.cadastros")} />
     </div>
   );
 }

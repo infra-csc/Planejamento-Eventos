@@ -41,6 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/calendario", label: "Calendário" },
     { href: "/solicitacoes", label: "Solicitações", contagem: abertas },
     // Carga e descarga do galpão: só logística e administrador.
+    ...(pode(usuario, "projecao.ver") ? [{ href: "/projecao", label: "Projeção", secao: "Operação" }] : []),
+    ...(pode(usuario, "logistica.contagem") ? [{ href: "/contagem", label: "Contagem de saldo", secao: "Operação" }] : []),
     ...(pode(usuario, "carga.ver") ? [{ href: "/carga-descarga", label: "Carga e descarga", secao: "Operação" }] : []),
     // Arena 3D no menu só para a operação: para as áreas solicitantes a lista não tinha ligação com a tarefa delas.
     // A página continua aberta a todos (o mapa do evento é aberto pela página do evento). Auditoria 28/10, nº 107.
@@ -51,6 +53,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(!TELAS_INATIVAS.pendencias && pode(usuario, "pendencias.ver") ? [{ href: "/pendencias", label: "Pendências de compra", secao: "Operação" }] : []),
     ...(pode(usuario, "historico.ver_tudo") ? [{ href: "/historico", label: "Histórico", secao: "Operação" }] : []),
     { href: "/biblioteca", label: "Biblioteca", secao: "Cadastros", ativoEm: ["/projetos", "/catalogo"] },
+    ...(pode(usuario, "logistica.cadastros")
+      ? [
+          { href: "/cadastros", label: "Cadastros logísticos", secao: "Cadastros" },
+          { href: "/saneamento", label: "Saneamento", secao: "Cadastros" },
+        ]
+      : []),
     ...(pode(usuario, "admin.usuarios") ? [{ href: "/admin", label: "Administração", secao: "Sistema" }] : []),
   ];
 

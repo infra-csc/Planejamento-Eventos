@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireUsuario } from "@/server/auth/session";
 import { adicionarAnexoPeca, alterarAtivoPeca, criarPeca, editarPeca, impactoInativacaoPeca, removerAnexoPeca } from "@/server/services/catalogo";
 import { pecaSchema } from "@/lib/schemas";
+import { pode } from "@/domain/permissions";
+import { ValidacaoError } from "@/domain/errors";
 import { executar, parseForm, tratarErro, type ActionResult } from "@/lib/action";
 import { invalidarDados, TAGS_DADOS } from "@/server/cache-dados";
 import { hrefPeca, voltaDaBiblioteca } from "@/lib/url";
@@ -17,7 +19,12 @@ export async function salvarPecaAction(_prev: ActionResult, formData: FormData):
   let nova: { id: string; codigo: string } | null = null;
   let codigo = "";
   try {
-    const dados = parseForm(pecaSchema, formData);
+    const lido = parseForm(pecaSchema, formData);
+    // Só quem usa a logística de materiais mexe nestes campos; para quem usa, o saldo vem da contagem e o estoque antigo não muda.
+    const comLogistica = pode(usuario, "logistica.cadastros");
+    if (comLogistica && !lido.tipoItem) throw new ValidacaoError("Escolha o tipo do item.", { tipoItem: "Retornável ou consumível." });
+    const { tipoItem, volumeM3, codigoBarras, apelidos, estoqueMinimo, ...basicos } = lido;
+    const dados = comLogistica ? { ...lido, estoqueProprio: id ? undefined : lido.estoqueProprio } : basicos;
     codigo = dados.codigo;
     if (id) await editarPeca(usuario, id, dados);
     else nova = await criarPeca(usuario, dados);

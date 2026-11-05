@@ -31,6 +31,12 @@ export const ACOES = [
   "arena.editar", // criar/excluir arena, trocar planta, marcar e mover pontos no mapa
   "carga.ver", // calendário de carga e descarga do galpão
   "carga.editar", // cadastrar, editar, duplicar e excluir veículos de carga
+  "projecao.ver", // projeção de estoque, em modo leitura para as áreas
+  "logistica.cadastros", // almoxarifados, locadores, perfis de veículo, evento pai, tour e o saneamento
+  "logistica.contagem", // contagem de saldo e ajuste de inventário
+  "logistica.previsao", // locação e compra previstas
+  "evento.datas_previstas", // saída e retorno previstos, evento pai e tour do evento
+  "evento.estrutura", // campo "Estrutura" do evento e "Atende por" das linhas
   "historico.ver_tudo",
   "admin.usuarios",
   "admin.areas",
@@ -79,6 +85,14 @@ const MATRIZ: Record<Acao, readonly Perfil[]> = {
   // Carga e descarga do galpão: operação da logística (e o administrador).
   "carga.ver": ["LOGISTICA", "ADMIN"],
   "carga.editar": ["LOGISTICA", "ADMIN"],
+  // Logística de materiais (briefing v2): por enquanto só o administrador (05/11). Quando for abrir, o briefing pede: as áreas leem
+  // a Projeção; a logística mantém o saldo, as datas e os cadastros; a cenografia decide a Estrutura e o "Atende por".
+  "projecao.ver": ["ADMIN"],
+  "logistica.cadastros": ["ADMIN"],
+  "logistica.contagem": ["ADMIN"],
+  "logistica.previsao": ["ADMIN"],
+  "evento.datas_previstas": ["ADMIN"],
+  "evento.estrutura": ["ADMIN"],
   "pendencias.ver": ["LOGISTICA", "GESTAO", "ADMIN"],
   "pendencias.resolver": ["LOGISTICA", "ADMIN"],
   "historico.ver_tudo": ["LOGISTICA", "GESTAO", "ADMIN"],

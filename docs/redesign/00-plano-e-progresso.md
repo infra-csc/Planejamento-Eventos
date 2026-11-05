@@ -79,8 +79,10 @@ Atualizar a cada lote, só com o que foi executado de fato.
 
 **04/11, últimos ajustes:** Vitest 847 passaram, 3 ignorados (850). Playwright 38 de 38, com a folha de descarregamento e o menu que recolhe sozinho. Menu testado na tela: tempo, mouse em cima, troca de página, manter aberto, recolhido à mão e celular.
 
+**04/11, Kit, login e Arena:** Vitest 855 passaram, 3 ignorados (858). Playwright 38 de 38. Login e blocos do Kit vistos na tela, a 1440 e 390 px, com uma área do demo renomeada para Kit. Botões da Arena no celular: não vistos na tela, porque o demo só tem arena fixa, que nunca mostra esses botões. A condição é a mesma do computador.
+
 **Não testado:** Excel aberto no programa (só lido por biblioteca); erro de servidor e carregamento em todas as telas; Arena 3D com interação; janelas restantes.
 
 ## Próximo passo
 
-Se quiser fechar 100%: abrir as janelas restantes.
+Se quiser fechar 100%: abrir as janelas restantes. A V1 do briefing de logística está em `docs/logistica-v1.md`.

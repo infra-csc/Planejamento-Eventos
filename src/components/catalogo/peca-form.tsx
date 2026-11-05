@@ -12,8 +12,9 @@ import { Aviso, Section } from "@/components/ui/layout";
 import { Numero } from "@/components/ui/numero";
 import { SETOR_LABEL } from "@/domain/os";
 import { ESTADO_INICIAL, type ActionResult } from "@/lib/action";
-import { LIMITES, SETORES } from "@/domain/constantes";
-import type { Setor } from "@/server/db/schema";
+import { LIMITES, SETORES, TIPOS_ITEM } from "@/domain/constantes";
+import { TIPO_ITEM_LABEL } from "@/domain/logistica";
+import type { Setor, TipoItem } from "@/server/db/schema";
 import type { GrupoProjetoOpcao } from "@/components/projetos/grupo-projeto-field";
 import { OrigemPecaField } from "./origem-peca-field";
 
@@ -22,8 +23,11 @@ export function PecaForm({
   usos,
   grupos,
   cancelarHref,
+  camposLogistica = false,
 }: {
-  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; permiteEmProjeto?: boolean; disponivelEmSolicitacoes?: boolean; prova?: string | null };
+  /** Tipo, m³, código de barras, apelidos e mínimo: só para quem usa a logística de materiais. */
+  camposLogistica?: boolean;
+  valores: { id?: string; codigo?: string; nome?: string; setor?: Setor; familia?: string; unidade?: string; descricao?: string | null; estoqueProprio?: number; tipoItem?: TipoItem | null; volumeM3?: number | null; estoqueMinimo?: number | null; codigoBarras?: string | null; apelidos?: string[]; permiteEmProjeto?: boolean; disponivelEmSolicitacoes?: boolean; prova?: string | null };
   usos?: Array<{ id: string; nome: string; quantidade: number }>;
   /** Provas já usadas na Biblioteca (grupos dos projetos), para a origem da peça. */
   grupos: readonly GrupoProjetoOpcao[];
@@ -80,9 +84,33 @@ export function PecaForm({
           <Field label="Unidade" htmlFor="unidade" error={c?.unidade} hint="Ex.: un, m, m², par." obrigatorio>
             <Input id="unidade" name="unidade" defaultValue={valores.unidade ?? "un"} maxLength={LIMITES.unidade} />
           </Field>
-          <Field label="Estoque próprio" htmlFor="estoqueProprio" error={c?.estoqueProprio} hint="Quantidade que a empresa tem. Por enquanto é só registro: nenhuma tela soma este número.">
-            <Input id="estoqueProprio" name="estoqueProprio" type="number" min={0} defaultValue={valores.estoqueProprio ?? 0} className="numero" />
+          {!camposLogistica && (
+            <Field label="Estoque próprio" htmlFor="estoqueProprio" error={c?.estoqueProprio} hint="Quantidade que a empresa tem. Por enquanto é só registro: nenhuma tela soma este número.">
+              <Input id="estoqueProprio" name="estoqueProprio" type="number" min={0} defaultValue={valores.estoqueProprio ?? 0} className="numero" />
+            </Field>
+          )}
+          {camposLogistica && (
+            <>
+          <Field label="Tipo do item" htmlFor="tipoItem" error={c?.tipoItem} hint="Retornável volta do evento; consumível não volta." obrigatorio>
+            <Select id="tipoItem" name="tipoItem" defaultValue={valores.tipoItem ?? ""} placeholder="Escolha" ordenarAlfabetico={false} opcoes={TIPOS_ITEM.map((t) => ({ value: t, label: TIPO_ITEM_LABEL[t] }))} />
           </Field>
+          <Field label="Volume (m³ por unidade)" htmlFor="volumeM3" error={c?.volumeM3} optional hint="Como viaja: desmontada, em case ou amarrada.">
+            <Input id="volumeM3" name="volumeM3" inputMode="decimal" defaultValue={valores.volumeM3 ?? ""} className="numero" />
+          </Field>
+          <Field label="Estoque mínimo" htmlFor="estoqueMinimo" error={c?.estoqueMinimo} optional hint="Abaixo disso, a Projeção fica amarela.">
+            <Input id="estoqueMinimo" name="estoqueMinimo" type="number" min={0} defaultValue={valores.estoqueMinimo ?? ""} className="numero" />
+          </Field>
+          <Field label="Código de barras" htmlFor="codigoBarras" error={c?.codigoBarras} optional>
+            <Input id="codigoBarras" name="codigoBarras" defaultValue={valores.codigoBarras ?? ""} className="font-mono" maxLength={LIMITES.codigoPeca} />
+          </Field>
+          <Field label="Apelidos" htmlFor="apelidos" error={c?.apelidos} optional hint="Outros nomes da peça, separados por ponto e vírgula." className="sm:col-span-2">
+            <Input id="apelidos" name="apelidos" defaultValue={(valores.apelidos ?? []).join("; ")} />
+          </Field>
+          {(valores.estoqueProprio ?? 0) > 0 && (
+            <p className="m-0 text-pequeno text-ink-3 sm:col-span-2">Estoque próprio antigo: <span className="numero">{valores.estoqueProprio}</span>. Não muda mais aqui: o saldo vem da contagem.</p>
+          )}
+            </>
+          )}
           <div className="sm:col-span-2">
             <Checkbox id="permiteEmProjeto" name="permiteEmProjeto" label="Pode entrar na lista de peças de projetos padrão" description="Desmarque para peças sempre lançadas avulsas com destino, como fechamento de tenda." defaultChecked={valores.permiteEmProjeto ?? true} />
           </div>

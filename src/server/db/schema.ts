@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { relations, sql } from "drizzle-orm";
 import type { Arena as ArenaBase } from "@/domain/arena/tipos";
 import type { TipoVeiculo, TrechoIda, TrechoVolta } from "@/domain/carga-descarga";
+import type { ATENDE_POR, ESTRUTURAS_EVENTO, TIPOS_COBERTURA, TIPOS_ITEM, TIPOS_MOVIMENTACAO } from "@/domain/constantes";
 import {
   type AnyPgColumn,
   boolean,
@@ -164,7 +165,16 @@ export const pecas = pgTable("pecas", {
   familia: text("familia").notNull().default(""),
   unidade: text("unidade").notNull().default("un"),
   descricao: text("descricao"),
+  /** Número antigo, só de consulta: o saldo agora vem da contagem. Serve de sugestão na primeira contagem. */
   estoqueProprio: integer("estoque_proprio").notNull().default(0),
+  /** Retornável volta do evento; consumível não volta. Null = pendência do saneamento. */
+  tipoItem: text("tipo_item").$type<TipoItem>(),
+  /** m³ por unidade como viaja (desmontada, em case ou amarrada). */
+  volumeM3: doublePrecision("volume_m3"),
+  codigoBarras: text("codigo_barras"),
+  apelidos: jsonb("apelidos").$type<string[]>().notNull().default([]),
+  /** Abaixo disso a Projeção fica amarela; opcional. */
+  estoqueMinimo: integer("estoque_minimo"),
   permiteEmProjeto: boolean("permite_em_projeto").notNull().default(true),
   /** false = fica no catálogo, mas não aparece nas listas de seleção das solicitações (ex.: marcenaria, por enquanto). */
   disponivelEmSolicitacoes: boolean("disponivel_solicitacao").notNull().default(true),
@@ -293,6 +303,15 @@ export const eventos = pgTable(
     dataDesmontagem: date("data_desmontagem", { mode: "string" }).notNull(),
     dataReuniao: ts("data_reuniao").notNull(),
     dataCarga: date("data_carga", { mode: "string" }),
+    /** Null = calculada pela data do evento (dias de Administração) ou pelos veículos cadastrados. */
+    saidaPrevista: date("saida_prevista", { mode: "string" }),
+    retornoPrevisto: date("retorno_previsto", { mode: "string" }),
+    /** Evento pai: agrupa etapas (identidade). Tour: roteiro logístico entre provas. Independem um do outro. */
+    eventoPaiId: text("evento_pai_id").references((): AnyPgColumn => eventosPai.id, { onDelete: "set null" }),
+    tourId: text("tour_id").references((): AnyPgColumn => tours.id, { onDelete: "set null" }),
+    tourOrdem: integer("tour_ordem"),
+    estrutura: text("estrutura").$type<EstruturaEvento>().notNull().default("PROPRIA"),
+    fornecedorEstrutura: text("fornecedor_estrutura"),
     /** Até quando alterações pós-ata entram no fluxo normal; depois disso ainda entram, mas marcadas "fora da janela". */
     janelaAlteracoesAte: date("janela_alteracoes_ate", { mode: "string" }),
     responsavelId: text("responsavel_id")
@@ -379,6 +398,12 @@ export const eventoItens = pgTable(
     descricaoLivre: text("descricao_livre"),
     quantidade: integer("quantidade").notNull(),
     destino: text("destino"),
+    /** Null = herda do evento (domain/logistica). Preenchido = a cenografia decidiu nesta linha, e a mudança no evento não mexe. */
+    atendePor: text("atende_por").$type<AtendePor>(),
+    /** De qual almoxarifado sai; null = o principal. */
+    almoxarifadoId: text("almoxarifado_id").references((): AnyPgColumn => almoxarifados.id, { onDelete: "set null" }),
+    /** Complemento: sai do nosso galpão direto para o montador. */
+    montador: text("montador"),
     areaId: text("area_id").references(() => areas.id),
     origem: eventoItemOrigemEnum("origem").notNull(),
     solicitacaoItemId: text("solicitacao_item_id").references((): AnyPgColumn => solicitacaoItens.id, { onDelete: "set null" }),
@@ -745,6 +770,203 @@ export const anexosRelations = relations(anexos, ({ one }) => ({
  * horas dos trechos são texto local de São Paulo ("AAAA-MM-DDTHH:mm"): o calendário posiciona pela
  * data local, sem conversão. Ver domain/carga-descarga.ts.
  */
+export type TipoItem = (typeof TIPOS_ITEM)[number];
+export type EstruturaEvento = (typeof ESTRUTURAS_EVENTO)[number];
+export type AtendePor = (typeof ATENDE_POR)[number];
+export type TipoMovimentacao = (typeof TIPOS_MOVIMENTACAO)[number];
+export type TipoCobertura = (typeof TIPOS_COBERTURA)[number];
+
+/* ------------------------------------------------------------------ */
+/* Logística de materiais: cadastros, saldo e previsão                  */
+/* ------------------------------------------------------------------ */
+
+export const eventosPai = pgTable("eventos_pai", {
+  id: id(),
+  nome: text("nome").notNull().unique(),
+  descricao: text("descricao"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+  atualizadoEm: atualizadoEm(),
+});
+
+export const tours = pgTable("tours", {
+  id: id(),
+  nome: text("nome").notNull().unique(),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+  atualizadoEm: atualizadoEm(),
+});
+
+export const almoxarifados = pgTable(
+  "almoxarifados",
+  {
+    id: id(),
+    nome: text("nome").notNull().unique(),
+    endereco: text("endereco"),
+    /** Área que responde por este almoxarifado (a Ativação pelo dela). */
+    areaId: text("area_id").references(() => areas.id, { onDelete: "set null" }),
+    /** De onde sai a linha que não diz o almoxarifado. Só um. */
+    principal: boolean("principal").notNull().default(false),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("almoxarifados_principal_idx").on(t.principal).where(sql`${t.principal}`)],
+);
+
+export const locadores = pgTable("locadores", {
+  id: id(),
+  nome: text("nome").notNull().unique(),
+  contato: text("contato"),
+  cnpj: text("cnpj"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+  atualizadoEm: atualizadoEm(),
+});
+
+export const perfisVeiculo = pgTable(
+  "perfis_veiculo",
+  {
+    id: id(),
+    tipo: text("tipo").$type<TipoVeiculo>().notNull(),
+    nome: text("nome").notNull().unique(),
+    comprimentoM: doublePrecision("comprimento_m").notNull(),
+    larguraM: doublePrecision("largura_m").notNull(),
+    alturaM: doublePrecision("altura_m").notNull(),
+    redutorPct: integer("redutor_pct").notNull().default(15),
+    /** O perfil de medidas médias do tipo, usado nas estimativas. Um por tipo. */
+    referencia: boolean("referencia").notNull().default(false),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("perfis_veiculo_referencia_idx").on(t.tipo).where(sql`${t.referencia}`)],
+);
+
+/** Uma contagem de almoxarifado: o que foi visto, peça a peça. A diferença para o saldo vira movimentação. */
+export const contagens = pgTable(
+  "contagens",
+  {
+    id: id(),
+    almoxarifadoId: text("almoxarifado_id")
+      .notNull()
+      .references(() => almoxarifados.id),
+    dataContagem: date("data_contagem", { mode: "string" }).notNull(),
+    responsavelId: text("responsavel_id")
+      .notNull()
+      .references(() => usuarios.id),
+    observacao: text("observacao"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("contagens_almoxarifado_idx").on(t.almoxarifadoId, t.dataContagem)],
+);
+
+export const contagemLinhas = pgTable(
+  "contagem_linhas",
+  {
+    id: id(),
+    contagemId: text("contagem_id")
+      .notNull()
+      .references(() => contagens.id, { onDelete: "cascade" }),
+    pecaId: text("peca_id")
+      .notNull()
+      .references(() => pecas.id),
+    /** Null = Norte. */
+    locadorId: text("locador_id").references(() => locadores.id),
+    contado: integer("contado").notNull(),
+    anterior: integer("anterior").notNull(),
+  },
+  (t) => [index("contagem_linhas_contagem_idx").on(t.contagemId), index("contagem_linhas_peca_idx").on(t.pecaId), check("contagem_linhas_contado_chk", sql`${t.contado} >= 0`)],
+);
+
+/** Livro-razão: o saldo é sempre a soma destas linhas. Não se edita nem se apaga. */
+export const movimentacoes = pgTable(
+  "movimentacoes",
+  {
+    id: id(),
+    numero: text("numero").notNull().unique(),
+    tipo: text("tipo").$type<TipoMovimentacao>().notNull(),
+    almoxarifadoId: text("almoxarifado_id")
+      .notNull()
+      .references(() => almoxarifados.id),
+    contagemId: text("contagem_id").references(() => contagens.id),
+    dataMovimento: date("data_movimento", { mode: "string" }).notNull(),
+    justificativa: text("justificativa"),
+    usuarioId: text("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("movimentacoes_almoxarifado_idx").on(t.almoxarifadoId, t.dataMovimento)],
+);
+
+export const movimentacaoLinhas = pgTable(
+  "movimentacao_linhas",
+  {
+    id: id(),
+    movimentacaoId: text("movimentacao_id")
+      .notNull()
+      .references(() => movimentacoes.id, { onDelete: "cascade" }),
+    pecaId: text("peca_id")
+      .notNull()
+      .references(() => pecas.id),
+    /** Com sinal: a contagem que achou menos grava negativo. */
+    quantidade: integer("quantidade").notNull(),
+    /** Null = Norte. */
+    locadorId: text("locador_id").references(() => locadores.id),
+    condicao: text("condicao").notNull().default("OK"),
+    /** Reservado para o RFID. */
+    serial: text("serial"),
+  },
+  (t) => [index("movimentacao_linhas_mov_idx").on(t.movimentacaoId), index("movimentacao_linhas_peca_idx").on(t.pecaId), check("movimentacao_linhas_quantidade_chk", sql`${t.quantidade} <> 0`)],
+);
+
+/** Locação ou compra prevista: cobre a falta na Projeção. Só registro; não contrata nada (o Kotta fica fora). */
+export const coberturasPrevistas = pgTable(
+  "coberturas_previstas",
+  {
+    id: id(),
+    tipo: text("tipo").$type<TipoCobertura>().notNull(),
+    pecaId: text("peca_id")
+      .notNull()
+      .references(() => pecas.id),
+    almoxarifadoId: text("almoxarifado_id")
+      .notNull()
+      .references(() => almoxarifados.id),
+    quantidade: integer("quantidade").notNull(),
+    /** Obrigatório na locação (regra no servidor). */
+    locadorId: text("locador_id").references(() => locadores.id),
+    dataEntrada: date("data_entrada", { mode: "string" }).notNull(),
+    /** Só na locação: o dia em que devolve. A compra fica. */
+    dataDevolucao: date("data_devolucao", { mode: "string" }),
+    eventoId: text("evento_id").references(() => eventos.id, { onDelete: "set null" }),
+    observacao: text("observacao"),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoPorId: text("criado_por_id").references(() => usuarios.id),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [index("coberturas_previstas_peca_idx").on(t.pecaId, t.ativo), check("coberturas_previstas_quantidade_chk", sql`${t.quantidade} > 0`)],
+);
+
+export const almoxarifadosRelations = relations(almoxarifados, ({ one }) => ({ area: one(areas, { fields: [almoxarifados.areaId], references: [areas.id] }) }));
+export const contagensRelations = relations(contagens, ({ one, many }) => ({
+  almoxarifado: one(almoxarifados, { fields: [contagens.almoxarifadoId], references: [almoxarifados.id] }),
+  responsavel: one(usuarios, { fields: [contagens.responsavelId], references: [usuarios.id] }),
+  linhas: many(contagemLinhas),
+}));
+export const contagemLinhasRelations = relations(contagemLinhas, ({ one }) => ({
+  contagem: one(contagens, { fields: [contagemLinhas.contagemId], references: [contagens.id] }),
+  peca: one(pecas, { fields: [contagemLinhas.pecaId], references: [pecas.id] }),
+  locador: one(locadores, { fields: [contagemLinhas.locadorId], references: [locadores.id] }),
+}));
+export const coberturasPrevistasRelations = relations(coberturasPrevistas, ({ one }) => ({
+  peca: one(pecas, { fields: [coberturasPrevistas.pecaId], references: [pecas.id] }),
+  almoxarifado: one(almoxarifados, { fields: [coberturasPrevistas.almoxarifadoId], references: [almoxarifados.id] }),
+  locador: one(locadores, { fields: [coberturasPrevistas.locadorId], references: [locadores.id] }),
+  evento: one(eventos, { fields: [coberturasPrevistas.eventoId], references: [eventos.id] }),
+}));
+
 export const veiculosCarga = pgTable(
   "veiculos_carga",
   {

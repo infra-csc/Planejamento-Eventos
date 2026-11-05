@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { pode } from "@/domain/permissions";
 import { requirePermissao } from "@/server/auth/session";
 import { obterPeca } from "@/server/services/catalogo";
 import { listarGruposProjetos } from "@/server/services/projetos";
@@ -40,6 +41,7 @@ export default async function NovaPecaPage({ searchParams }: { searchParams: Pro
         breadcrumbs={[{ label: "Biblioteca", href: volta }, ...(origem ? [{ label: origem.codigo, href: hrefPeca(`/catalogo/${origem.id}/editar`, volta) }] : []), { label: origem ? "Duplicar" : "Nova" }]}
       />
       <PecaForm
+        camposLogistica={pode(usuario, "logistica.cadastros")}
         valores={
           origem
             ? {
@@ -50,6 +52,10 @@ export default async function NovaPecaPage({ searchParams }: { searchParams: Pro
                 unidade: origem.unidade,
                 descricao: origem.descricao,
                 estoqueProprio: origem.estoqueProprio,
+                tipoItem: origem.tipoItem,
+                volumeM3: origem.volumeM3,
+                estoqueMinimo: origem.estoqueMinimo,
+                apelidos: origem.apelidos,
                 permiteEmProjeto: origem.permiteEmProjeto,
                 disponivelEmSolicitacoes: origem.disponivelEmSolicitacoes,
                 prova: origem.prova,

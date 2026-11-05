@@ -1,3 +1,6 @@
+import { TopoAoEntrar } from "@/components/eventos/topo-ao-entrar";
+import { eq } from "drizzle-orm";
+import { tours } from "@/server/db/schema";
 import { notFound } from "next/navigation";
 import { getUsuarioAtual, requireUsuario } from "@/server/auth/session";
 import { resumoAbasEvento, solicitacoesPendentes } from "@/server/services/eventos";
@@ -100,6 +103,8 @@ export default async function EventoLayout({ children, params }: { children: Rea
     },
   ];
 
+  const tourNome = ev.tourId && pode(usuario, "projecao.ver") ? ((await (await getDb()).query.tours.findFirst({ where: eq(tours.id, ev.tourId), columns: { nome: true } }))?.nome ?? null) : null;
+
   const abas: Aba[] = [
     { href: base, label: "Visão geral", exact: true, tambemEm: `${base}/itens` },
     // Fechada, a ata é o registro da reunião (ex.: 7 linhas) e o número das linhas de agora (11) a contradizia:
@@ -112,11 +117,13 @@ export default async function EventoLayout({ children, params }: { children: Rea
     ...(ev.ataFechadaEm ? [{ href: `${base}/carregamento`, label: "Carregamento", n: Object.keys(await obterCarregamento(ev.id)).length || null }] : []),
     // Carga e descarga do galpão: só logística e administrador.
     ...(pode(usuario, "carga.ver") ? [{ href: `${base}/carga`, label: "Carga", n: nVeiculos || null }] : []),
+    ...(pode(usuario, "projecao.ver") ? [{ href: `${base}/logistica`, label: "Logística" }] : []),
     { href: `${base}/historico`, label: "Histórico" },
   ];
 
   return (
     <>
+      <TopoAoEntrar />
       <PageHeader
         // Título de detalhe com 18 px, como toda tela de registro (decisão de 30/10 sobre a auditoria 28/10 nº 51).
         tamanho="sm"
@@ -127,6 +134,7 @@ export default async function EventoLayout({ children, params }: { children: Rea
             <Codigo className="text-ink-3">{ev.codigo}</Codigo>
             <EventoStatusBadge status={st} />
             {ev.reabertoVezes > 0 && <Tag tom="warning">reaberto {ev.reabertoVezes}×</Tag>}
+            {tourNome && <Tag tom="info">em tour: {tourNome}</Tag>}
           </>
         }
         title={ev.nome}

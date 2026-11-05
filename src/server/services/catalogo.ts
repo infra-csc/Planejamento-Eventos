@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { eventoItens, eventos, pecaAnexos, pecas, projetoGrupos, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, type Setor } from "@/server/db/schema";
+import { eventoItens, eventos, pecaAnexos, pecas, projetoGrupos, projetoItens, projetoVersoes, projetos, solicitacaoItens, solicitacoes, type Setor, type TipoItem } from "@/server/db/schema";
 import { normalizarGrupoProjeto } from "@/domain/grupos-projeto";
 import { apagarArquivo, gravarArquivo, inicioDoArquivo, lerArquivo } from "@/server/armazenamento";
 import { detectarMimeAnexo, resolverGrupoProjeto } from "./projetos";
@@ -19,8 +19,15 @@ export type DadosPeca = {
   familia: string;
   unidade: string;
   descricao: string | null;
-  estoqueProprio: number;
+  /** Ausente = não muda. Para quem usa a logística de materiais, o saldo vem da contagem e este número fica só de consulta. */
+  estoqueProprio?: number;
   permiteEmProjeto: boolean;
+  /** Ausente = não mexe. O formulário sempre manda; a criação automática (vincular item) fica para o saneamento. */
+  tipoItem?: TipoItem | null;
+  volumeM3?: number | null;
+  codigoBarras?: string | null;
+  apelidos?: string[];
+  estoqueMinimo?: number | null;
   /** Aparece nas solicitações; ausente = não mexe (na criação, aparece). */
   disponivelEmSolicitacoes?: boolean;
   /** Prova para a qual a peça foi feita (nome livre, os mesmos grupos dos projetos); null = do galpão; ausente = não mexe. */
@@ -125,7 +132,7 @@ export async function editarPeca(usuario: UsuarioAtual, id: string, dados: Dados
     const antes: Record<string, unknown> = {};
     const depois: Record<string, unknown> = {};
     for (const k of Object.keys(campos) as (keyof typeof campos)[]) {
-      if (atual[k] !== campos[k]) {
+      if (campos[k] !== undefined && JSON.stringify(atual[k]) !== JSON.stringify(campos[k])) {
         antes[k] = atual[k];
         depois[k] = campos[k];
       }

@@ -30,6 +30,14 @@ export async function register() {
     } catch (err) {
       console.error(JSON.stringify({ nivel: "erro", evento: "estoque_importado", mensagem: err instanceof Error ? err.message : String(err) }));
     }
+    // Almoxarifados que existem desde o início (Galpão principal e Ativação): cria o que faltar.
+    try {
+      const { garantirAlmoxarifados } = await import("@/server/services/logistica");
+      const criados = await garantirAlmoxarifados();
+      if (criados) console.log(JSON.stringify({ nivel: "info", evento: "almoxarifados_criados", criados }));
+    } catch (err) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "almoxarifados_criados", mensagem: err instanceof Error ? err.message : String(err) }));
+    }
     // Regras passadas nas atas abertas (testeira a definir com tenda; pranchão no cavalete reto), uma vez só.
     try {
       const { ressincronizarAtasAbertas } = await import("@/server/services/eventos/regras-kit");

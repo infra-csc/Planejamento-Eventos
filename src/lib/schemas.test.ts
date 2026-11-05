@@ -29,7 +29,7 @@ describe("mensagens de validação em português", () => {
   });
 
   it("configurações: campo apagado pede um número e não vira 0; fora da faixa diz a faixa (auditoria 30/10, parte D N7 e N8)", () => {
-    const base = { sla_resposta_horas: "48", aviso_prazo_horas: "12", antecedencia_reuniao_horas: "0", lembrete_reuniao_dias: "1", bloquear_encerramento_com_pendentes: true };
+    const base = { sla_resposta_horas: "48", aviso_prazo_horas: "12", antecedencia_reuniao_horas: "0", lembrete_reuniao_dias: "1", saida_dias_antes: "3", retorno_dias_depois: "3", bloquear_encerramento_com_pendentes: true };
     expect(mensagens(configuracoesSchema.safeParse({ ...base, aviso_prazo_horas: "" }), "aviso_prazo_horas")).toEqual(["Informe um número."]);
     expect(mensagens(configuracoesSchema.safeParse({ ...base, aviso_prazo_horas: "  " }), "aviso_prazo_horas")).toEqual(["Informe um número."]);
     for (const v of ["1.5", "999", "-3", "abc"]) {

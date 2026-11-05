@@ -78,6 +78,8 @@ export async function salvarConfigAction(payload: Record<string, string | number
           aviso_prazo_horas: String(d.aviso_prazo_horas),
           antecedencia_reuniao_horas: String(d.antecedencia_reuniao_horas),
           lembrete_reuniao_dias: String(d.lembrete_reuniao_dias),
+          saida_dias_antes: String(d.saida_dias_antes),
+          retorno_dias_depois: String(d.retorno_dias_depois),
           bloquear_encerramento_com_pendentes: String(d.bloquear_encerramento_com_pendentes),
         }),
       "Configurações salvas",

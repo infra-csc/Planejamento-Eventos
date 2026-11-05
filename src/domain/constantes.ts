@@ -13,6 +13,13 @@ export const ITEM_STATUS = ["EM_ANALISE", "ATENDIDO", "PARCIAL", "NAO_ATENDIDO"]
 export const EVENTO_ITEM_TIPOS = ["PROJETO", "PECA", "AVULSO"] as const;
 export const EVENTO_ITEM_ORIGENS = ["SOLICITACAO", "AJUSTE_LOGISTICA"] as const;
 export const ANEXO_TIPOS = ["IMAGEM", "PDF"] as const;
+/** Logística de materiais (briefing NorteLog v2): listas fixas no código, sem tela de configuração. */
+export const TIPOS_ITEM = ["RETORNAVEL", "CONSUMIVEL"] as const;
+export const ESTRUTURAS_EVENTO = ["PROPRIA", "TERCEIRIZADA", "A_DEFINIR"] as const;
+export const ATENDE_POR = ["GALPAO_NORTE", "FORNECEDOR_EXTERNO", "LOCACAO_VIA_GALPAO", "COMPRA_CONSUMO"] as const;
+/** A Fase 2 acrescenta os outros tipos; nesta fase o saldo só nasce de contagem. */
+export const TIPOS_MOVIMENTACAO = ["SALDO_INICIAL", "AJUSTE_INVENTARIO"] as const;
+export const TIPOS_COBERTURA = ["LOCACAO", "COMPRA"] as const;
 export const OS_GATILHOS = [
   "ATA_FECHADA",
   "RESPOSTA_SOLICITACAO",

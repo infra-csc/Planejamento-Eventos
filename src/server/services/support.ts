@@ -253,6 +253,8 @@ export const CONFIG_PADRAO = {
   aviso_prazo_horas: "12",
   antecedencia_reuniao_horas: "0",
   lembrete_reuniao_dias: "1",
+  saida_dias_antes: "3",
+  retorno_dias_depois: "3",
   bloquear_encerramento_com_pendentes: "true",
 } as const;
 

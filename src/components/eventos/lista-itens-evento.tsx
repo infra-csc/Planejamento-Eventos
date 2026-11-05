@@ -1,4 +1,6 @@
 import type { LinhaAtaDetalhe } from "@/server/services/eventos/ata";
+import { atendimentoDaLinha, SELO_ATENDE } from "@/domain/logistica";
+import type { EstruturaEvento } from "@/server/db/schema";
 import { ehAreaKit, ROTULO_KIT } from "@/domain/os";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
 import { cn } from "@/lib/cn";
@@ -78,6 +80,7 @@ export function ListaItensEvento({
   podeCadastrar,
   origem,
   quem,
+  estrutura,
 }: {
   eventoId: string;
   linhas: Linha[];
@@ -89,6 +92,8 @@ export function ListaItensEvento({
   origem: (l: Linha) => string;
   /** Nome de quem pediu (ou incluiu), à vista na coluna Área; null quando quem vê não pode ver. */
   quem: (l: Linha) => string | null;
+  /** Estrutura do evento, para o selo de onde sai cada linha; null = quem vê não tem a logística de materiais. */
+  estrutura: EstruturaEvento | null;
 }) {
   const porNomeExibido = (a: Linha, b: Linha) => nomeExibido(a).localeCompare(nomeExibido(b), "pt-BR");
   // O Kit recebe em outro local: fica num bloco próprio e não soma com o mesmo item das outras áreas.
@@ -145,6 +150,7 @@ export function ListaItensEvento({
         </SemCliqueDaLinha>
       ) : null;
     const s = selo(ls);
+    const atende = estrutura && x.grupo ? SELO_ATENDE[atendimentoDaLinha({ atendePor: x.registro.atendePor, grupo: x.grupo }, estrutura).atendePor] : null;
     return (
       <th scope="row" className={cn(celula, "max-w-0 pr-3 text-left font-normal", recuo ? "pl-9 @lg:pl-12" : "pl-cartao")}>
         <span className="flex min-w-0 items-center gap-2 overflow-hidden">
@@ -153,6 +159,7 @@ export function ListaItensEvento({
             {texto}
           </span>
           {tenda && <span className="hidden min-w-0 shrink-[3] truncate text-pequeno text-ink-3 @lg:inline" title={tenda}>{tenda}</span>}
+          {atende && <span className="hidden shrink-0 text-rotulo text-ink-3 @lg:inline">{atende}</span>}
           {s && <span className="hidden shrink-0 @lg:inline-flex">{s}</span>}
           {versao && <span className="hidden shrink-0 @lg:inline-flex">{versao}</span>}
           {vincular("hidden @lg:inline-flex")}
@@ -161,7 +168,7 @@ export function ListaItensEvento({
           {s && <span className="shrink-0">{s}</span>}
           {versao && <span className="shrink-0">{versao}</span>}
           {vincular("")}
-          <span className="truncate text-pequeno text-ink-2">{[tenda, resumo].filter(Boolean).join(" · ")}</span>
+          <span className="truncate text-pequeno text-ink-2">{[tenda, resumo, atende].filter(Boolean).join(" · ")}</span>
         </span>
         {resumoMedio && <span className="hidden truncate text-pequeno text-ink-2 @lg:block @2xl:hidden">{resumoMedio}</span>}
       </th>

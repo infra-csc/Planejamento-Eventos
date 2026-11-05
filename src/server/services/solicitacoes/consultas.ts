@@ -268,7 +268,7 @@ async function consultarDetalhes(ids: string[]) {
       itens: {
         with: {
           projeto: { columns: { id: true, codigo: true, nome: true } },
-          peca: { columns: { id: true, codigo: true, nome: true } },
+          peca: { columns: { id: true, codigo: true, nome: true, setor: true } },
           projetoVersao: { columns: { id: true, numero: true } },
           eventoItem: { columns: { bomSnapshot: false }, with: { projeto: { columns: { id: true, codigo: true, nome: true } }, peca: { columns: { id: true, codigo: true, nome: true } } } },
           respondidoPor: { columns: { id: true, nome: true } },

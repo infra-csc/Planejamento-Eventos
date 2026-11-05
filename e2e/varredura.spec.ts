@@ -39,6 +39,17 @@ const FIXAS = [
   "/projetos/novo",
   "/arena",
   "/arena/nova",
+  "/projecao",
+  "/projecao/previstas",
+  "/contagem",
+  "/cadastros",
+  "/cadastros?aba=locadores",
+  "/cadastros?aba=perfis",
+  "/cadastros?aba=eventos-pai",
+  "/cadastros?aba=tours",
+  "/saneamento",
+  "/saneamento?aba=pecas",
+  "/saneamento?aba=ativacao",
   "/carga-descarga",
   "/carga-descarga/cadastro",
   "/consolidacao",
@@ -72,7 +83,7 @@ async function telasComId(page: Page): Promise<string[]> {
   const evento = await primeiroLink("/eventos", /^\/eventos\/[0-9a-f-]{36}$/);
   if (evento) {
     const id = evento.match(UUID)![0];
-    telas.push(evento, `${evento}/ata`, `${evento}/os`, `${evento}/solicitacoes`, `${evento}/historico`, `${evento}/editar`, `${evento}/carga`, `${evento}/carregamento`, `${evento}/reuniao`, `/conferencia/${id}`, `/impressao/os/${id}`, `/impressao/ata/${id}`, `/impressao/carregamento/${id}`);
+    telas.push(evento, `${evento}/logistica`, `/impressao/fornecedor/${id}`, `${evento}/ata`, `${evento}/os`, `${evento}/solicitacoes`, `${evento}/historico`, `${evento}/editar`, `${evento}/carga`, `${evento}/carregamento`, `${evento}/reuniao`, `/conferencia/${id}`, `/impressao/os/${id}`, `/impressao/ata/${id}`, `/impressao/carregamento/${id}`);
     const linha = await primeiroLink(`${evento}/ata`, /^\/eventos\/[0-9a-f-]{36}\/itens\/[0-9a-f-]{36}$/);
     if (linha) telas.push(linha);
   }
@@ -123,16 +134,35 @@ for (const [perfil, email] of Object.entries(PERFIS)) {
       }
       page.off("pageerror", onErro);
       page.off("console", onConsole);
+      // Rota sem permissão redireciona depois de carregar, às vezes em mais de um salto (/admin/usuarios → /admin → sem permissão):
+      // só lê a página quando o endereço para de mudar.
+      const assentar = async () => {
+        let anterior = "";
+        for (let i = 0; i < 40; i++) {
+          const agora = page.url();
+          const pronta = await page.evaluate(() => document.readyState).catch(() => "mudando");
+          if (agora === anterior && pronta === "complete") return;
+          anterior = pronta === "complete" ? agora : "";
+          await page.waitForTimeout(250);
+        }
+      };
+      const lerAssentada = async <T,>(ler: () => Promise<T>): Promise<T> =>
+        ler().catch(async () => {
+          await assentar();
+          return ler();
+        });
+      await assentar();
       const final = new URL(page.url()).pathname;
       const titulo = (await page.locator("h1").first().textContent({ timeout: 2_000 }).catch(() => null))?.trim() ?? "";
       const telaDeErro = /Não foi possível (carregar esta página|montar a versão para impressão)/.test(titulo);
       // Compara com a largura do aparelho (375), não com window.innerWidth: com a emulação de celular a página
       // que transborda "amplia" o layout e innerWidth cresce junto (o estoque passava com 559 px numa tela de 375).
       const telaAparelho = info.project.use.viewport?.width ?? 375;
-      const largura = celular ? await page.evaluate((tela) => ({ doc: document.documentElement.scrollWidth, tela: Math.min(window.innerWidth, tela) }), telaAparelho) : null;
+      const largura = celular ? await lerAssentada(() => page.evaluate((tela) => ({ doc: document.documentElement.scrollWidth, tela: Math.min(window.innerWidth, tela) }), telaAparelho)) : null;
       const transborda = largura ? largura.doc > largura.tela + 1 : false;
       // Link da linha (LinhaLink) dentro de célula escondida nesta largura: a linha fica sem link para teclado/leitor de tela.
-      const linksOcultos = await page.evaluate(() => [...document.querySelectorAll("a[data-linha-link]")].filter((a) => { const c = a.closest("td,th"); return c && getComputedStyle(c).display === "none"; }).length);
+      const contarLinksOcultos = () => page.evaluate(() => [...document.querySelectorAll("a[data-linha-link]")].filter((a) => { const c = a.closest("td,th"); return c && getComputedStyle(c).display === "none"; }).length);
+      const linksOcultos = await lerAssentada(contarLinksOcultos);
       const registro = { projeto: info.project.name, perfil, rota, final, status, titulo, telaDeErro, errosJs, errosConsole, transborda, largura, linksOcultos };
       appendFileSync(SAIDA, JSON.stringify(registro) + "\n");
       const esperado404 = rota === "/rota-que-nao-existe";

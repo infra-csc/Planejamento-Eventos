@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ITEM_OPERACOES, ITEM_STATUS, LIMITES, PERFIS, SETORES } from "@/domain/constantes";
+import { ITEM_OPERACOES, ITEM_STATUS, LIMITES, PERFIS, SETORES, TIPOS_ITEM } from "@/domain/constantes";
 
 // Postgres rejeita NUL em texto; nada legítimo contém esse caractere.
 const semNul = (s: string) => s.replace(/\0/g, "");
@@ -13,6 +13,8 @@ const textoOpcional = (max: number) =>
     .nullish()
     .transform((v) => (v ? v : null));
 const QTD_MAX = 1_000_000;
+/** "Box 1 m; trecho 1000": apelidos separados por ponto e vírgula ou vírgula, sem repetir. */
+const separarApelidos = (v: string) => [...new Set(v.split(/[;,]/).map((a) => a.trim()).filter(Boolean))].slice(0, 20);
 const inteiroPositivo = z.coerce.number().int("Use um número inteiro").positive("Informe um valor maior que zero").max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`);
 const dataISO = z
   .string()
@@ -132,6 +134,11 @@ export const pecaSchema = z.object({
     .max(QTD_MAX, `Máximo de ${QTD_MAX.toLocaleString("pt-BR")}`)
     .default(0),
   permiteEmProjeto: bool,
+  tipoItem: z.enum(TIPOS_ITEM, { error: "Escolha retornável ou consumível." }).optional(),
+  volumeM3: z.preprocess((v) => (v === "" || v == null ? null : typeof v === "string" ? v.replace(",", ".") : v), z.coerce.number({ error: "Use um número em m³." }).min(0, "Use um número, 0 ou mais.").max(1000, "Máximo de 1.000 m³.").nullable()).optional(),
+  codigoBarras: textoOpcional(LIMITES.codigoPeca).optional(),
+  apelidos: z.string().max(500, "Máximo de 500 caracteres.").optional().transform((v) => (v === undefined ? undefined : separarApelidos(v))),
+  estoqueMinimo: z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number({ error: "Use um número inteiro, 0 ou mais." }).int("Use um número inteiro, 0 ou mais.").min(0, "Use um número inteiro, 0 ou mais.").max(QTD_MAX, "Valor muito alto.").nullable()).optional(),
   /** "Aparece nas solicitações": só vale quando o formulário tem a opção (`temDisponivel`); sem ela, não mexe. */
   disponivelEmSolicitacoes: bool,
   temDisponivel: z.string().optional(),
@@ -189,6 +196,8 @@ export const configuracoesSchema = z.object({
   aviso_prazo_horas: numeroConfig(0, 168, "horas"),
   antecedencia_reuniao_horas: numeroConfig(0, 168, "horas"),
   lembrete_reuniao_dias: numeroConfig(0, 30, "dias"),
+  saida_dias_antes: numeroConfig(0, 60, "dias"),
+  retorno_dias_depois: numeroConfig(0, 60, "dias"),
   bloquear_encerramento_com_pendentes: bool,
 });
 

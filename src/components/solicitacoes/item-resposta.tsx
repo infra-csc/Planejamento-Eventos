@@ -22,6 +22,8 @@ import { desfazerRespostaAction, responderItemAction, type DadosResposta } from 
 export type ItemParaResposta = {
   id: string;
   descricao: string;
+  /** De onde sai o item, em palavras de quem pediu ("Vai do nosso galpão"). */
+  atende?: string | null;
   operacao: ItemOperacao;
   quantidadeSolicitada: number;
   quantidadeAtual: number | null;
@@ -642,7 +644,10 @@ export function ItemResposta({
             // específica" era linguagem do sistema, não de quem montou o pedido. Parte única: o local já diz.
             unicaNoLocal ? null : <p className="m-0 break-words text-rotulo font-medium text-ink-3">{item.quantidadeSolicitada === 1 ? `Tenda ${parte}` : `${item.quantidadeSolicitada} tendas`}</p>
           ) : (
-            <p className="m-0 break-words text-corpo font-medium text-ink">{item.descricao}</p>
+            <p className="m-0 break-words text-corpo font-medium text-ink">
+              {item.descricao}
+              {item.atende && <span className="ml-2 text-rotulo font-normal text-ink-3">{item.atende}</span>}
+            </p>
           )}
           <p className="mb-0 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-pequeno text-muted">
             {rotuloOp && <Tag tom={item.operacao === "REMOVER" ? "danger" : "muted"}>{rotuloOp}</Tag>}

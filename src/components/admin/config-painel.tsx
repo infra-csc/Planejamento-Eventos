@@ -14,6 +14,8 @@ const LINHAS: Array<{ chave: string; titulo: string; descricao: string; unidade:
   { chave: "aviso_prazo_horas", titulo: "Aviso de prazo próximo", descricao: "A logística é avisada quando faltar este tempo para vencer.", unidade: "h", min: 0, max: 168 },
   { chave: "antecedencia_reuniao_horas", titulo: "Antecedência da reunião de OS", descricao: "Envios pré-reunião encerram este tempo antes da reunião. 0 = até a reunião começar.", unidade: "h", min: 0, max: 168 },
   { chave: "lembrete_reuniao_dias", titulo: "Lembrete de reunião", descricao: "Áreas sem envio são lembradas este número de dias antes.", unidade: "dias", min: 0, max: 30 },
+  { chave: "saida_dias_antes", titulo: "Saída prevista do evento", descricao: "Padrão: dias antes da data do evento. Cada evento pode editar a sua.", unidade: "dias", min: 0, max: 60 },
+  { chave: "retorno_dias_depois", titulo: "Retorno previsto do evento", descricao: "Padrão: dias depois do fim do evento. Cada evento pode editar o seu.", unidade: "dias", min: 0, max: 60 },
 ];
 
 export function ConfigPainel({ valores }: { valores: Valores }) {

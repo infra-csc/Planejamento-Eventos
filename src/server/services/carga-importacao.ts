@@ -23,7 +23,7 @@ export type LinhaPrevia = {
 };
 
 /** Célula do ExcelJS → valor simples (fórmula vira o resultado; rich text e link viram texto). */
-function valorDaCelula(v: ExcelJS.CellValue): ValorCelula {
+export function valorDaCelula(v: ExcelJS.CellValue): ValorCelula {
   if (v == null) return null;
   if (v instanceof Date || typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
   if (typeof v === "object") {

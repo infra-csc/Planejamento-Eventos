@@ -148,6 +148,13 @@
       "when": 1793109104894,
       "tag": "0020_ativacao_retornos_reformas",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793824038123,
+      "tag": "0021_logistica_v1",
+      "breakpoints": true
     }
   ]
 }

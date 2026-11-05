@@ -20,6 +20,7 @@ import { FaseEventoTexto } from "@/components/eventos/fases";
 import { Icone } from "@/components/ui/icons";
 import { Codigo } from "@/components/ui/numero";
 import { listarAreasCache } from "@/server/cache";
+import { listarEventosPai } from "@/server/services/logistica";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -107,14 +108,15 @@ function AreasQuePediram({ areas, pediram }: { areas: Array<{ id: string; nome: 
 export default async function EventosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; fase?: string; acao?: string; ordem?: string; dir?: string; pagina?: string; reuniao?: string; resp?: string; periodo?: string }>;
+  searchParams: Promise<{ pai?: string; q?: string; fase?: string; acao?: string; ordem?: string; dir?: string; pagina?: string; reuniao?: string; resp?: string; periodo?: string }>;
 }) {
   const usuario = await requireUsuario();
   const sp = await searchParams;
   const hoje = hojeISO();
   const busca = sp.q?.trim().slice(0, 80) || null;
   // Busca por nome/código/cliente/local no banco; fase "Realizado" depende de hoje, então as abas contam em memória.
-  const [encontrados, todasAreas] = await Promise.all([listarEventos(usuario, busca ? { busca } : {}), listarAreasCache()]);
+  const [todosEncontrados, todasAreas, eventosPai] = await Promise.all([listarEventos(usuario, busca ? { busca } : {}), listarAreasCache(), pode(usuario, "logistica.cadastros") ? listarEventosPai() : []]);
+  const encontrados = sp.pai && eventosPai.length ? todosEncontrados.filter((e) => e.eventoPaiId === sp.pai) : todosEncontrados;
   // Áreas que pedem (a logística responde, não pede): cada evento mostra quais já enviaram pedido.
   const areasQuePedem = todasAreas.filter((a) => a.nome.toLowerCase() !== "logística").map((a) => ({ id: a.id, nome: a.nome }));
   const fase: Fase = FASES.find(([v]) => v === sp.fase)?.[0] ?? "TODOS";
@@ -198,6 +200,7 @@ export default async function EventosPage({
           Celular: busca na linha toda e as listas curtas aos pares (antes eram 4 campos empilhados antes da lista). */}
       <div className="mb-4 grid grid-cols-2 gap-2.5 sm:flex sm:flex-row sm:flex-wrap sm:items-center">
         <BuscaUrl largura={300} className="col-span-2" placeholder="Buscar evento, cliente ou local" ariaLabel="Buscar evento por nome, código, cliente ou local" />
+        {eventosPai.length > 0 && <FiltroSelectUrl param="pai" rotulo="Evento pai" todas="Todo evento pai" opcoes={eventosPai.map((p) => ({ value: p.id, label: p.nome }))} className="sm:w-[190px]" />}
         <FiltroSelectUrl param="reuniao" rotulo="Reunião de OS" todas="Qualquer reunião" opcoes={[...REUNIOES]} className="sm:w-[190px]" />
         <FiltroSelectUrl param="periodo" rotulo="Data do evento" todas="Qualquer data" opcoes={[...PERIODOS]} className="sm:w-[190px]" />
         {responsaveis.length > 1 && <FiltroSelectUrl param="resp" rotulo="Responsável" todas="Todos os responsáveis" opcoes={responsaveis} className="col-span-2 sm:w-[210px]" />}

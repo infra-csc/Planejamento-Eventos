@@ -240,7 +240,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
               <OsVisoes os={osAgora} grupos={gruposMaterial} visao={leitura as VisaoOs} semNavegacao titulo="Itens do evento" hrefVisao={(v) => `/eventos/${id}?itens=${v}#itens`} edicao={edicaoOs} edicaoKit={edicaoKit} />
             </div>
           ) : (
-            <ListaItensEvento eventoId={id} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} quem={(l) => (podeVerOrigem(l) ? (l.origemPor ?? null) : null)} />
+            <ListaItensEvento eventoId={id} estrutura={pode(usuario, "projecao.ver") ? ev.estrutura : null} linhas={linhas} editavel={editavel} ataFechada={Boolean(ev.ataFechadaEm)} opcoes={opcoes} podeCadastrar={pode(usuario, "catalogo.gerenciar")} origem={origem} quem={(l) => (podeVerOrigem(l) ? (l.origemPor ?? null) : null)} />
           )}
         </Section>
       </div>

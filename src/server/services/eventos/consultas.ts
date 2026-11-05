@@ -44,7 +44,7 @@ export async function listarEventos(usuario: UsuarioAtual, filtro: FiltroEventos
   const [rows, abertas] = await Promise.all([
     db.query.eventos.findMany({
       where: conds.length ? and(...conds) : undefined,
-      columns: { id: true, codigo: true, nome: true, cliente: true, local: true, status: true, dataInicio: true, dataFim: true, dataReuniao: true, janelaAlteracoesAte: true, reabertoVezes: true },
+      columns: { id: true, codigo: true, nome: true, cliente: true, local: true, status: true, dataInicio: true, dataFim: true, dataReuniao: true, janelaAlteracoesAte: true, reabertoVezes: true, eventoPaiId: true, tourId: true },
       with: { responsavel: { columns: { id: true, nome: true } } },
       orderBy: [asc(eventos.dataInicio)],
     }),
