@@ -37,7 +37,7 @@ Ordem: telas críticas primeiro, depois o resto. Status: `[ ]` a revisar · `[x]
 - [x] 21. Perfil — `/perfil`
 - [x] 22. Admin — `/admin` (abas usuários, áreas, configurações; `/admin/usuarios|areas|configuracoes` só redirecionam)
 - [x] 23. Sem permissão — `/sem-permissao`; 404 (`not-found.tsx`); erro (`error.tsx`)
-- [x] 24. Autenticação — `/login`, `/recuperar-senha`, `/redefinir-senha/[token]` (fora do escopo: a tela de login não é alterada)
+- [x] 24. Autenticação — `/login`, `/recuperar-senha`, `/redefinir-senha/[token]` (fora do escopo até 04/11/2026, quando o layout mudou para não lembrar o Miró; ver `docs/redesign/`)
 
 ## 26/10/2026 — revisão tela a tela
 

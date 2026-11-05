@@ -12,7 +12,7 @@ Para continuar depois de uma interrupção: ler este arquivo, `git diff 1ee5c6f`
 - Não pode parecer o Miró, sistema da gráfica (`grafica.appsnorte.com`), que usa cores quase iguais.
 - Prévia aprovada em 03/11 ("pode iniciar a transição"): menu grafite, botão laranja com texto grafite, cinza neutro,
   cantos retos, títulos condensados.
-- A tela de login continua fora: só herda as cores pelos tokens. Ver "Decisões em aberto".
+- A tela de login entrou em 04/11, com a regra liberada pelo dono do produto: sem painel escuro, cartão único sobre o fundo cinza.
 
 ## Etapas
 
@@ -40,7 +40,7 @@ depois de ver os estados e modais dela.
 - [x] Todas as telas vistas em tamanho real, em computador; em celular e tablet, pela varredura
 - [~] Estados e janelas: 37 de cerca de 60 janelas
 - [x] Impressões: OS, ata, mapa da arena e descarregamento abertas em PDF
-- [x] Login, recuperar e redefinir senha: fora do escopo, só tokens
+- [x] Login, recuperar e redefinir senha: novo layout em 04/11 (o mesmo nas três), sem os números públicos e sem consulta ao banco
 
 ## Pedido à parte: aba Carregamento (04/11)
 
@@ -60,8 +60,7 @@ Achado fora do escopo: em `/arena`, as ações da linha aparecem no celular sem 
 
 ## Decisões em aberto
 
-1. Login: tem painel escuro à esquerda, como o do Miró. Trocar exige liberar a regra de não mexer no login.
-2. Acentos nas planilhas no modelo da cenografia: continuam como estão (design system § 9).
+1. Acentos nas planilhas no modelo da cenografia: continuam como estão (design system § 9).
 
 ## Testes
 
@@ -84,4 +83,4 @@ Atualizar a cada lote, só com o que foi executado de fato.
 
 ## Próximo passo
 
-Decidir o login (decisões em aberto). Se quiser fechar 100%: abrir as janelas restantes.
+Se quiser fechar 100%: abrir as janelas restantes.
