@@ -111,7 +111,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
 
   /* ---------- Totais por peça ---------- */
   const tot = wb.addWorksheet("Totais por peça", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-  faixaTitulo(tot, 8, "NORTE MKT", "Totais por peça", `${cab} · carregar o caminhão`);
+  faixaTitulo(tot, 8, "NORTELOG", "Totais por peça", `${cab} · carregar o caminhão`);
   const linhasTot = porGrupo.flatMap((g) => g.linhas.map((x) => [GRUPO_LABEL[g.grupo], setorLabel(setorDe.get(x.codigo)), x.codigo, x.nome, x.total, x.unidade, x.origens.map((o) => `${o.descricao}: ${o.quantidade}`).join(" · "), CHECK] as Array<string | number>));
   tabela(
     tot,
@@ -133,7 +133,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
 
   /* ---------- Por projeto ---------- */
   const proj = wb.addWorksheet("Por projeto", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-  faixaTitulo(proj, 12, "NORTE MKT", "Por projeto", `${cab} · montar`);
+  faixaTitulo(proj, 12, "NORTELOG", "Por projeto", `${cab} · montar`);
   const linhasProj = (os.projetos ?? []).flatMap((p) => p.pecas.map((x) => [p.nome, p.quantidade, p.destino ?? "—", p.area ?? "Logística", x.codigo, x.nome, material(x.codigo, x.setor), setorLabel(x.setor), x.porUnidade, x.total, x.unidade, CHECK] as Array<string | number>));
   if (!os.projetos) {
     proj.getCell(5, 1).value = "Esta versão da OS foi gerada antes da visão por projeto. Abra a versão atual.";
@@ -164,7 +164,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
 
   /* ---------- Peças soltas ---------- */
   const solt = wb.addWorksheet("Peças soltas", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-  faixaTitulo(solt, 9, "NORTE MKT", "Peças soltas", `${cab} · pedidas fora de projeto`);
+  faixaTitulo(solt, 9, "NORTELOG", "Peças soltas", `${cab} · pedidas fora de projeto`);
   // Mesma peça pedida por várias áreas/locais: uma linha com o total, e os locais ao lado.
   const linhasSolt = individuaisAgrupadas(os.individuais ?? []).map(
     (x) =>
@@ -202,7 +202,7 @@ function montarPastaOs(ev: { codigo: string; nome: string; cliente: string | nul
   /* ---------- Itens fora do catálogo ---------- */
   // "Fora do catálogo", como na tela, na ata e na impressão (antes "Itens avulsos"; auditoria 28/10, nº 75).
   const av = wb.addWorksheet("Itens fora do catálogo", { views: [{ state: "frozen", ySplit: 5, showGridLines: false }] });
-  faixaTitulo(av, 5, "NORTE MKT", "Itens fora do catálogo", `${cab} · sem peça de catálogo, separação manual`);
+  faixaTitulo(av, 5, "NORTELOG", "Itens fora do catálogo", `${cab} · sem peça de catálogo, separação manual`);
   tabela(
     av,
     "ItensAvulsos",

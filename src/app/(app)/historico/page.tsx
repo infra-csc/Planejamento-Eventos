@@ -211,7 +211,7 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
         {h.evento && h.eventoId ? (
           // Até 2 linhas, quebrando: com "truncate" (sem quebra) a coluna crescia até caber o nome inteiro e
           // espremia "O que aconteceu" numa coluna estreita.
-          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words" title={h.evento.nome}>
+          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words text-ink-2 decoration-line-control hover:text-ink" title={h.evento.nome}>
             <Codigo>{h.evento.codigo}</Codigo> {h.evento.nome}
           </Link>
         ) : (
@@ -222,7 +222,7 @@ function Linha({ h, agora }: { h: RegistroHistorico; agora: Date }) {
   );
 }
 
-const TOM_CATEGORIA = (c: RegistroHistorico["categoria"]) => (c === "acesso" ? "muted" : c === "admin" ? "warning" : c === "solicitacoes" ? "accent" : c === "biblioteca" ? "success" : "info");
+const TOM_CATEGORIA = (c: RegistroHistorico["categoria"]) => (c === "acesso" ? "muted" : c === "admin" ? "warning" : c === "solicitacoes" ? "info" : c === "biblioteca" ? "neutral" : "info");
 
 /** "Hoje · seg 06/10", "Ontem · dom 05/10", "ter 29/09". */
 function rotuloDia(dia: string): string {
@@ -324,7 +324,7 @@ function LinhaSequencia({ hs }: { hs: RegistroHistorico[] }) {
       </td>
       <td className={cn(td, "hidden pr-cartao text-pequeno lg:table-cell")}>
         {h.evento && h.eventoId ? (
-          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words" title={h.evento.nome}>
+          <Link href={`/eventos/${h.eventoId}`} className="link line-clamp-2 break-words text-ink-2 decoration-line-control hover:text-ink" title={h.evento.nome}>
             <Codigo>{h.evento.codigo}</Codigo> {h.evento.nome}
           </Link>
         ) : (

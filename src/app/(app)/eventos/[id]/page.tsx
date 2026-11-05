@@ -190,7 +190,7 @@ export default async function EventoVisaoGeralPage({ params, searchParams }: { p
   return (
     <div className="flex flex-col gap-5">
       {/* Resumo: o que falta, quando é, o tamanho do evento e a versão da OS. */}
-      <MetricStrip className="mb-0">
+      <MetricStrip className="!mb-0">
         <Metric label={falta.rotulo} valor={falta.valor} hint={falta.hint} tom={falta.tom} href={falta.href} hintInteiro />
         <Metric label="Evento" valor={periodoCurto(ev.dataInicio, ev.dataFim)} hint={contagem(dEvento, "é hoje", "aconteceu")} />
         <Metric label="Itens" valor={<Numero valor={linhas.length} />} hint={`${galeria.length} ${galeria.length === 1 ? "projeto" : "projetos"} · ${unidades.toLocaleString("pt-BR")} un. · ${nAreas} ${nAreas === 1 ? "área" : "áreas"}`} href="#itens" />

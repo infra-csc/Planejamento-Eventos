@@ -7,6 +7,8 @@ import { contentDisposition } from "@/server/export/nome-arquivo";
 import { erroDownload } from "@/server/export/resposta-erro";
 import { obterEvento } from "@/server/services/eventos";
 import { calcularOsAtual, listarOsResumo, obterConteudosOs } from "@/server/services/os";
+import { obterCarregamento } from "@/server/services/carregamento";
+import { aplicarCarregamento, linhasCarregamento, mudancasCarregamento } from "@/domain/carregamento";
 import { getDb } from "@/server/db";
 import { formatarDataHora } from "@/lib/format";
 import { impressao } from "@/server/export/excel";
@@ -51,7 +53,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const os = gravado && (gravado.projetos || !ehAtual) ? gravado : await calcularOsAtual(await getDb(), id);
   const rotulo = pedida ? `v${pedida.numero}` : versoes[0] ? `v${versoes[0].numero} (atual)` : "prévia";
 
-  const dados = montarOsEstrutura(os);
+  // A versão atual sai com o que foi de fato carregado; versão antiga pedida é o registro da época.
+  const ajustes = !pedida || ehAtual ? await obterCarregamento(id) : {};
+  const dados = montarOsEstrutura(aplicarCarregamento(os, ajustes));
+  const mudancas = mudancasCarregamento(linhasCarregamento(os, ajustes));
   // Desenho do projeto só para quem pode ver projetos (mesma regra do /api/anexos).
   // Todas as imagens do projeto (até 6: modulação, detalhamento…), não só a capa.
   const imagens = pode(usuario, "projeto.ver") ? await todasAsImagensDoCatalogo("projeto", dados.abas.map((a) => a.codigo), LARGURA_IMAGEM, 6) : new Map<string, Imagem[]>();
@@ -67,7 +72,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const rodape = hf(`Gerado ${formatarDataHora(new Date())} por ${usuario.nome}`);
   // "RESPONSAVEL PELA O.S" é o responsável do evento, não quem baixou (a Júlia baixava e saía o nome dela; auditoria
   // 30/10, B-26). Quem gerou o arquivo continua no rodapé.
-  impressao(abaTotal(wb, { nome: ev.nome, dataInicio: ev.dataInicio, local: ev.local ?? "", diretor: ev.responsavel.nome, versao: rotulo, geradaPor: ev.responsavel.nome }, dados), cab, rodape, undefined, true);
+  impressao(abaTotal(wb, { nome: ev.nome, dataInicio: ev.dataInicio, local: ev.local ?? "", diretor: ev.responsavel.nome, versao: rotulo, geradaPor: ev.responsavel.nome }, dados, mudancas), cab, rodape, undefined, true);
   impressao(abaSomatoria(wb, dados), `${cab} · SOMATORIA`, rodape, 4, true);
   for (const a of dados.abas) impressao(abaProjeto(wb, a, imagens.get(a.codigo)), `${cab} · ${hf(a.nome)}`, rodape, 5, false);
 

@@ -240,7 +240,7 @@ export function ListaItens({
                         <Codigo>{b.codigo}</Codigo> · padrão <Numero valor={b.quantidade} unidade={b.unidade} />
                       </span>
                     </span>
-                    <Stepper tamanho="sm" valor={pedir} min={0} onChange={definir} label={`Quantidade de ${b.nome}`} className={cn(delta !== 0 && "border-accent")} />
+                    <Stepper tamanho="sm" valor={pedir} min={0} onChange={definir} label={`Quantidade de ${b.nome}`} className={cn(delta !== 0 && "border-marca")} />
                   </li>
                 );
               })}

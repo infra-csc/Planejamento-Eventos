@@ -72,7 +72,7 @@ async function telasComId(page: Page): Promise<string[]> {
   const evento = await primeiroLink("/eventos", /^\/eventos\/[0-9a-f-]{36}$/);
   if (evento) {
     const id = evento.match(UUID)![0];
-    telas.push(evento, `${evento}/ata`, `${evento}/os`, `${evento}/solicitacoes`, `${evento}/historico`, `${evento}/editar`, `${evento}/carga`, `${evento}/reuniao`, `/conferencia/${id}`, `/impressao/os/${id}`, `/impressao/ata/${id}`);
+    telas.push(evento, `${evento}/ata`, `${evento}/os`, `${evento}/solicitacoes`, `${evento}/historico`, `${evento}/editar`, `${evento}/carga`, `${evento}/carregamento`, `${evento}/reuniao`, `/conferencia/${id}`, `/impressao/os/${id}`, `/impressao/ata/${id}`, `/impressao/carregamento/${id}`);
     const linha = await primeiroLink(`${evento}/ata`, /^\/eventos\/[0-9a-f-]{36}\/itens\/[0-9a-f-]{36}$/);
     if (linha) telas.push(linha);
   }

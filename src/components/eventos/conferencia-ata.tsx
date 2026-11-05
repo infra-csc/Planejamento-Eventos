@@ -157,7 +157,7 @@ function Check({ l, onAlternar }: { l: LinhaConferencia; onAlternar: (id: string
       className={cn(
         "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
+        marcada ? "border-success bg-success text-white hover:brightness-95" : "border-line-control bg-surface text-line-control hover:border-success hover:text-success",
         marcada && animar && "motion-safe:animate-marcar",
       )}
     >
@@ -200,7 +200,7 @@ function ExtraPrismaModal({ l, extraAtual, eventoId, onFechar }: { l: LinhaConfe
             </div>
             <div className="border-l border-line-soft bg-subtle px-3.5 py-2.5">
               <dt className="text-pequeno text-muted">Total</dt>
-              {/* Resultado, não ação: tinta normal (o vinho fica para "aja aqui"). */}
+              {/* Resultado, não ação: tinta normal (o laranja fica para "aja aqui"). */}
               <dd className="numero m-0 text-destaque font-semibold text-ink">{l.quantidade + extra}</dd>
             </div>
           </dl>
@@ -342,7 +342,7 @@ function DescricaoModal({ l, eventoId, onFechar }: { l: LinhaConferencia; evento
               <Stepper tamanho="sm" valor={g.unidades} min={1} onChange={(v) => mudar(n, { unidades: v })} label={`Unidades da descrição ${n + 1}`} />
               <Input value={g.texto} maxLength={LIMITE_DESCRICAO} onChange={(e) => mudar(n, { texto: e.target.value })} placeholder="Ex.: PALCO, arte da marca, 2×1 m" aria-label={`Descrição ${n + 1}`} autoFocus={n === 0} />
               {grupos.length > 1 ? (
-                <IconButton label={`Tirar a descrição ${n + 1}`} onClick={() => setGrupos((gs) => gs.filter((_, i) => i !== n))}>
+                <IconButton label={`Remover a descrição ${n + 1}`} onClick={() => setGrupos((gs) => gs.filter((_, i) => i !== n))}>
                   <Icone nome="lixeira" />
                 </IconButton>
               ) : (
@@ -664,7 +664,7 @@ function LinhaJunta({
           className={cn(
             "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-150 active:scale-95 disabled:cursor-progress",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-line-strong hover:border-success hover:text-success",
+            conferida ? "border-success bg-success text-white hover:brightness-95" : ok > 0 ? "border-success bg-success-bg text-success" : "border-line-control bg-surface text-line-control hover:border-success hover:text-success",
           )}
         >
           {ok > 0 && !conferida ? <span className="numero text-rotulo font-semibold">{ok}/{ls.length}</span> : <Icone nome="check" tamanho={20} />}
@@ -1263,7 +1263,7 @@ export function ConferenciaAta({
                   return [
                     // Item que vem junto de outro: o aviso fica entre a origem e ele, com quanto a regra pede e quanto a ata tem.
                     dep ? (
-                      // Ligação neutra (borda e seta cinza): o vinho fica para "aja aqui"; quando a ata não bate com a regra, a conta fica amarela.
+                      // Ligação neutra (borda e seta cinza): o laranja fica para "aja aqui"; quando a ata não bate com a regra, a conta fica amarela.
                       // Texto corrido (não flex): numa lista estreita a conta quebra no meio da frase, não numa linha começando por "·".
                       <p key={`${chave}:junto`} className="m-0 border-t border-dashed border-line-strong bg-subtle/60 px-cartao py-1.5 text-rotulo text-ink-3">
                         <span aria-hidden className="mr-1.5">

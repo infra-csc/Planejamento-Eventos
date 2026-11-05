@@ -11,7 +11,7 @@ import { obterConferencia } from "@/server/services/conferencia";
 import { MesmoItemNoEvento, type LinhaMesmoItem } from "@/components/eventos/mesmo-item-no-evento";
 import { aguardaReuniao, SOLICITACAO_TIPO_LABEL } from "@/domain/solicitacao";
 import { diaMesHora } from "@/lib/format";
-import { Aviso, ListaDados, Section } from "@/components/ui/layout";
+import { Aviso, EmptyState, ListaDados, Section } from "@/components/ui/layout";
 import { ItemStatusBadge, Tag } from "@/components/ui/badge";
 import { ImagemZoom } from "@/components/ui/imagem-zoom";
 import { Icone } from "@/components/ui/icons";
@@ -116,7 +116,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
               {d.posAta && <Tag tom="info">entrou depois da ata</Tag>}
               {d.conferidoEm && <Tag tom="success">conferido</Tag>}
             </p>
-            <h2 id="titulo-item" className="m-0 text-titulo font-semibold tracking-[-0.01em]">
+            <h2 id="titulo-item" className="m-0 font-titulo text-dialogo font-semibold">
               {d.nome}
             </h2>
             <p className="mb-0 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-pequeno text-ink-3">
@@ -215,7 +215,7 @@ export default async function ItemEventoPage({ params, searchParams }: { params:
           )}
           <Section titulo="Linha do tempo" sub={`${d.linhaDoTempo.length} ${d.linhaDoTempo.length === 1 ? "registro" : "registros"} · do pedido até a OS`}>
             <LinhaTempoAgrupada
-              vazio={<p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">Sem registros para este item.</p>}
+              vazio={<EmptyState compact title="Sem registros para este item." />}
               entradas={d.linhaDoTempo.map((e) => ({ id: e.id, em: e.em, titulo: e.titulo, detalhe: e.descricao || null, autor: e.por ? `${e.por.nome}${e.por.perfil ? ` · ${e.por.perfil}` : ""}` : null, icone: iconeHistorico(null, e.acao).icone, tom: TOM[e.tom] }))}
             />
           </Section>

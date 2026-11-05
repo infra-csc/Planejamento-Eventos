@@ -28,6 +28,7 @@ import { ajustarLinhaNaConferencia, ajustarPecaDoProjeto, ajustarTendasDoLocal, 
 import { vincularAoCatalogo, type AlvoVinculo, type RefVinculo } from "@/server/services/fora-catalogo";
 import { marcarOsEnviada } from "@/server/services/os";
 import { salvarSeparacao } from "@/server/services/separacao";
+import { salvarCarregamento, type MudancaCarregamento } from "@/server/services/carregamento";
 import { pecaSchema } from "@/lib/schemas";
 import { invalidarDados, revalidarTelasOperacao, TAGS_DADOS } from "@/server/cache-dados";
 
@@ -243,6 +244,15 @@ export async function salvarSeparacaoAction(eventoId: string, locada: boolean, q
   if (typeof eventoId !== "string" || typeof locada !== "boolean" || typeof q15Locado !== "boolean") return { ok: false, erro: DADOS_INVALIDOS } as const;
   const r = await executar(() => salvarSeparacao(usuario, eventoId, { locada, q15Locado }));
   revalidatePath(`/eventos/${eventoId}/os`);
+  return r;
+}
+
+/** Carregamento: o que foi de fato no caminhão, com o motivo. Não muda a OS; avisa quem pediu. */
+export async function salvarCarregamentoAction(eventoId: string, mudancas: MudancaCarregamento[]) {
+  const usuario = await requireUsuario();
+  if (typeof eventoId !== "string" || !Array.isArray(mudancas)) return { ok: false, erro: DADOS_INVALIDOS } as const;
+  const r = await executar(() => salvarCarregamento(usuario, eventoId, mudancas));
+  revalidatePath(`/eventos/${eventoId}`, "layout");
   return r;
 }
 

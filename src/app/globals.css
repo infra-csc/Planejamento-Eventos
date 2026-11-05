@@ -5,57 +5,65 @@
 /*
  * Design tokens — referência completa em docs/design-system.md.
  * Paleta auditada para contraste AA (tabela no doc) — ao introduzir cor nova, reaudite.
- * Erro/atraso usa laranja-queimado (#a8400f), não vermelho: o vinho da marca é vizinho do vermelho.
- * A marca (accent) é só para ação principal e seleção; estado usa as cores semânticas.
+ * Marca NorteLog (kit de 03/11): grafite #242424 e laranja #F06A2A. O laranja tem só 3,09:1 sobre branco: como fundo
+ * leva texto grafite (marca + on-marca, 5,03:1) e nunca é texto; texto, link e anel de foco usam accent (#b8460f, 5,36:1).
+ * Laranja é só marca, ação principal e seleção: nunca estado. Erro é vermelho, para não ser lido como a marca.
  */
 @theme {
   --font-sans: var(--font-geist), "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-roboto-mono), ui-monospace, "SFMono-Regular", monospace;
+  /* Títulos de página e números de painel: condensada, como o nome no logo. */
+  --font-titulo: var(--font-barlow-condensed), var(--font-geist), "Arial Narrow", sans-serif;
 
-  /* Superfícies */
-  --color-page: #f1efee;
+  /* Superfícies: cinza neutro, como o grafite da marca (sem o tom quente). */
+  --color-page: #f0f1f2;
   --color-surface: #ffffff;
-  --color-subtle: #faf8f8;
-  --color-selected: #faf6f6;
-  --color-control: #e9e4e3;
+  --color-subtle: #f6f7f7;
+  --color-selected: #fff4ea;
+  --color-control: #e4e6e7;
 
   /* Tinta */
-  --color-ink: #2a1418;
-  --color-ink-2: #4f4849;
-  --color-ink-3: #6d6566;
-  --color-muted: #6b6263;
-  --color-meta: #6f6366;
+  --color-ink: #242424;
+  --color-ink-2: #45484a;
+  --color-ink-3: #63676a;
+  --color-muted: #63676a;
+  --color-meta: #63676a;
 
   /* Bordas */
-  --color-line: #e4dedd;
-  --color-line-strong: #d7d2d2;
+  --color-line: #dcdfe0;
+  --color-line-strong: #cdd0d2;
   /* Borda de campos de formulário: 3:1 sobre branco (WCAG 1.4.11). line-strong fica para divisórias. */
-  --color-line-control: #958b8d;
-  --color-line-soft: #ece7e6;
-  --color-line-row: #f0eceb;
-  --color-line-faint: #f3efee;
+  --color-line-control: #868b8e;
+  --color-line-soft: #e6e8e9;
+  --color-line-row: #ebedee;
+  --color-line-faint: #f0f1f2;
 
-  /* Marca: ação principal (botão primary), seleção (aba, página atual, item escolhido) e foco. */
-  --color-accent: #8e2740;
-  --color-accent-hover: #6d1d31;
-  --color-accent-bg: #f6e6ea;
-  --color-accent-light: #e0798f;
-  --color-accent-border: #e0c4cc;
+  /* Marca: o laranja do logo. Fundo de ação principal, item escolhido e detalhes; o texto em cima é on-marca. */
+  --color-marca: #f06a2a;
+  --color-marca-hover: #f4804b;
+  --color-on-marca: #242424;
 
-  /* Superfície escura */
-  --color-dark: #2a1418;
-  --color-dark-2: #3d2026;
-  --color-dark-3: #4a2a30;
-  --color-dark-4: #351b21;
-  --color-on-dark-2: #c2b4b7;
-  --color-on-dark-3: #b3a3a6;
-  --color-on-dark-4: #a49497;
+  /* Laranja legível: texto, link e anel de foco sobre fundo claro. accent-light é o laranja sobre fundo escuro. */
+  --color-accent: #b8460f;
+  --color-accent-hover: #963809;
+  --color-accent-bg: #feefe3;
+  --color-accent-light: #f06a2a;
+  --color-accent-border: #f6cfb0;
+
+  /* Superfície escura: o grafite da marca (menu lateral, banner, toast). */
+  --color-dark: #242424;
+  --color-dark-2: #333536;
+  --color-dark-3: #404344;
+  --color-dark-4: #2c2e2f;
+  --color-on-dark-2: #c9cbcc;
+  --color-on-dark-3: #b4b7b9;
+  --color-on-dark-4: #a0a3a5;
 
   /* Semânticas: sucesso, atenção, erro, informação, neutro. */
-  --color-danger: #a8400f;
-  --color-danger-bg: #fbeee5;
-  --color-danger-border: #efd9c9;
-  --color-danger-input: #c0562c;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fbe6e9;
+  --color-danger-border: #f2c9cf;
+  --color-danger-input: #c4443b;
   --color-warning: #7a5f00;
   --color-warning-bg: #f7f0dd;
   --color-warning-border: #e6dcc2;
@@ -65,9 +73,9 @@
   --color-info: #2f6680;
   --color-info-bg: #e6eef2;
   --color-info-border: #c8dae3;
-  --color-neutral-bg: #f0eceb;
+  --color-neutral-bg: #eceeef;
 
-  --color-accent-muted: #c9a3ad;
+  --color-accent-muted: #e8a988;
   --color-success-light: #7fd0a8;
   /* Véu atrás de modais, gaveta e busca; e o fundo suave de linha pendente. */
   --color-scrim: rgba(22, 23, 26, 0.4);
@@ -107,15 +115,26 @@
   --text-pagina--line-height: 30px;
   --text-metrica: 28px;
   --text-metrica--line-height: 32px;
+  /* Na fonte condensada (font-titulo), que ocupa menos: h1 da página, h1 de detalhe e número de painel. */
+  --text-manchete: 32px;
+  --text-manchete--line-height: 36px;
+  --text-manchete-sm: 26px;
+  --text-manchete-sm--line-height: 30px;
+  --text-indicador: 34px;
+  --text-indicador--line-height: 38px;
+  --text-dialogo: 22px;
+  --text-dialogo--line-height: 26px;
+  --text-bloco: 19px;
+  --text-bloco--line-height: 24px;
 
-  --radius-chip: 5px;
-  --radius-controle: 8px;
-  --radius-cartao: 10px;
-  --radius-modal: 12px;
-  --shadow-pill: 0 1px 2px rgba(42, 20, 24, 0.08);
-  --shadow-popover: 0 12px 32px rgba(42, 20, 24, 0.16);
-  --shadow-modal: 0 24px 60px rgba(42, 20, 24, 0.22);
-  --shadow-toast: 0 12px 32px rgba(42, 20, 24, 0.28);
+  --radius-chip: 3px;
+  --radius-controle: 5px;
+  --radius-cartao: 6px;
+  --radius-modal: 8px;
+  --shadow-pill: 0 1px 2px rgba(36, 36, 36, 0.08);
+  --shadow-popover: 0 12px 32px rgba(36, 36, 36, 0.16);
+  --shadow-modal: 0 24px 60px rgba(36, 36, 36, 0.22);
+  --shadow-toast: 0 12px 32px rgba(36, 36, 36, 0.28);
 
   /* Microinterações: 120 ms (hover/cor), 150 ms (padrão), 180 ms (entrada de painel). */
   --default-transition-duration: 150ms;
@@ -204,7 +223,7 @@
 }
 
 /*
- * Opção ativa de lista, menu e busca (a que o teclado está apontando): fundo de seleção e uma barra vinho de 2 px à
+ * Opção ativa de lista, menu e busca (a que o teclado está apontando): fundo de seleção e uma barra da marca de 2 px à
  * esquerda. Só o fundo cinza dava 1,06:1 contra o branco e quem usa teclado não via onde estava (WCAG 2.4.7/1.4.11,
  * auditoria 28/10). A barra é a cor do anel de foco.
  */
@@ -305,6 +324,18 @@
       inset: -11px -4px;
     }
   }
+}
+
+/* Item escolhido no menu: o canto triangular do símbolo da marca. Fica no canto do pai (position: relative). */
+.canto-marca {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  background: var(--color-marca);
+  border-top-right-radius: var(--radius-controle);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 
 /*

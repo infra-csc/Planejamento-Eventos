@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   wb.creator = "NorteLog";
   const ws = wb.addWorksheet("Complemento", { views: [{ state: "frozen", ySplit: 9, showGridLines: false }] });
   const cab = `Complemento da OS ${ev.codigo} · ${ev.nome} · desde a v${comp.numero}`;
-  faixaTitulo(ws, 7, "NORTE MKT", "Complemento da OS", `${ev.codigo} · ${ev.nome} · o que mudou desde a v${comp.numero}, enviada em ${formatarDataHora(comp.enviadaEm)}`);
+  faixaTitulo(ws, 7, "NORTELOG", "Complemento da OS", `${ev.codigo} · ${ev.nome} · o que mudou desde a v${comp.numero}, enviada em ${formatarDataHora(comp.enviadaEm)}`);
   let l = 4;
   l = blocoDados(ws, l, 1, [
     ["Evento", `${ev.codigo} · ${ev.nome}`],

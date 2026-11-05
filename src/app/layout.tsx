@@ -16,6 +16,13 @@ const robotoMono = localFont({
   display: "swap",
 });
 
+const barlowCondensed = localFont({
+  src: "./fonts/barlow-condensed-latin-600-normal.woff2",
+  variable: "--font-barlow-condensed",
+  weight: "600",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: { default: "NorteLog", template: "%s · NorteLog" },
   description: "Catálogo de peças, projetos padrão, ata da reunião de OS, OS automática e solicitações respondidas item a item.",
@@ -24,11 +31,11 @@ export const metadata: Metadata = {
   applicationName: "NorteLog",
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#2a1418" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#242424" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${geist.variable} ${robotoMono.variable}`}>
+    <html lang="pt-BR" className={`${geist.variable} ${robotoMono.variable} ${barlowCondensed.variable}`}>
       <body>
         {children}
         <Toaster />

@@ -135,7 +135,7 @@ export function Marcadores3D({
                     data-rotulo
                     className={cn(
                       "mb-1 whitespace-nowrap rounded-chip border px-1.5 py-[3px] text-rotulo font-medium leading-none shadow-pill transition-[opacity,transform] duration-150 group-data-[oculto=1]/pin:invisible group-data-[oculto=1]/pin:opacity-0",
-                      ativo ? "border-accent bg-accent text-white" : divergente ? "border-danger-border bg-surface/95 text-danger" : "border-line bg-surface/95 text-ink",
+                      ativo ? "border-marca bg-marca text-on-marca" : divergente ? "border-danger-border bg-surface/95 text-danger" : "border-line bg-surface/95 text-ink",
                       !rotulo && "hidden",
                       !emFoco && !p.principal && !divergente && "group-data-[zoom=longe]/mapa:hidden",
                     )}
@@ -149,7 +149,7 @@ export function Marcadores3D({
                     {divergente && <span aria-hidden className={cn("absolute size-[22px] rounded-full border-[1.5px] border-dashed border-danger", !idsFoco.has(p.id) && "opacity-70")} />}
                     <span
                       className={cn("block rounded-full border-2 border-white shadow-[0_1px_3px_rgba(42,20,24,.35)] transition-transform duration-150", apagado ? "size-2" : divergente ? "size-3.5" : ativo ? "size-3.5 scale-110" : emFoco ? "size-3 scale-110" : "size-2.5")}
-                      style={{ background: apagado ? "#c3bcbc" : divergente ? "#a8400f" : CATEGORIAS[p.categoria].cor }}
+                      style={{ background: apagado ? "#c3bcbc" : divergente ? "#b3261e" : CATEGORIAS[p.categoria].cor }}
                     />
                   </span>
                   <span aria-hidden className="block h-2 w-px bg-ink/40" />
@@ -162,13 +162,13 @@ export function Marcadores3D({
           {[medida.a, medida.b].map((q, i) =>
             q ? (
               <span key={i} aria-hidden data-chao={`${q[0]},${q[1]}`} className="absolute left-0 top-0 z-[4]" style={{ visibility: "hidden" }}>
-                <span className="block size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] border-accent bg-surface shadow-pill" />
+                <span className="block size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] border-marca bg-surface shadow-pill" />
               </span>
             ) : null,
           )}
           {pontaMedida && distancia(medida.a, pontaMedida) > 0 && (
             <span aria-hidden data-chao={`${(medida.a[0] + pontaMedida[0]) / 2},${(medida.a[1] + pontaMedida[1]) / 2}`} className="absolute left-0 top-0 z-[4]" style={{ visibility: "hidden" }}>
-              <span className={cn("block -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-white bg-accent px-2 py-0.5 text-rotulo font-semibold tabular-nums text-white shadow-pill", !medida.b && "opacity-80")}>
+              <span className={cn("block -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-white bg-marca px-2 py-0.5 text-rotulo font-semibold tabular-nums text-on-marca shadow-pill", !medida.b && "opacity-80")}>
                 {rotuloDistancia(distancia(medida.a, pontaMedida))}
               </span>
             </span>

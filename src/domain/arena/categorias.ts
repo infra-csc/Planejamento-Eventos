@@ -30,12 +30,12 @@ export const camadasEssenciais = () => Object.fromEntries(CAMADAS.map((c) => [c.
 
 /** Cores sóbrias derivadas da paleta do app; nada de neon. */
 export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; camada: Camada }> = {
-  largada: { rotulo: "Largada e chegada", cor: "#2a1418", camada: "estruturas" },
+  largada: { rotulo: "Largada e chegada", cor: "#242424", camada: "estruturas" },
   estrutura: { rotulo: "Palco e som", cor: "#4f4849", camada: "estruturas" },
   cenografia: { rotulo: "Cenografia", cor: "#565b7c", camada: "estruturas" },
   operacao: { rotulo: "Operação", cor: "#6d6566", camada: "estruturas" },
   atleta: { rotulo: "Apoio ao atleta", cor: "#136c41", camada: "apoio" },
-  medico: { rotulo: "Atendimento médico", cor: "#a8400f", camada: "apoio" },
+  medico: { rotulo: "Atendimento médico", cor: "#b3261e", camada: "apoio" },
   hidratacao: { rotulo: "Hidratação", cor: "#2f6680", camada: "apoio" },
   patrocinio: { rotulo: "Patrocinadores", cor: "#7a5f00", camada: "patrocinio" },
   // Marcações do próprio terreno (não entram na OS): árvore, bueiro, poste, desnível.
@@ -44,15 +44,15 @@ export const CATEGORIAS: Record<CategoriaPonto, { rotulo: string; cor: string; c
 
 export const ZONA_VISUAL: Record<TipoZona, { rotulo: string; cor: string }> = {
   arena: { rotulo: "Arena", cor: "#ddd5c8" },
-  // Cinza-quente neutro: o rosa da marca em superfície grande sobre o gramado lia como erro de impressão.
+  // Cinza-quente neutro: a cor da marca em superfície grande sobre o gramado lia como erro de impressão.
   atletas: { rotulo: "Área de atletas", cor: "#dcd2cc" },
   apoio: { rotulo: "Área de apoio", cor: "#e6dfcf" },
-  restrita: { rotulo: "Acesso restrito", cor: "#a8400f" },
+  restrita: { rotulo: "Acesso restrito", cor: "#b3261e" },
   parque: { rotulo: "Parque", cor: "#a3ab90" },
   agua: { rotulo: "Lago", cor: "#8da3a6" },
 };
 
-export const COR_PERCURSO = "#8e2740";
+export const COR_PERCURSO = "#f06a2a";
 
 /**
  * Forma simples com que um item acrescentado no mapa aparece no 3D e na planta, deduzida do nome

@@ -53,7 +53,7 @@ export function PageHeader({
       <div className={cn("mb-[18px] flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5", divisor && "mb-5 border-b border-line pb-4 sm:items-center", className)}>
         <div className="min-w-0">
           {eyebrow && <div className="mb-1 flex flex-wrap items-center gap-2 text-pequeno text-muted">{eyebrow}</div>}
-          <h1 className={cn("m-0 font-semibold", tamanho === "sm" ? "text-titulo tracking-[-0.01em]" : "text-pagina tracking-[-0.02em]")}>{title}</h1>
+          <h1 className={cn("m-0 font-titulo font-semibold", tamanho === "sm" ? "text-manchete-sm" : "text-manchete")}>{title}</h1>
           {description && <p className="mt-1 max-w-[680px] text-corpo text-ink-2">{description}</p>}
           {meta && <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-corpo text-ink-2">{meta}</div>}
         </div>
@@ -100,7 +100,7 @@ export function Section({
       {(titulo || acoes) && (
         <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-cartao py-3.5", escuro ? "border-dark-3" : "border-line-soft")}>
           <div className="min-w-0">
-            {titulo && <h2 className={cn("m-0 text-secao font-semibold tracking-[-0.01em]", escuro && "text-white")}>{titulo}</h2>}
+            {titulo && <h2 className={cn("m-0 font-titulo text-bloco font-semibold", escuro && "text-white")}>{titulo}</h2>}
             {sub && <p className={cn("mt-0.5 text-pequeno", escuro ? "text-on-dark-3" : "text-muted")}>{sub}</p>}
           </div>
           {acoes && <div className="flex shrink-0 items-center gap-2.5">{acoes}</div>}
@@ -163,10 +163,10 @@ export function RodapeTabela({ children, direita, className }: { children: React
 export function BannerEscuro({ titulo, children, acoes, className, ...rest }: { titulo?: React.ReactNode; children?: React.ReactNode; acoes?: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
   return (
     // Celular: as ações descem para baixo do texto (lado a lado, o título quebrava palavra por palavra).
-    // Anel de foco rosa em tudo que está dentro: o vinho sobre o fundo escuro dava 1,87:1 (auditoria 28/10 nº 139).
+    // Anel de foco em accent-light em tudo que está dentro: o accent sobre o escuro não tem contraste (auditoria 28/10 nº 139).
     <section className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-cartao bg-dark px-cartao py-4 [&_:focus-visible]:!outline-accent-light", className)} {...rest}>
       <div className="min-w-[min(15rem,100%)] flex-1">
-        {titulo && <h2 className="m-0 text-secao font-semibold text-white">{titulo}</h2>}
+        {titulo && <h2 className="m-0 font-titulo text-bloco font-semibold text-white">{titulo}</h2>}
         {children && <div className="mt-1 text-corpo text-on-dark-3">{children}</div>}
       </div>
       {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}
@@ -185,17 +185,17 @@ export function MetricStrip({ children, className }: { children: React.ReactNode
 export type TomSemantico = "neutro" | "danger" | "warning" | "success" | "accent";
 
 const COR_TOM_TEXTO: Record<TomSemantico, string> = { neutro: "text-ink", danger: "text-danger", warning: "text-warning", success: "text-success", accent: "text-accent" };
-const COR_TOM_FUNDO: Record<TomSemantico, string> = { neutro: "bg-dark", danger: "bg-danger", warning: "bg-warning", success: "bg-success", accent: "bg-accent" };
+const COR_TOM_FUNDO: Record<TomSemantico, string> = { neutro: "bg-dark", danger: "bg-danger", warning: "bg-warning", success: "bg-success", accent: "bg-marca" };
 
 /**
- * Número grande (28px, algarismos tabulares na fonte normal). Cor só por `tom` semântico.
+ * Número grande (34 px na fonte condensada do logo, algarismos tabulares). Cor só por `tom` semântico.
  * O `hint` corta em 2 linhas; com `hintInteiro`, aparece inteiro (quando a frase é a instrução do cartão).
  */
 export function Metric({ label, valor, hint, tom = "neutro", href, hintInteiro }: { label: string; valor: React.ReactNode; hint?: React.ReactNode; tom?: TomSemantico; href?: string; hintInteiro?: boolean }) {
   const conteudo = (
     <>
       <span className="mb-1.5 block text-pequeno text-ink-3">{label}</span>
-      <span className={cn("numero block text-metrica font-semibold tracking-[-0.02em]", COR_TOM_TEXTO[tom])}>{valor}</span>
+      <span className={cn("numero block font-titulo text-indicador font-semibold", COR_TOM_TEXTO[tom])}>{valor}</span>
       {hint && (
         <span className={cn("mt-1 text-pequeno text-muted", hintInteiro ? "block" : "line-clamp-2")} title={!hintInteiro && typeof hint === "string" ? hint : undefined}>
           {hint}
@@ -203,7 +203,7 @@ export function Metric({ label, valor, hint, tom = "neutro", href, hintInteiro }
       )}
     </>
   );
-  const cls = "block min-w-0 bg-surface px-cartao py-4 text-left no-underline";
+  const cls = "block min-w-0 bg-surface px-cartao py-3.5 text-left no-underline";
   return href ? (
     <Link href={href} className={cn(cls, "transition-colors duration-150 hover:bg-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent")}>
       {conteudo}

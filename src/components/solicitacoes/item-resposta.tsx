@@ -625,7 +625,7 @@ export function ItemResposta({
         "relative border-b border-line-row transition-colors duration-150 last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
         emGrupo ? "py-3 pl-4 pr-cartao" : cn("py-4", compacto ? "px-4" : "px-cartao"),
         podeResponder && "cursor-pointer",
-        selecionado ? "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-accent" : podeResponder && "hover:bg-subtle",
+        selecionado ? "bg-selected before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-marca" : podeResponder && "hover:bg-subtle",
       )}
     >
       {/* Cabeçalho: o que foi pedido, quanto e o estado (um selo só). */}

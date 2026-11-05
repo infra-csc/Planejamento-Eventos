@@ -13,7 +13,7 @@ export function BarrasFase({ status, rotuloStatus }: { status: EventoStatus; rot
         <span
           key={f}
           title={NOMES[i]}
-          className={cn("block h-1 flex-1 rounded-sm", status === "CANCELADO" ? "bg-line" : i < idx ? "bg-accent" : i === idx ? "bg-dark" : "bg-line")}
+          className={cn("block h-1 flex-1 rounded-sm", status === "CANCELADO" ? "bg-line" : i < idx ? "bg-ink-3" : i === idx ? "bg-marca" : "bg-line")}
         />
       ))}
     </span>
@@ -62,11 +62,13 @@ export function LinhaTempo({ status, passos }: { status: EventoStatus; passos: P
           const agora = !cancelado && i === idx;
           return (
             <li key={p.titulo} className="min-w-0" aria-current={agora ? "step" : undefined} title={`${p.titulo} · ${p.quando} · ${p.detalhe}`}>
-              <span aria-hidden className={cn("block h-1 rounded-full", feito ? "bg-ink-3" : agora ? "bg-accent" : "bg-line-strong")} />
+              <span aria-hidden className={cn("block h-1 rounded-full", feito ? "bg-ink-3" : agora ? "bg-marca" : "bg-line-strong")} />
               <span className="sr-only">{feito ? "Fase concluída: " : agora ? "Fase atual: " : "Próxima fase: "}</span>
               <span className="mt-2 hidden sm:block">
-                <span className={cn("block truncate text-pequeno", agora ? "font-semibold text-ink" : feito ? "font-medium text-ink-2" : "text-muted")}>{p.titulo}</span>
-                <span className="numero block truncate text-rotulo text-muted">{p.quando}</span>
+                <span className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className={cn("text-pequeno", agora ? "font-semibold text-ink" : feito ? "font-medium text-ink-2" : "text-muted")}>{p.titulo}</span>
+                  <span className="numero text-rotulo text-muted">{p.quando}</span>
+                </span>
                 {/* O detalhe da fase atual quebra em 2 linhas em vez de sumir em reticências a 768 px (auditoria 30/10, B-36). */}
                 {agora && <span className="mt-0.5 line-clamp-2 block text-rotulo text-ink-2">{p.detalhe}</span>}
               </span>

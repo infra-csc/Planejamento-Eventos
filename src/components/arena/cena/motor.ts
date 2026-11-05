@@ -270,7 +270,7 @@ export class MotorArena {
 
     for (const ponto of arena.pontos) this.adicionarAlvo(ponto);
 
-    const matHover = new LineMaterial({ color: 0x2a1418, linewidth: 2, transparent: true, opacity: 0.55, depthTest: false });
+    const matHover = new LineMaterial({ color: 0x242424, linewidth: 2, transparent: true, opacity: 0.55, depthTest: false });
     const matSel = new LineMaterial({ color: PALETA.acento, linewidth: 3, depthTest: false });
     const hover = new Line2(new LineGeometry(), matHover);
     const selecao = new Line2(new LineGeometry(), matSel);

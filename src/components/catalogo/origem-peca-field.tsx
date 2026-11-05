@@ -29,11 +29,11 @@ export function OrigemPecaField({ grupos, valor, erro }: { grupos: readonly Grup
       onClick={onClick}
       className={cn(
         "flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-controle border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        ativo ? "border-accent bg-selected" : "border-line-control bg-surface hover:border-ink-3",
+        ativo ? "border-marca bg-selected" : "border-line-control bg-surface hover:border-ink-3",
       )}
     >
-      <span aria-hidden className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border", ativo ? "border-accent" : "border-line-strong")}>
-        {ativo && <span className="size-2 rounded-full bg-accent" />}
+      <span aria-hidden className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border", ativo ? "border-marca" : "border-line-strong")}>
+        {ativo && <span className="size-2 rounded-full bg-marca" />}
       </span>
       <span className="min-w-0">
         <span className="block text-corpo font-medium text-ink">{titulo}</span>

@@ -290,6 +290,7 @@ function QuadroTendasDialog({ eventoId, nome, locais, ataFechada, onFechar }: { 
         </ul>
         <div className="max-h-[55vh] overflow-auto max-sm:hidden">
           <table className="w-full border-collapse text-left">
+            <caption className="sr-only">Tendas por local: quantidades de cada local</caption>
             <thead className="sticky top-0 bg-surface">
               <tr className="text-rotulo text-ink-3">
                 <th scope="col" className="border-b border-line-soft px-2 py-1.5 font-medium">Local</th>

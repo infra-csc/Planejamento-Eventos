@@ -143,7 +143,7 @@ export function ItensDaArea({
                     className={cn(
                       // Faixa à esquerda e fundo leve marcam o que já vai; o 0 fica quieto até o mouse/foco chegar.
                       "group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150",
-                      ativo ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle",
+                      ativo ? "border-marca bg-accent-bg/40" : "border-transparent hover:bg-subtle",
                     )}
                   >
                     <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", ativo ? "font-medium text-ink" : "text-ink-2", junto && "relative pl-4")}>
@@ -188,7 +188,7 @@ export function ItensDaArea({
                 const locais = linhasDoProjeto(t.id).length;
                 if (!kitDe(t))
                   return (
-                    <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
+                    <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-marca bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
                       <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
                         {t.nome}
                         {q > 0 && (
@@ -208,7 +208,7 @@ export function ItensDaArea({
                     </li>
                   );
                 return (
-                  <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-accent bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
+                  <li key={t.id} className={cn("group -mx-2 flex min-h-11 items-center gap-3 rounded-controle border-l-2 px-2 py-1 transition-colors duration-150", q > 0 ? "border-marca bg-accent-bg/40" : "border-transparent hover:bg-subtle")}>
                     <span className={cn("min-w-0 flex-1 text-pequeno leading-snug", q > 0 ? "font-medium text-ink" : "text-ink-2")}>
                       {t.nome}
                       <span className="mt-0.5 block text-rotulo font-normal text-muted">

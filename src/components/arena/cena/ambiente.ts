@@ -399,13 +399,13 @@ function construirZonas(arena: Arena, m: Materiais) {
     pad.renderOrder = 1;
     zonas.add(pad);
     const borda = [...poligonoFaixa(c.eixo, c.largura), poligonoFaixa(c.eixo, c.largura)[0]].map(([x, z]) => new THREE.Vector3(x, 0.16, z));
-    zonas.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(borda), new THREE.LineBasicMaterial({ color: 0x2a1418, transparent: true, opacity: 0.35 })));
+    zonas.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(borda), new THREE.LineBasicMaterial({ color: 0x242424, transparent: true, opacity: 0.35 })));
   }
   for (const z of arena.zonas.filter((z) => z.tipo === "apoio" || z.tipo === "restrita" || z.tipo === "atletas")) {
     const mat = z.tipo === "restrita" ? m.hachura("#c8997f", "#e9ded2") : m.solido(new THREE.Color(ZONA_VISUAL[z.tipo].cor).getHex(), { rugosidade: 1, opacidade: 0.75 });
     zonas.add(new THREE.Mesh(planoDoPoligono(z.poligono, 0.05), mat));
     const contorno = [...z.poligono, z.poligono[0]].map(([x, zz]) => new THREE.Vector3(x, 0.14, zz));
-    const linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(contorno), new THREE.LineDashedMaterial({ color: z.tipo === "restrita" ? 0xa8400f : 0x5f5758, dashSize: 2.5, gapSize: 1.8 }));
+    const linha = new THREE.Line(new THREE.BufferGeometry().setFromPoints(contorno), new THREE.LineDashedMaterial({ color: z.tipo === "restrita" ? 0xb3261e : 0x5f5758, dashSize: 2.5, gapSize: 1.8 }));
     linha.computeLineDistances();
     zonas.add(linha);
   }

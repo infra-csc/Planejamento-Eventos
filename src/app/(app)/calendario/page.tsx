@@ -387,7 +387,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         {/* No celular a lista do mês já mostra os mesmos compromissos: a agenda só a partir do tablet. */}
         <aside aria-labelledby="calendario-agenda" className="overflow-hidden rounded-cartao border border-line bg-surface max-md:hidden">
           <div className="border-b border-line-soft px-cartao py-3.5">
-            <h2 id="calendario-agenda" className="m-0 text-secao font-semibold tracking-[-0.01em]">
+            <h2 id="calendario-agenda" className="m-0 font-titulo text-bloco font-semibold">
               Próximos 21 dias
             </h2>
             <p className="mb-0 mt-0.5 text-pequeno text-muted">A partir de hoje, em qualquer mês. Clique para abrir.</p>

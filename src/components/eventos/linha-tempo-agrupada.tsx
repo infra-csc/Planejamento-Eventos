@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { addDiasISO, diaMes, diaSemanaCurto, formatarDataHora, hora, isoSP, tempoRelativo } from "@/lib/format";
 import { Icone, type NomeIcone } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/layout";
 
 export type TomEntrada = "neutro" | "info" | "success" | "warning" | "danger";
 
@@ -227,7 +228,7 @@ function Bloco({ titulo, itens, ultima, relativo, agora, compacta = false }: { t
  */
 export function LinhaTempoAgrupada({ entradas, compacta = false, vazio, maximo }: { entradas: EntradaTempo[]; compacta?: boolean; vazio?: React.ReactNode; maximo?: number }) {
   const agora = new Date();
-  if (entradas.length === 0) return <>{vazio ?? <p className="m-0 px-cartao py-6 text-center text-pequeno text-muted">Nada registrado ainda.</p>}</>;
+  if (entradas.length === 0) return <>{vazio ?? <EmptyState compact title="Nada registrado ainda." />}</>;
   if (compacta) {
     return (
       <ol className="m-0 list-none px-cartao py-3.5">

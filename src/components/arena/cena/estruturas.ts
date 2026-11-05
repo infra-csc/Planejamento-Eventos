@@ -89,7 +89,7 @@ function portico(m: Materiais, vao: number, testeira: number | undefined, rotulo
   // Testeira com o nome, legível dos dois lados do pórtico.
   const hTesteira = testeira ?? 1.1;
   const larg = vao + s * 2 + 0.5;
-  const matTexto = m.texto(rotulo.toUpperCase(), { fundo: "#2a1418", cor: "#ffffff", proporcao: larg / hTesteira, faixa: "#8e2740" });
+  const matTexto = m.texto(rotulo.toUpperCase(), { fundo: "#242424", cor: "#ffffff", proporcao: larg / hTesteira, faixa: "#f06a2a" });
   for (const lado of [1, -1]) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(larg, hTesteira), matTexto);
     p.position.set(0, altura + s + hTesteira / 2, lado * 0.06);
@@ -143,7 +143,7 @@ function palco(m: Materiais, w: number, d: number) {
   const caixaSom = m.solido(0x2b2829, { rugosidade: 0.6 });
   for (const lado of [-1, 1]) adicionar(partes, caixaSom, caixa(0.6, 1.8, 0.5, lado * (w / 2 - 0.55), 1.2 + 6 - 0.35 - 0.9, d / 2 - 0.35));
   const grupo = montar(partes, "palco");
-  const fundo = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 4.4), m.texto("ECO RUN SP 2026", { fundo: "#2a1418", cor: "#f4f1ec", proporcao: (w - 0.8) / 4.4, faixa: "#8e2740" }));
+  const fundo = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 4.4), m.texto("ECO RUN SP 2026", { fundo: "#242424", cor: "#f4f1ec", proporcao: (w - 0.8) / 4.4, faixa: "#f06a2a" }));
   fundo.position.set(0, 1.2 + 2.4, -d / 2 + 0.3);
   grupo.add(fundo);
   return grupo;
@@ -156,7 +156,7 @@ function estander(m: Materiais, w: number, d: number, marca: string) {
   adicionar(partes, m.solido(PALETA.fechamento, { rugosidade: 1 }), caixa(w - 0.8, 3.0, 0.08, 0, 1.55, -d / 2 + 0.3));
   adicionar(partes, m.solido(0xf4f1ec, { rugosidade: 0.9 }), caixa(1.2, 1, 1, 0, 0.5, d / 2 - 1));
   const grupo = montar(partes, "estander");
-  const faixa = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 1), m.texto(marca, { fundo: "#f4f1ec", cor: "#2a1418", proporcao: (w - 0.8) / 1, faixa: "#7a5f00" }));
+  const faixa = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.8, 1), m.texto(marca, { fundo: "#f4f1ec", cor: "#242424", proporcao: (w - 0.8) / 1, faixa: "#7a5f00" }));
   faixa.position.set(0, 3.1, -d / 2 + 0.36);
   grupo.add(faixa);
   return grupo;

@@ -24,7 +24,7 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
   const conferidas = ev.status === "EM_REUNIAO" ? await contarLinhasConferidas(id) : 0;
   return (
     <div className="flex max-w-3xl flex-col gap-5">
-      <h2 className="m-0 text-titulo font-semibold tracking-[-0.01em]">Editar evento</h2>
+      <h2 className="m-0 font-titulo text-dialogo font-semibold">Editar evento</h2>
       <EventoForm
         valores={{
           id: ev.id,

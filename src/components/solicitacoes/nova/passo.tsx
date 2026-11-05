@@ -14,7 +14,7 @@ export function Passo({ n, titulo, sub, feito, acoes, children, className }: { n
           {feito ? <Icone nome="check" className="size-3.5 motion-safe:animate-marcar" /> : <span className="numero">{n}</span>}
         </span>
         <div className="min-w-0 flex-1">
-          <h2 id={idTitulo} className="m-0 text-secao font-semibold tracking-[-0.01em]">
+          <h2 id={idTitulo} className="m-0 font-titulo text-bloco font-semibold">
             {titulo}
             {feito && <span className="sr-only"> (concluído)</span>}
           </h2>

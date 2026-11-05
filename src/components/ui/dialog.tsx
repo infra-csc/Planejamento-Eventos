@@ -9,7 +9,7 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogClose = DialogPrimitive.Close;
 
 /**
- * Modal do handoff (§5.14): 460px, raio 12, sombra de modal, cabeçalho com título e subtítulo.
+ * Modal: 460 px por padrão, raio 8, sombra de modal, cabeçalho com título (fonte do logo) e subtítulo.
  * Radix cuida de focus trap e Esc; a devolução do foco a quem abriu é feita aqui (vale também sem DialogTrigger).
  */
 export function DialogContent({
@@ -65,7 +65,7 @@ export function DialogContent({
       >
         <span aria-hidden className="mx-auto mt-2 block h-1 w-10 shrink-0 rounded-full bg-line-strong sm:hidden" />
         <div className="border-b border-line-soft py-4 pl-5 pr-14 max-sm:pt-2.5">
-          <DialogPrimitive.Title className="m-0 text-titulo font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="m-0 font-titulo text-dialogo font-semibold">{title}</DialogPrimitive.Title>
           <DialogPrimitive.Description className={description ? "mt-1 text-pequeno text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
         </div>
         {/* Com rodapé, o corpo não tem respiro embaixo: o rodapé encosta na borda (a margem negativa não anulava o padding num flex). */}
@@ -85,7 +85,7 @@ export function DialogContent({
 }
 
 /**
- * Rodapé do modal (#faf8f8), colado às bordas do corpo.
+ * Rodapé do modal (fundo sutil), colado às bordas do corpo.
  * Ordem: escreva a AÇÃO PRINCIPAL PRIMEIRO no código (é o primeiro Tab); ela aparece à DIREITA,
  * com as secundárias à esquerda dela. No celular os botões empilham, a principal em cima.
  */

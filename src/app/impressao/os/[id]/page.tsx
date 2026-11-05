@@ -1,6 +1,7 @@
 import { osParaLeitura, ROTULO_KIT } from "@/domain/os";
 import { requirePermissao } from "@/server/auth/session";
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 import { notFound } from "next/navigation";
 import { NaoEncontradoError } from "@/domain/errors";
 import { obterEventoCache } from "@/server/cache";
@@ -14,6 +15,8 @@ import { Icone } from "@/components/ui/icons";
 import { TabelaRolavel } from "@/components/ui/tabela";
 import { ImprimirBotao } from "./imprimir-botao";
 import { obterSeparacao } from "@/server/services/separacao";
+import { obterCarregamento } from "@/server/services/carregamento";
+import { aplicarCarregamento, linhasCarregamento, mudancasCarregamento, textoMudanca } from "@/domain/carregamento";
 import { pecaDeEstruturaLocada } from "@/server/export/os-estrutura";
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
@@ -31,7 +34,7 @@ const tabela = "w-full table-fixed sm:min-w-[420px] border-collapse [overflow-wr
 const cabecalho = "border-b border-ink text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2";
 const th = "py-1.5 pr-3 font-semibold";
 // Linha um pouco mais alta: a folha é impressa e a equipe escreve na coluna Obs.
-const linha = "h-9 border-b border-line-strong";
+const linha = "h-9 break-inside-avoid border-b border-line-strong";
 const td = "py-1.5 pr-3 align-top";
 const num = "numero py-1.5 pr-3 text-right align-top";
 const sep = "w-14 py-1.5 text-center align-top";
@@ -62,7 +65,11 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   ]);
   const sel = v ? versoes.find((x) => String(x.numero) === v) : versoes[0];
   // O prisma comum são 2 grades, já somadas na grade: não sai como item à parte.
-  const os = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
+  const pedida = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
+  // Sem versão escolhida, a folha sai com o que foi de fato carregado; versão antiga é o registro da época.
+  const ajustes = v ? {} : await obterCarregamento(id);
+  const os = aplicarCarregamento(pedida, ajustes);
+  const mudancas = mudancasCarregamento(linhasCarregamento(pedida, ajustes));
   // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
   const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
   // Na ordem da lista de carregamento da logística (domain/folha-separacao), com cinta catraca e corda pela regra.
@@ -84,8 +91,10 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         <ImprimirBotao />
       </div>
       <header className="mb-6 border-b border-ink pb-4">
-        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Norte Mkt · Ordem de serviço</p>
-        <h1 className="mb-0 mt-1 text-pagina font-semibold tracking-[-0.02em]">{ev.nome}</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-2.5 block h-6 w-auto" />
+        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Ordem de serviço</p>
+        <h1 className="mb-0 mt-1 font-titulo text-manchete font-semibold">{ev.nome}</h1>
         <dl className="mb-0 mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-pequeno sm:grid-cols-4">
           <div>
             <dt className="text-ink-3">Evento</dt>
@@ -106,12 +115,25 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         </dl>
       </header>
 
-      <h2 className="mb-1 mt-0 text-titulo font-semibold">Separação</h2>
+      <h2 className="mb-1 mt-0 font-titulo text-dialogo font-semibold">Separação</h2>
       <p className="mb-4 mt-0 text-pequeno text-ink-3">Tudo o que vai para o evento, somado por peça. Marque ao separar.</p>
       {separacao.locada && (
         <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">
           Estrutura locada no local: box truss Q30, tendas e estaio (tina, pallet de ferro, cinta catraca, malote, estaca e corda){separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
         </p>
+      )}
+      {mudancas.length > 0 && (
+        <section className="mb-5 border-l-2 border-ink py-1 pl-3 text-pequeno">
+          <p className="m-0 font-medium">Carregamento diferente da OS: as quantidades abaixo já são as carregadas.</p>
+          <ul className="m-0 mt-1 list-none p-0">
+            {mudancas.map((m) => (
+              <li key={m.chave}>
+                {textoMudanca(m)}
+                {m.ajuste?.motivo ? `: ${m.ajuste.motivo}` : ""}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {os.kit && <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">{ROTULO_KIT}: lista à parte, em Exportar. Não entram nesta folha.</p>}
       {antesDaMarcenaria.map((secao) => (
@@ -122,7 +144,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
         <section className="mb-8 break-inside-avoid">
           {/* "Itens fora do catálogo", como na tela (nº 75), e as mesmas colunas das outras seções, com o local embaixo do item
               como a nota das peças: antes as colunas ficavam em outra posição (auditoria 28/10, nº 121). */}
-          <h3 className="mb-2 mt-0 text-destaque font-semibold">Itens fora do catálogo</h3>
+          <h3 className="mb-2 mt-0 font-titulo text-bloco font-semibold">Itens fora do catálogo</h3>
           <Rolagem rotulo="Itens fora do catálogo">
             <table className={tabela}>
               <caption className="sr-only">Itens fora do catálogo: item, quantidade, separado e observação</caption>
@@ -154,7 +176,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
 
       {marcenaria.length > 0 && (
         <>
-          <h3 className="mb-3 mt-0 text-destaque font-semibold">Marcenaria</h3>
+          <h3 className="mb-3 mt-0 font-titulo text-bloco font-semibold">Marcenaria</h3>
           {marcenaria.map((secao) => (
             <TabelaSecao key={secao.id} secao={secao} sub />
           ))}
@@ -172,8 +194,9 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
 /** Uma seção da folha: peça (com a regra, quando a quantidade vem dela), quantidade, separado e observação à mão. */
 function TabelaSecao({ secao, sub = false }: { secao: SecaoFolha; sub?: boolean }) {
   return (
-    <section className="mb-8 break-inside-avoid">
-      {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 text-destaque font-semibold">{secao.titulo}</h3>}
+    // Só seção curta fica inteira: a longa pulava de página e deixava meia folha em branco.
+    <section className={cn("mb-8", secao.linhas.length <= 12 && "break-inside-avoid")}>
+      {sub ? <h4 className="mb-2 mt-0 text-corpo font-semibold uppercase tracking-[0.04em] text-ink-2">{secao.titulo}</h4> : <h3 className="mb-2 mt-0 font-titulo text-bloco font-semibold">{secao.titulo}</h3>}
       <Rolagem rotulo={secao.titulo}>
         <table className={tabela}>
           <caption className="sr-only">{`${secao.titulo}: peça, quantidade, separado e observação`}</caption>

@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
  *  - danger        confirmação destrutiva (dentro do diálogo de confirmação).
  *  - dangerOutline gatilho de ação destrutiva (abre a confirmação).
  *  - atender/parcial/recusar  respostas de item (semânticas).
- *  - onDark/pink/bloqueado    sobre superfície escura.
+ *  - onDark/marcaSobreEscuro/bloqueado    sobre superfície escura.
  */
 export type ButtonVariant =
   | "primary"
@@ -25,13 +25,13 @@ export type ButtonVariant =
   | "danger"
   | "dangerOutline"
   | "onDark"
-  | "pink"
+  | "marcaSobreEscuro"
   | "bloqueado";
 
 export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "full";
 
 const variantes: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white border-accent hover:bg-accent-hover hover:border-accent-hover active:bg-accent-hover",
+  primary: "bg-marca text-on-marca border-marca font-semibold hover:bg-marca-hover hover:border-marca-hover active:bg-marca-hover",
   secondary: "bg-surface text-ink border-line-strong hover:bg-subtle hover:border-line-control active:bg-neutral-bg",
   ghost: "bg-transparent text-ink-2 border-transparent hover:bg-black/[0.04] hover:text-ink active:bg-black/[0.07]",
   link: "bg-transparent border-transparent text-accent hover:text-accent-hover hover:underline underline-offset-2",
@@ -42,7 +42,7 @@ const variantes: Record<ButtonVariant, string> = {
   danger: "bg-danger text-white border-danger hover:brightness-90 active:brightness-[0.85]",
   dangerOutline: "bg-transparent text-danger border-danger-border hover:bg-danger-bg",
   onDark: "bg-dark-2 text-white border-dark-2 hover:bg-dark-3",
-  pink: "bg-accent-light text-ink border-accent-light hover:brightness-105",
+  marcaSobreEscuro: "bg-accent-light text-ink border-accent-light hover:brightness-105",
   bloqueado: "bg-dark-2 text-on-dark-2 border-dark-2 cursor-not-allowed",
 };
 
@@ -59,8 +59,8 @@ const tamanhos: Record<ButtonSize, string> = {
   full: "h-[42px] w-full px-4 text-destaque rounded-controle",
 };
 
-/** Variantes sobre fundo escuro: o anel de foco usa o rosa (6:1 sobre o vinho escuro; o vinho daria 2:1). */
-const ESCUROS = new Set<ButtonVariant>(["onDark", "pink", "bloqueado"]);
+/** Variantes sobre fundo escuro: o anel de foco usa accent-light (5:1 sobre o grafite; o accent não teria contraste). */
+const ESCUROS = new Set<ButtonVariant>(["onDark", "marcaSobreEscuro", "bloqueado"]);
 
 export function buttonClasses({ variant = "secondary", size = "md", className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string }) {
   return cn(

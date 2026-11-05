@@ -2,7 +2,7 @@ import type { Arena, Divergencia, TipoDivergencia } from "./tipos";
 
 /** Etiqueta, cores e peso (ordem na lista) de cada tipo de divergência. */
 export const TAG_DIVERGENCIA: Record<TipoDivergencia, { rotulo: string; fundo: string; cor: string; peso: number }> = {
-  quantidade: { rotulo: "quantidade", fundo: "#fbeee5", cor: "#a8400f", peso: 3 },
+  quantidade: { rotulo: "quantidade", fundo: "#fbe6e9", cor: "#b3261e", peso: 3 },
   "so-planta": { rotulo: "só na planta", fundo: "#f7f0dd", cor: "#7a5f00", peso: 2 },
   nome: { rotulo: "nome", fundo: "#f7f0dd", cor: "#7a5f00", peso: 2 },
   confirmar: { rotulo: "confirmar", fundo: "#f7f0dd", cor: "#7a5f00", peso: 2 },

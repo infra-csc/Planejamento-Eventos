@@ -68,13 +68,13 @@ export function BannerReuniao({
       acoes={
         emReuniao ? (
           <div className="flex shrink-0 flex-col items-end gap-1.5 max-sm:items-stretch">
-            <Button abreDialogo variant={completo ? "pink" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
+            <Button abreDialogo variant={completo ? "marcaSobreEscuro" : "bloqueado"} size="xl" aria-disabled={!completo} aria-describedby={completo ? undefined : "fechar-ata-motivo"} onClick={() => (completo ? setConfirmar("FECHAR_ATA") : toast(`${motivoBloqueio} — só então a ata pode ser fechada`))}>
               Fechar ata e gerar OS
             </Button>
             {!completo &&
               (total > 0 && faltam <= 0 && !presentesOk ? (
                 // O único bloqueio é o campo de presentes: o aviso vira o atalho para ele.
-                // Anel de foco claro sobre o banner escuro (o vinho ficava em 1,87:1; auditoria 28/10, nº 139).
+                // Anel de foco claro sobre o banner escuro (o accent não tem contraste; auditoria 28/10, nº 139).
                 <button id="fechar-ata-motivo" type="button" onClick={pedirRegistroDePresentes} className="cursor-pointer border-0 bg-transparent p-0 text-rotulo font-medium text-accent-light underline-offset-2 hover:underline focus-visible:outline-accent-light">
                   {motivoBloqueio} →
                 </button>
@@ -85,7 +85,7 @@ export function BannerReuniao({
               ))}
           </div>
         ) : (
-          <Button abreDialogo variant="pink" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
+          <Button abreDialogo variant="marcaSobreEscuro" size="xl" onClick={() => setConfirmar("INICIAR_REUNIAO")}>
             Iniciar reunião
           </Button>
         )

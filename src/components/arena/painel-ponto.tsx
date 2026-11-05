@@ -287,7 +287,7 @@ export function PainelSemPosicao({
         variant="secondary"
         onClick={() => edicao.onPosicionar(item)}
         aria-pressed={edicao.colocando === item.chave}
-        className="shrink-0 hover:border-accent aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
+        className="shrink-0 hover:border-marca aria-pressed:border-marca aria-pressed:bg-marca aria-pressed:text-on-marca"
       >
         {edicao.colocando === item.chave ? "Clique no mapa" : "Posicionar"}
       </Button>

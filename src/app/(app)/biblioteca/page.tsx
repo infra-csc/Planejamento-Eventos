@@ -265,7 +265,7 @@ export default async function BibliotecaPage({ searchParams }: { searchParams: P
                         {pag.itens.map((p) => {
                           const sel = p.id === selecionado?.id;
                           const n = uso.get(p.id)?.n ?? 0;
-                          const marca = sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />;
+                          const marca = sel && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-marca" />;
                           return (
                             <LinhaLink key={p.id} href={hrefCom("/biblioteca", params, { p: p.id })} rotulo={`Ver ${p.codigo} — ${p.nome}`} scroll={false} className={cn(sel && "bg-selected")}>
                               {pode(usuario, "projeto.gerenciar") && (

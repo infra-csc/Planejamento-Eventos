@@ -72,7 +72,7 @@ export function Minimapa({
           .map((p) => (
             <circle key={p.id} cx={p.posicao[0]} cy={p.posicao[1]} r={p.id === selecionado ? 9 : 5} fill={CATEGORIAS[p.categoria].cor} stroke="#fff" strokeWidth={p.id === selecionado ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
           ))}
-        <polygon ref={pegadaRef} points="" fill="rgba(142,39,64,0.12)" stroke="#8e2740" strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+        <polygon ref={pegadaRef} points="" fill="rgba(184,70,15,0.12)" stroke="#b8460f" strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       </svg>
     </div>
   );

@@ -27,7 +27,7 @@ export function IndicePontos({
   return (
     <nav aria-label="Pontos da arena" className="pointer-events-auto absolute bottom-3 left-3 top-[60px] z-20 flex w-[300px] flex-col overflow-hidden rounded-modal border border-line bg-surface shadow-popover animate-fade-up-rapido">
       <header className="flex items-center gap-2 border-b border-line-soft px-4 py-3">
-        <h2 className="m-0 flex flex-1 items-center gap-2 text-secao font-semibold text-ink">
+        <h2 className="m-0 flex flex-1 items-center gap-2 font-titulo text-bloco font-semibold text-ink">
           Pontos da arena <ChipMono tom="control">{arena.pontos.length}</ChipMono>
         </h2>
         <IconButton label="Fechar índice" onClick={onFechar}>

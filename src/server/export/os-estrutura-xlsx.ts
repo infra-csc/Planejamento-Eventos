@@ -1,6 +1,7 @@
 import type ExcelJS from "exceljs";
 import { AMARELO, bloco, cabecalho, CINZA, dataCurta, escrever, letra, type Valor } from "./cenografia-xlsx";
 import type { OsEstrutura } from "./os-estrutura";
+import type { LinhaCarregamento } from "@/domain/carregamento";
 
 /*
  * Desenho da OS de estrutura (TOTAL, SOMATORIA e uma aba por projeto) no modelo exato da planilha
@@ -10,7 +11,7 @@ import type { OsEstrutura } from "./os-estrutura";
 export type Imagem = { buffer: Buffer; extension: "png" | "jpeg"; largura: number; altura: number };
 export type CabecalhoOs = { nome: string; dataInicio: string; local: string; diretor: string; versao: string; geradaPor: string };
 
-export function abaTotal(wb: ExcelJS.Workbook, ev: CabecalhoOs, d: OsEstrutura) {
+export function abaTotal(wb: ExcelJS.Workbook, ev: CabecalhoOs, d: OsEstrutura, mudancas: readonly LinhaCarregamento[] = []) {
   const ws = wb.addWorksheet("TOTAL", { views: [{ showGridLines: false }] });
   [2, 36, 8, 2, 30, 8, 2, 22, 8, 13, 13, 11, 8, 9, 8, 8].forEach((w, i) => (ws.getColumn(i + 1).width = w));
 
@@ -63,6 +64,20 @@ export function abaTotal(wb: ExcelJS.Workbook, ev: CabecalhoOs, d: OsEstrutura) 
   if (d.q15) bloco(ws, lOutros + 1, H + 3, ["Q-15 KIT", "QTDE"], d.q15.map((p) => [p.rotulo, p.total]), { rotulo: null, colunas: [1] });
   lh += 1;
   lh = bloco(ws, lh, H, ["ESTAIAMENTO", "QTDE"], d.estaiamento.map((p) => [p.rotulo, p.total]), undefined, { vazioZero: true });
+
+  // As quantidades acima já são as carregadas; aqui, o que mudou em relação à OS.
+  if (mudancas.length) {
+    let r = Math.max(lb, le, lh) + 1;
+    cabecalho(ws, r, 2, ["MUDANÇAS NO CARREGAMENTO", "QTDE"]);
+    cabecalho(ws, r, 5, ["PEDIDO NA OS E OBSERVAÇÃO"]);
+    for (const m of mudancas) {
+      r++;
+      escrever(ws, r, 2, m.nome.toLocaleUpperCase("pt-BR"));
+      escrever(ws, r, 3, m.carregado, { bold: true });
+      escrever(ws, r, 5, [m.pedido === 0 ? "a mais" : `pedido ${m.pedido}`, m.ajuste?.motivo].filter(Boolean).join(": "));
+    }
+    lb = r + 1;
+  }
 
   if (d.semProjetos) {
     const r = Math.max(lb, le, lh) + 1;

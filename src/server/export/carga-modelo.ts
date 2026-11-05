@@ -4,7 +4,7 @@ import type { EventoCarga } from "@/domain/carga-descarga";
 import { COR, textoSeguro } from "./excel";
 
 /** Cor de cada grupo de colunas (o mesmo azul/laranja do calendário: ↑ carga, ↓ descarga). */
-const GRUPO = { Veículo: { fundo: COR.escuro, claro: "FFF3EEEF" }, Ida: { fundo: "FF2F5D86", claro: "FFEAF1F7" }, Volta: { fundo: "FF9A5B12", claro: "FFFBF1E4" } } as const;
+const GRUPO = { Veículo: { fundo: COR.escuro, claro: "FFF0F1F2" }, Ida: { fundo: "FF2F5D86", claro: "FFEAF1F7" }, Volta: { fundo: "FF2F7D6B", claro: "FFFBF1E4" } } as const;
 const PRIMEIRA = 3;
 const ULTIMA = PRIMEIRA + MAX_LINHAS_IMPORTACAO - 1;
 const letra = (i: number) => {
@@ -29,7 +29,7 @@ export function montarModeloCarga(eventos: ReadonlyArray<EventoCarga & { ativo: 
   const ordenados = [...lista.filter((e) => e.data >= corte).sort((a, b) => a.data.localeCompare(b.data)), ...lista.filter((e) => e.data < corte).sort((a, b) => b.data.localeCompare(a.data))];
 
   /* ---------------------------- Veículos ---------------------------- */
-  const ws = wb.addWorksheet("Veículos", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { tabColor: { argb: COR.vinho } } });
+  const ws = wb.addWorksheet("Veículos", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }], properties: { tabColor: { argb: COR.marca } } });
   COLUNAS_CARGA.forEach((c, i) => {
     ws.getColumn(i + 1).width = c.largura;
   });
@@ -147,7 +147,7 @@ export function montarModeloCarga(eventos: ReadonlyArray<EventoCarga & { ativo: 
     const cel = wi.getCell(i + 2, 2);
     cel.value = estilo === "item" ? `•  ${t}` : t;
     cel.alignment = { wrapText: true, vertical: "top" };
-    cel.font = estilo === "titulo" ? { bold: true, size: i === 0 ? 14 : 11, color: { argb: i === 0 ? COR.vinho : COR.escuro } } : { size: 10, color: { argb: COR.escuro } };
+    cel.font = estilo === "titulo" ? { bold: true, size: i === 0 ? 14 : 11, color: { argb: i === 0 ? COR.marca : COR.escuro } } : { size: 10, color: { argb: COR.escuro } };
   });
 
   return wb;

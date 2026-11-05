@@ -736,3 +736,9 @@ perfil, 2 P1 · 14 P2 · 12 P3, o que ficou de fora). Nada do app foi alterado. 
   quando a intenção eram 2.
 - P2 — "CSV" da seção Estrutura na OS baixa o Excel "OS de estrutura" (rota `api/os/[id]/estrutura` ganha de
   `[setor]`); Biblioteca duplicou o projeto do painel lateral (1º resultado), não o buscado.
+
+## 03-04/11/2026 — Redesign NorteLog, base da marca
+
+Prompt mestre de redesign aplicado em `redesign/nortelog`. Plano, checklist e progresso em
+`docs/redesign/00-plano-e-progresso.md`; inventários em `docs/redesign/01-mapa-de-paginas.md` e `02-componentes-e-areas-sensiveis.md`.
+Decisões: ver design system § 1.1 e § 9. Só apresentação: nenhuma regra, cálculo, permissão ou dado alterado.
