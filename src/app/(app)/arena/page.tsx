@@ -148,7 +148,7 @@ export default async function ArenaIndicePage() {
                     </span>
                     <Icone nome="chevron-direita" className="mt-0.5 text-ink-3" />
                   </Link>
-                  {a.origem === "evento" && (
+                  {podeEditar && a.origem === "evento" && (
                     <span className="shrink-0 pt-2.5">
                       <ArenaAcoes slug={a.slug} nome={a.nome} temPlanta={a.temPlanta} geo={a.geo} prediosEntorno={a.prediosEntorno} />
                     </span>

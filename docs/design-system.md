@@ -330,6 +330,7 @@ depende de um item escolhido some, e a lista ocupa a largura.
 | 30/10 | Link de texto (nº 62) | Sempre sublinhado, discreto. | Contraste 1,06:1 entre link e texto (WCAG 1.4.1). |
 | 03/11 | Menu lateral claro × escuro (nº 56) | **Escuro**, em grafite, com logo branco e canto triangular da marca no item escolhido. | Decisão do dono do produto ao aprovar a prévia do redesign; também separa o NorteLog do Miró, de menu branco. |
 | 04/11 | Menu recolhe sozinho | Depois de 20 s na mesma página (constante `AUTO_RECOLHER_MS`), no desktop. Mouse ou foco no menu seguram; recolhido, abre por cima sem mover a página; ao mudar de página, abre de novo. | Pedido do dono do produto: mais largura para o conteúdo. |
+| 04/11 | Tela de entrada | Logo no alto e um cartão só sobre o fundo cinza, com o canto laranja. Sem painel escuro ao lado (é o desenho do Miró) e sem os números do sistema, que apareciam a quem não entrou. Vale para login, recuperar e redefinir senha |
 | 03/11 | Cor de erro | **Vermelho** `#b3261e`, em vez de laranja-queimado. | A marca virou laranja: erro laranja seria lido como marca. |
 | **pendente** | Acentos nas planilhas Excel no modelo da cenografia (nº 84) | **Não mudar** até a cenografia confirmar ("ATA DE REUNIAO", "RESPONSAVEL PELA O.S", "SOMATORIA" copiam a planilha deles). As outras exportações seguem o glossário (§ 10). | Recomendado acentuar, só depois de confirmar com a equipe. |
 

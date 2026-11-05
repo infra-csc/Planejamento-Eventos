@@ -24,6 +24,8 @@ export type LinhaAta = {
 /** Nome da lista à parte (03/11, logística): o Kit recebe em outro local e não se mistura com os demais materiais. */
 export const ROTULO_KIT = "Materiais KIT";
 export const ehAreaKit = (areaNome: string | null | undefined) => areaNome?.trim().toLowerCase() === "kit";
+/** Setores da lista geral e do Kit juntos, para o que conta os dois (tamanho da OS, estoque). */
+export const setoresComKit = (os: Pick<OsConteudo, "setores" | "kit">) => [...os.setores, ...(os.kit?.setores ?? [])];
 
 /**
  * O prisma comum são 2 grades 2×1, que a regra do prisma já soma na grade: nas leituras da OS (tela, Excel, folha)
@@ -236,7 +238,7 @@ function resumirDiff(diff: DiffLinha[]): string {
 /** Texto da lista de versões: o que mudou em relação à anterior, ou o tamanho da primeira. */
 export function resumoVersaoOs(anterior: OsConteudo | null, atual: OsConteudo): string {
   if (!anterior) {
-    const n = [...atual.setores, ...(atual.kit?.setores ?? [])].reduce((a, s) => a + s.linhas.length, 0);
+    const n = setoresComKit(atual).reduce((a, s) => a + s.linhas.length, 0);
     return `${n} ${n === 1 ? "tipo de peça" : "tipos de peça"}`;
   }
   return resumirDiff(diffOS(anterior, atual));
@@ -294,7 +296,7 @@ export function textoLocais(locais: PecaSoltaAgrupada["locais"]): string {
 }
 
 export function totalPecas(os: OsConteudo): number {
-  return [...os.setores, ...(os.kit?.setores ?? [])].reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
+  return setoresComKit(os).reduce((acc, s) => acc + s.linhas.reduce((a, l) => a + l.total, 0), 0);
 }
 
 const VAZIA: OsConteudo = { setores: [], semSetor: [] };

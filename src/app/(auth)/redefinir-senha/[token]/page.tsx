@@ -11,7 +11,7 @@ export default async function RedefinirSenhaPage({ params }: { params: Promise<{
   if (!(await tokenValido(token))) {
     return (
       <>
-        <h1 className="mb-5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Link inválido</h1>
+        <h1 className="mb-5 mt-0 font-titulo text-manchete font-semibold">Link inválido</h1>
         <Aviso tom="danger" titulo="Este link expirou ou já foi usado">
           Solicite um novo link ao administrador ou pela recuperação de acesso.
         </Aviso>

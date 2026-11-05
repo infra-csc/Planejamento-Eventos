@@ -36,14 +36,22 @@ const GATILHO_LABEL: Record<OsGatilho, string> = {
 
 export const metadata: Metadata = { title: "Ordem de serviço" };
 
-/** As exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). */
-function exportacoesOs(id: string, qs: string, previa = false, temKit = false): Exportacao[] {
+/**
+ * As exportações da OS, na mesma ordem em todo lugar. `qs` escolhe a versão (vazio = atual). `qsKit` (null = sem Kit): o Kit baixa
+ * a versão na tela, para o item aparecer e as quantidades baterem com a seção mostrada, mesmo se a ata mudou depois.
+ */
+function exportacoesOs(id: string, qs: string, previa = false, qsKit: string | null = null): Exportacao[] {
   return [
     { tipo: "xlsx", href: `/api/os/${id}/excel${qs}`, rotulo: previa ? "Excel da prévia" : "Excel completo", descricao: "Resumo, totais por peça, por projeto, soltas e fora do catálogo, com coluna de separação." },
     { tipo: "xlsx", href: `/api/os/${id}/estrutura${qs}`, rotulo: "OS de estrutura", descricao: "Igual à planilha da cenografia: TOTAL, SOMATORIA e uma aba por projeto." },
     { tipo: "xlsx", href: `/api/os/${id}/marcenaria${qs}`, rotulo: "OS de marcenaria", descricao: "Igual à planilha da cenografia: seções, item, peças e quantidade." },
     { tipo: "imprimir", href: `/impressao/os/${id}${qs}`, rotulo: previa ? "Imprimir prévia" : "Imprimir", descricao: "Folha de separação com assinaturas, pronta para PDF." },
-    ...(temKit ? [{ tipo: "xlsx" as const, href: `/api/os/${id}/kit${qs}`, rotulo: ROTULO_KIT, descricao: "Lista à parte com o que a área Kit pediu: outro local de entrega, fora das demais listas." }] : []),
+    ...(qsKit !== null
+      ? [
+          { tipo: "imprimir" as const, href: `/impressao/os/${id}${qsKit ? `${qsKit}&` : "?"}lista=kit`, rotulo: `${ROTULO_KIT} em PDF`, descricao: "A mesma folha de separação, com assinaturas, só com o que a área Kit pediu." },
+          { tipo: "xlsx" as const, href: `/api/os/${id}/kit${qsKit}`, rotulo: ROTULO_KIT, descricao: "Lista à parte com o que a área Kit pediu: outro local de entrega, fora das demais listas." },
+        ]
+      : []),
   ];
 }
 
@@ -68,7 +76,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
         </Aviso>
         {temAlgo && pode(usuario, "os.exportar") && (
           <div className="flex flex-col gap-5 lg:sticky lg:top-topo-fixo lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true, Boolean(previa.kit))} />
+            <Exportacoes sub="Prévia da ata em construção" itens={exportacoesOs(id, "", true, previa.kit ? "" : null)} />
             {quadroSeparacao}
           </div>
         )}
@@ -202,7 +210,7 @@ export default async function OsPage({ params, searchParams }: { params: Promise
                 {exibida.numero === atual.numero ? " · versão atual" : ` · de ${diaMesHora(exibida.geradaEm)}`}
               </>
             }
-            itens={exportacoesOs(id, qsExport, false, Boolean(os.kit))}
+            itens={exportacoesOs(id, qsExport, false, os.kit ? `?v=${exibida.numero}` : null)}
           />
         )}
         {quadroSeparacao}

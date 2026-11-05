@@ -15,7 +15,7 @@ export function RecuperarSenhaForm() {
   const erroEmail = !state.ok ? state.campos?.email : undefined;
   return (
     <>
-      <h1 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Recuperar acesso</h1>
+      <h1 className="mb-1.5 mt-0 font-titulo text-manchete font-semibold">Recuperar acesso</h1>
       <p className="mb-7 mt-0 text-secao text-ink-3">Informe seu e-mail. O administrador do sistema recebe o pedido e envia um novo link de acesso para você.</p>
       {enviado ? (
         <Aviso tom="success">{state.mensagem}</Aviso>

@@ -12,7 +12,7 @@ export function RedefinirForm({ token }: { token: string }) {
   const campos = !state.ok ? state.campos : undefined;
   return (
     <>
-      <h1 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Defina sua senha</h1>
+      <h1 className="mb-1.5 mt-0 font-titulo text-manchete font-semibold">Defina sua senha</h1>
       <p className="mb-7 mt-0 text-secao text-ink-3">Mínimo de 8 caracteres. O link vale uma única vez.</p>
       <ActionForm action={action} noValidate>
         <input type="hidden" name="token" value={token} />

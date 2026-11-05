@@ -257,10 +257,10 @@ export async function salvarCarregamentoAction(eventoId: string, mudancas: Mudan
 }
 
 /** Cavalete/pé sem nenhuma linha na ata: inclui o que a regra pede. */
-export async function completarAcompanhanteAction(eventoId: string, codigo: string) {
+export async function completarAcompanhanteAction(eventoId: string, codigo: string, kit = false) {
   const usuario = await requireUsuario();
   if (typeof eventoId !== "string" || typeof codigo !== "string") return { ok: false, erro: DADOS_INVALIDOS } as const;
-  const r = await executar(() => completarAcompanhante(usuario, eventoId, codigo));
+  const r = await executar(() => completarAcompanhante(usuario, eventoId, codigo, kit === true));
   revalidatePath(`/eventos/${eventoId}`, "layout");
   revalidatePath(`/conferencia/${eventoId}`);
   return r;

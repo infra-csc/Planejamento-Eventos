@@ -1,63 +1,24 @@
 import { connection } from "next/server";
-import { and, count, eq, inArray } from "drizzle-orm";
-import { getDb } from "@/server/db";
-import { eventos, pecas, projetos } from "@/server/db/schema";
-import { Numero } from "@/components/ui/numero";
 
-async function numeros() {
-  try {
-    const db = await getDb();
-    const [[ev], [pc], [pj]] = await Promise.all([
-      db.select({ n: count() }).from(eventos).where(inArray(eventos.status, ["PREPARACAO", "EM_REUNIAO", "ABERTO"])),
-      db.select({ n: count() }).from(pecas).where(eq(pecas.ativo, true)),
-      db.select({ n: count() }).from(projetos).where(and(eq(projetos.ativo, true))),
-    ]);
-    return { eventos: Number(ev.n), pecas: Number(pc.n), projetos: Number(pj.n) };
-  } catch {
-    return null;
-  }
-}
-
-/** Tela de entrada (handoff §5.1): painel escuro à esquerda, formulário à direita. */
+/**
+ * Tela de entrada: logo no alto, um cartão só com o formulário e o fundo cinza do app. Sem painel escuro ao lado, que é o
+ * desenho do sistema da gráfica (o Miró). O canto laranja é o mesmo detalhe do item escolhido no menu.
+ */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   // Renderização por requisição: a CSP com nonce (proxy.ts) só é aplicada em páginas dinâmicas —
   // uma página pré-gerada no build sairia sem nonce e o navegador bloquearia os scripts dela.
   await connection();
-  const n = await numeros();
   return (
-    <div className="grid min-h-screen bg-page lg:grid-cols-[1.1fr_1fr]">
-      <div className="flex flex-col justify-between gap-8 bg-dark px-6 py-6 text-white sm:px-10 lg:px-16 lg:py-14">
-        <div className="flex items-center gap-2.5">
-          {/* Versão branca do logo: é a do kit para fundo escuro. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-nortelog-branco.svg" alt="NorteLog" className="block h-8 w-auto shrink-0" />
+    <div className="flex min-h-screen flex-col items-center bg-page px-4 py-8 sm:py-12">
+      <main className="my-auto flex w-full max-w-[400px] flex-col gap-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-nortelog.svg" alt="NorteLog" className="block h-9 w-auto self-start" />
+        <div className="relative animate-fade-up rounded-cartao border border-line bg-surface p-6 shadow-card sm:p-8">
+          <span aria-hidden className="canto-marca !size-5 !rounded-tr-cartao" />
+          {children}
         </div>
-        <div className="max-w-[440px] max-lg:hidden">
-          <p className="mb-5 mt-0 text-metrica font-semibold tracking-[-0.03em]">Da reunião de OS ao caminhão carregado, em um só lugar.</p>
-          <p className="m-0 text-secao leading-relaxed text-on-dark-3">Catálogo de peças, projetos padrão, ata da reunião, OS gerada automaticamente e solicitações respondidas item a item.</p>
-        </div>
-        <div className="flex gap-10 text-corpo text-on-dark-3 max-lg:hidden">
-          {n && (
-            <>
-              <span>
-                <Numero valor={n.eventos} className="block text-metrica text-accent-light" />
-                eventos ativos
-              </span>
-              <span>
-                <Numero valor={n.pecas} className="block text-metrica text-white" />
-                peças no catálogo
-              </span>
-              <span>
-                <Numero valor={n.projetos} className="block text-metrica text-white" />
-                projetos padrão
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-[352px] animate-fade-up">{children}</div>
-      </div>
+        <p className="m-0 text-pequeno text-ink-3">Da reunião de OS ao caminhão carregado, em um só lugar.</p>
+      </main>
     </div>
   );
 }

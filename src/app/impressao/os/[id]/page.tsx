@@ -49,10 +49,12 @@ function Rolagem({ rotulo, children }: { rotulo: string; children: React.ReactNo
   return <TabelaRolavel rotulo={rotulo}>{children}</TabelaRolavel>;
 }
 
-export default async function ImpressaoOsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
+export default async function ImpressaoOsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; lista?: string }> }) {
   const usuario = await requirePermissao("os.exportar");
   const { id } = await params;
-  const { v } = await searchParams;
+  const { v, lista } = await searchParams;
+  // Materiais KIT: a mesma folha, só com o que a área Kit pediu (outro local de entrega).
+  const ehKit = lista === "kit";
   // Evento que não existe: "Não encontrado", e não a tela de erro com código (auditoria 28/10, nº 55).
   const [ev, versoes, mapa, separacao] = await Promise.all([
     obterEventoCache(usuario, id).catch((e: unknown) => {
@@ -67,16 +69,20 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
   // O prisma comum são 2 grades, já somadas na grade: não sai como item à parte.
   const pedida = osParaLeitura((sel && v ? (await obterConteudosOs(id, [sel.numero])).get(sel.numero) : undefined) ?? (await calcularOsAtual(await getDb(), id)));
   // Sem versão escolhida, a folha sai com o que foi de fato carregado; versão antiga é o registro da época.
-  const ajustes = v ? {} : await obterCarregamento(id);
-  const os = aplicarCarregamento(pedida, ajustes);
-  const mudancas = mudancasCarregamento(linhasCarregamento(pedida, ajustes));
+  // A aba Carregamento não cobre o Kit: a lista dele sai como foi pedida.
+  if (ehKit && !pedida.kit) notFound();
+  const ajustes = v || ehKit ? {} : await obterCarregamento(id);
+  const os = ehKit ? pedida.kit! : aplicarCarregamento(pedida, ajustes);
+  const mudancas = ehKit ? [] : mudancasCarregamento(linhasCarregamento(pedida, ajustes));
   // Estrutura locada no local (marcada na OS): box Q30, tendas e estaiamento (e o Q15, se marcado) não vão na folha.
-  const vai = (codigo: string, nome: string) => !separacao.locada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
+  // O Kit entrega em outro local: a lista dele não desconta, e avisa (mesma regra do Excel do Kit).
+  const descontaLocada = separacao.locada && !ehKit;
+  const vai = (codigo: string, nome: string) => !descontaLocada || !pecaDeEstruturaLocada(codigo, { q15: separacao.q15Locado, nome });
   // Na ordem da lista de carregamento da logística (domain/folha-separacao), com cinta catraca e corda pela regra.
   const secoes = montarFolhaSeparacao(
     os.setores.flatMap((s) => s.linhas.filter((l) => vai(l.codigo, l.nome)).map((l) => ({ ...l, setor: s.setor, grupo: grupoDoCodigo(mapa, l.codigo, s.setor) }))),
     // Estrutura locada: sem estaio, então também sem a cinta catraca de 4 por stand.
-    { stands: separacao.locada ? 0 : standsDaOs(os.projetos) },
+    { stands: descontaLocada ? 0 : standsDaOs(os.projetos) },
   );
   const antesDaMarcenaria = secoes.filter((x) => !x.bloco);
   const marcenaria = secoes.filter((x) => x.bloco);
@@ -93,7 +99,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
       <header className="mb-6 border-b border-ink pb-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-nortelog.svg" alt="NorteLog" className="mb-2.5 block h-6 w-auto" />
-        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">Ordem de serviço</p>
+        <p className="m-0 text-micro font-semibold uppercase tracking-[0.1em] text-ink-2">{ehKit ? ROTULO_KIT : "Ordem de serviço"}</p>
         <h1 className="mb-0 mt-1 font-titulo text-manchete font-semibold">{ev.nome}</h1>
         <dl className="mb-0 mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-pequeno sm:grid-cols-4">
           <div>
@@ -110,14 +116,15 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           </div>
           <div>
             <dt className="text-ink-3">Versão</dt>
-            <dd className="numero m-0">{v && sel ? `v${sel.numero} (${formatarDataHora(sel.geradaEm)})` : versoes[0] ? `v${versoes[0].numero} · atual` : "prévia"}</dd>
+            <dd className="numero m-0">{v && sel && sel.numero !== versoes[0]?.numero ? `v${sel.numero} (${formatarDataHora(sel.geradaEm)})` : versoes[0] ? `v${versoes[0].numero} · atual` : "prévia"}</dd>
           </div>
         </dl>
       </header>
 
       <h2 className="mb-1 mt-0 font-titulo text-dialogo font-semibold">Separação</h2>
-      <p className="mb-4 mt-0 text-pequeno text-ink-3">Tudo o que vai para o evento, somado por peça. Marque ao separar.</p>
-      {separacao.locada && (
+      <p className="mb-4 mt-0 text-pequeno text-ink-3">{ehKit ? "O que a área Kit pediu, somado por peça: outro local de entrega. Marque ao separar." : "Tudo o que vai para o evento, somado por peça. Marque ao separar."}</p>
+      {ehKit && separacao.locada && <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">Evento com estrutura locada: esta lista não desconta.</p>}
+      {descontaLocada && (
         <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">
           Estrutura locada no local: box truss Q30, tendas e estaio (tina, pallet de ferro, cinta catraca, malote, estaca e corda){separacao.q15Locado ? " e box Q15" : ""} não estão nesta folha.
         </p>
@@ -135,7 +142,7 @@ export default async function ImpressaoOsPage({ params, searchParams }: { params
           </ul>
         </section>
       )}
-      {os.kit && <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">{ROTULO_KIT}: lista à parte, em Exportar. Não entram nesta folha.</p>}
+      {!ehKit && os.kit && <p className="mb-5 mt-0 border-l-2 border-ink py-1 pl-3 text-pequeno font-medium">{ROTULO_KIT}: lista à parte, em Exportar. Não entram nesta folha.</p>}
       {antesDaMarcenaria.map((secao) => (
         <TabelaSecao key={secao.id} secao={secao} />
       ))}

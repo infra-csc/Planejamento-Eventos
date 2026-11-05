@@ -1,4 +1,5 @@
 import type { LinhaAtaDetalhe } from "@/server/services/eventos/ata";
+import { ehAreaKit, ROTULO_KIT } from "@/domain/os";
 import { kitDaTenda, PAPEIS_POR_LOCAL } from "@/domain/tendas";
 import { cn } from "@/lib/cn";
 import { Numero } from "@/components/ui/numero";
@@ -89,7 +90,11 @@ export function ListaItensEvento({
   /** Nome de quem pediu (ou incluiu), à vista na coluna Área; null quando quem vê não pode ver. */
   quem: (l: Linha) => string | null;
 }) {
-  const porTipo = GRUPOS_TIPO.map((g) => ({ ...g, linhas: linhas.filter((l) => l.tipo === g.tipo).sort((a, b) => nomeExibido(a).localeCompare(nomeExibido(b), "pt-BR")) })).filter((g) => g.linhas.length > 0);
+  const porNomeExibido = (a: Linha, b: Linha) => nomeExibido(a).localeCompare(nomeExibido(b), "pt-BR");
+  // O Kit recebe em outro local: fica num bloco próprio e não soma com o mesmo item das outras áreas.
+  const doKit = linhas.filter((l) => ehAreaKit(l.areaNome)).sort(porNomeExibido);
+  const gerais = linhas.filter((l) => !ehAreaKit(l.areaNome));
+  const porTipo = GRUPOS_TIPO.map((g) => ({ ...g, linhas: gerais.filter((l) => l.tipo === g.tipo).sort(porNomeExibido) })).filter((g) => g.linhas.length > 0);
   const agrupar = (ls: Linha[]) => {
     const m = new Map<string, Linha[]>();
     for (const l of ls) {
@@ -268,14 +273,15 @@ export function ListaItensEvento({
             )}
           </tr>
         </thead>
-        {porTipo.map((g) => {
+        {[...porTipo.map((g) => ({ chave: g.tipo as string, rotulo: g.rotulo as string, linhas: g.linhas })), ...(doKit.length ? [{ chave: "KIT", rotulo: ROTULO_KIT, linhas: doKit }] : [])].map((g) => {
           const itens = agrupar(g.linhas);
           return (
-            <tbody key={g.tipo}>
+            <tbody key={g.chave}>
               <tr>
                 <th colSpan={colunas} scope="colgroup" className="border-b border-line-soft bg-subtle px-cartao py-1.5 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
                   {g.rotulo}
                   <Numero valor={itens.length} className="ml-2 font-normal tracking-normal text-muted" />
+                  {g.chave === "KIT" && <span className="ml-2 font-normal normal-case tracking-normal text-muted">outro local de entrega</span>}
                 </th>
               </tr>
               {itens.map((ls) => (ls.length > 1 ? itemComLocais(ls) : linhaUnica(ls[0])))}

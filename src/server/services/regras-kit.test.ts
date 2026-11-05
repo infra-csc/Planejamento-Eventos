@@ -6,9 +6,9 @@ delete process.env.DATABASE_URL;
 
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { areas, eventoItens, osVersoes, pecas, projetos, solicitacoes } from "@/server/db/schema";
+import { areas, eventoItens, historico, osVersoes, pecas, projetos, solicitacoes } from "@/server/db/schema";
 import { criarPeca, criarProjeto, enviarSolicitacao, fecharAta, itemAvulso, incluirPeca, incluirProjeto, migrarBanco, montarElenco, novoEvento, type Elenco } from "@/test/apoio";
-import { ajustarLinhaNaConferencia, definirExtraDaRegra, obterConferencia } from "./conferencia";
+import { acompanhantesDaAta, ajustarLinhaNaConferencia, completarAcompanhante, definirExtraDaRegra, obterConferencia } from "./conferencia";
 import { transicionarEvento } from "./eventos/transicoes";
 import { aplicarCavaleteRetoNasAtasFechadas, aplicarGradesDoPrismaNasAtasFechadas, passarPedidoParaKit, ressincronizarAtasAbertas } from "./eventos/regras-kit";
 
@@ -247,14 +247,76 @@ describe("o que acompanha um pedido do Kit vai para o Kit (03/11)", () => {
     const { codigo } = (await db.select({ codigo: solicitacoes.codigo }).from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0];
     const versoes = async () => db.select().from(osVersoes).where(eq(osVersoes.eventoId, ev.id));
     const antes = (await versoes()).length;
-    expect(await passarPedidoParaKit(codigo, "teste:kit:1")).toEqual({ feito: true, linhas: 1 });
+    expect(await passarPedidoParaKit(codigo, "teste:kit:1", ev.codigo)).toEqual({ feito: true, linhas: 1 });
     const depois = await versoes();
     expect(depois.length).toBe(antes + 1);
     const ultima = depois.sort((a, b) => b.numero - a.numero)[0].conteudo;
     expect(ultima.semSetor).toEqual([]);
     expect(ultima.kit?.semSetor.map((x) => x.descricao)).toEqual(["Saco de brinde"]);
     expect((await db.select().from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0].areaId).toBe(kit.id);
-    expect(await passarPedidoParaKit(codigo, "teste:kit:1")).toEqual({ feito: false });
+    expect(await passarPedidoParaKit(codigo, "teste:kit:1", ev.codigo)).toEqual({ feito: false });
+  });
+
+  it("mesmo código em outro evento: não mexe no pedido", async () => {
+    const db = await getDb();
+    const ev = await novoEvento(E.logistica);
+    const s = await enviarSolicitacao(E.requisitante, E.logistica, ev.id, [itemAvulso("Outro brinde", 2)]);
+    const { codigo, areaId } = (await db.select().from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0];
+    expect(await passarPedidoParaKit(codigo, "teste:kit:3", "EVT-OUTRO")).toEqual({ feito: true, linhas: 0 });
+    expect((await db.select().from(solicitacoes).where(eq(solicitacoes.id, s.id)))[0].areaId).toBe(areaId);
+  });
+
+  it("cavaletes: a conta é de cada lado, e completar a falta do Kit cria a linha no Kit", async () => {
+    const db = await getDb();
+    const pranchao = (await db.select().from(pecas).where(eq(pecas.codigo, "PRANCHÃO-220")))[0];
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 1, E.areas.a.id);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 3, kit.id);
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    const regraKit = (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "cavalete-reto"), eq(eventoItens.areaId, kit.id))))[0];
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, regraKit.id, 4, "Reduzido na reunião");
+    const conta = async () => (await acompanhantesDaAta(ev.id)).filter((n) => n.codigo === "CAV-RETO").map((n) => [n.kit, n.precisa, n.naAta]);
+    expect(await conta()).toEqual([[false, 2, 2], [true, 6, 4]]);
+    const nova = await completarAcompanhante(E.logistica, ev.id, "CAV-RETO", true);
+    expect(nova.quantidade).toBe(2);
+    expect((await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, nova.id) }))?.areaId).toBe(kit.id);
+    expect(await conta()).toEqual([[false, 2, 2], [true, 6, 6]]);
+    await expect(completarAcompanhante(E.logistica, ev.id, "CAV-RETO")).rejects.toThrow(/Nada a completar/);
+  });
+
+  it("grades a mais do prisma: as do Kit ficam no Kit e não se confundem com as da lista geral", async () => {
+    const db = await getDb();
+    const prisma = (await db.select().from(pecas).where(eq(pecas.codigo, "PRISMA")))[0];
+    const grade = (await db.select().from(pecas).where(eq(pecas.codigo, "GRADE-2X1")))[0];
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, prisma.id, 1, E.areas.a.id);
+    await incluirPeca(E.logistica, ev.id, prisma.id, 2, kit.id);
+    const regrasGrade = await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "grade-prisma")));
+    const doKit = regrasGrade.find((l) => l.areaId === kit.id)!;
+    const geral = regrasGrade.find((l) => l.areaId === null)!;
+    const aMais = async () => (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.pecaId, grade.id), eq(eventoItens.ativo, true)))).filter((l) => !l.regra).map((l) => [l.areaId, l.quantidade]);
+    await definirExtraDaRegra(E.logistica, ev.id, doKit.id, 3, "");
+    expect(await aMais()).toEqual([[kit.id, 3]]);
+    await definirExtraDaRegra(E.logistica, ev.id, geral.id, 5, "");
+    expect((await aMais()).sort((a, b) => Number(a[1]) - Number(b[1]))).toEqual([[kit.id, 3], [null, 5]]);
+    await definirExtraDaRegra(E.logistica, ev.id, doKit.id, 0, "");
+    expect(await aMais()).toEqual([[null, 5]]);
+  });
+
+  it("nasce a linha do Kit com a geral ajustada à mão: o número fica e a geral volta para conferência", async () => {
+    const db = await getDb();
+    const pranchao = (await db.select().from(pecas).where(eq(pecas.codigo, "PRANCHÃO-220")))[0];
+    const ev = await novoEvento(E.logistica);
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 2, E.areas.a.id);
+    await transicionarEvento(E.admin, ev.id, "INICIAR_REUNIAO");
+    const geral = (await db.select().from(eventoItens).where(and(eq(eventoItens.eventoId, ev.id), eq(eventoItens.regra, "cavalete-reto"))))[0];
+    await ajustarLinhaNaConferencia(E.logistica, ev.id, geral.id, 8, "Decidido na reunião");
+    expect((await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, geral.id) }))?.conferidoEm).not.toBeNull();
+    await incluirPeca(E.logistica, ev.id, pranchao.id, 3, kit.id);
+    const depois = await db.query.eventoItens.findFirst({ where: eq(eventoItens.id, geral.id) });
+    expect(depois).toMatchObject({ quantidade: 8, conferidoEm: null });
+    const registros = await db.select().from(historico).where(eq(historico.entidadeId, geral.id));
+    expect(registros.some((r) => r.descricao.includes("volta para conferência"))).toBe(true);
   });
 
   it("em banco sem o pedido, só fica a marca", async () => {

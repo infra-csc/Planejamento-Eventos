@@ -478,7 +478,6 @@ Comentários que ainda falam de vinho ou rosa (11): `app/(app)/eventos/(lista)/p
 |---|---|---|
 | CSP sem origem externa: `font-src 'self' data:`, `img-src 'self' data: blob:`, `connect-src 'self'`, `style-src 'self' 'unsafe-inline'` | `server/auth/csp.ts:33-44` | Fonte, imagem ou script de CDN é bloqueado e gera erro de console, **que reprova a varredura E2E** |
 | `await connection()` | `app/(auth)/layout.tsx:25`; `app/not-found.tsx:14` | Sem ele a página sai sem nonce e os scripts são bloqueados |
-| Consulta ao banco em layout | `app/(auth)/layout.tsx:7-20` | Os números da tela de login vêm daqui |
 | Permissão dentro de layout e páginas | `app/(app)/layout.tsx:16-54` (menu por perfil); 91 chamadas de `pode()` em 22 arquivos de UI (`app/(app)/biblioteca/page.tsx` 19, `eventos/[id]/page.tsx` 9, `eventos/[id]/itens/[linhaId]/page.tsx` 8, `eventos/[id]/layout.tsx` 7); 46 páginas e layouts com verificação de sessão | Reorganizar JSX pode perder a condição |
 | Nome de área como regra | `app/(app)/layout.tsx:58` (`"Logística"`, `"Cenografia"`) | Dado, não rótulo |
 

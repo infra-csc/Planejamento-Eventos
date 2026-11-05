@@ -52,7 +52,7 @@ export function LoginForm({
 
   return (
     <>
-      <h1 className="mb-1.5 mt-0 text-pagina font-semibold tracking-[-0.02em]">Entrar</h1>
+      <h1 className="mb-1.5 mt-0 font-titulo text-manchete font-semibold">Entrar</h1>
       <p className="mb-7 mt-0 text-secao text-ink-3">Use o e-mail e a senha cadastrados pelo administrador.</p>
       {primeiroAcesso && (
         <Aviso tom="warning" className="mb-4">

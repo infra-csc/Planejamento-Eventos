@@ -22,6 +22,7 @@ import { VincularCatalogo } from "./vincular-catalogo";
 import { QuantidadeAta } from "@/components/eventos/quantidade-ata";
 import type { EventoStatus } from "@/server/db/schema";
 import { GRUPO_LABEL, GRUPOS_MATERIAL, type GrupoMaterial } from "@/domain/grupos-material";
+import { ehAreaKit, ROTULO_KIT } from "@/domain/os";
 import { EditarTendaDialog, type TendaDoLocal } from "./acoes-linha-evento";
 
 /** Resultado de "conferir as restantes": avisa quando chegaram linhas novas depois que a tela abriu. */
@@ -178,7 +179,11 @@ export function AtaLista({
   const exigeJustificativa = status === "ABERTO";
   const soma = linhas.reduce((a, l) => a + l.quantidade, 0);
   // Separação dos materiais como na lista da ata; sem grupo (visões antigas) tudo fica junto.
-  const porGrupo = GRUPOS_MATERIAL.map((g) => ({ grupo: g, ls: linhas.filter((l) => (l.grupo ?? "OUTROS") === g) })).filter((x) => x.ls.length > 0);
+  // O Kit, de outro local de entrega, fica num bloco próprio no fim.
+  const porGrupo = [
+    ...GRUPOS_MATERIAL.map((g) => ({ grupo: g as string, rotulo: GRUPO_LABEL[g], ls: linhas.filter((l) => !ehAreaKit(l.areaNome) && (l.grupo ?? "OUTROS") === g) })),
+    { grupo: "KIT", rotulo: ROTULO_KIT, ls: linhas.filter((l) => ehAreaKit(l.areaNome)) },
+  ].filter((x) => x.ls.length > 0);
   const colunas = 3 + (compacta ? 0 : 2) + (conferivel || editavel ? 1 : 0);
 
   const botaoIncluir = editavel && (
@@ -226,12 +231,12 @@ export function AtaLista({
                 </tr>
               </thead>
               <tbody>
-                {porGrupo.map(({ grupo, ls }) => (
+                {porGrupo.map(({ grupo, rotulo, ls }) => (
                   <Fragment key={grupo}>
                     {porGrupo.length > 1 && (
                       <tr className="bg-subtle/60">
                         <th scope="colgroup" colSpan={colunas} className="border-b border-line-soft px-cartao pb-1.5 pt-3 text-left text-micro font-semibold uppercase tracking-[0.06em] text-ink-2">
-                          {GRUPO_LABEL[grupo]} <span className="numero font-normal normal-case tracking-normal text-muted">· {ls.length}</span>
+                          {rotulo} <span className="numero font-normal normal-case tracking-normal text-muted">· {ls.length}</span>
                         </th>
                       </tr>
                     )}
